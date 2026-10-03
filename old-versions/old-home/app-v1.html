@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Look Blog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Lexend:wght@900&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body class="app-body">
+  <div class="app" id="app">
+    <!-- Left: navigation -->
+    <aside class="side-nav">
+      <a href="/feed" class="logo logo-app" aria-label="Look Blog"><span aria-hidden="true">L<span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span><span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span>k <em>Blog</em></span></a>
+
+      <nav class="nav-links" aria-label="Main">
+        <a href="/feed" class="nav-link" data-nav="feed">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
+          <span>Feed</span>
+        </a>
+        <a href="/shorts" class="nav-link" data-nav="shorts">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3" /><path d="M10.5 9.5v5l4-2.5z" /></svg>
+          <span>Shorts</span>
+        </a>
+        <a href="/videos" class="nav-link" data-nav="videos">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3" /><path d="M10 9.5v5l4.5-2.5z" /></svg>
+          <span>Videos</span>
+        </a>
+        <a href="/search" class="nav-link" data-nav="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <span>Search</span>
+        </a>
+        <a href="/feed" class="nav-link" data-nav="profile" id="navProfile">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+          <span>Profile</span>
+        </a>
+      </nav>
+
+      <button class="btn btn-primary btn-full create-cta" id="createBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        <span>Create</span>
+      </button>
+
+      <div class="me-card">
+        <span class="avatar" id="meAvatar"></span>
+        <div class="me-text">
+          <b id="meName"></b>
+          <span id="meHandle"></span>
+        </div>
+        <button class="icon-btn" id="logoutBtn" title="Log out" aria-label="Log out">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H4" /></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Middle: the current page -->
+    <main class="column" id="view" tabindex="-1"></main>
+
+    <!-- Right: search and suggestions -->
+    <aside class="side-right" id="sideRight">
+      <form class="side-search" id="sideSearch" role="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <label for="sideSearchInput" class="sr-only">Search Look Blog</label>
+        <input id="sideSearchInput" type="search" placeholder="Search people and posts" autocomplete="off" />
+      </form>
+      <section class="card">
+        <h2>Who to follow</h2>
+        <div id="suggestions"></div>
+      </section>
+      <section class="card card-note">
+        <h2>No algorithm here</h2>
+        <p>Posts show up in the order they were written. Nothing is boosted, nothing is hidden, and there are no ads between them.</p>
+      </section>
+      <footer class="side-footer">
+        <a href="#">Terms of Service</a>
+        <a href="#">Privacy Policy</a>
+        <span>© 2026 LookBlog</span>
+      </footer>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="/eyes.js"></script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

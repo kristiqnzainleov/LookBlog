@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>LookBlog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Lexend:wght@900&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body class="app-body">
+  <!-- Top bar: logo, search, me -->
+  <header class="topbar">
+    <a href="/feed" class="logo logo-app" aria-label="LookBlog"><span aria-hidden="true">L<span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span><span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span>k<em>Blog</em></span></a>
+
+    <form class="top-search" id="topSearch" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+      <label for="topSearchInput" class="sr-only">Search Look Blog</label>
+      <input id="topSearchInput" type="search" placeholder="Search people and posts" autocomplete="off" />
+    </form>
+
+    <div class="top-right">
+    <div class="create-menu">
+      <button class="top-icon top-wide create-top" id="createBtn" aria-label="Create" title="Upload a video or a short" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        <span class="top-icon-label">Create</span>
+      </button>
+      <div class="create-pop" id="createPop" hidden>
+        <div class="create-sheet" role="dialog" aria-label="Create">
+          <header class="cs-head"><h2>Create</h2><button type="button" class="icon-btn cs-close" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button></header>
+          <div class="cs-grid">
+            <button type="button" data-kind="video"><span class="cp-ic">🎬</span><span><b>Upload video</b><small>Any length, with its own page</small></span></button>
+            <button type="button" data-kind="short"><span class="cp-ic">📱</span><span><b>Upload short</b><small>Vertical, up to 90 seconds</small></span></button>
+            <button type="button" data-kind="post"><span class="cp-ic">✏️</span><span><b>Write a post</b><small>Text, photos or a poll</small></span></button>
+            <button type="button" data-kind="live"><span class="cp-ic">🔴</span><span><b>Go live</b><small>Stream right here on LookBlog</small></span></button>
+            <button type="button" data-kind="event"><span class="cp-ic">📅</span><span><b>Create event</b><small>A public event people can join</small></span></button>
+            <button type="button" data-kind="movie"><span class="cp-ic">🎞️</span><span><b>Upload movie</b><small>For filmmakers and producers</small></span></button>
+            <button type="button" data-kind="song"><span class="cp-ic">🎵</span><span><b>Upload song</b><small>For singers, rappers and DJs</small></span></button>
+            <button type="button" data-kind="series"><span class="cp-ic">📺</span><span><b>New series</b><small>Episodes and seasons, like on TV</small></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <a href="/messages" class="top-icon top-wide" id="msgBtn" aria-label="Messages" title="Messages">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5A2.5 2.5 0 0 1 5.5 8h8a2.5 2.5 0 0 1 2.5 2.5v4a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3A2.5 2.5 0 0 1 3 14.5z" /><path d="M8 8V6.5A2.5 2.5 0 0 1 10.5 4h8A2.5 2.5 0 0 1 21 6.5v4a2.5 2.5 0 0 1-2.5 2.5H16" /></svg>
+      <span class="top-icon-label">Messages</span>
+      <span class="badge-count" id="msgBadge" hidden></span>
+    </a>
+    <div class="bell-menu">
+      <button class="top-icon" id="bellBtn" aria-label="Notifications" title="Notifications" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 4.5 1.8 6.5 2.5 7.2a.5.5 0 0 1-.4.8H3.9a.5.5 0 0 1-.4-.8C4.2 15.5 6 13.5 6 9z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></svg>
+        <span class="badge-count" id="bellBadge" hidden></span>
+      </button>
+      <div class="notif-pop" id="notifPop" hidden>
+        <header class="notif-head"><h2>Notifications</h2></header>
+        <div class="notif-list" id="notifList"></div>
+      </div>
+    </div>
+    <div class="me-menu">
+      <button class="me-btn" id="meBtn" aria-haspopup="true" aria-expanded="false">
+        <span class="avatar" id="meAvatar"></span>
+        <span class="me-name" id="meName"></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+      <div class="me-pop" id="mePop" hidden>
+        <p class="me-pop-handle" id="meHandle"></p>
+        <div class="me-accounts" id="meAccounts"></div>
+        <a href="/feed" id="menuProfile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg><span>Your profile</span></a>
+        <a href="/history" id="menuHistory"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6" /><path d="M3.5 4v4h4M12 7.5V12l3 2" /></svg><span>History</span></a>
+        <a href="/analytics" id="menuAnalytics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg><span>Analytics</span></a>
+        <a href="/verified" id="menuVerify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.8l2.5 1.9 3.1-.2 1 3 2.6 1.7-.9 3 .9 3-2.6 1.7-1 3-3.1-.2-2.5 1.9-2.5-1.9-3.1.2-1-3-2.6-1.7.9-3-.9-3 2.6-1.7 1-3 3.1.2z" /><path d="m8.5 12.2 2.4 2.4 4.6-4.9" /></svg><span>Get verified</span></a>
+        <a href="/editor" id="menuEditor"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18M8 5v4M16 5v4M10 12.5v4l3.5-2z" /></svg><span>Editor</span></a>
+        <a href="/leaderboard" id="menuLeaderboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" /></svg><span>Leaderboard</span></a>
+        <a href="/settings" id="menuSettings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg><span>Settings</span></a>
+        <button type="button" id="menuPrivacy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg><span>Privacy &amp; blocking</span></button>
+        <button type="button" id="menuLanguage"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg><span>Language</span><b class="me-lang" id="meLang"></b></button>
+        <button type="button" id="menuHelp"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.8M12 17.2v.1" /></svg><span>Help</span></button>
+        <button type="button" id="menuBug"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="8" width="10" height="12" rx="5" /><path d="M9 8a3 3 0 0 1 6 0M12 12v8M7 13H3M21 13h-4M7 17l-3 2M17 17l3 2M7.5 9.5 5 7M16.5 9.5 19 7" /></svg><span>Report a bug</span></button>
+        <button type="button" id="logoutBtn" class="danger"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H4" /></svg><span>Log out</span></button>
+      </div>
+    </div>
+    </div>
+  </header>
+
+
+  <!-- The current page -->
+  <main class="view" id="view" tabindex="-1"></main>
+
+  <!-- Floating dock -->
+  <nav class="dock" aria-label="Main">
+    <a href="/feed" class="nav-link" data-nav="feed">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
+      <span>Feed</span>
+    </a>
+    <a href="/shorts" class="nav-link" data-nav="shorts">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3" /><path d="M10.5 9.5v5l4-2.5z" /></svg>
+      <span>Shorts</span>
+    </a>
+    <a href="/videos" class="nav-link" data-nav="videos">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3" /><path d="M10 9.5v5l4.5-2.5z" /></svg>
+      <span>Videos</span>
+    </a>
+    <a href="/groups" class="nav-link" data-nav="groups">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" /><circle cx="17" cy="9" r="2.6" /><path d="M16.5 14.1c2.9.2 5 2.3 5 5.4" /></svg>
+      <span>Groups</span>
+    </a>
+    <a href="/people" class="nav-link" data-nav="people">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="3.6" /><path d="M3.5 20c0-3.6 2.9-6 6.5-6 1.4 0 2.7.4 3.7 1M18 13v7M14.5 16.5h7" /></svg>
+      <span>People</span>
+    </a>
+    <a href="/events" class="nav-link" data-nav="events">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4" /><path d="m10.2 14.6 1.3 1.3 2.6-2.7" /></svg>
+      <span>Events</span>
+    </a>
+    <a href="/feed" class="nav-link" data-nav="profile" id="navProfile">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+      <span>Profile</span>
+    </a>
+  </nav>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="/eyes.js"></script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

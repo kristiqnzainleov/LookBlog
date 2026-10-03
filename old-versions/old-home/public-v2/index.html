@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LookBlog. Follow people, not the algorithm.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Lexend:wght@900&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="home">
+    <!-- Left: big logo -->
+    <div class="home-logo">
+      <h1 class="logo logo-big" aria-label="Look Blog">
+        <span aria-hidden="true">
+          <span class="line">L<span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span><span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span>k</span><span class="line"><em>Blog</em></span>
+        </span>
+      </h1>
+    </div>
+
+    <!-- Right: call to action -->
+    <section class="home-cta">
+      <h2 class="headline">Look around.</h2>
+      <h3 class="join">Join today.</h3>
+
+      <div class="cta-buttons" id="ctaButtons">
+        <button class="btn btn-light btn-full">
+          <svg viewBox="0 0 24 24" class="g-icon" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6a5.1 5.1 0 0 1-2.2 3.4v2.8h3.6c2-1.9 3.2-4.7 3.2-8.3z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.4-2.7l-3.6-2.8c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2v2.9A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.7 14c-.2-.7-.4-1.4-.4-2s.2-1.4.4-2V7.1H2a11 11 0 0 0 0 9.8L5.7 14z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2 7.1L5.7 10c.9-2.7 3.4-4.6 6.3-4.6z"/></svg>
+          Sign up with Google
+        </button>
+        <div class="divider"><span>or</span></div>
+        <button class="btn btn-primary btn-full" id="openSignup">Create account</button>
+        <p class="legal">By signing up, you agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+      </div>
+
+      <div class="have-account">
+        <p>Already have an account?</p>
+        <button class="btn btn-outline btn-full" id="openLogin">Log in</button>
+      </div>
+
+    </section>
+  </main>
+
+  <footer class="footer">
+    <a href="#">About</a>
+    <a href="#">Help</a>
+    <a href="#">Terms of Service</a>
+    <a href="#">Privacy Policy</a>
+    <a href="#">Cookie Policy</a>
+    <span>© 2026 LookBlog</span>
+  </footer>
+
+  <!-- Login pop-up -->
+  <div class="overlay" id="loginOverlay" aria-hidden="true">
+    <div class="modal-wrap modal-lg" id="loginCard" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <section class="modal-card">
+        <div class="modal-body">
+          <div class="modal-top">
+            <button class="close" data-close aria-label="Close">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+
+          <h2 id="loginTitle">Log in to LookBlog</h2>
+
+          <form id="loginForm" novalidate>
+            <div class="field">
+              <label for="email">Email or username</label>
+              <input type="text" id="email" autocomplete="username" spellcheck="false" />
+              <small class="error" id="emailError"></small>
+            </div>
+
+            <div class="field">
+              <div class="label-row">
+                <label for="password">Password</label>
+                <a href="#" class="link small" data-switch="forgot">Forgot it?</a>
+              </div>
+              <div class="password-wrap">
+                <input type="password" id="password" class="pw-input" autocomplete="current-password" />
+                <button type="button" class="toggle-pass" data-target="password">show</button>
+              </div>
+              <small class="error" id="passwordError"></small>
+            </div>
+
+            <label class="remember">
+              <input type="checkbox" id="remember" />
+              <span class="box" aria-hidden="true"></span>
+              Remember me on this device
+            </label>
+
+            <p class="form-error" id="loginError" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary btn-full" id="submitBtn">Log in</button>
+          </form>
+
+          <div class="success" id="loginSuccess" hidden>
+            <h3>You’re in.</h3>
+            <p id="loginSuccessText"></p>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <p>Don’t have an account? <a href="#" class="link" data-switch="signup">Sign up</a></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Sign-up pop-up -->
+  <div class="overlay" id="signupOverlay" aria-hidden="true">
+    <div class="modal-wrap" id="signupCard" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
+      <section class="modal-card">
+        <div class="modal-body">
+          <div class="modal-top">
+            <button class="close" data-close aria-label="Close">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+
+          <h2 id="signupTitle">Create your account</h2>
+
+          <form id="signupForm" novalidate>
+            <div class="field">
+              <label for="suName">Name</label>
+              <input type="text" id="suName" autocomplete="name" maxlength="50" />
+              <small class="error" data-error-for="name"></small>
+            </div>
+
+            <div class="field">
+              <label for="suUsername">Username</label>
+              <div class="prefix-wrap">
+                <span class="prefix">@</span>
+                <input type="text" id="suUsername" autocomplete="username" maxlength="15" spellcheck="false" />
+              </div>
+              <small class="error" data-error-for="username"></small>
+            </div>
+
+            <div class="field">
+              <label for="suEmail">Email</label>
+              <input type="email" id="suEmail" autocomplete="email" spellcheck="false" />
+              <small class="error" data-error-for="email"></small>
+            </div>
+
+            <div class="field">
+              <label for="suPassword">Password</label>
+              <div class="password-wrap">
+                <input type="password" id="suPassword" class="pw-input" autocomplete="new-password" />
+                <button type="button" class="toggle-pass" data-target="suPassword">show</button>
+              </div>
+              <small class="error" data-error-for="password"></small>
+            </div>
+
+            <p class="form-error" id="signupError" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary btn-full" id="signupBtn">Create account</button>
+            <p class="legal">By signing up, you agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+          </form>
+
+          <div class="success" id="signupSuccess" hidden>
+            <h3>Welcome to LookBlog.</h3>
+            <p id="signupSuccessText"></p>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <p>Already have an account? <a href="#" class="link" data-switch="login">Log in</a></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Forgot password pop-up -->
+  <div class="overlay" id="forgotOverlay" aria-hidden="true">
+    <div class="modal-wrap modal-lg" id="forgotCard" role="dialog" aria-modal="true" aria-labelledby="forgotTitle">
+      <section class="modal-card">
+        <div class="modal-body">
+          <div class="modal-top">
+            <button class="close" data-close aria-label="Close">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+
+          <h2 id="forgotTitle">Forgot your password?</h2>
+
+          <form id="forgotForm" novalidate>
+            <p class="modal-text">Enter the email you signed up with and we’ll send you a link to choose a new password.</p>
+            <div class="field">
+              <label for="fpEmail">Email</label>
+              <input type="email" id="fpEmail" autocomplete="email" spellcheck="false" />
+              <small class="error" id="fpEmailError"></small>
+            </div>
+            <p class="form-error" id="forgotError" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary btn-full" id="forgotBtn">Send reset link</button>
+          </form>
+
+          <div class="success" id="forgotSuccess" hidden>
+            <h3>Check your email.</h3>
+            <p id="forgotSuccessText"></p>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <p>Remembered it? <a href="#" class="link" data-switch="login">Back to log in</a></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- New password pop-up (opened from the reset link) -->
+  <div class="overlay" id="resetOverlay" aria-hidden="true">
+    <div class="modal-wrap modal-lg" id="resetCard" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+      <section class="modal-card">
+        <div class="modal-body">
+          <div class="modal-top">
+            <button class="close" data-close aria-label="Close">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+
+          <h2 id="resetTitle">Choose a new password</h2>
+
+          <form id="resetForm" novalidate>
+            <div class="field">
+              <label for="rpPassword">New password</label>
+              <div class="password-wrap">
+                <input type="password" id="rpPassword" class="pw-input" autocomplete="new-password" />
+                <button type="button" class="toggle-pass" data-target="rpPassword">show</button>
+              </div>
+              <small class="error" id="rpPasswordError"></small>
+            </div>
+            <p class="form-error" id="resetError" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary btn-full" id="resetBtn">Save new password</button>
+          </form>
+
+          <div class="success" id="resetSuccess" hidden>
+            <h3>Password changed.</h3>
+            <p>You’re logged in with your new password.</p>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <p>Link not working? <a href="#" class="link" data-switch="forgot">Get a new one</a></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="eyes.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

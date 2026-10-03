@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LookBlog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="nav-left"></div>
+    <a href="#" class="logo">look<em>blog</em></a>
+    <div class="nav-right">
+      <button class="btn btn-primary btn-sm" id="openLogin">Log in</button>
+    </div>
+  </header>
+
+  <main class="hero">
+    <section class="hero-text">
+      <p class="kicker">issue 01 — autumn</p>
+      <h1>
+        Write short.<br />
+        Shoot <span class="underline">a lot.<svg viewBox="0 0 200 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 40 4, 70 18, 105 9 S 170 6, 197 12" /></svg></span><br />
+        Follow people, not the algorithm.
+      </h1>
+      <p class="lede">
+        LookBlog is a chronological feed of blogs from people you actually like.
+        No ads between posts and no “recommended for you”.
+      </p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" id="heroLogin">Log in to your account</button>
+        <a href="#" class="plain-link">How it works →</a>
+      </div>
+    </section>
+
+    <aside class="feed" aria-label="Sample posts">
+      <article class="post p1">
+        <header><span class="avatar">MI</span><b>mila.iv</b><time>12 min ago</time></header>
+        <div class="photo ph-a"></div>
+        <p>First cold day. The coffee went cold while I was taking the photo.</p>
+      </article>
+      <article class="post p2">
+        <header><span class="avatar dark">GP</span><b>georgi_p</b><time>yesterday</time></header>
+        <p class="quote">“The best streets have no signs.”</p>
+      </article>
+      <article class="post p3">
+        <header><span class="avatar">DS</span><b>desi.s</b><time>3 h</time></header>
+        <div class="photo ph-b"></div>
+      </article>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <span>© 2026 LookBlog</span>
+    <a href="#">Terms</a>
+    <a href="#">Privacy</a>
+  </footer>
+
+  <!-- Login pop-up -->
+  <div class="overlay" id="overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <button class="close" id="closeLogin" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+
+      <h2 id="loginTitle">Log in</h2>
+      <p class="subtitle">No account yet? <a href="#" class="link">Make one</a></p>
+
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="email">Email or username</label>
+          <input type="text" id="email" autocomplete="username" />
+          <small class="error" id="emailError"></small>
+        </div>
+
+        <div class="field">
+          <div class="label-row">
+            <label for="password">Password</label>
+            <a href="#" class="link small">Forgot it?</a>
+          </div>
+          <div class="password-wrap">
+            <input type="password" id="password" autocomplete="current-password" />
+            <button type="button" class="toggle-pass" id="togglePass">show</button>
+          </div>
+          <small class="error" id="passwordError"></small>
+        </div>
+
+        <label class="remember">
+          <input type="checkbox" id="remember" />
+          <span class="box" aria-hidden="true"></span>
+          Remember me on this device
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-full" id="submitBtn">Log in</button>
+        <button type="button" class="btn btn-ghost btn-full">Log in with Google</button>
+      </form>
+
+      <div class="success" id="success" hidden>
+        <h3>You’re in.</h3>
+        <p>Loading your feed…</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

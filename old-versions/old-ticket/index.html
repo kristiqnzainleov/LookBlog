@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LookBlog — Log in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="stage">
+    <h1 class="logo" id="logo" aria-label="LookBlog">
+      <span aria-hidden="true">l<span class="eye"><span class="pupil"></span></span><span class="eye"><span class="pupil"></span></span>k<em>blog</em></span>
+    </h1>
+
+    <div class="ticket-wrap" id="loginCard">
+      <section class="ticket" aria-labelledby="loginTitle">
+        <div class="ticket-main">
+          <div class="ticket-head">
+            <h2 id="loginTitle">Log in</h2>
+            <span class="stamp">admit one</span>
+          </div>
+
+          <form id="loginForm" novalidate>
+            <div class="field">
+              <label for="email">Email or username</label>
+              <input type="text" id="email" autocomplete="username" spellcheck="false" />
+              <small class="error" id="emailError"></small>
+            </div>
+
+            <div class="field">
+              <div class="label-row">
+                <label for="password">Password</label>
+                <a href="#" class="link small">Forgot it?</a>
+              </div>
+              <div class="password-wrap">
+                <input type="password" id="password" autocomplete="current-password" />
+                <button type="button" class="toggle-pass" id="togglePass">show</button>
+              </div>
+              <small class="error" id="passwordError"></small>
+            </div>
+
+            <label class="remember">
+              <input type="checkbox" id="remember" />
+              <span class="box" aria-hidden="true"></span>
+              Remember me on this device
+            </label>
+
+            <button type="submit" class="btn btn-primary btn-full" id="submitBtn">Log in</button>
+            <button type="button" class="btn btn-ghost btn-full">Log in with Google</button>
+          </form>
+
+          <div class="success" id="success" hidden>
+            <h3>You’re in.</h3>
+            <p>Loading your feed…</p>
+          </div>
+        </div>
+
+        <div class="ticket-stub">
+          <p>New here? <a href="#" class="link">Get your pass →</a></p>
+          <div class="barcode" aria-hidden="true"></div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="footer">
+      <span>© 2026 LookBlog</span>
+      <a href="#">Terms</a>
+      <a href="#">Privacy</a>
+    </footer>
+  </main>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span>look around</span><span>write something short</span><span>follow people, not the algorithm</span><span>no ads between posts</span>
+      <span>look around</span><span>write something short</span><span>follow people, not the algorithm</span><span>no ads between posts</span>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

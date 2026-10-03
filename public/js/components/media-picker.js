@@ -1,0 +1,185 @@
+// Picking, uploading and previewing photos and videos.
+import { h, icon, duration as fmtDuration } from "../ui.js";
+import { upload } from "../api.js";
+
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+
+// Read a video's length and size in the browser, and grab a frame to use as its cover
+export function inspectVideo(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = "auto";
+    v.src = url;
+    let info = null;
+    const done = (poster = null) => {
+      URL.revokeObjectURL(url);
+      resolve(info ? { ...info, posterBlob: poster } : null);
+    };
+    const timeout = setTimeout(() => done(), 8000);
+    v.onerror = () => { clearTimeout(timeout); done(); };
+    let measuring = false;
+    v.onloadedmetadata = () => {
+      info = { duration: v.duration, width: v.videoWidth, height: v.videoHeight };
+      if (v.duration === Infinity) {
+        // Some recordings don't store their length: jump to the end to find it
+        measuring = true;
+        v.currentTime = 1e7;
+        return;
+      }
+      v.currentTime = Math.min(1, (v.duration || 2) / 4);
+    };
+    v.ondurationchange = () => {
+      if (measuring && Number.isFinite(v.duration)) {
+        measuring = false;
+        info.duration = v.duration;
+        v.currentTime = Math.min(1, v.duration / 4);
+      }
+    };
+    v.onseeked = () => {
+      if (measuring) return;
+      try {
+        const scale = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.round(v.videoWidth * scale);
+        c.height = Math.round(v.videoHeight * scale);
+        c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+        c.toBlob((blob) => { clearTimeout(timeout); done(blob); }, "image/jpeg", 0.82);
+      } catch {
+        clearTimeout(timeout);
+        done();
+      }
+    };
+  });
+}
+
+function imageSize(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve({}); };
+    img.src = url;
+  });
+}
+
+/*
+  createPicker({ accept: "image" | "video" | "both", max, maxVideoSeconds, onChange })
+  Returns { button, previews, open(), items(), media(), busy(), clear() }
+*/
+export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null, onChange = () => {}, onError = () => {} } = {}) {
+  const types = accept === "image" ? IMAGE_TYPES : accept === "video" ? VIDEO_TYPES : [...IMAGE_TYPES, ...VIDEO_TYPES];
+  const input = h("input", { type: "file", accept: types.join(","), multiple: accept !== "video" && max > 1, hidden: true });
+  const previews = h("div", { class: "picker-previews" });
+  let items = []; // { file, kind, url, poster, duration, width, height, progress, status, el }
+
+  const label = accept === "video" ? "Add video" : accept === "image" ? "Add photo" : "Add photo or video";
+  const button = h("button", { type: "button", class: "tool-btn", title: label, "aria-label": label },
+    icon(accept === "video" ? "video" : "image"), input);
+  button.addEventListener("click", (e) => { if (e.target !== input) input.click(); });
+  input.addEventListener("change", () => {
+    add([...input.files]);
+    input.value = "";
+  });
+
+  function changed() {
+    const hasVideo = items.some((i) => i.kind === "video");
+    button.disabled = hasVideo || items.length >= max;
+    previews.hidden = !items.length;
+    onChange();
+  }
+
+  async function add(files) {
+    for (const file of files) {
+      const kind = IMAGE_TYPES.includes(file.type) ? "image" : VIDEO_TYPES.includes(file.type) ? "video" : null;
+      if (!kind || !types.includes(file.type)) { onError("Use a JPG, PNG, GIF or WebP photo, or an MP4, MOV or WebM video."); continue; }
+      if (kind === "video" && items.length) { onError("Add up to 4 photos, or one video."); continue; }
+      if (kind === "image" && items.some((i) => i.kind === "video")) { onError("Add up to 4 photos, or one video."); continue; }
+      if (items.length >= max) { onError(max === 1 ? "You can add one file here." : `You can add up to ${max} photos.`); break; }
+
+      const item = { file, kind, progress: 0, status: "uploading" };
+      items.push(item);
+      item.el = previewEl(item);
+      previews.append(item.el);
+      changed();
+      start(item);
+    }
+  }
+
+  async function start(item) {
+    try {
+      if (item.kind === "video") {
+        const info = await inspectVideo(item.file);
+        if (info) Object.assign(item, { duration: info.duration, width: info.width, height: info.height });
+        if (maxVideoSeconds && (!info || !Number.isFinite(info.duration))) throw { error: "We couldn’t read this video. Try an MP4 file." };
+        if (maxVideoSeconds && info.duration > maxVideoSeconds + 0.5) throw { error: `Shorts can be up to ${maxVideoSeconds} seconds. This one is ${fmtDuration(info.duration)}.` };
+        if (info?.posterBlob) {
+          const poster = await upload(new File([info.posterBlob], "cover.jpg", { type: "image/jpeg" }));
+          item.poster = poster.url;
+        }
+        paintMeta(item);
+      } else {
+        Object.assign(item, await imageSize(item.file));
+      }
+      const res = await upload(item.file, (p) => { item.progress = p; paintProgress(item); });
+      item.url = res.url;
+      item.status = "done";
+    } catch (err) {
+      item.status = "error";
+      onError(err.error || "Upload failed. Try again.");
+      remove(item);
+      return;
+    }
+    paintProgress(item);
+    changed();
+  }
+
+  function previewEl(item) {
+    const objectUrl = URL.createObjectURL(item.file);
+    item.objectUrl = objectUrl;
+    const media = item.kind === "image"
+      ? h("img", { src: objectUrl, alt: "" })
+      : h("video", { src: objectUrl, muted: true, playsInline: true, preload: "metadata" });
+    const removeBtn = h("button", { type: "button", class: "preview-remove", "aria-label": "Remove" }, icon("close"));
+    removeBtn.addEventListener("click", () => remove(item));
+    return h("div", { class: `preview preview-${item.kind}` },
+      media,
+      h("span", { class: "preview-meta" }),
+      h("div", { class: "preview-progress" }, h("span")),
+      removeBtn
+    );
+  }
+  function paintProgress(item) {
+    const bar = item.el?.querySelector(".preview-progress");
+    if (!bar) return;
+    bar.firstChild.style.width = Math.round(item.progress * 100) + "%";
+    bar.hidden = item.status === "done";
+  }
+  function paintMeta(item) {
+    const meta = item.el?.querySelector(".preview-meta");
+    if (meta && item.duration) meta.textContent = fmtDuration(item.duration);
+  }
+  function remove(item) {
+    items = items.filter((i) => i !== item);
+    item.el?.remove();
+    if (item.objectUrl) URL.revokeObjectURL(item.objectUrl);
+    changed();
+  }
+
+  previews.hidden = true;
+  return {
+    button,
+    previews,
+    open: () => input.click(),
+    add,
+    items: () => items,
+    busy: () => items.some((i) => i.status === "uploading"),
+    media: () => items.filter((i) => i.status === "done").map((i) => ({
+      url: i.url, poster: i.poster, duration: i.duration, width: i.width, height: i.height,
+    })),
+    clear: () => [...items].forEach(remove),
+  };
+}

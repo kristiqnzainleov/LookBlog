@@ -1,0 +1,7 @@
+# Site data (database, uploads, sessions) — never commit
+data/
+*.log
+.env
+node_modules/
+.DS_Store
+.railway/

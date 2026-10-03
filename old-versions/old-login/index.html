@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LookBlog — Log in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="login-page">
+  <main class="login-screen">
+    <a href="#" class="logo">look<em>blog</em></a>
+    <p class="tagline">Follow people, not the <span class="underline">algorithm.<svg viewBox="0 0 200 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 40 4, 70 18, 105 9 S 170 6, 197 12" /></svg></span></p>
+
+    <section class="modal login-card" id="loginCard" aria-labelledby="loginTitle">
+      <h2 id="loginTitle">Log in</h2>
+      <p class="subtitle">No account yet? <a href="#" class="link">Make one</a></p>
+
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="email">Email or username</label>
+          <input type="text" id="email" autocomplete="username" />
+          <small class="error" id="emailError"></small>
+        </div>
+
+        <div class="field">
+          <div class="label-row">
+            <label for="password">Password</label>
+            <a href="#" class="link small">Forgot it?</a>
+          </div>
+          <div class="password-wrap">
+            <input type="password" id="password" autocomplete="current-password" />
+            <button type="button" class="toggle-pass" id="togglePass">show</button>
+          </div>
+          <small class="error" id="passwordError"></small>
+        </div>
+
+        <label class="remember">
+          <input type="checkbox" id="remember" />
+          <span class="box" aria-hidden="true"></span>
+          Remember me on this device
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-full" id="submitBtn">Log in</button>
+        <button type="button" class="btn btn-ghost btn-full">Log in with Google</button>
+      </form>
+
+      <div class="success" id="success" hidden>
+        <h3>You’re in.</h3>
+        <p>Loading your feed…</p>
+      </div>
+    </section>
+
+    <footer class="login-footer">
+      <span>© 2026 LookBlog</span>
+      <a href="#">Terms</a>
+      <a href="#">Privacy</a>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "lookblog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LookBlog social network",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

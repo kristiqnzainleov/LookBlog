@@ -1,0 +1,132 @@
+:root { --display: "Unbounded", "Arial Black", sans-serif; --ink: #121111; --card: #1a1919; --line: #2e2a2a; --paper: #f5f0eb; --muted: #a39b95; --pink: #ff4fa3; color-scheme: dark; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--ink); color: var(--paper); font: 400 1.02rem/1.7 "Golos Text", system-ui, sans-serif; }
+a { color: var(--pink); }
+.top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px clamp(16px, 4vw, 40px); background: rgba(18, 17, 17, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.logo { font: 900 1.6rem "Unbounded", sans-serif; letter-spacing: -0.05em; color: var(--paper); text-decoration: none; }
+.logo span { color: var(--pink); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs a { padding: 7px 14px; border-radius: 999px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+.tabs a:hover { color: var(--paper); background: var(--card); }
+.tabs a.on { background: var(--pink); color: #000; }
+.doc { max-width: 760px; margin: 0 auto; padding: 48px 16px 80px; }
+.kicker { color: var(--pink); font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; }
+h1 { font: 900 clamp(2.1rem, 6vw, 3.4rem) "Unbounded", sans-serif; letter-spacing: -0.05em; line-height: 1.05; margin: 8px 0 14px; }
+.lead { font-size: 1.15rem; color: #d6d0ca; margin-bottom: 26px; }
+.toc { margin: 0 0 30px; padding: 18px 22px 18px 40px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+.toc a { color: var(--paper); text-decoration: none; }
+.toc a:hover { color: var(--pink); }
+section { padding: 22px 0; border-top: 1px solid var(--line); scroll-margin-top: 90px; }
+h2 { font: 800 1.3rem "Unbounded", sans-serif; letter-spacing: -0.03em; margin-bottom: 10px; }
+p { margin: 8px 0; color: #e2dcd6; }
+ul { margin: 8px 0 8px 22px; }
+li { margin: 6px 0; color: #e2dcd6; }
+li::marker { color: var(--pink); }
+b { color: var(--paper); }
+.foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; padding: 26px 16px 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.88rem; }
+.foot a { color: var(--muted); text-decoration: none; }
+.foot a:hover { color: var(--paper); }
+.toc { list-style: none; padding-left: 22px; }
+
+/* The LookBlog logo with its watching eyes (same as the home page) */
+/* ---------- Logo with eyes ---------- */
+.logo {
+  font-family: var(--display);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  user-select: none;
+}
+.logo em { font-style: normal; color: var(--pink); }
+
+.eye {
+  --close: 0; /* 0 = open, 1 = closed */
+  position: relative;
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin: 0 0.035em;
+  border-radius: 50%;
+  background: var(--paper);
+  vertical-align: -0.02em;
+  overflow: hidden;
+  isolation: isolate;
+}
+.pupil {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.27em;
+  height: 0.27em;
+  border-radius: 50%;
+  background: var(--ink);
+  transform: translate(-50%, -50%);
+  will-change: transform;
+}
+.pupil::after {
+  content: "";
+  position: absolute;
+  top: 18%;
+  left: 22%;
+  width: 28%;
+  height: 28%;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+/* Eyelids: slide in from the top and bottom and meet in the middle */
+.lid {
+  position: absolute;
+  left: -5%;
+  width: 110%;
+  background: #ddd3c5;
+  transition: transform 0.22s cubic-bezier(0.45, 0, 0.25, 1);
+}
+/* Top lid sits above the bottom one; when closed they overlap into one sleepy curve */
+.lid-top {
+  top: 0;
+  height: 58%;
+  z-index: 2;
+  border-bottom: 0.035em solid var(--ink);
+  border-radius: 0 0 50% 50% / 0 0 38% 38%;
+  transform: translateY(calc((var(--close) - 1) * 104%));
+}
+.lid-bottom {
+  bottom: 0;
+  height: 50%;
+  z-index: 1;
+  border-top: 0.02em solid var(--ink);
+  border-radius: 50% 50% 0 0 / 22% 22% 0 0;
+  transform: translateY(calc((1 - var(--close)) * 104%));
+}
+
+.logo.peek .eye { --close: 0.55; }  /* password shown: peeking */
+.logo.shy .eye,
+.eye.blink { --close: 1; }          /* typing a password, or blinking */
+.eye.blink .lid { transition-duration: 0.09s; }
+
+/* ---------- Sleepy logo eyes ---------- */
+.logo.asleep .eye { --close: 1; }
+.logo.asleep .lid { transition-duration: 1.4s; transition-timing-function: ease-in; }
+.logo.waking .eye { animation: eyeWake 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes eyeWake { 0% { transform: scale(0.9); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.zzz { position: absolute; left: 5.3em; top: -0.5em; pointer-events: none; font-family: var(--display, sans-serif); font-weight: 900; color: var(--pink); font-size: 0.32em; line-height: 1; }
+.zzz i { position: absolute; font-style: normal; opacity: 0; }
+.logo.asleep .zzz i { animation: zFloat 3s ease-in-out infinite; }
+.logo.asleep .zzz i:nth-child(2) { animation-delay: 1s; font-size: 1.25em; }
+.logo.asleep .zzz i:nth-child(3) { animation-delay: 2s; font-size: 1.55em; }
+@keyframes zFloat {
+  0% { opacity: 0; transform: translate(0, 0.4em) rotate(-10deg); }
+  20% { opacity: 1; }
+  80% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(1.4em, -1.6em) rotate(12deg); }
+}
+@media (prefers-reduced-motion: reduce) { .logo.asleep .zzz i { animation: none; opacity: 0.8; } }
+.logo-big .line { white-space: nowrap; }
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; }
+#loginCard .google-btn { margin: 6px 0 4px; }
+.g-note { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 2000; max-width: min(460px, calc(100vw - 32px)); padding: 12px 18px; border-radius: 14px; background: #1a1919; border: 1px solid var(--pink, #ff4fa3); color: #f5f0eb; font: 500 0.92rem "Golos Text", sans-serif; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); }
+
+.top .logo { font-family: "Lexend", var(--display); font-size: 1.9rem; white-space: nowrap; text-decoration: none; color: var(--paper); }
+.top .logo .eye { width: 0.56em; height: 0.56em; vertical-align: 0; }
+@media (max-width: 640px) { .top .logo { font-size: 1.5rem; } }
