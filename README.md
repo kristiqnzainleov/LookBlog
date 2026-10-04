@@ -149,6 +149,7 @@ Then open http://localhost:3000. The `data/` folder is created on first start.
 | `PORT` | Port to listen on (default `3000`) |
 | `LOOKBLOG_DATA` | Where the data and uploads are kept (default `./data`) |
 | `TRUST_PROXY` | Set to `1` behind a hosting proxy so each visitor's real IP is used |
+| `PUBLIC_URL` | The public address (e.g. `https://lookblog.vercel.app`). Anyone who opens the server directly is redirected there |
 | `GOOGLE_CLIENT_ID` | Turns on "Sign in with Google" |
 | `FFMPEG_PATH` | Path to ffmpeg, if it isn't found automatically |
 

@@ -208,6 +208,11 @@ async function handleApi(req, res, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const p = url.pathname;
+  // The public address is PUBLIC_URL (Vercel). Anyone who opens the server directly is sent there.
+  if (process.env.PUBLIC_URL && !req.headers["x-vercel-forwarded-for"]) {
+    res.writeHead(301, { Location: process.env.PUBLIC_URL + req.url });
+    return res.end();
+  }
   try {
     if (p.startsWith("/api/")) return await handleApi(req, res, url);
     if (req.method !== "GET" && req.method !== "HEAD") {
