@@ -54,10 +54,12 @@ on("chat:wallpaper", (ev) => {
 });
 
 // Hold (phones) or right-click (computers) on something
-export function onHold(el, fn) {
+// ignore: things inside el that keep their own behaviour (e.g. messages and links in a chat)
+export function onHold(el, fn, { ignore = null } = {}) {
   let timer = 0, held = false, start = null;
+  const skip = (e) => ignore && e.target.closest?.(ignore) && el.contains(e.target.closest(ignore));
   el.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || skip(e)) return;
     held = false; start = [e.clientX, e.clientY];
     timer = setTimeout(() => { held = true; navigator.vibrate?.(15); fn(); }, 550);
   });
@@ -67,7 +69,7 @@ export function onHold(el, fn) {
   el.addEventListener("pointermove", (e) => { if (start && Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 10) cancel(); });
   // A hold shouldn't also open the chat
   el.addEventListener("click", (e) => { if (held) { e.preventDefault(); e.stopPropagation(); held = false; } }, true);
-  el.addEventListener("contextmenu", (e) => { e.preventDefault(); cancel(); fn(); });
+  el.addEventListener("contextmenu", (e) => { if (skip(e)) return; e.preventDefault(); cancel(); fn(); });
 }
 
 export function openWallpaperPicker(chat, onDone) {

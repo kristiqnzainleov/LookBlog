@@ -14,6 +14,8 @@ const TABS = [
   ["bugs", "🐞 Bugs", "bugs"],
   ["deleted", "👋 Deleted accounts"],
   ["users", "👥 Accounts"],
+  ["badges", "🏅 Badges"],
+  ["bans", "🚫 Bans"],
 ];
 const TYPE_LABEL = { post: "📝 Post", user: "👤 Account", live: "🔴 Live", chat: "💬 Live chat" };
 const POST_WORD = { post: "post", video: "video", short: "short" };
@@ -25,6 +27,7 @@ function who(user, size = 36) {
   return h("a", { class: "adm-who", href: profileHref(user.username) }, avatar(user, size),
     h("span", { class: "adm-who-text" }, h("b", {}, user.name, tick(user, 14)), h("small", { class: "muted", text: "@" + user.username + (user.banned ? " · suspended" : "") })));
 }
+const who_ = (u, size) => who(u, size); // for places where "who" is an input box
 const chip = (text, cls = "") => h("span", { class: ("adm-chip " + cls).trim(), text });
 const noteInput = (placeholder) => h("input", { class: "adm-input", type: "text", maxlength: 500, placeholder });
 function segmented(options, value, onPick) {
@@ -70,6 +73,8 @@ export function adminPage(view, _m, params) {
       if (tab === "deleted") return tickets("deletion");
       if (tab === "users") return users();
       if (tab === "team") return team();
+      if (tab === "badges") return badgeStudio();
+      if (tab === "bans") return bans();
     } catch (err) {
       body.replaceChildren(empty("Couldn’t load this.", err.error || "Try again."));
     }
@@ -383,6 +388,106 @@ export function adminPage(view, _m, params) {
       h("p", { class: "muted", text: `Type ${u.username} to confirm.` }), input, ok) });
     ok.addEventListener("click", () => { m.close(); done(input.value.trim()); });
     setTimeout(() => input.focus(), 50);
+  }
+
+  /* ---------- Badges: design one (name, emoji or picture, colour), then give it to people ---------- */
+  async function badgeStudio() {
+    const d = await api("/api/admin/badges");
+    // The designer
+    const COLORS = ["#ff4fa3", "#a66bff", "#4f8bff", "#36c9ff", "#2fd38a", "#ffd23f", "#ff8a3d", "#ff4545", "#ffffff", "#1c1c1c"];
+    let color = "#ff4fa3", image = null;
+    const name = h("input", { class: "adm-input", maxlength: 24, placeholder: "Badge name, e.g. Legend" });
+    const emoji = h("input", { class: "adm-input", maxlength: 8, placeholder: "🔥", style: "width:80px" });
+    const unique = h("input", { type: "checkbox" });
+    const custom = h("input", { type: "color", class: "sb-custom", value: color, title: "Any colour" });
+    const swatches = h("div", { class: "sb-swatches" });
+    const preview = h("span", { class: "special-chip big" }, h("span", { class: "sc-emoji" }), h("span", { class: "sc-name" }));
+    const paint = () => {
+      swatches.replaceChildren(h("button", { type: "button", class: "sb-swatch auto" + (!color ? " on" : ""), title: "Pink and gold", onclick: () => { color = null; paint(); } }),
+        ...COLORS.map((c) => h("button", { type: "button", class: "sb-swatch" + (color === c ? " on" : ""), style: `background:${c}`, title: c, onclick: () => { color = c; paint(); } })), custom);
+      preview.setAttribute("style", specialStyle({ color }));
+      const ic = preview.querySelector(".sc-emoji");
+      ic.className = "sc-emoji" + (image ? " has-img" : "");
+      ic.replaceChildren(image ? h("img", { src: image, alt: "" }) : emoji.value.trim() || "💎");
+      preview.querySelector(".sc-name").textContent = name.value.trim() || "Your badge";
+    };
+    custom.addEventListener("input", () => { color = custom.value; paint(); });
+    name.addEventListener("input", paint); emoji.addEventListener("input", paint);
+    const file = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif", hidden: true });
+    const pic = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "🖼️ Picture instead of emoji" });
+    pic.addEventListener("click", () => (image ? ((image = null), (pic.textContent = "🖼️ Picture instead of emoji"), paint()) : file.click()));
+    file.addEventListener("change", async () => {
+      const f = file.files[0]; file.value = "";
+      if (!f) return;
+      pic.disabled = true; pic.textContent = "Uploading…";
+      try { image = (await upload(f)).url; pic.textContent = "✕ Remove picture"; } catch (err) { toast(err.error || "Couldn’t upload it."); pic.textContent = "🖼️ Picture instead of emoji"; }
+      pic.disabled = false; paint();
+    });
+    const create = h("button", { type: "button", class: "btn btn-primary", text: "Create badge" });
+    create.addEventListener("click", async () => {
+      if (!name.value.trim()) return name.focus();
+      create.disabled = true;
+      try { await api("/api/admin/badges", { method: "POST", body: { name: name.value, emoji: emoji.value, image, color, unique: unique.checked } }); toast("Badge created. Now give it to someone."); badgeStudio(); }
+      catch (err) { toast(err.error || "Couldn’t create it."); create.disabled = false; }
+    });
+    paint();
+    const designer = h("article", { class: "adm-case bd-designer" },
+      h("h2", { class: "adm-h2", text: "Create a badge" }),
+      h("div", { class: "sb-preview" }, preview),
+      h("div", { class: "adm-toolbar" }, emoji, name), h("div", {}, pic, file),
+      h("b", { class: "vis-label", text: "Colour" }), swatches,
+      h("label", { class: "check-row" }, unique, h("span", { text: "One of a kind (only one person can ever have it)" })),
+      h("div", { class: "adm-btns" }, create));
+    // The badges made so far
+    const cards = d.badges.map((bd) => {
+      const who = h("input", { class: "adm-input", placeholder: "@username", maxlength: 30 });
+      const give = h("button", { type: "button", class: "btn btn-sm btn-primary", text: "Give" });
+      const doGive = async () => {
+        if (!who.value.trim()) return who.focus();
+        try { await api(`/api/admin/badges/${bd.id}`, { method: "POST", body: { give: who.value } }); toast("Given ✓ They got a notification."); badgeStudio(); }
+        catch (err) { toast(err.error || "Couldn’t give it."); }
+      };
+      give.addEventListener("click", doGive);
+      who.addEventListener("keydown", (e) => { if (e.key === "Enter") doGive(); });
+      const del = h("button", { type: "button", class: "btn btn-xs btn-danger-outline", text: "Delete badge" });
+      confirmClick(del, "Sure?", async () => { try { await api(`/api/admin/badges/${bd.id}`, { method: "DELETE" }); toast("Badge deleted."); badgeStudio(); } catch (err) { toast(err.error || "Couldn’t delete it."); } });
+      return h("article", { class: "adm-case" },
+        h("header", { class: "adm-case-head" },
+          h("span", { class: "special-chip", style: specialStyle(bd) }, h("span", { class: "sc-emoji" + (bd.image ? " has-img" : "") }, bd.image ? h("img", { src: bd.image, alt: "" }) : bd.emoji), bd.name),
+          bd.unique ? chip("One of a kind", "pink") : chip(`${bd.holders.length} ${bd.holders.length === 1 ? "person" : "people"}`),
+          h("span", { class: "adm-grow" }), del),
+        bd.holders.length ? h("div", { class: "adm-user-chips" }, ...bd.holders.map((u) => {
+          const x = h("button", { type: "button", class: "adm-chip", title: "Take it back" }, `@${u.username} ✕`);
+          confirmClick(x, "Take back?", async () => { try { await api(`/api/admin/badges/${bd.id}`, { method: "POST", body: { take: u.username } }); badgeStudio(); } catch (err) { toast(err.error || "Couldn’t."); } });
+          return x;
+        })) : h("p", { class: "muted adm-small", text: "Nobody has it yet." }),
+        bd.unique && bd.holders.length ? null : h("div", { class: "adm-toolbar" }, who, give));
+    });
+    body.replaceChildren(designer, h("h2", { class: "adm-h2", text: "Your badges" }), ...(cards.length ? cards : [empty("No badges yet.", "Create one above.")]));
+  }
+
+  /* ---------- Bans ---------- */
+  async function bans() {
+    const d = await api("/api/admin/bans");
+    const who = h("input", { class: "adm-input", placeholder: "@username", maxlength: 30 });
+    const reason = h("input", { class: "adm-input", placeholder: "Reason (they see it when they try to log in)", maxlength: 200 });
+    const go = h("button", { type: "button", class: "btn btn-sm btn-danger", text: "Ban" });
+    confirmClick(go, "Sure?", async () => {
+      if (!who.value.trim()) return who.focus();
+      try { await api("/api/admin/bans", { method: "POST", body: { username: who.value, reason: reason.value } }); toast("Banned. They were logged out everywhere."); bans(); }
+      catch (err) { toast(err.error || "Couldn’t ban them."); }
+    });
+    const list = d.bans.map((u) => {
+      const un = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Unban" });
+      un.addEventListener("click", async () => { try { await api(`/api/admin/bans/${u.id}`, { method: "DELETE" }); toast(`@${u.username} can log in again.`); bans(); } catch (err) { toast(err.error || "Couldn’t."); } });
+      return h("article", { class: "adm-user" },
+        h("div", { class: "adm-user-main" }, who_(u), un),
+        h("p", { class: "muted adm-small" }, u.reason ? `Reason: ${u.reason} · ` : "", "banned ", timeEl(u.at), u.by?.username ? ` by @${u.by.username}` : ""));
+    });
+    body.replaceChildren(
+      h("article", { class: "adm-case" }, h("h2", { class: "adm-h2", text: "Ban someone" }), h("p", { class: "muted adm-small", text: "They’re logged out everywhere and can’t log in until you unban them. Their posts stay up." }), h("div", { class: "adm-toolbar" }, who, reason, go)),
+      h("h2", { class: "adm-h2", text: `Banned (${d.bans.length})` }),
+      ...(list.length ? list : [empty("Nobody is banned.")]));
   }
 
   /* ---------- Team (admin panel accounts) ---------- */

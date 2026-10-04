@@ -3,7 +3,7 @@
 //   Owners: the usernames in ADMINS (comma-separated, default "ko6i"). They can also add and remove admins.
 //   Admins: owners, and accounts an owner made admin (user.admin).
 
-const { db, save, findUser } = require("./db");
+const { db, save, findUser, findByUsername } = require("./db");
 const { sendJSON, httpError, readJSON, parseCookies, rateLimit } = require("./http");
 const { sendTo } = require("./realtime");
 const crypto = require("crypto");
@@ -291,6 +291,93 @@ async function handleAdmin(req, res, url, me) {
   }
 
   // Accounts: GET /api/admin/users?q=&filter=all|banned|verified|admins · POST /api/admin/users/:id { action, type, reason, confirm }
+  /* ---------- Badges the team designs: GET/POST /api/admin/badges · POST /api/admin/badges/:id { give | take } · DELETE /api/admin/badges/:id
+     A badge has a name, an emoji or a picture, a colour, and can be "one of a kind" (only one person can have it). */
+  if (a === "badges") {
+    if (!db.badgeDefs) db.badgeDefs = [];
+    const holdersOf = (def) => db.users.filter((u) => (u.specialBadges || []).some((x) => x.defId === def.id));
+    const defView = (def) => ({ id: def.id, name: def.name, emoji: def.emoji, image: def.image || null, color: def.color || null, unique: Boolean(def.unique), createdAt: def.createdAt,
+      holders: holdersOf(def).map((u) => ({ id: u.id, username: u.username, name: u.name, avatar: u.avatar })) });
+    if (m === "GET" && !b) { sendJSON(res, 200, { badges: db.badgeDefs.slice().reverse().map(defView) }); return true; }
+    if (m === "POST" && !b) {
+      const body = await readJSON(req);
+      const name = clip(body.name, 24).replace(/\s+/g, " ");
+      if (!name) throw httpError(400, "Give the badge a name.");
+      if (db.badgeDefs.some((d) => d.name.toLowerCase() === name.toLowerCase())) throw httpError(400, "There’s already a badge with that name.");
+      let emoji = clip(body.emoji, 8);
+      if (!emoji || !/\p{Extended_Pictographic}/u.test(emoji)) emoji = "💎";
+      let image = null;
+      if (body.image) {
+        const img = require("./media").ownedMedia(body.image, me.id, "image");
+        if (!img) throw httpError(400, "That picture couldn’t be found. Add it again.");
+        image = img.url;
+      }
+      const color = /^#[0-9a-f]{6}$/i.test(String(body.color || "")) ? body.color.toLowerCase() : null;
+      const def = { id: "bd_" + crypto.randomUUID().slice(0, 10), name, emoji, image, color, unique: Boolean(body.unique), createdAt: now(), by: me.id };
+      if (image) require("./media").markUsed(image, "badgedef:" + def.id);
+      db.badgeDefs.push(def);
+      save("badgeDefs");
+      sendJSON(res, 201, { badge: defView(def) });
+      return true;
+    }
+    const def = b && db.badgeDefs.find((d) => d.id === b);
+    if (!def) throw httpError(404, "That badge is gone.");
+    if (m === "POST") {
+      const body = await readJSON(req);
+      const user = findByUsername(clip(body.give || body.take, 30).replace(/^@/, ""));
+      if (!user) throw httpError(404, "There’s no account with that @username.");
+      if (body.give) {
+        if ((user.specialBadges || []).some((x) => x.defId === def.id)) throw httpError(400, `@${user.username} already has it.`);
+        const owner = def.unique && holdersOf(def)[0];
+        if (owner) throw httpError(400, `It’s one of a kind and @${owner.username} has it.`);
+        user.specialBadges = [...(user.specialBadges || []), { id: crypto.randomUUID().slice(0, 8), defId: def.id, name: def.name, emoji: def.emoji, image: def.image, color: def.color, unique: def.unique, givenAt: now(), by: me.id }];
+        teamNote(user.id, `${def.emoji} You got a badge from the LookBlog team: ${def.name}${def.unique ? ". Only you have it!" : "."}`, `/u/${encodeURIComponent(user.username)}`);
+      } else user.specialBadges = (user.specialBadges || []).filter((x) => x.defId !== def.id);
+      save("users");
+      sendJSON(res, 200, { badge: defView(def) });
+      return true;
+    }
+    if (m === "DELETE") {
+      // Gone from everyone who has it
+      for (const u of holdersOf(def)) u.specialBadges = u.specialBadges.filter((x) => x.defId !== def.id);
+      if (def.image) require("./media").deleteMedia(def.image);
+      db.badgeDefs = db.badgeDefs.filter((d) => d !== def);
+      save("users"); save("badgeDefs");
+      sendJSON(res, 200, { ok: true });
+      return true;
+    }
+  }
+
+  /* ---------- Bans: GET /api/admin/bans · POST /api/admin/bans { username, reason } · DELETE /api/admin/bans/:userId ---------- */
+  if (a === "bans") {
+    if (m === "GET" && !b) {
+      const list = db.users.filter((u) => u.banned).sort((x, y) => String(y.banned.at).localeCompare(String(x.banned.at)));
+      sendJSON(res, 200, { bans: list.map((u) => ({ ...person(u), reason: u.banned.reason, at: u.banned.at, by: person(whoDid(u.banned.by)) })) });
+      return true;
+    }
+    if (m === "POST" && !b) {
+      const body = await readJSON(req);
+      const user = findByUsername(clip(body.username, 30).replace(/^@/, ""));
+      if (!user) throw httpError(404, "There’s no account with that @username.");
+      if (user.banned) throw httpError(400, `@${user.username} is already banned.`);
+      if (user.id === me.id) throw httpError(400, "You can’t ban yourself.");
+      if (isOwner(user)) throw httpError(403, "Owners can’t be banned.");
+      if (isAdmin(user) && !isOwner(me)) throw httpError(403, "Only an owner can ban another admin.");
+      ban(user, body.reason, me);
+      console.log(`[admin] @${me.username} banned @${user.username}`);
+      sendJSON(res, 201, { ok: true });
+      return true;
+    }
+    if (m === "DELETE" && b) {
+      const user = findUser(b);
+      if (!user) throw httpError(404, "That account is gone.");
+      delete user.banned;
+      save("users");
+      sendJSON(res, 200, { ok: true });
+      return true;
+    }
+  }
+
   if (a === "users") {
     if (m === "GET" && !b) {
       const q = String(url.searchParams.get("q") || "").trim().toLowerCase().replace(/^@/, "");

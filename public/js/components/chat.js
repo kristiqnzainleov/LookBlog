@@ -538,6 +538,9 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   }
   const typingTick = setInterval(paintTyping, 1000);
   const el = h("section", { class: "convo" }, head, pinBar, list, typingBar, footer);
+  // Hold (or right-click) anywhere on the chat's background: theme, wallpaper and photo
+  const chatOptions = () => chat && openChatOptions(chat, { onTheme: (t) => applyTheme(el, t), onWallpaper: (wp) => applyWallpaper(el, wp), onPhoto: () => refresh() });
+  onHold(list, chatOptions, { ignore: ".bubble, a, button, input, textarea, video, audio, img, .game" });
   // "Seen" (DM) / "Seen by …" (group) under the newest message
   let lastMsg = null;
   function paintSeen() {
@@ -624,9 +627,12 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     applyWallpaper(el, chat.wallpaper, chat.id);
     applyTheme(el, chat.theme, chat.id);
     title.title = "Hold for theme, wallpaper and photo";
-    onHold(title, () => openChatOptions(chat, { onTheme: (t) => applyTheme(el, t), onWallpaper: (wp) => applyWallpaper(el, wp), onPhoto: () => refresh() }));
+    onHold(title, chatOptions);
+    const styleBtn = h("button", { class: "icon-btn chat-style-btn", title: "Theme, wallpaper and photo", "aria-label": "Theme, wallpaper and photo", text: "🎨" });
+    styleBtn.addEventListener("click", chatOptions);
     const gamesBtn = h("button", { class: "icon-btn", title: "Play a game", "aria-label": "Play a game" }, icon("game"));
     gamesBtn.addEventListener("click", () => openGamePicker(chat, { channelId, onStarted: (m) => { add(m); toBottom(); } }));
+    tools.append(styleBtn);
     if (chat.canSend) tools.append(gamesBtn);
     // Photos, videos, links and search
     const libBtn = h("button", { class: "icon-btn", title: "Photos, videos, links & search", "aria-label": "Photos, videos, links and search" }, h("span", { class: "nick-ic", text: "🗂" }));

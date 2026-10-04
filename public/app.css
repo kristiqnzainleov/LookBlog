@@ -4489,3 +4489,8 @@ button.note-item { background: none; border: 0; padding: 0; font: inherit; color
 .co-ic { font-size: 1.5rem; }
 .co-text { display: flex; flex-direction: column; gap: 2px; }
 .panel-auth-card .form-error:empty { display: none; }
+.special-chip.big { padding: 8px 18px 8px 10px; font-size: 1.05rem; }
+.special-chip.big .sc-emoji { width: 30px; height: 30px; }
+.bd-designer .adm-toolbar .adm-input:last-child { flex: 1; }
+@media (max-width: 640px) { .chat-style-btn { display: none; } }
+.adm-toolbar .adm-input[maxlength="8"] { flex: 0 0 80px; min-width: 0; text-align: center; }
