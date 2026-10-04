@@ -178,6 +178,8 @@ function chatView(chat, me, { full = false } = {}) {
       out.members = chat.members.map(findUser).filter(Boolean).map((u) => ({ ...authorView(u), ...presence(u.id), ...memberExtras(chat, u), isOwner: u.id === chat.ownerId, isMe: u.id === me.id }));
       out.onlineCount = chat.members.filter((id) => presence(id).online).length;
       Object.assign(out, groupExtras(chat, me, voiceRoom));
+      // A secret topic for the group's members: browsers tell each other about voice joins directly (faster)
+      if (require("./store").enabled && isMember(chat, me)) out.liveTopic = "lg-" + require("crypto").createHmac("sha256", process.env.SUPABASE_SERVICE_KEY || "lb").update("group:" + chat.id).digest("base64url").slice(0, 24);
     }
   }
   return out;
