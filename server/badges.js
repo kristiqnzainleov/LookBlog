@@ -199,7 +199,9 @@ function badgesFor(user) {
       next, steps: a.steps,
     };
   });
-  return { badges, awards, verifiedType: user.verified ? user.verifiedType || "creator" : null };
+  // Special badges the LookBlog team made just for this person
+  const special = (user.specialBadges || []).map((b) => ({ id: b.id, emoji: b.emoji, name: b.name, givenAt: b.givenAt }));
+  return { badges, awards, special, verifiedType: user.verified ? user.verifiedType || "creator" : null };
 }
 
 // Role badges people pick for themselves (up to 3)

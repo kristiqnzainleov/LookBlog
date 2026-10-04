@@ -244,6 +244,7 @@ function messageView(msg, me) {
     pingsMe: msg.userId !== me.id && (msg.mentions.includes(me.id) || Boolean(msg.everyone)),
     reactions: reactionsView(msg, me),
     replyTo: replyPreview(msg),
+    noteReply: msg.noteReply ? { text: msg.noteReply.text, media: msg.noteReply.media, toMe: msg.noteReply.owner === me.id } : null,
     author: { ...authorView(findUser(msg.userId)), nickname: nicknameOf(chat, msg.userId) },
     mine: msg.userId === me.id,
     channelId: msg.channelId || null,
@@ -427,6 +428,37 @@ async function handleChat(req, res, url, me) {
       .sort((x, y) => y.lastAt.localeCompare(x.lastAt))
       .map((ch) => chatView(ch, me));
     sendJSON(res, 200, { chats: list, unread: list.reduce((n, ch) => n + ch.unread, 0) });
+    return true;
+  }
+
+  // Reply to someone's note: POST /api/notes/:username/reply { text }
+  // People who follow each other get it as a message (with the note quoted), otherwise as a notification.
+  if (m === "POST" && a === "notes" && c === "reply" && parts.length === 3) {
+    rateLimit("note-reply:" + me.id, 30, 10 * 60 * 1000, "You’ve replied to a lot of notes. Take a short break.");
+    const other = findByUsername(decodeURIComponent(b));
+    if (!other || other.id === me.id) throw httpError(404, "This note isn’t there anymore.");
+    const note = require("./social").activeNote(other);
+    if (!note || !me.following.includes(other.id) || require("./social").blockedBetween(me, other)) throw httpError(404, "This note isn’t there anymore.");
+    const text = clean((await readJSON(req)).text);
+    if (!text) throw httpError(400, "Write a reply.");
+    if (chars(text) > 1000) throw httpError(400, "Keep it under 1000 characters.");
+    let chat = db.chats.find((ch) => ch.kind === "dm" && ch.members.includes(me.id) && ch.members.includes(other.id));
+    if (!chat && mutual(me, other)) {
+      chat = { id: crypto.randomUUID(), kind: "dm", members: [me.id, other.id], createdAt: new Date().toISOString(), lastAt: new Date().toISOString(), reads: {} };
+      db.chats.push(chat);
+    }
+    if (!chat) {
+      notify(other.id, "note-reply", me, { text: `${text}` });
+      sendJSON(res, 201, { sent: "notification" });
+      return true;
+    }
+    const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media: null, postId: null, replyTo: null, mentions: [],
+      noteReply: { text: note.text, media: note.media ? { url: note.media.url, gif: Boolean(note.media.gif) } : null, owner: other.id }, createdAt: new Date().toISOString() };
+    db.messages.push(msg);
+    chat.lastAt = msg.createdAt;
+    save("messages"); save("chats");
+    deliver(chat, msg);
+    sendJSON(res, 201, { sent: "message", chatId: chat.id });
     return true;
   }
 

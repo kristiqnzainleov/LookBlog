@@ -35,12 +35,19 @@ export function searchPage(view, _m, params) {
     }
     results.replaceChildren(spinner());
     try {
-      const { users, posts } = await api(`/api/search?q=${encodeURIComponent(q)}`);
+      const { users, fromPeople = [], posts } = await api(`/api/search?q=${encodeURIComponent(q)}`);
       if (mine !== seq) return;
       results.replaceChildren();
-      if (!users.length && !posts.length) return results.append(empty(`No results for “${q}”`, "Try a different name or word."));
+      if (!users.length && !posts.length && !fromPeople.length) return results.append(empty(`No results for “${q}”`, "Try a different name or word."));
       if (users.length) results.append(h("h2", { class: "section-title", text: "People" }), ...users.map(personRow));
-      if (posts.length) results.append(h("h2", { class: "section-title", text: "Posts" }), ...posts.map((p) => postCard(p)));
+      // What the people you searched for posted
+      for (const x of fromPeople) {
+        results.append(h("div", { class: "search-from" },
+          h("h2", { class: "section-title" }, "From ", x.user.name, tick(x.user, 16)),
+          h("a", { class: "btn btn-xs btn-outline-light", href: profileHref(x.user.username), text: "See profile" })),
+          ...x.posts.map((p) => postCard(p)));
+      }
+      if (posts.length) results.append(h("h2", { class: "section-title", text: fromPeople.length ? "More posts" : "Posts" }), ...posts.map((p) => postCard(p)));
     } catch (err) {
       results.replaceChildren(empty("Search isn’t working right now.", err.error || "Try again in a moment."));
     }

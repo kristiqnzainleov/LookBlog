@@ -38,7 +38,11 @@ export function openBadges(profile, data) {
   const roles = data.roles?.length
     ? h("div", { class: "role-badges in-modal" }, ...data.roles.map((r) => h("span", { class: "role-chip", text: `${r.emoji} ${r.name}` })))
     : null;
+  const special = data.special?.length
+    ? h("div", { class: "special-grid" }, ...data.special.map((b) => h("div", { class: "special-card" }, h("span", { class: "sc-big", text: b.emoji }), h("b", { text: b.name }), h("small", { text: `Made by the LookBlog team, only for @${profile.username}` }))))
+    : null;
   modal({ title: profile.isMe ? "Your badges" : `${profile.name}’s badges`, wide: true, body: h("div", { class: "badges-modal" },
+    special ? h("h3", { class: "side-title", text: "💎 Special" }) : null, special,
     roles ? h("h3", { class: "side-title", text: "What they do" }) : null, roles,
     h("h3", { class: "side-title", text: "Awards" }), awards,
     h("h3", { class: "side-title", text: `Badges · ${earned} of ${data.badges.length}` }), badges) });

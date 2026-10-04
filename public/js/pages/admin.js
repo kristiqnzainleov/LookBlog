@@ -291,6 +291,7 @@ export function adminPage(view, _m, params) {
       const btns = [];
       if (u.verified) { const b = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Remove tick" }); confirmClick(b, "Sure?", () => act("unverify")); btns.push(b); }
       else btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Verify", onclick: () => verifyModal(u, (type) => act("verify", { type })) }));
+      btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "⭐ Special badge", onclick: () => specialModal(u, (name, emoji) => act("special-badge", { name, emoji })) }));
       if (!u.owner && !isMe) {
         if (u.banned) btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Unsuspend", onclick: () => act("unban") }));
         else btns.push(h("button", { type: "button", class: "btn btn-xs btn-danger-outline", text: "Suspend", onclick: () => banModal(u, (reason) => act("ban", { reason })) }));
@@ -305,6 +306,11 @@ export function adminPage(view, _m, params) {
           h("div", { class: "adm-user-chips" }, u.owner ? chip("👑 Owner", "pink") : u.admin ? chip("🛡️ Admin", "pink") : null, u.banned ? chip("Suspended", "red") : null, isMe ? chip("You") : null)),
         h("p", { class: "muted adm-small" }, [u.email, `${u.followers} followers`, `${u.posts} posts`, u.reportsAgainst ? `🚩 ${u.reportsAgainst} reports` : null].filter(Boolean).join(" · "), " · joined ", timeEl(u.createdAt)),
         u.bannedInfo?.reason ? h("p", { class: "adm-note", text: "Suspended: " + u.bannedInfo.reason }) : null,
+        u.special?.length ? h("div", { class: "adm-user-chips" }, ...u.special.map((b) => {
+          const x = h("button", { type: "button", class: "special-chip small", title: "Remove this special badge" }, `${b.emoji} ${b.name} ✕`);
+          confirmClick(x, "Remove?", () => act("remove-special", { badgeId: b.id }));
+          return x;
+        })) : null,
         h("div", { class: "adm-btns" }, ...btns));
     };
     paint(u);
@@ -315,6 +321,16 @@ export function adminPage(view, _m, params) {
     const ok = h("button", { type: "button", class: "btn btn-primary", text: "Verify" });
     const m = modal({ title: `Verify @${u.username}`, body: h("div", { class: "adm-modal" }, h("p", { class: "muted", text: "Which tick should they get?" }), type, ok) });
     ok.addEventListener("click", () => { m.close(); done(type.value); });
+  }
+  function specialModal(u, done) {
+    const emoji = h("input", { class: "adm-input", type: "text", maxlength: 8, placeholder: "💎", style: "width:80px" });
+    const name = h("input", { class: "adm-input", type: "text", maxlength: 24, placeholder: "Badge name, e.g. Ivancho" });
+    const ok = h("button", { type: "button", class: "btn btn-primary", text: "Give badge" });
+    const m = modal({ title: `Special badge for @${u.username}`, body: h("div", { class: "adm-modal" },
+      h("p", { class: "muted", text: "A one-of-a-kind badge: nobody else can get one with the same name. It shows on their profile and they get a notification." }),
+      h("div", { class: "adm-toolbar" }, emoji, name), ok) });
+    ok.addEventListener("click", () => { if (!name.value.trim()) return name.focus(); m.close(); done(name.value, emoji.value); });
+    setTimeout(() => name.focus(), 50);
   }
   function banModal(u, done) {
     const reason = h("input", { class: "adm-input", type: "text", maxlength: 200, placeholder: "Reason (they see it when they try to log in)" });

@@ -4,7 +4,7 @@ import { h, avatar, modal, toast, tick } from "../ui.js";
 import { api, upload } from "../api.js";
 import { openGifs, gifBody } from "./gifs.js";
 import { state, on } from "../state.js";
-import { profileHref } from "../router.js";
+import { profileHref, navigate } from "../router.js";
 import { openEmojiPicker, insertAtCursor } from "./emoji.js";
 
 const QUICK = ["☕", "🎧", "📸", "🔥", "😴", "🎉", "💭", "🌙", "🏃", "❤️"];
@@ -92,6 +92,33 @@ export function openNoteEditor(current, onSaved) {
   setTimeout(() => input.focus(), 60);
 }
 
+// Someone else's note: see it bigger and reply (like Instagram)
+export function openNoteReply(user, note) {
+  const input = h("input", { type: "text", class: "text-input note-reply-input", maxlength: 1000, placeholder: `Reply to ${user.name.split(" ")[0]}…`, autocomplete: "off" });
+  const send = h("button", { type: "button", class: "btn btn-primary", text: "Send", disabled: true });
+  const quick = h("div", { class: "note-quick" }, ...["😂", "❤️", "🔥", "😮", "👏", "😢"].map((e) => h("button", { type: "button", class: "quick-react", text: e, title: `Reply ${e}`, onclick: () => go(e) })));
+  const m = modal({ title: "Note", body: h("div", { class: "create-form note-reply" },
+    h("div", { class: "note-preview" },
+      h("span", { class: "note-bubble big" + (note.media ? " has-media" : "") }, note.media ? h("img", { class: "nb-media", src: note.media.url, alt: "" }) : null, note.text ? h("span", { class: "nb-text", text: note.text }) : null),
+      h("a", { href: profileHref(user.username), class: "note-reply-who", onclick: (e) => { e.preventDefault(); m.close(); navigate(profileHref(user.username)); } },
+        avatar(user, 72), h("b", {}, user.name, tick(user, 15)), h("small", { class: "muted", text: note.expiresAt ? hoursLeft(note.expiresAt) : "" }))),
+    quick, h("div", { class: "note-reply-row" }, input, send)) });
+  input.addEventListener("input", () => { send.disabled = !input.value.trim(); });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && input.value.trim()) go(input.value); });
+  send.addEventListener("click", () => go(input.value));
+  let busy = false;
+  async function go(text) {
+    if (busy || !String(text).trim()) return;
+    busy = true; send.disabled = true;
+    try {
+      const r = await api(`/api/notes/${encodeURIComponent(user.username)}/reply`, { method: "POST", body: { text } });
+      m.close();
+      toast(r.sent === "message" ? "Reply sent in Messages." : `Reply sent. ${user.name.split(" ")[0]} gets it as a notification.`);
+    } catch (err) { toast(err.error || "Couldn’t send it."); busy = false; send.disabled = false; }
+  }
+  setTimeout(() => input.focus(), 60);
+}
+
 // The row of notes at the top of Messages
 export function notesRow() {
   const row = h("div", { class: "notes-row" });
@@ -100,11 +127,12 @@ export function notesRow() {
       const { notes } = await api("/api/notes");
       row.replaceChildren(...notes.map((n) => {
         const label = n.isMe ? (n.note ? "Your note" : "Leave a note") : n.user.name.split(" ")[0];
-        const item = h(n.isMe ? "button" : "a", { class: "note-item" + (n.isMe ? " mine" : ""), href: n.isMe ? null : profileHref(n.user.username), type: n.isMe ? "button" : null, title: n.note ? `${n.note.text || (n.note.media?.gif ? "GIF" : "Photo")} · ${hoursLeft(n.note.expiresAt)}` : "" },
+        const item = h(n.isMe || n.note ? "button" : "a", { class: "note-item" + (n.isMe ? " mine" : ""), href: n.isMe || n.note ? null : profileHref(n.user.username), type: n.isMe || n.note ? "button" : null, title: n.note ? `${n.note.text || (n.note.media?.gif ? "GIF" : "Photo")} · ${hoursLeft(n.note.expiresAt)}` : "" },
           h("span", { class: "note-bubble" + (n.note ? "" : " empty") + (n.note?.media ? " has-media" : "") }, n.note?.media ? h("img", { class: "nb-media", src: n.note.media.url, alt: "" }) : null, n.note?.text || !n.note ? h("span", { class: "nb-text", text: n.note ? n.note.text : "+ Note" }) : null),
           avatar(n.user, 58),
           h("span", { class: "note-name" }, label, n.isMe ? null : tick(n.user, 13)));
         if (n.isMe) item.addEventListener("click", () => openNoteEditor(n.note, load));
+        else if (n.note) item.addEventListener("click", () => openNoteReply(n.user, n.note));
         return item;
       }));
     } catch {}

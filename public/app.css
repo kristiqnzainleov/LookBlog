@@ -4308,3 +4308,45 @@ body[data-page="messages"] .group-view { grid-template-columns: clamp(250px, 19v
   .me-pop { position: fixed; left: auto; right: 8px; top: calc(var(--topbar) + 6px); max-height: calc(100dvh - var(--topbar) - 110px); overflow-y: auto; }
   .app-modal { width: calc(100% - 16px); }
 }
+
+/* Replying to a note */
+.note-reply .note-preview { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.note-reply-who { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--paper); text-decoration: none; }
+.note-reply-who b { display: inline-flex; align-items: center; gap: 4px; }
+.note-reply .note-quick { justify-content: center; }
+.note-reply-row { display: flex; gap: 8px; }
+.note-reply-row .text-input { flex: 1; min-width: 0; }
+.profile-note.can-reply { cursor: pointer; }
+.profile-note.can-reply:hover { border-color: var(--pink); }
+button.note-item { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.note-quote { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; padding: 6px 10px; border-left: 3px solid rgba(255, 255, 255, 0.55); border-radius: 0 10px 10px 0; background: rgba(0, 0, 0, 0.18); }
+.note-quote small { font-size: 0.72rem; opacity: 0.8; font-weight: 700; }
+.nq-body { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; }
+.nq-body img { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; }
+.search-from { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.search-from .section-title { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Special badges (one of a kind, given by the LookBlog team) */
+.special-badges { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 18px 0; }
+.page-profile .special-badges { padding: 14px 32px 0; }
+@media (max-width: 640px) { .page-profile .special-badges { padding: 12px 18px 0; } }
+.special-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px 6px 8px; border-radius: 999px;
+  font: 800 0.9rem var(--body); color: #1a0d14; border: 0;
+  background: linear-gradient(110deg, #ff4fa3 0%, #ffd27a 35%, #ff4fa3 55%, #ffb3d9 75%, #ff4fa3 100%);
+  background-size: 250% 100%; animation: specialShine 4s linear infinite;
+  box-shadow: 0 0 0 1px rgba(255, 210, 122, 0.6), 0 6px 22px rgba(255, 79, 163, 0.35);
+}
+.special-chip .sc-emoji { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); font-size: 0.95rem; }
+.special-chip.small { padding: 4px 10px; font-size: 0.8rem; cursor: pointer; }
+.badge-dot.special { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: 1.1rem; background: linear-gradient(135deg, #ff4fa3, #ffd27a); box-shadow: 0 0 14px rgba(255, 79, 163, 0.5); }
+.special-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 8px; }
+.special-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px; border-radius: 18px; text-align: center; color: #1a0d14;
+  background: linear-gradient(110deg, #ff4fa3 0%, #ffd27a 35%, #ff4fa3 55%, #ffb3d9 75%, #ff4fa3 100%); background-size: 250% 100%; animation: specialShine 4s linear infinite; }
+.special-card .sc-big { font-size: 2.4rem; }
+.special-card b { font: 900 1.2rem var(--display); }
+.special-card small { opacity: 0.8; font-weight: 600; }
+@keyframes specialShine { to { background-position: -250% 0; } }
+@media (prefers-reduced-motion: reduce) { .special-chip, .special-card { animation: none; } }
+.note-reply .note-preview, .note-reply .note-preview:has(.note-bubble.has-media) { padding-top: 4px; }
+.note-reply .note-preview .note-bubble.big { position: relative; left: auto; top: auto; bottom: auto; transform: none; width: fit-content; margin: 0 auto -4px; }

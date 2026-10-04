@@ -11,6 +11,7 @@ function sentence(n) {
   switch (n.type) {
     case "follow": return "started following you";
     case "team": return "";
+    case "note-reply": return "replied to your note";
     case "security": return "· security";
     case "song-comment": return "commented on your song";
     case "song": return `released a new song${n.text ? ": " + n.text : ""}`;
@@ -60,7 +61,7 @@ function target(n) {
   const hash = ["comment", "answer", "reaction"].includes(n.type) ? "#replies" : "";
   return postHref(n.postId) + hash;
 }
-const ICON = { team: "🛡️", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
+const ICON = { team: "🛡️", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
 
 function itemEl(n, close) {
   const quote = n.type === "badge" ? null : n.text || n.postText;

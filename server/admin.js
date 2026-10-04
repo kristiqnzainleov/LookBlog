@@ -6,6 +6,7 @@
 const { db, save, findUser } = require("./db");
 const { sendJSON, httpError, readJSON } = require("./http");
 const { sendTo } = require("./realtime");
+const crypto = require("crypto");
 
 const OWNERS = () => String(process.env.ADMINS || "ko6i").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
 const isOwner = (u) => Boolean(u) && OWNERS().includes(u.username.toLowerCase());
@@ -179,6 +180,7 @@ function userRow(u) {
   return {
     ...person(u), email: u.email || null, createdAt: u.createdAt, followers: followersOf(u.id), posts: postsOf(u.id),
     admin: isAdmin(u), owner: isOwner(u), bannedInfo: u.banned ? { reason: u.banned.reason, at: u.banned.at } : null,
+    special: (u.specialBadges || []).map((b) => ({ id: b.id, name: b.name, emoji: b.emoji })),
     reportsAgainst: db.reports.filter((r) => (r.kind === "user" ? r.userId : r.authorId) === u.id).length,
   };
 }
@@ -314,6 +316,18 @@ async function handleAdmin(req, res, url, me) {
         guard(); ban(user, body.reason, me);
       } else if (act === "unban") {
         delete user.banned;
+      } else if (act === "special-badge") {
+        // A badge only this person has: POST { action: "special-badge", name, emoji }
+        const name = clip(body.name, 24).replace(/\s+/g, " ");
+        if (!name) throw httpError(400, "Give the badge a name.");
+        const taken = db.users.find((u) => (u.specialBadges || []).some((b) => b.name.toLowerCase() === name.toLowerCase()));
+        if (taken) throw httpError(400, taken.id === user.id ? "They already have this badge." : `@${taken.username} already has a badge called ${name}. Special badges are one of a kind.`);
+        let emoji = clip(body.emoji, 8);
+        if (!emoji || !/\p{Extended_Pictographic}/u.test(emoji)) emoji = "💎";
+        user.specialBadges = [...(user.specialBadges || []), { id: crypto.randomUUID().slice(0, 8), name, emoji, givenAt: now(), by: me.id }];
+        teamNote(user.id, `${emoji} You got a special badge: ${name}. Only you have it!`, `/u/${encodeURIComponent(user.username)}`);
+      } else if (act === "remove-special") {
+        user.specialBadges = (user.specialBadges || []).filter((b) => b.id !== body.badgeId);
       } else if (act === "make-admin" || act === "remove-admin") {
         if (!isOwner(me)) throw httpError(403, "Only an owner can add or remove admins.");
         if (isOwner(user)) throw httpError(403, "Owners are always admins.");

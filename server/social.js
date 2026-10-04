@@ -1804,7 +1804,7 @@ async function handleSocial(req, res, url, me) {
   // Search: GET /api/search?q=
   if (m === "GET" && a === "search" && parts.length === 1) {
     const q = clean(url.searchParams.get("q")).toLowerCase().replace(/^@/, "");
-    if (!q) { sendJSON(res, 200, { users: [], posts: [] }); return true; }
+    if (!q) { sendJSON(res, 200, { users: [], fromPeople: [], posts: [] }); return true; }
     const score = (u) => {
       const un = u.username.toLowerCase(), n = u.name.toLowerCase();
       if (un === q) return 0;
@@ -1818,11 +1818,24 @@ async function handleSocial(req, res, url, me) {
       .sort((x, y) => x[0] - y[0] || followerCount(y[1]) - followerCount(x[1]))
       .slice(0, 20)
       .map(([, u]) => ({ ...authorView(u), bio: u.bio, isMe: u.id === me.id, isFollowing: me.following.includes(u.id) }));
+    // Searching a person's name also shows what they posted (for the closest matches)
+    const shown = new Set();
+    const fromPeople = db.users
+      .map((u) => [score(u), u])
+      .filter(([s, u]) => s >= 0 && s <= 2 && !blockedBetween(u, me))
+      .sort((x, y) => x[0] - y[0] || followerCount(y[1]) - followerCount(x[1]))
+      .slice(0, 3)
+      .map(([, u]) => {
+        const theirs = db.posts.filter((p) => p.userId === u.id && p.visibility === "public" && canView(p, me)).slice(0, 12);
+        theirs.forEach((p) => shown.add(p.id));
+        return { user: authorView(u), posts: theirs.map((p) => postView(p, me)) };
+      })
+      .filter((x) => x.posts.length);
     const posts = db.posts
-      .filter((p) => p.visibility === "public" && canView(p, me) && (p.text + " " + p.title).toLowerCase().includes(q))
+      .filter((p) => !shown.has(p.id) && p.visibility === "public" && canView(p, me) && (p.text + " " + p.title).toLowerCase().includes(q))
       .slice(0, 20)
       .map((p) => postView(p, me));
-    sendJSON(res, 200, { users, posts });
+    sendJSON(res, 200, { users, fromPeople, posts });
     return true;
   }
 
@@ -1847,4 +1860,4 @@ function removePost(post) {
   broadcast({ type: "post:deleted", id: post.id });
 }
 
-module.exports = { removePost, starsView, notPlainVideo, resolveExtras, cleanClip, handleSocial, resolveGif, canView, blockedBetween, canMakeFilms, canMakeMusic, postView, authorView, buildMedia, claim, findMentions, usernamesOf, clean, chars };
+module.exports = { activeNote, removePost, starsView, notPlainVideo, resolveExtras, cleanClip, handleSocial, resolveGif, canView, blockedBetween, canMakeFilms, canMakeMusic, postView, authorView, buildMedia, claim, findMentions, usernamesOf, clean, chars };
