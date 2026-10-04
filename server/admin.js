@@ -180,7 +180,7 @@ function userRow(u) {
   return {
     ...person(u), email: u.email || null, createdAt: u.createdAt, followers: followersOf(u.id), posts: postsOf(u.id),
     admin: isAdmin(u), owner: isOwner(u), bannedInfo: u.banned ? { reason: u.banned.reason, at: u.banned.at } : null,
-    special: (u.specialBadges || []).map((b) => ({ id: b.id, name: b.name, emoji: b.emoji })),
+    special: (u.specialBadges || []).map((b) => ({ id: b.id, name: b.name, emoji: b.emoji, image: b.image || null })),
     reportsAgainst: db.reports.filter((r) => (r.kind === "user" ? r.userId : r.authorId) === u.id).length,
   };
 }
@@ -324,9 +324,20 @@ async function handleAdmin(req, res, url, me) {
         if (taken) throw httpError(400, taken.id === user.id ? "They already have this badge." : `@${taken.username} already has a badge called ${name}. Special badges are one of a kind.`);
         let emoji = clip(body.emoji, 8);
         if (!emoji || !/\p{Extended_Pictographic}/u.test(emoji)) emoji = "💎";
-        user.specialBadges = [...(user.specialBadges || []), { id: crypto.randomUUID().slice(0, 8), name, emoji, givenAt: now(), by: me.id }];
+        // A picture instead of the emoji (uploaded by the admin)
+        let image = null;
+        if (body.image) {
+          const img = require("./media").ownedMedia(body.image, me.id, "image");
+          if (!img) throw httpError(400, "That picture couldn’t be found. Add it again.");
+          image = img.url;
+        }
+        const badge = { id: crypto.randomUUID().slice(0, 8), name, emoji, image, givenAt: now(), by: me.id };
+        if (image) require("./media").markUsed(image, "special:" + badge.id);
+        user.specialBadges = [...(user.specialBadges || []), badge];
         teamNote(user.id, `${emoji} You got a special badge: ${name}. Only you have it!`, `/u/${encodeURIComponent(user.username)}`);
       } else if (act === "remove-special") {
+        const gone = (user.specialBadges || []).find((b) => b.id === body.badgeId);
+        if (gone?.image) require("./media").deleteMedia(gone.image);
         user.specialBadges = (user.specialBadges || []).filter((b) => b.id !== body.badgeId);
       } else if (act === "make-admin" || act === "remove-admin") {
         if (!isOwner(me)) throw httpError(403, "Only an owner can add or remove admins.");

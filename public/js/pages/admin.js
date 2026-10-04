@@ -1,6 +1,6 @@
 // /admin — the LookBlog team's page: reports, verification requests, support messages, bug reports and accounts.
 import { h, avatar, tick, empty, spinner, toast, timeEl, confirmClick, modal } from "../ui.js";
-import { api } from "../api.js";
+import { api, upload } from "../api.js";
 import { state, on } from "../state.js";
 import { profileHref, postHref } from "../router.js";
 import { VERIFY_TYPES } from "../verify-types.js";
@@ -291,7 +291,7 @@ export function adminPage(view, _m, params) {
       const btns = [];
       if (u.verified) { const b = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Remove tick" }); confirmClick(b, "Sure?", () => act("unverify")); btns.push(b); }
       else btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Verify", onclick: () => verifyModal(u, (type) => act("verify", { type })) }));
-      btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "⭐ Special badge", onclick: () => specialModal(u, (name, emoji) => act("special-badge", { name, emoji })) }));
+      btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "⭐ Special badge", onclick: () => specialModal(u, (name, emoji, image) => act("special-badge", { name, emoji, image })) }));
       if (!u.owner && !isMe) {
         if (u.banned) btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Unsuspend", onclick: () => act("unban") }));
         else btns.push(h("button", { type: "button", class: "btn btn-xs btn-danger-outline", text: "Suspend", onclick: () => banModal(u, (reason) => act("ban", { reason })) }));
@@ -307,7 +307,7 @@ export function adminPage(view, _m, params) {
         h("p", { class: "muted adm-small" }, [u.email, `${u.followers} followers`, `${u.posts} posts`, u.reportsAgainst ? `🚩 ${u.reportsAgainst} reports` : null].filter(Boolean).join(" · "), " · joined ", timeEl(u.createdAt)),
         u.bannedInfo?.reason ? h("p", { class: "adm-note", text: "Suspended: " + u.bannedInfo.reason }) : null,
         u.special?.length ? h("div", { class: "adm-user-chips" }, ...u.special.map((b) => {
-          const x = h("button", { type: "button", class: "special-chip small", title: "Remove this special badge" }, `${b.emoji} ${b.name} ✕`);
+          const x = h("button", { type: "button", class: "special-chip small", title: "Remove this special badge" }, b.image ? h("img", { class: "sc-mini", src: b.image, alt: "" }) : `${b.emoji} `, `${b.name} ✕`);
           confirmClick(x, "Remove?", () => act("remove-special", { badgeId: b.id }));
           return x;
         })) : null,
@@ -326,10 +326,23 @@ export function adminPage(view, _m, params) {
     const emoji = h("input", { class: "adm-input", type: "text", maxlength: 8, placeholder: "💎", style: "width:80px" });
     const name = h("input", { class: "adm-input", type: "text", maxlength: 24, placeholder: "Badge name, e.g. Ivancho" });
     const ok = h("button", { type: "button", class: "btn btn-primary", text: "Give badge" });
+    // Or a picture instead of the emoji
+    let image = null;
+    const file = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif", hidden: true });
+    const pic = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "🖼️ Use a picture" });
+    pic.addEventListener("click", () => file.click());
+    file.addEventListener("change", async () => {
+      const f = file.files[0]; file.value = "";
+      if (!f) return;
+      pic.disabled = true; pic.textContent = "Uploading…";
+      try { image = (await upload(f)).url; pic.replaceChildren(h("img", { class: "sc-mini", src: image, alt: "" }), " Picture added"); }
+      catch (err) { toast(err.error || "Couldn’t upload it."); pic.textContent = "🖼️ Use a picture"; }
+      pic.disabled = false;
+    });
     const m = modal({ title: `Special badge for @${u.username}`, body: h("div", { class: "adm-modal" },
       h("p", { class: "muted", text: "A one-of-a-kind badge: nobody else can get one with the same name. It shows on their profile and they get a notification." }),
-      h("div", { class: "adm-toolbar" }, emoji, name), ok) });
-    ok.addEventListener("click", () => { if (!name.value.trim()) return name.focus(); m.close(); done(name.value, emoji.value); });
+      h("div", { class: "adm-toolbar" }, emoji, name), h("div", {}, pic, file), ok) });
+    ok.addEventListener("click", () => { if (!name.value.trim()) return name.focus(); m.close(); done(name.value, emoji.value, image); });
     setTimeout(() => name.focus(), 50);
   }
   function banModal(u, done) {

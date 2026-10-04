@@ -4,12 +4,13 @@ import { api } from "../api.js";
 import { on } from "../state.js";
 import { profileHref } from "../router.js";
 import { songList, songCard, playSongs, openUploadSong } from "../components/music.js";
+import { videoTabs } from "./videos.js";
 
 export function musicPage(view) {
   document.title = "Music / LookBlog";
   view.classList.add("page-music");
   const box = h("div", {}, spinner());
-  view.append(box);
+  view.append(h("header", { class: "column-head no-title" }, videoTabs("music")), box);
   async function load() {
     try {
       const d = await api("/api/music");

@@ -4,6 +4,7 @@ import { starsBadge } from "../components/stars.js";
 import { api } from "../api.js";
 import { state } from "../state.js";
 import { openMovieUpload, openSeriesForm } from "../components/cinema.js";
+import { videoTabs } from "./videos.js";
 
 const movieHref = (p) => `/watch/${p.id}`;
 const seriesHref = (s) => `/playlist/${s.id}`;
@@ -26,6 +27,7 @@ function row(title, items, kind) {
 }
 
 export function cinemaPage(view) {
+  view.append(h("header", { class: "column-head no-title" }, videoTabs("cinema")));
   document.title = "Cinema / LookBlog";
   view.classList.add("page-cinema");
   const box = h("div", {}, spinner());

@@ -13,17 +13,27 @@ function videoCard(p) {
   return tile;
 }
 
-export function videosPage(view) {
+// The menu at the top of Videos, Movies & Series and Music.
+// On Videos the first three switch the list; on the other pages they lead back to Videos.
+const SCOPES = [["foryou", "Recommended"], ["all", "All"], ["following", "Following"]];
+export function videoTabs(active, onScope = null) {
+  const tabs = h("div", { class: "tabs", role: "tablist" });
+  for (const [s, label] of SCOPES) {
+    tabs.append(onScope
+      ? h("button", { class: "tab", role: "tab", text: label, dataset: { scope: s }, onclick: () => onScope(s) })
+      : h("a", { class: "tab", href: s === "foryou" ? "/videos" : `/videos?scope=${s}`, text: label, dataset: { scope: s } }));
+  }
+  tabs.append(h("a", { class: "tab tab-cinema" + (active === "cinema" ? " active" : ""), href: "/cinema" }, "🎬 Movies & Series"),
+    h("a", { class: "tab tab-cinema tab-music" + (active === "music" ? " active" : ""), href: "/music" }, icon("note", "note-ic"), "Music"));
+  return tabs;
+}
+
+export function videosPage(view, _m, params) {
   document.title = "Videos / Look Blog";
   view.classList.add("wide");
-  const tabs = h("div", { class: "tabs", role: "tablist" });
   const grid = h("div", { class: "video-grid big" });
-  let scope = "foryou", pager;
-
-  for (const [s, label] of [["foryou", "Recommended"], ["all", "All"], ["following", "Following"]]) {
-    tabs.append(h("button", { class: "tab", role: "tab", text: label, dataset: { scope: s }, onclick: () => { scope = s; load(); } }));
-  }
-  tabs.append(h("a", { class: "tab tab-cinema", href: "/cinema" }, "🎬 Movies & Series"), h("a", { class: "tab tab-cinema tab-music", href: "/music" }, icon("note", "note-ic"), "Music"));
+  let scope = SCOPES.some(([s]) => s === params?.get("scope")) ? params.get("scope") : "foryou", pager;
+  const tabs = videoTabs("videos", (s) => { scope = s; history.replaceState(null, "", s === "foryou" ? "/videos" : `/videos?scope=${s}`); load(); });
   view.append(h("header", { class: "column-head no-title" }, tabs), grid);
 
   function load() {

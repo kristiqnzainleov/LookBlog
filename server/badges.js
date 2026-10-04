@@ -243,7 +243,7 @@ function badgesFor(user) {
     };
   });
   // Special badges the LookBlog team made just for this person
-  const special = (user.specialBadges || []).map((b) => ({ id: b.id, emoji: b.emoji, name: b.name, givenAt: b.givenAt }));
+  const special = (user.specialBadges || []).map((b) => ({ id: b.id, emoji: b.emoji, image: b.image || null, name: b.name, givenAt: b.givenAt }));
   return { badges, awards, special, verifiedType: user.verified ? user.verifiedType || "creator" : null };
 }
 

@@ -355,7 +355,8 @@ export async function profilePage(view, m, params) {
   // Special badges: made by the LookBlog team for this one person
   const specialEl = h("div", { class: "special-badges", hidden: true });
   function paintSpecial(list) {
-    specialEl.replaceChildren(...list.map((b) => h("span", { class: "special-chip", title: `Special badge · only @${profile.username} has it` }, h("span", { class: "sc-emoji", text: b.emoji }), b.name)));
+    specialEl.replaceChildren(...list.map((b) => h("span", { class: "special-chip", title: `Special badge · only @${profile.username} has it` },
+      h("span", { class: "sc-emoji" + (b.image ? " has-img" : "") }, b.image ? h("img", { src: b.image, alt: "" }) : b.emoji), b.name)));
     specialEl.hidden = !list.length;
   }
   function paintRoles(list) {
@@ -675,7 +676,7 @@ export async function profilePage(view, m, params) {
     const medals = data.awards.filter((a) => a.level);
     badgeStrip.replaceChildren(
       h("span", { class: "badge-label", text: "Badges" }),
-      ...(data.special || []).map((b) => h("span", { class: "badge-dot special", title: `${b.name}: special badge, only @${profile.username} has it` }, b.emoji)),
+      ...(data.special || []).map((b) => h("span", { class: "badge-dot special" + (b.image ? " has-img" : ""), title: `${b.name}: special badge, only @${profile.username} has it` }, b.image ? h("img", { src: b.image, alt: "" }) : b.emoji)),
       ...medals.map((a) => h("span", { class: `medal ${a.tier}`, title: `${a.name}: ${a.tier} (${a.value} ${a.unit})` }, a.emoji)),
       ...earned.map((b) => h("span", { class: "badge-dot", title: `${b.name}: ${b.how}` }, badgeIcon(b, data, 24))),
       h("button", { type: "button", class: "badge-all" }, earned.length || medals.length ? "All badges" : profile.isMe ? "See badges you can earn" : "No badges yet")
