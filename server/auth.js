@@ -157,9 +157,8 @@ function validateSignup({ name, username, email, password }) {
 
 /* ---------- Routes. Returns true when the request was handled. ---------- */
 async function handleAuth(req, res, url, { port }) {
-  // Behind a hosting proxy (TRUST_PROXY=1) the real address is in the forwarded headers.
-  // Through Vercel, x-real-ip is Vercel's own address and the visitor's is in x-vercel-forwarded-for.
-  const fwd = process.env.TRUST_PROXY && String(req.headers["x-vercel-forwarded-for"] || req.headers["x-real-ip"] || "").split(",")[0].trim();
+  // Behind a hosting proxy (TRUST_PROXY=1) the real address is in x-real-ip
+  const fwd = process.env.TRUST_PROXY && String(req.headers["x-real-ip"] || "").trim();
   const ip = fwd || req.socket.remoteAddress;
   const route = `${req.method} ${url.pathname}`;
 

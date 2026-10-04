@@ -8,7 +8,7 @@
 - music like Spotify;
 - movies and series like Netflix.
 
-🌐 **Live site:** https://lookblog-production.up.railway.app (also at https://lookblog.vercel.app)
+🌐 **Live site:** https://lookblog-production.up.railway.app
 
 The design is pink (`#ff4fa3`) on black. The interface is in English and can be switched to Bulgarian, Spanish, Russian, German, Serbian or Romanian.
 
@@ -128,7 +128,7 @@ LookBlog has **no external dependencies**: no frameworks and no npm packages. Ev
 | Front end | **Vanilla JavaScript** (ES modules), HTML and CSS, a single-page app with its own router |
 | YouTube music | YouTube IFrame Player API, oEmbed |
 | Security | scrypt password hashes, HttpOnly session cookies, a CSRF header (`X-LookBlog: 1`), uploads checked by their contents |
-| Hosting | **Vercel** (public address, static files) in front of **Docker** on **Railway** (server, persistent volume for the data) |
+| Hosting | **Docker** on **Railway**, with a persistent volume for the data |
 
 ---
 
@@ -149,21 +149,16 @@ Then open http://localhost:3000. The `data/` folder is created on first start.
 | `PORT` | Port to listen on (default `3000`) |
 | `LOOKBLOG_DATA` | Where the data and uploads are kept (default `./data`) |
 | `TRUST_PROXY` | Set to `1` behind a hosting proxy so each visitor's real IP is used |
-| `PUBLIC_URL` | The public address (e.g. `https://lookblog.vercel.app`). Anyone who opens the server directly is redirected there |
 | `GOOGLE_CLIENT_ID` | Turns on "Sign in with Google" |
 | `FFMPEG_PATH` | Path to ffmpeg, if it isn't found automatically |
 
 ### Deploying
 
-There are two parts:
-1. **Server: Railway.** The `Dockerfile` builds an image with Node and ffmpeg.
-   - Run `railway up`.
-   - Add a volume mounted at `/data`.
-2. **Public address: Vercel.** Vercel serves the static files from `public/`: scripts, styles and GIFs.
-   - `vercel.json` sends everything else to the Railway server: pages, the API, uploads and live updates.
-   - Deploy with `vercel deploy --prod`.
+The `Dockerfile` builds an image with Node and ffmpeg. On Railway:
+1. Run `railway up`.
+2. Add a volume mounted at `/data`.
 
-The database and uploads are never part of either deployment.
+The database and uploads are never part of the image.
 
 ---
 
