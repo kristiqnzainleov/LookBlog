@@ -62,21 +62,36 @@ export async function connect() {
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") ping(); });
 }
 
-// A tiny Supabase Realtime client (Phoenix channels over a WebSocket): join my topics, hear "lb" broadcasts
+// A tiny Supabase Realtime client (Phoenix channels over a WebSocket): join my topics, hear "lb" broadcasts.
+// Other parts of the app can also join extra topics and send on them (the voice relay uses this).
+const extra = new Map(); // topic -> handler(event, payload)
+let rtSend = null;
+const joinCfg = { config: { broadcast: { self: false, ack: false }, presence: { key: "" }, private: false } };
+export const realtimeLink = {
+  join(topic, handler) { extra.set(topic, handler); rtSend?.("realtime:" + topic, "phx_join", joinCfg); },
+  leave(topic) { extra.delete(topic); rtSend?.("realtime:" + topic, "phx_leave"); },
+  send(topic, event, payload) { return Boolean(rtSend?.("realtime:" + topic, "broadcast", { type: "broadcast", event, payload })); },
+  get ready() { return Boolean(rtSend); },
+};
 function listenSupabase({ url, key, topics }) {
   let ws, ref = 0, beat, retry = 1000;
-  const send = (topic, event, payload = {}) => ws?.readyState === 1 && ws.send(JSON.stringify({ topic, event, payload, ref: String(++ref) }));
+  const send = (topic, event, payload = {}) => { if (ws?.readyState !== 1) return false; ws.send(JSON.stringify({ topic, event, payload, ref: String(++ref) })); return true; };
+  rtSend = send;
   const open = () => {
     ws = new WebSocket(`${url}?apikey=${encodeURIComponent(key)}&vsn=1.0.0`);
     ws.onopen = () => {
       retry = 1000;
       for (const t of topics) send("realtime:" + t, "phx_join", { config: { broadcast: { self: false }, presence: { key: "" }, private: false } });
+      for (const t of extra.keys()) send("realtime:" + t, "phx_join", joinCfg);
       clearInterval(beat);
       beat = setInterval(() => send("phoenix", "heartbeat"), 25 * 1000);
     };
     ws.onmessage = (m) => {
       let msg; try { msg = JSON.parse(m.data); } catch { return; }
-      if (msg.event === "broadcast" && msg.payload?.event === "lb" && msg.payload.payload) handle(msg.payload.payload);
+      if (msg.event !== "broadcast" || !msg.payload) return;
+      if (msg.payload.event === "lb" && msg.payload.payload) return handle(msg.payload.payload);
+      const h = extra.get(String(msg.topic || "").replace(/^realtime:/, ""));
+      if (h) h(msg.payload.event, msg.payload.payload);
     };
     ws.onclose = () => {
       clearInterval(beat);

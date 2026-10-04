@@ -6,6 +6,7 @@ import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic } from "./voice-music.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings } from "./audio-devices.js";
+import * as relay from "./voice-relay.js";
 let room = null;
 export const currentVoice = () => room && { chatId: room.chat.id, channelId: room.channel.id };
 export const speakingNow = new Set();
@@ -47,6 +48,8 @@ export async function joinVoice(chat, channel) {
   buildDock();
   applyMusic(joined.music || null);
   watchLocal(mic);
+  // The fallback for people we can't reach directly
+  relay.startRelay({ topic: joined.relayTopic, me: state.me.username, mic, box: audioBox, speakerId: audioPrefs().speakerId }).catch((err) => console.warn("[relay]", err));
   for (const p of others) peer(p.username); // I call everyone who is already here
   room.ping = setInterval(() => post({ kind: "ping" }).catch((err) => { if (/not in that voice/i.test(err.error || "")) leaveVoice(true); }), 15000);
   playTone(true);
@@ -60,6 +63,7 @@ export async function leaveVoice(silent) {
   r.ended = true;
   clearInterval(r.ping);
   clearInterval(r.place);
+  relay.stopRelay();
   for (const p of r.peers.values()) closePeer(p);
   r.mic.getTracks().forEach((t) => t.stop());
   r.audioBox?.remove();
@@ -81,7 +85,8 @@ addEventListener("pagehide", () => {
 /* ---------- Connections to each person ---------- */
 function peer(username) {
   if (room.peers.has(username)) return room.peers.get(username);
-  const pc = new RTCPeerConnection({ iceServers: room.ice, iceCandidatePoolSize: 2 });
+  // (window.__lbForceRelay: for testing, make direct connections impossible)
+  const pc = new RTCPeerConnection(window.__lbForceRelay ? { iceServers: [], iceTransportPolicy: "relay" } : { iceServers: room.ice, iceCandidatePoolSize: 2 });
   // Their voice plays in an <audio> on the page (phones are pickier about ones that aren't)
   const audio = h("audio", { autoplay: true, playsInline: true });
   room.audioBox.append(audio);
@@ -103,6 +108,8 @@ function peer(username) {
       signal(p, { description: pc.localDescription });
     } catch {} finally { p.makingOffer = false; }
   };
+  // Not connected after 8 seconds: talk through the relay meanwhile
+  setTimeout(() => { if (room && room.peers.get(username) === p && pc.connectionState !== "connected") relay.need(username); }, 8000);
   // If it isn't connected in 10 seconds, try again (up to 3 times)
   p.tries = 0;
   const watch = () => setTimeout(() => {
@@ -119,12 +126,14 @@ function peer(username) {
   };
   // A dropped connection tries again on its own
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "failed") pc.restartIce();
+    if (pc.connectionState === "connected") relay.unneed(username); // direct works: no relay needed
+    if (pc.connectionState === "failed") { relay.need(username); pc.restartIce(); }
     if (pc.connectionState === "disconnected") setTimeout(() => { if (pc.connectionState === "disconnected") pc.restartIce(); }, 4000);
   };
   return p;
 }
 function closePeer(p) {
+  relay.unneed(p.username);
   p.pc.close();
   p.audio.srcObject = null;
   p.audio.remove();
@@ -150,6 +159,7 @@ function wakeAudio() {
   if (!room) return;
   audioEngine();
   for (const p of room.peers.values()) if (p.audio.srcObject && p.audio.paused) playAudio(p.audio);
+  relay.wakeRelay();
 }
 addEventListener("pointerdown", wakeAudio, true);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") wakeAudio(); });
@@ -170,6 +180,7 @@ async function switchMic() {
   room.mic = s;
   room.stream = s;
   old.getTracks().forEach((t) => t.stop());
+  relay.setMic(s);
   setMicOpen();
   watchLocal(s);
   watchMicEnd();
@@ -191,6 +202,7 @@ navigator.mediaDevices?.addEventListener?.("devicechange", async () => {
 });
 function setSpeaker(id) {
   if (!room) return;
+  relay.setRelaySpeaker(id);
   for (const p of room.peers.values()) if (p.audio.setSinkId) p.audio.setSinkId(id || "").catch(() => {});
 }
 // Set-up messages go out one at a time so they arrive in order
@@ -301,6 +313,7 @@ on("voice:state", (ev) => {
 function setMicOpen() {
   const open = !room.muted && !room.deaf;
   room.mic.getAudioTracks().forEach((t) => (t.enabled = open));
+  relay.setRelayMuted(!open);
 }
 function setMuted(v) {
   room.muted = v;
@@ -312,6 +325,7 @@ function setDeaf(v) {
   room.deaf = v;
   setMusicDeaf(v);
   for (const p of room.peers.values()) p.audio.muted = v;
+  relay.setRelayDeaf(v);
   setMicOpen();
   post({ kind: "state", deaf: v }).catch(() => {});
   paintDock();
@@ -364,6 +378,8 @@ function watchLocal(stream) {
       for (const v of localMeter.buf) peak = Math.max(peak, Math.abs(v - 128));
       if (peak > 14) now.add(state.me.username);
     }
+    // People heard through the relay
+    for (const [u, t] of relay.relayLoud) if (Date.now() - t < 450) now.add(u);
     await Promise.all([...room.peers].map(async ([u, p]) => {
       try { (await p.pc.getStats()).forEach((r) => { if (r.type === "inbound-rtp" && r.kind === "audio" && (r.audioLevel || 0) > 0.03) now.add(u); }); } catch {}
     }));

@@ -103,7 +103,9 @@ async function handleVoice(req, res, me, chat, chats) {
     room[me.id] = { muted: Boolean(body.muted), deaf: false, video: false, screen: false, seen: Date.now() };
     save("voice");
     announce(chat, channel.id);
-    sendJSON(res, 200, { participants: others, music: musicView(key) });
+    // A secret topic for the fallback voice relay (when two people can't connect directly)
+    const relayTopic = require("./store").enabled ? "vr-" + require("crypto").createHmac("sha256", process.env.SUPABASE_SERVICE_KEY || "lb").update("voice:" + key).digest("base64url").slice(0, 24) : null;
+    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic });
     return true;
   }
   if (body.kind === "leave") {
