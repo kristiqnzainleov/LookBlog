@@ -360,17 +360,20 @@ export async function profilePage(view, m, params) {
     const ownEmoji = h("input", { type: "text", class: "text-input role-own-emoji", maxlength: 8, placeholder: "✨", "aria-label": "Emoji" });
     const ownName = h("input", { type: "text", class: "text-input", maxlength: 24, placeholder: "Something else? e.g. Tattoo artist", "aria-label": "What you do" });
     const ownAdd = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Add" });
+    // Adds what's typed in "Not in the list?". Returns false if it couldn't.
     const addOwn = async () => {
-      if (!ownName.value.trim()) return ownName.focus();
+      if (!ownName.value.trim()) { ownName.focus(); return false; }
       ownAdd.disabled = true;
+      let ok = false;
       try {
         const { role } = await api("/api/me/roles/custom", { method: "POST", body: { name: ownName.value, emoji: ownEmoji.value } });
         if (!allRoles.some((r) => r.id === role.id)) allRoles.push(role);
-        if (picked.size < 3) picked.add(role.id); else toast("Added. Unpick one to use it, you can have up to 3.");
+        if (picked.size < 3 || picked.has(role.id)) { picked.add(role.id); ok = true; } else toast("Added. Unpick one to use it, you can have up to 3.");
         ownName.value = ""; ownEmoji.value = "";
         paint();
       } catch (err) { toast(err.error || "Couldn’t add it."); }
       ownAdd.disabled = false;
+      return ok;
     };
     ownAdd.addEventListener("click", addOwn);
     ownName.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addOwn(); } });
@@ -390,6 +393,8 @@ export async function profilePage(view, m, params) {
       h("p", { class: "create-hint", text: "Pick up to 3 badges. They show under your name so people know what you’re about." }), grid,
       h("b", { class: "vis-label", text: "Not in the list?" }), own, save) });
     save.addEventListener("click", async () => {
+      // Typed your own but pressed Save straight away: add it too
+      if (ownName.value.trim() && !(await addOwn())) return;
       try {
         const { roles, canMakeFilms, canMakeMusic: canMakeMusicNow } = await api("/api/me/roles", { method: "POST", body: { roles: [...picked] } });
         if (canMakeMusicNow && !state.me.canMakeMusic) toast("🎵 Songs are unlocked! Upload one from Create.");
