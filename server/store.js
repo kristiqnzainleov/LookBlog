@@ -18,14 +18,24 @@ const written = new Map(); // coll -> Map(id -> JSON of what the database has)
 const rowSeq = new Map(); // coll + "\0" + id -> seq of the version in memory
 const dirty = new Set();
 
+// Calls Supabase. A dropped connection or a 5xx is tried again (3 tries, a moment apart).
 async function rest(path, { method = "GET", body, prefer } = {}) {
-  const res = await fetch(`${URL_}/rest/v1/${path}`, {
-    method,
-    headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json", ...(prefer ? { Prefer: prefer } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`Supabase ${method} ${path.split("?")[0]}: ${res.status} ${await res.text().catch(() => "")}`);
-  return res.status === 204 ? null : res.json();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(`${URL_}/rest/v1/${path}`, {
+        method,
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json", ...(prefer ? { Prefer: prefer } : {}) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (res.status >= 500 && attempt < 3) throw new Error(`Supabase ${res.status}`);
+      if (!res.ok) throw Object.assign(new Error(`Supabase ${method} ${path.split("?")[0]}: ${res.status} ${await res.text().catch(() => "")}`), { final: true });
+      return res.status === 204 ? null : res.json();
+    } catch (err) {
+      if (err.final || attempt >= 3) throw err;
+      await new Promise((r) => setTimeout(r, 250 * attempt));
+    }
+  }
 }
 
 const wmap = (coll) => written.get(coll) || written.set(coll, new Map()).get(coll);

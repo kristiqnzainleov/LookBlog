@@ -231,9 +231,17 @@ function afterAnswer(res, fn) {
 }
 
 async function handle(req, res) {
-  await ready;
+  try {
+    await ready();
+  } catch (err) {
+    // The database couldn't be reached: say so instead of crashing (the next request tries again)
+    console.error("[db]", err.message);
+    res.writeHead(503, { "Content-Type": "application/json; charset=utf-8", "Retry-After": "2" });
+    return res.end(JSON.stringify({ error: "LookBlog is waking up. Try again in a moment." }));
+  }
   if (store.enabled) {
-    await sync(); // what other servers changed
+    // What other servers changed. If that fails, carry on with what's in memory.
+    await sync().catch((err) => console.error("[sync]", err.message));
     runDue(); // jobs that are due
     // Write everything and send live updates before the answer leaves
     res.beforeEnd = [];

@@ -122,11 +122,17 @@ const findChat = (id) => db.chats.find((c) => c.id === id) || null;
 const loadHooks = [];
 let loaded = false;
 function onLoad(fn) { if (loaded) fn(); else loadHooks.push(fn); }
-const ready = (store.enabled ? store.load(db) : Promise.resolve()).then(() => {
-  normalize();
-  loaded = true;
-  for (const fn of loadHooks.splice(0)) fn();
-});
+// The first load. If it fails (e.g. the network blipped), the next request tries again instead of staying broken.
+let loading = null;
+function ready() {
+  if (!loading) loading = (store.enabled ? store.load(db) : Promise.resolve()).then(() => {
+    normalize();
+    loaded = true;
+    for (const fn of loadHooks.splice(0)) fn();
+  }).catch((err) => { loading = null; throw err; });
+  return loading;
+}
+ready().catch((err) => console.error("[db] first load failed, will retry:", err.message));
 // Before each request online: pick up what other servers changed
 const sync = () => (store.enabled ? store.sync(db) : Promise.resolve());
 const flush = () => (store.enabled ? store.flush(db) : Promise.resolve());
