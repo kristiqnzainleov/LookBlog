@@ -6,7 +6,7 @@ import { navigate } from "../router.js";
 import { conversation, chatPic, chatTitle, callNoteText } from "../components/chat.js";
 import { notesRow } from "../components/notes.js";
 import { groupView } from "../components/group.js";
-import { onHold, openWallpaperPicker, applyWallpaper } from "../components/wallpaper.js";
+import { onHold, openChatOptions, applyWallpaper, applyTheme } from "../components/wallpaper.js";
 
 function openNewMessage() {
   const list = h("div", { class: "conn-list" }, spinner());
@@ -46,9 +46,10 @@ export function messagesPage(view, m) {
   const messenger = h("div", { class: "messenger" + (openId ? " has-open" : "") }, inbox, pane);
   view.append(messenger);
 
-  // Hold a chat (or right-click it) to pick its wallpaper
+  // Hold a chat (or right-click it) for its theme, wallpaper and photo
   function holdForWallpaper(c, item) {
-    onHold(item, () => openWallpaperPicker(c, (wp) => document.querySelectorAll(`.convo[data-wall-chat="${CSS.escape(c.id)}"]`).forEach((el) => applyWallpaper(el, wp))));
+    const open = (fn) => (v) => document.querySelectorAll(`.convo[data-wall-chat="${CSS.escape(c.id)}"]`).forEach((el) => fn(el, v));
+    onHold(item, () => openChatOptions(c, { onTheme: open(applyTheme), onWallpaper: open(applyWallpaper), onPhoto: () => loadList() }));
     return item;
   }
 

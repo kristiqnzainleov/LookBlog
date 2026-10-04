@@ -17,7 +17,7 @@ import { linkBlock } from "./links.js";
 import { upload } from "../api.js";
 import { attachMentions } from "./mentions.js";
 import { openSoundPicker, soundChip, playSound } from "./sounds.js";
-import { applyWallpaper, onHold, openWallpaperPicker } from "./wallpaper.js";
+import { applyWallpaper, applyTheme, onHold, openChatOptions } from "./wallpaper.js";
 
 export function chatPic(c, size = 44) {
   if (c.kind === "dm") return avatarWithPresence(c.other, size);
@@ -620,10 +620,11 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
           ` · ${chat.visibility || "public"} group`,
           chat.onlineCount ? h("span", { class: "online-count" }, " · ", h("span", { class: "presence-dot online" }), ` ${chat.onlineCount} online`) : null)), streakBadge(chat));
     const tools = h("div", { class: "convo-tools" });
-    // My wallpaper for this chat; hold (or right-click) the name to change it
+    // The chat's theme and my wallpaper; hold (or right-click) the name for the chat options
     applyWallpaper(el, chat.wallpaper, chat.id);
-    title.title = "Hold to change the wallpaper";
-    onHold(title, () => openWallpaperPicker(chat, (wp) => applyWallpaper(el, wp)));
+    applyTheme(el, chat.theme, chat.id);
+    title.title = "Hold for theme, wallpaper and photo";
+    onHold(title, () => openChatOptions(chat, { onTheme: (t) => applyTheme(el, t), onWallpaper: (wp) => applyWallpaper(el, wp), onPhoto: () => refresh() }));
     const gamesBtn = h("button", { class: "icon-btn", title: "Play a game", "aria-label": "Play a game" }, icon("game"));
     gamesBtn.addEventListener("click", () => openGamePicker(chat, { channelId, onStarted: (m) => { add(m); toBottom(); } }));
     if (chat.canSend) tools.append(gamesBtn);

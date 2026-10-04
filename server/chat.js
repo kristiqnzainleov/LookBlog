@@ -151,6 +151,7 @@ function chatView(chat, me, { full = false } = {}) {
     member: isMember(chat, me),
     pinnedCount: (chat.pins || []).length,
     wallpaper: me.wallpapers?.[chat.id] || null, // only mine: everyone picks their own
+    theme: chat.theme || null, // the bubble colours everyone in the chat sees
   };
   if (chat.kind === "dm") {
     const other = findUser(chat.members.find((id) => id !== me.id));
@@ -877,6 +878,36 @@ async function handleChat(req, res, url, me) {
       save("users");
       sendTo([me.id], { type: "chat:wallpaper", chatId: chat.id, wallpaper: next });
       sendJSON(res, 200, { wallpaper: next });
+      return true;
+    }
+
+    // The chat's theme, for everyone in it: POST /api/chats/:id/theme { theme }  (groups: people who can change the group)
+    if (m === "POST" && c === "theme" && parts.length === 3) {
+      if (!chat.members.includes(me.id)) throw httpError(403, "Join to change the theme.");
+      if (chat.kind === "group" && !require("./groups").can(chat, me, "manage_group")) throw httpError(403, "Only people who can change the group can change its theme.");
+      const THEMES = { pink: "Pink", berry: "Berry", ocean: "Ocean", mint: "Mint", sunset: "Sunset", fire: "Fire", gold: "Gold", galaxy: "Galaxy", mono: "Mono" };
+      const theme = String((await readJSON(req)).theme || "");
+      if (!THEMES[theme]) throw httpError(400, "Pick a theme.");
+      chat.theme = theme === "pink" ? null : theme;
+      save("chats");
+      sendTo(chat.members, { type: "chat:theme", chatId: chat.id, theme: chat.theme });
+      systemMessage(chat, me, `🎨 ${me.name} changed the theme to ${THEMES[theme]}`);
+      sendJSON(res, 200, { theme: chat.theme });
+      return true;
+    }
+    // The group's photo: POST /api/chats/:id/photo { image }
+    if (m === "POST" && c === "photo" && parts.length === 3) {
+      if (chat.kind !== "group") throw httpError(400, "Only groups have a photo.");
+      if (!require("./groups").can(chat, me, "manage_group")) throw httpError(403, "You don’t have permission to change the group.");
+      const img = ownedMedia((await readJSON(req)).image, me.id, "image");
+      if (!img) throw httpError(400, "That photo couldn’t be found. Add it again.");
+      if (chat.cover && chat.cover !== img.url) deleteMedia(chat.cover);
+      markUsed(img.url, "group:" + chat.id);
+      chat.cover = img.url;
+      save("chats");
+      sendTo(chat.members, { type: "group:changed", chatId: chat.id, what: "photo" });
+      systemMessage(chat, me, `📷 ${me.name} changed the group photo`);
+      sendJSON(res, 200, { cover: chat.cover });
       return true;
     }
 

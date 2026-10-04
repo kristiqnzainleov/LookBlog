@@ -4440,3 +4440,52 @@ button.note-item { background: none; border: 0; padding: 0; font: inherit; color
 .wall-photo { justify-content: center; background: var(--card-2); border-style: dashed; }
 .wall-photo span { font-size: 1.8rem; }
 @media (max-width: 640px) { .wall-grid { gap: 8px; } }
+
+/* Special badges in the colour the team picked */
+.special-chip[style*="--sb"], .special-card[style*="--sb"], .badge-dot.special[style*="--sb"] {
+  background: linear-gradient(110deg, var(--sb) 0%, color-mix(in srgb, var(--sb) 55%, #fff) 35%, var(--sb) 55%, color-mix(in srgb, var(--sb) 75%, #fff) 75%, var(--sb) 100%);
+  background-size: 250% 100%; color: var(--sb-text, #1a0d14);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sb) 60%, #fff), 0 6px 22px color-mix(in srgb, var(--sb) 40%, transparent);
+}
+.sb-swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sb-swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.sb-swatch.auto { background: linear-gradient(135deg, #ff4fa3, #ffd27a); }
+.sb-swatch.on { border-color: var(--paper); box-shadow: 0 0 0 2px var(--pink); }
+.sb-custom { width: 36px; height: 32px; border: 0; background: none; cursor: pointer; padding: 0; }
+.sb-preview { display: flex; justify-content: center; padding: 6px 0; }
+
+/* ---------- The admin panel (/admin-panel) ---------- */
+.panel-body { min-height: 100vh; }
+.panel-auth { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.panel-auth-card { width: min(420px, 100%); padding: 28px 24px; border-radius: var(--radius-lg); background: var(--card); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); }
+.panel-auth-card h1 { font: 900 1.6rem var(--display); margin: 6px 0 0; }
+.panel-logo { display: inline-flex; align-items: center; gap: 8px; color: var(--paper); text-decoration: none; font: 900 1.4rem "Lexend", var(--display); }
+.panel-logo em { font-style: normal; color: var(--pink); }
+.panel-logo.small { font-size: 1.2rem; }
+.panel-tag { padding: 3px 9px; border-radius: 999px; background: var(--pink); color: #000; font: 800 0.72rem var(--body); letter-spacing: 0.04em; text-transform: uppercase; }
+.panel-shield { font-size: 1.2rem; }
+.panel-back { text-align: center; font-size: 0.88rem; }
+.panel-top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px clamp(16px, 3vw, 40px); background: rgba(18, 17, 17, 0.92); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.panel-who { display: flex; align-items: center; gap: 12px; }
+.panel-view { padding: 24px clamp(12px, 3vw, 40px) 60px; max-width: 1100px; margin: 0 auto; }
+@media (max-width: 640px) { .panel-who small { display: none; } .panel-view { padding: 16px 12px 40px; } }
+
+/* Chat themes (the same for everyone in the chat) */
+.convo.themed .msg.mine .bubble { background: var(--theme-bubble); color: var(--theme-text); }
+.convo.themed .msg.mine .bubble .bubble-time, .convo.themed .msg.mine .bubble a { color: inherit; opacity: 0.8; }
+.convo.themed .convo-input button[type="submit"], .convo.themed .send-btn { background: var(--theme-bubble); color: var(--theme-text); }
+.theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme-opt { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-radius: 14px; border: 2px solid var(--line); background: var(--card-2); color: var(--paper); cursor: pointer; font: inherit; }
+.theme-opt.on { border-color: var(--pink); box-shadow: 0 0 0 2px var(--pink); }
+.theme-opt b { font-size: 0.85rem; }
+.theme-bubbles { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.theme-bubbles i { display: block; height: 20px; border-radius: 10px; font: 700 0.7rem/20px var(--body); font-style: normal; padding: 0 8px; }
+.tb-other { width: 60%; background: #2a2626; }
+.tb-mine { width: 55%; align-self: flex-end; text-align: right; }
+/* Chat options (hold a chat) */
+.co-list { display: flex; flex-direction: column; gap: 8px; }
+.co-item { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--paper); cursor: pointer; font: inherit; text-align: left; }
+.co-item:hover { border-color: var(--pink); }
+.co-ic { font-size: 1.5rem; }
+.co-text { display: flex; flex-direction: column; gap: 2px; }
+.panel-auth-card .form-error:empty { display: none; }

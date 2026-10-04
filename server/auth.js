@@ -489,4 +489,4 @@ async function handleAuth(req, res, url, { port }) {
   return false;
 }
 
-module.exports = { handleAuth, sessionUser, meView, endSessionsFor };
+module.exports = { handleAuth, sessionUser, meView, endSessionsFor, hashPassword, verifyPassword };

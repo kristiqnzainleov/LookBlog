@@ -1,5 +1,7 @@
-// Chat wallpapers: everyone picks their own background for a chat (only they see it).
-// Hold a chat in the list (or its name at the top of the chat), or right-click it, to change it.
+// Chat options (hold a chat in the list or its name at the top, or right-click it):
+//   Theme — the colour of the bubbles, the same for everyone in the chat (like Messenger)
+//   Wallpaper — your own background for the chat (only you see it)
+//   Group photo — for groups, if you can change the group
 import { h, modal, toast } from "../ui.js";
 import { api, upload } from "../api.js";
 import { on } from "../state.js";
@@ -14,6 +16,29 @@ export const WALLS = {
   grid: ["Grid", "linear-gradient(rgba(255,79,163,0.14) 1px, transparent 1px) 0 0 / 28px 28px, linear-gradient(90deg, rgba(255,79,163,0.14) 1px, transparent 1px) 0 0 / 28px 28px, #121111"],
   mono: ["Black", "#050505"],
 };
+
+export const THEMES = {
+  pink: ["Pink", "#ff4fa3", "#14090f"],
+  berry: ["Berry", "linear-gradient(135deg, #a64dff, #ff4fa3)", "#fff"],
+  ocean: ["Ocean", "linear-gradient(135deg, #1f8bff, #29d3e6)", "#fff"],
+  mint: ["Mint", "linear-gradient(135deg, #20c997, #8ce99a)", "#062018"],
+  sunset: ["Sunset", "linear-gradient(135deg, #ff7a3d, #ff4fa3)", "#fff"],
+  fire: ["Fire", "linear-gradient(135deg, #ff3b30, #ff9f0a)", "#fff"],
+  gold: ["Gold", "linear-gradient(135deg, #f7b733, #ffe08a)", "#2b1d00"],
+  galaxy: ["Galaxy", "linear-gradient(135deg, #3a1c71, #5b5bd6, #d76d77)", "#fff"],
+  mono: ["Mono", "#f4efe8", "#121111"],
+};
+// Paint the chat's theme (my bubbles, the send button)
+export function applyTheme(convoEl, theme, chatId) {
+  if (chatId) convoEl.dataset.wallChat = chatId;
+  const t = THEMES[theme] || null;
+  convoEl.classList.toggle("themed", Boolean(t));
+  if (t) { convoEl.style.setProperty("--theme-bubble", t[1]); convoEl.style.setProperty("--theme-text", t[2]); }
+  else { convoEl.style.removeProperty("--theme-bubble"); convoEl.style.removeProperty("--theme-text"); }
+}
+on("chat:theme", (ev) => {
+  document.querySelectorAll(`.convo[data-wall-chat="${CSS.escape(ev.chatId)}"]`).forEach((el) => applyTheme(el, ev.theme));
+});
 
 // Put the wallpaper behind the messages of a conversation
 export function applyWallpaper(convoEl, wp, chatId) {
@@ -81,4 +106,59 @@ export function openWallpaperPicker(chat, onDone) {
         return b;
       })),
     current ? h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Remove wallpaper", onclick: () => save({ clear: true }, "Wallpaper removed.") }) : null) });
+}
+
+// The theme for everyone in the chat
+export function openThemePicker(chat, onDone) {
+  const current = chat.theme || "pink";
+  const m = modal({ title: "Chat theme", body: h("div", { class: "create-form wall-picker" },
+    h("p", { class: "create-hint", text: "Everyone in this chat sees it." }),
+    h("div", { class: "theme-grid" }, ...Object.entries(THEMES).map(([id, [label, bg, fg]]) => {
+      const b = h("button", { type: "button", class: "theme-opt" + (current === id ? " on" : "") },
+        h("span", { class: "theme-bubbles" }, h("i", { class: "tb-other" }), h("i", { class: "tb-mine", style: `background:${bg};color:${fg}`, text: "Hi!" })),
+        h("b", { text: label }));
+      b.addEventListener("click", async () => {
+        try {
+          const r = await api(`/api/chats/${chat.id}/theme`, { method: "POST", body: { theme: id } });
+          chat.theme = r.theme;
+          onDone?.(r.theme);
+          m.close();
+          toast(`Theme: ${label}.`);
+        } catch (err) { toast(err.error || "Couldn’t change it."); }
+      });
+      return b;
+    }))) });
+}
+
+// A new photo for a group
+function pickGroupPhoto(chat, onDone) {
+  const file = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif", hidden: true });
+  document.body.append(file);
+  file.addEventListener("change", async () => {
+    const f = file.files[0];
+    file.remove();
+    if (!f) return;
+    toast("Uploading…");
+    try {
+      const up = await upload(f);
+      const r = await api(`/api/chats/${chat.id}/photo`, { method: "POST", body: { image: up.url } });
+      chat.cover = r.cover;
+      onDone?.(r.cover);
+      toast("Group photo changed.");
+    } catch (err) { toast(err.error || "Couldn’t change it."); }
+  });
+  file.click();
+}
+
+// What holding a chat opens
+export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto } = {}) {
+  const name = chat.kind === "dm" ? chat.other?.name : chat.name;
+  const canGroup = chat.kind === "group" && (chat.isOwner || chat.perms?.includes("manage_group"));
+  const canTheme = chat.kind === "dm" || canGroup;
+  const item = (emoji, title, sub, fn) => h("button", { type: "button", class: "co-item", onclick: () => { m.close(); fn(); } },
+    h("span", { class: "co-ic", text: emoji }), h("span", { class: "co-text" }, h("b", { text: title }), h("small", { class: "muted", text: sub })));
+  const m = modal({ title: name || "Chat", body: h("div", { class: "co-list" },
+    canTheme ? item("🎨", "Theme", "Bubble colours, for everyone in the chat", () => openThemePicker(chat, onTheme)) : null,
+    item("🖼️", "Wallpaper", "Your own background (only you see it)", () => openWallpaperPicker(chat, onWallpaper)),
+    canGroup ? item("📷", "Group photo", "Change the group’s picture", () => pickGroupPhoto(chat, onPhoto)) : null) });
 }

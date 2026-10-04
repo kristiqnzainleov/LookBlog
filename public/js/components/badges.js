@@ -39,11 +39,19 @@ export function openBadges(profile, data) {
     ? h("div", { class: "role-badges in-modal" }, ...data.roles.map((r) => h("span", { class: "role-chip", text: `${r.emoji} ${r.name}` })))
     : null;
   const special = data.special?.length
-    ? h("div", { class: "special-grid" }, ...data.special.map((b) => h("div", { class: "special-card" }, b.image ? h("img", { class: "sc-big-img", src: b.image, alt: "" }) : h("span", { class: "sc-big", text: b.emoji }), h("b", { text: b.name }), h("small", { text: `Made by the LookBlog team, only for @${profile.username}` }))))
+    ? h("div", { class: "special-grid" }, ...data.special.map((b) => h("div", { class: "special-card", style: specialStyle(b) }, b.image ? h("img", { class: "sc-big-img", src: b.image, alt: "" }) : h("span", { class: "sc-big", text: b.emoji }), h("b", { text: b.name }), h("small", { text: `Made by the LookBlog team, only for @${profile.username}` }))))
     : null;
   modal({ title: profile.isMe ? "Your badges" : `${profile.name}’s badges`, wide: true, body: h("div", { class: "badges-modal" },
     special ? h("h3", { class: "side-title", text: "💎 Special" }) : null, special,
     roles ? h("h3", { class: "side-title", text: "What they do" }) : null, roles,
     h("h3", { class: "side-title", text: "Awards" }), awards,
     h("h3", { class: "side-title", text: `Badges · ${earned} of ${data.badges.length}` }), badges) });
+}
+
+// The colours of a special badge (the team picks one; pink and gold if not)
+export function specialStyle(b) {
+  if (!b?.color) return "";
+  const n = parseInt(b.color.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, bl = n & 255;
+  const light = 0.299 * r + 0.587 * g + 0.114 * bl > 150;
+  return `--sb:${b.color};--sb-text:${light ? "#1a0d14" : "#ffffff"}`;
 }

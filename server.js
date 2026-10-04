@@ -28,7 +28,7 @@ const { handleAccount } = require("./server/account");
 const { handleLinks } = require("./server/links");
 const { handleLeaderboard } = require("./server/leaderboard");
 const { handleStreams } = require("./server/streams");
-const { handleAdmin } = require("./server/admin");
+const { handleAdmin, handlePanel, panelAdmin } = require("./server/admin");
 const { ready, sync, flush } = require("./server/db");
 const store = require("./server/store");
 const { runDue } = require("./server/ticker");
@@ -88,7 +88,13 @@ async function handleApi(req, res, url) {
 
   if (await handleAuth(req, res, url, { port: PORT })) return;
 
-  const me = sessionUser(req);
+  // The admin panel (/admin-panel) has its own accounts
+  if (url.pathname.startsWith("/api/panel/")) { await handlePanel(req, res, url); return; }
+  const panel = /^\/api\/(admin|upload)/.test(url.pathname) ? panelAdmin(req) : null;
+  if (panel && url.pathname.startsWith("/api/admin")) { await handleAdmin(req, res, url, panel); return; }
+
+  // A panel admin can also upload (e.g. a picture for a special badge)
+  const me = sessionUser(req) || (panel && url.pathname.startsWith("/api/upload") ? panel : null);
   if (!me) return sendJSON(res, 401, { error: "Please log in." });
 
   if (req.method === "GET" && url.pathname === "/api/events") {
@@ -292,6 +298,8 @@ async function handle(req, res) {
       if (loggedIn && !url.searchParams.has("reset") && !url.searchParams.has("add")) return redirect(res, "/feed");
       return servePublic(res, "index.html");
     }
+    // The admin panel: its own log in, separate from LookBlog accounts
+    if (p === "/admin-panel") return servePublic(res, "admin-panel.html");
     // About, Help and the policies: open to everyone
     const info = { "/about": "about", "/help": "help", "/terms": "terms", "/privacy": "privacy", "/cookies": "cookies" }[p];
     if (info) return servePublic(res, `info/${info}.html`);

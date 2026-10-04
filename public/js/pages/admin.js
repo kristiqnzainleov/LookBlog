@@ -4,6 +4,7 @@ import { api, upload } from "../api.js";
 import { state, on } from "../state.js";
 import { profileHref, postHref } from "../router.js";
 import { VERIFY_TYPES } from "../verify-types.js";
+import { specialStyle } from "../components/badges.js";
 
 const TABS = [
   ["overview", "📊 Overview"],
@@ -43,17 +44,19 @@ export function adminPage(view, _m, params) {
     view.append(empty("This page is for the LookBlog team.", "You don’t have access to it."));
     return;
   }
-  let tab = TABS.some(([k]) => k === params.get("tab")) ? params.get("tab") : "overview";
+  // The admin panel (its own accounts) also has the Team tab
+  const ALL = state.me.panel ? [...TABS, ["team", "🛡️ Team"]] : TABS;
+  let tab = ALL.some(([k]) => k === params.get("tab")) ? params.get("tab") : "overview";
   let counts = {};
   const tabs = h("nav", { class: "adm-tabs" });
   const body = h("div", { class: "adm-body" });
   view.append(h("header", { class: "column-head" }, h("div", { class: "head-row" }, h("div", { class: "head-text" },
     h("h1", { text: "🛡️ Admin" }), h("p", { class: "page-sub", text: "Reports, verification requests, messages to the team and accounts." }))), tabs), body);
 
-  const paintTabs = () => tabs.replaceChildren(...TABS.map(([k, label, c]) => h("button", { type: "button", class: "adm-tab" + (k === tab ? " on" : ""), onclick: () => go(k) },
+  const paintTabs = () => tabs.replaceChildren(...ALL.map(([k, label, c]) => h("button", { type: "button", class: "adm-tab" + (k === tab ? " on" : ""), onclick: () => go(k) },
     label, c && counts[c] ? h("span", { class: "adm-count", text: String(counts[c]) }) : null)));
   const setCounts = (c) => { if (!c) return; counts = c; paintTabs(); };
-  function go(k) { tab = k; history.replaceState(null, "", k === "overview" ? "/admin" : `/admin?tab=${k}`); paintTabs(); load(); }
+  function go(k) { tab = k; history.replaceState(null, "", k === "overview" ? location.pathname : `${location.pathname}?tab=${k}`); paintTabs(); load(); }
 
   let sub = {}; // the chosen filter on each tab
   async function load() {
@@ -66,6 +69,7 @@ export function adminPage(view, _m, params) {
       if (tab === "bugs") return tickets("bug");
       if (tab === "deleted") return tickets("deletion");
       if (tab === "users") return users();
+      if (tab === "team") return team();
     } catch (err) {
       body.replaceChildren(empty("Couldn’t load this.", err.error || "Try again."));
     }
@@ -291,7 +295,7 @@ export function adminPage(view, _m, params) {
       const btns = [];
       if (u.verified) { const b = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Remove tick" }); confirmClick(b, "Sure?", () => act("unverify")); btns.push(b); }
       else btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Verify", onclick: () => verifyModal(u, (type) => act("verify", { type })) }));
-      btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "⭐ Special badge", onclick: () => specialModal(u, (name, emoji, image) => act("special-badge", { name, emoji, image })) }));
+      btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "⭐ Special badge", onclick: () => specialModal(u, (name, emoji, image, color) => act("special-badge", { name, emoji, image, color })) }));
       if (!u.owner && !isMe) {
         if (u.banned) btns.push(h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Unsuspend", onclick: () => act("unban") }));
         else btns.push(h("button", { type: "button", class: "btn btn-xs btn-danger-outline", text: "Suspend", onclick: () => banModal(u, (reason) => act("ban", { reason })) }));
@@ -307,7 +311,7 @@ export function adminPage(view, _m, params) {
         h("p", { class: "muted adm-small" }, [u.email, `${u.followers} followers`, `${u.posts} posts`, u.reportsAgainst ? `🚩 ${u.reportsAgainst} reports` : null].filter(Boolean).join(" · "), " · joined ", timeEl(u.createdAt)),
         u.bannedInfo?.reason ? h("p", { class: "adm-note", text: "Suspended: " + u.bannedInfo.reason }) : null,
         u.special?.length ? h("div", { class: "adm-user-chips" }, ...u.special.map((b) => {
-          const x = h("button", { type: "button", class: "special-chip small", title: "Remove this special badge" }, b.image ? h("img", { class: "sc-mini", src: b.image, alt: "" }) : `${b.emoji} `, `${b.name} ✕`);
+          const x = h("button", { type: "button", class: "special-chip small", style: specialStyle(b), title: "Remove this special badge" }, b.image ? h("img", { class: "sc-mini", src: b.image, alt: "" }) : `${b.emoji} `, `${b.name} ✕`);
           confirmClick(x, "Remove?", () => act("remove-special", { badgeId: b.id }));
           return x;
         })) : null,
@@ -326,6 +330,22 @@ export function adminPage(view, _m, params) {
     const emoji = h("input", { class: "adm-input", type: "text", maxlength: 8, placeholder: "💎", style: "width:80px" });
     const name = h("input", { class: "adm-input", type: "text", maxlength: 24, placeholder: "Badge name, e.g. Ivancho" });
     const ok = h("button", { type: "button", class: "btn btn-primary", text: "Give badge" });
+    // Its colour
+    const COLORS = ["#ff4fa3", "#a66bff", "#4f8bff", "#36c9ff", "#2fd38a", "#ffd23f", "#ff8a3d", "#ff4545", "#ffffff", "#1c1c1c"];
+    let color = null;
+    const custom = h("input", { type: "color", class: "sb-custom", value: "#ff4fa3", title: "Any colour" });
+    const swatches = h("div", { class: "sb-swatches" });
+    const preview = h("span", { class: "special-chip" }, h("span", { class: "sc-emoji", text: "💎" }), "Preview");
+    const paintColors = () => {
+      swatches.replaceChildren(h("button", { type: "button", class: "sb-swatch auto" + (!color ? " on" : ""), title: "Pink and gold (default)", onclick: () => { color = null; paintColors(); } }),
+        ...COLORS.map((c) => h("button", { type: "button", class: "sb-swatch" + (color === c ? " on" : ""), style: `background:${c}`, title: c, onclick: () => { color = c; paintColors(); } })), custom);
+      preview.setAttribute("style", specialStyle({ color }));
+      preview.querySelector(".sc-emoji").textContent = emoji.value.trim() || "💎";
+      preview.lastChild.textContent = name.value.trim() || "Preview";
+    };
+    custom.addEventListener("input", () => { color = custom.value; paintColors(); });
+    emoji.addEventListener("input", paintColors);
+    name.addEventListener("input", paintColors);
     // Or a picture instead of the emoji
     let image = null;
     const file = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif", hidden: true });
@@ -341,8 +361,10 @@ export function adminPage(view, _m, params) {
     });
     const m = modal({ title: `Special badge for @${u.username}`, body: h("div", { class: "adm-modal" },
       h("p", { class: "muted", text: "A one-of-a-kind badge: nobody else can get one with the same name. It shows on their profile and they get a notification." }),
-      h("div", { class: "adm-toolbar" }, emoji, name), h("div", {}, pic, file), ok) });
-    ok.addEventListener("click", () => { if (!name.value.trim()) return name.focus(); m.close(); done(name.value, emoji.value, image); });
+      h("div", { class: "adm-toolbar" }, emoji, name), h("div", {}, pic, file),
+      h("b", { class: "vis-label", text: "Colour" }), swatches, h("div", { class: "sb-preview" }, preview), ok) });
+    paintColors();
+    ok.addEventListener("click", () => { if (!name.value.trim()) return name.focus(); m.close(); done(name.value, emoji.value, image, color); });
     setTimeout(() => name.focus(), 50);
   }
   function banModal(u, done) {
@@ -361,6 +383,38 @@ export function adminPage(view, _m, params) {
       h("p", { class: "muted", text: `Type ${u.username} to confirm.` }), input, ok) });
     ok.addEventListener("click", () => { m.close(); done(input.value.trim()); });
     setTimeout(() => input.focus(), 50);
+  }
+
+  /* ---------- Team (admin panel accounts) ---------- */
+  async function team() {
+    const d = await api("/api/panel/admins");
+    const list = h("div", { class: "adm-list" }, ...d.admins.map((a) => {
+      const row = h("div", { class: "adm-row" },
+        h("span", { class: "adm-who" }, h("span", { class: "panel-shield", text: a.role === "owner" ? "👑" : "🛡️" }), h("span", { class: "adm-who-text" }, h("b", { text: a.name }), h("small", { class: "muted", text: `@${a.username} · ${a.role}` }))),
+        a.id === d.me.id ? chip("You") : null);
+      if (d.me.role === "owner" && a.id !== d.me.id) {
+        const rm = h("button", { type: "button", class: "btn btn-xs btn-danger-outline", text: "Remove" });
+        confirmClick(rm, "Sure?", async () => { try { await api(`/api/panel/admins/${a.id}`, { method: "DELETE" }); toast("Removed."); team(); } catch (err) { toast(err.error || "Couldn’t remove."); } });
+        row.append(rm);
+      }
+      return row;
+    }));
+    const parts = [h("h2", { class: "adm-h2", text: "Admins" }), h("p", { class: "muted", text: "Accounts that can open this panel. They’re separate from LookBlog accounts." }), list];
+    if (d.me.role === "owner") {
+      const u = h("input", { class: "adm-input", placeholder: "Username", maxlength: 20 });
+      const n = h("input", { class: "adm-input", placeholder: "Name", maxlength: 50 });
+      const p = h("input", { class: "adm-input", type: "password", placeholder: "Password (10+ characters)", autocomplete: "new-password" });
+      const add = h("button", { type: "button", class: "btn btn-sm btn-primary", text: "Add admin" });
+      add.addEventListener("click", async () => { try { await api("/api/panel/admins", { method: "POST", body: { username: u.value, name: n.value, password: p.value } }); toast("Admin added. Give them the username and password."); team(); } catch (err) { toast(err.error || "Couldn’t add."); } });
+      parts.push(h("h2", { class: "adm-h2", text: "Add an admin" }), h("div", { class: "adm-toolbar" }, u, n, p, add));
+    }
+    // My password
+    const cur = h("input", { class: "adm-input", type: "password", placeholder: "Current password", autocomplete: "current-password" });
+    const nw = h("input", { class: "adm-input", type: "password", placeholder: "New password (10+)", autocomplete: "new-password" });
+    const chg = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Change my password" });
+    chg.addEventListener("click", async () => { try { await api("/api/panel/password", { method: "POST", body: { password: cur.value, newPassword: nw.value } }); cur.value = nw.value = ""; toast("Password changed."); } catch (err) { toast(err.error || "Couldn’t change it."); } });
+    parts.push(h("h2", { class: "adm-h2", text: "My password" }), h("div", { class: "adm-toolbar" }, cur, nw, chg));
+    body.replaceChildren(...parts);
   }
 
   // New reports and messages arrive live

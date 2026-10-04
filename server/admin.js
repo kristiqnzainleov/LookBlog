@@ -4,13 +4,14 @@
 //   Admins: owners, and accounts an owner made admin (user.admin).
 
 const { db, save, findUser } = require("./db");
-const { sendJSON, httpError, readJSON } = require("./http");
+const { sendJSON, httpError, readJSON, parseCookies, rateLimit } = require("./http");
 const { sendTo } = require("./realtime");
 const crypto = require("crypto");
 
 const OWNERS = () => String(process.env.ADMINS || "ko6i").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
-const isOwner = (u) => Boolean(u) && OWNERS().includes(u.username.toLowerCase());
-const isAdmin = (u) => Boolean(u) && (isOwner(u) || Boolean(u.admin));
+// Admin panel accounts (/admin-panel) are separate from LookBlog accounts: { panel: true, role: "owner" | "admin" }
+const isOwner = (u) => Boolean(u) && (u.panel ? u.role === "owner" : OWNERS().includes(u.username.toLowerCase()));
+const isAdmin = (u) => Boolean(u) && (u.panel || isOwner(u) || Boolean(u.admin));
 const TEAM = { id: "team", blocked: [] };
 
 const VERIFY_TYPES = ["creator", "musician", "singer", "dj", "band", "artist", "photographer", "filmmaker", "actor", "dancer", "comedian", "writer", "journalist", "gamer", "streamer", "athlete", "chef", "fashion", "designer", "developer", "business", "public-figure", "organization", "other"];
@@ -21,8 +22,11 @@ const followersOf = (id) => db.users.filter((u) => u.following.includes(id)).len
 const postsOf = (id) => db.posts.filter((p) => p.userId === id).length;
 function person(u) {
   if (!u) return { name: "Deleted account", username: "", avatar: null, gone: true };
+  if (u.panel) return { id: u.id, name: u.name, username: u.username, avatar: null, admin: true };
   return { id: u.id, name: u.name, username: u.username, avatar: u.avatar, verified: Boolean(u.verified), verifiedType: u.verified ? u.verifiedType || "creator" : null, banned: Boolean(u.banned) };
 }
+const findAdmin = (id) => { const a = (db.admins || []).find((x) => x.id === id); return a ? { ...a, panel: true } : null; };
+const whoDid = (id) => findUser(id) || findAdmin(id);
 function teamNote(userId, text, link) {
   require("./notifications").notify(userId, "team", TEAM, { text, link });
 }
@@ -87,7 +91,7 @@ function listCases(status) {
     return {
       key: caseKey(r), target: caseTarget(r), status: r.status, count: rs.length,
       latest: r.createdAt, resolution: r.resolution || null, note: r.note || null, resolvedAt: r.resolvedAt || null,
-      resolvedBy: r.resolvedBy ? person(findUser(r.resolvedBy)) : null,
+      resolvedBy: r.resolvedBy ? person(whoDid(r.resolvedBy)) : null,
       reports: rs.map((x) => ({ id: x.id, reason: x.reason, details: x.details || "", reporter: person(findUser(x.reporterId)), createdAt: x.createdAt, message: x.message || null, at: x.at ?? null })),
     };
   });
@@ -159,7 +163,7 @@ function verifyView(r) {
   const u = findUser(r.userId);
   return {
     id: r.id, status: r.status, fullName: r.fullName, category: r.category, about: r.about, links: r.links || [], createdAt: r.createdAt,
-    note: r.note || null, decidedAt: r.decidedAt || null, decidedBy: r.decidedBy ? person(findUser(r.decidedBy)) : null,
+    note: r.note || null, decidedAt: r.decidedAt || null, decidedBy: r.decidedBy ? person(whoDid(r.decidedBy)) : null,
     user: person(u), followers: u ? followersOf(u.id) : 0, posts: u ? postsOf(u.id) : 0, joined: u?.createdAt || null,
   };
 }
@@ -180,7 +184,7 @@ function userRow(u) {
   return {
     ...person(u), email: u.email || null, createdAt: u.createdAt, followers: followersOf(u.id), posts: postsOf(u.id),
     admin: isAdmin(u), owner: isOwner(u), bannedInfo: u.banned ? { reason: u.banned.reason, at: u.banned.at } : null,
-    special: (u.specialBadges || []).map((b) => ({ id: b.id, name: b.name, emoji: b.emoji, image: b.image || null })),
+    special: (u.specialBadges || []).map((b) => ({ id: b.id, name: b.name, emoji: b.emoji, image: b.image || null, color: b.color || null })),
     reportsAgainst: db.reports.filter((r) => (r.kind === "user" ? r.userId : r.authorId) === u.id).length,
   };
 }
@@ -331,7 +335,8 @@ async function handleAdmin(req, res, url, me) {
           if (!img) throw httpError(400, "That picture couldn’t be found. Add it again.");
           image = img.url;
         }
-        const badge = { id: crypto.randomUUID().slice(0, 8), name, emoji, image, givenAt: now(), by: me.id };
+        const color = /^#[0-9a-f]{6}$/i.test(String(body.color || "")) ? body.color.toLowerCase() : null; // the badge's colour
+        const badge = { id: crypto.randomUUID().slice(0, 8), name, emoji, image, color, givenAt: now(), by: me.id };
         if (image) require("./media").markUsed(image, "special:" + badge.id);
         user.specialBadges = [...(user.specialBadges || []), badge];
         teamNote(user.id, `${emoji} You got a special badge: ${name}. Only you have it!`, `/u/${encodeURIComponent(user.username)}`);
@@ -364,4 +369,117 @@ async function handleAdmin(req, res, url, me) {
   return true;
 }
 
-module.exports = { handleAdmin, isAdmin, isOwner, pingAdmins };
+/* ---------- The admin panel's own accounts (/admin-panel) ----------
+   Registering needs the setup code (ADMIN_SETUP_CODE), so nobody else can make themselves an admin.
+   The first one becomes the owner; owners can add and remove other admins. */
+const PANEL_COOKIE = "lb_admin";
+const PANEL_SESSION_MS = 7 * 24 * 60 * 60 * 1000;
+let dummyHash = null;
+const sha = (v) => crypto.createHash("sha256").update(v).digest("hex");
+const adminView = (a) => ({ id: a.id, username: a.username, name: a.name, role: a.role, createdAt: a.createdAt });
+function panelAdmin(req) {
+  const t = parseCookies(req)[PANEL_COOKIE];
+  const s = t && db.adminSessions[sha(t)];
+  if (!s || s.expires < Date.now()) return null;
+  return findAdmin(s.adminId);
+}
+function startPanelSession(req, a) {
+  const token = crypto.randomBytes(32).toString("hex");
+  db.adminSessions[sha(token)] = { adminId: a.id, expires: Date.now() + PANEL_SESSION_MS };
+  save("adminSessions");
+  const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
+  return `${PANEL_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${PANEL_SESSION_MS / 1000}${secure}`;
+}
+function codeMatches(given) {
+  const want = String(process.env.ADMIN_SETUP_CODE || "");
+  const a = Buffer.from(String(given || "").trim()), b = Buffer.from(want);
+  return want.length >= 8 && a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function newAdmin(body) {
+  const username = clip(body.username, 20).replace(/^@/, "");
+  const name = clip(body.name, 50) || username;
+  const password = String(body.password || "");
+  if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) throw httpError(400, "Username: 3–20 letters, numbers or _.");
+  if ((db.admins || []).some((a) => a.username.toLowerCase() === username.toLowerCase())) throw httpError(400, "That admin username is taken.");
+  if (password.length < 10) throw httpError(400, "Use a password of at least 10 characters.");
+  return { id: "adm_" + crypto.randomUUID().slice(0, 12), username, name, passwordHash: require("./auth").hashPassword(password), role: "admin", createdAt: now() };
+}
+
+async function handlePanel(req, res, url) {
+  const route = `${req.method} ${url.pathname}`;
+  const ip = String(req.headers["x-vercel-forwarded-for"] || req.headers["x-real-ip"] || req.socket.remoteAddress || "");
+  const me = panelAdmin(req);
+  if (!db.admins) db.admins = [];
+
+  // GET /api/panel/me
+  if (route === "GET /api/panel/me") { sendJSON(res, 200, { admin: me ? adminView(me) : null, canRegister: Boolean(process.env.ADMIN_SETUP_CODE) }); return true; }
+
+  // POST /api/panel/register { username, name, password, code }
+  if (route === "POST /api/panel/register") {
+    rateLimit("panel-reg:" + ip, 10, 60 * 60 * 1000, "Too many tries. Wait an hour.");
+    const body = await readJSON(req);
+    if (!codeMatches(body.code)) throw httpError(403, "That setup code isn’t right.");
+    const a = newAdmin(body);
+    if (!db.admins.some((x) => x.role === "owner")) a.role = "owner"; // the first admin owns the panel
+    db.admins.push(a);
+    save("admins");
+    console.log(`[panel] new admin @${a.username} (${a.role})`);
+    sendJSON(res, 201, { admin: adminView(a) }, { "Set-Cookie": startPanelSession(req, a) });
+    return true;
+  }
+  // POST /api/panel/login { username, password }
+  if (route === "POST /api/panel/login") {
+    rateLimit("panel-login:" + ip, 10, 15 * 60 * 1000, "Too many tries. Wait 15 minutes.");
+    const body = await readJSON(req);
+    const a = db.admins.find((x) => x.username.toLowerCase() === clip(body.username, 20).replace(/^@/, "").toLowerCase());
+    dummyHash = dummyHash || require("./auth").hashPassword("not-a-real-password"); // same time for unknown names
+    const ok = require("./auth").verifyPassword(String(body.password || ""), a ? a.passwordHash : dummyHash) && a;
+    if (!ok) throw httpError(401, "Wrong username or password.");
+    sendJSON(res, 200, { admin: adminView(a) }, { "Set-Cookie": startPanelSession(req, a) });
+    return true;
+  }
+  // POST /api/panel/logout
+  if (route === "POST /api/panel/logout") {
+    const t = parseCookies(req)[PANEL_COOKIE];
+    if (t && db.adminSessions[sha(t)]) { delete db.adminSessions[sha(t)]; save("adminSessions"); }
+    sendJSON(res, 200, { ok: true }, { "Set-Cookie": `${PANEL_COOKIE}=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0` });
+    return true;
+  }
+
+  if (!me) throw httpError(403, "Log in to the admin panel.", { needLogin: true });
+  // The team: GET /api/panel/admins · POST /api/panel/admins { username, name, password } · DELETE /api/panel/admins/:id
+  if (route === "GET /api/panel/admins") { sendJSON(res, 200, { admins: db.admins.map(adminView), me: adminView(me) }); return true; }
+  if (route === "POST /api/panel/admins") {
+    if (me.role !== "owner") throw httpError(403, "Only the owner can add admins.");
+    const a = newAdmin(await readJSON(req));
+    db.admins.push(a);
+    save("admins");
+    sendJSON(res, 201, { admin: adminView(a) });
+    return true;
+  }
+  const m = url.pathname.match(/^\/api\/panel\/admins\/([\w-]+)$/);
+  if (req.method === "DELETE" && m) {
+    if (me.role !== "owner") throw httpError(403, "Only the owner can remove admins.");
+    if (m[1] === me.id) throw httpError(400, "You can’t remove yourself.");
+    db.admins = db.admins.filter((a) => a.id !== m[1]);
+    for (const [k, s] of Object.entries(db.adminSessions)) if (s.adminId === m[1]) delete db.adminSessions[k];
+    save("admins"); save("adminSessions");
+    sendJSON(res, 200, { ok: true });
+    return true;
+  }
+  // Change my password: POST /api/panel/password { password, newPassword }
+  if (route === "POST /api/panel/password") {
+    const body = await readJSON(req);
+    const real = db.admins.find((a) => a.id === me.id);
+    if (!require("./auth").verifyPassword(String(body.password || ""), real.passwordHash)) throw httpError(401, "Your password isn’t right.");
+    if (String(body.newPassword || "").length < 10) throw httpError(400, "Use a password of at least 10 characters.");
+    real.passwordHash = require("./auth").hashPassword(String(body.newPassword));
+    save("admins");
+    sendJSON(res, 200, { ok: true });
+    return true;
+  }
+  sendJSON(res, 404, { error: "Not found." });
+  return true;
+}
+
+module.exports = { handleAdmin, handlePanel, panelAdmin, isAdmin, isOwner, pingAdmins };

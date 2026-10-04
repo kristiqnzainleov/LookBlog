@@ -13,7 +13,7 @@ export async function api(path, { method = "GET", body } = {}) {
     throw { error: "Can’t reach the server. Check your connection." };
   }
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) {
+  if (res.status === 401 && !window.__lbPanel) {
     location.assign("/"); // the session ended: back to the log in page
     throw data;
   }
