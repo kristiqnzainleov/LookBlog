@@ -1,0 +1,9 @@
+# Never upload the local database, uploads or secrets
+data
+old-versions
+supabase/.temp
+*.log
+.env*
+Dockerfile
+.dockerignore
+.railwayignore

@@ -2,12 +2,13 @@
 // nicknames, a colour, and events. The owner can do everything.
 
 const crypto = require("crypto");
-const { db, save, findUser, findByUsername } = require("./db");
+const { db, save, findUser, findByUsername, onLoad } = require("./db");
 const { sendJSON, httpError, readJSON } = require("./http");
 const { sendTo } = require("./realtime");
 const { notify } = require("./notifications");
 const { ownedMedia, markUsed, deleteMedia } = require("./media");
 const { rateLimit } = require("./http");
+const { every } = require("./ticker");
 
 const PERMS = {
   manage_group: "Change the name, picture, colour and who can see the group",
@@ -59,7 +60,7 @@ function ensureGroup(chat) {
   if (changed) save("chats");
   return chat;
 }
-for (const c of db.chats) ensureGroup(c);
+onLoad(() => { for (const c of db.chats) ensureGroup(c); });
 
 const firstText = (chat) => chat.channels.find((c) => c.kind === "text");
 function rolesOfMember(chat, userId) {
@@ -120,7 +121,7 @@ function cleanName(v, max) { return String(v || "").trim().replace(/\s+/g, " ").
 const len = (s) => [...s].length;
 
 /* ---------- Event reminders: people who are going hear when it starts ---------- */
-setInterval(() => {
+every(() => {
   const now = Date.now();
   let changed = false;
   for (const chat of db.chats) for (const ev of chat.events || []) {

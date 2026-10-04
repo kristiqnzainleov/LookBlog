@@ -8,6 +8,7 @@ const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { ownedMedia, markUsed, deleteMedia } = require("./media");
 const { broadcast, sendTo, presence } = require("./realtime");
 const { notify } = require("./notifications");
+const { every } = require("./ticker");
 
 // What you need before you can apply for the tick
 const VERIFY_MIN = { followers: 1000, posts: 10 };
@@ -533,7 +534,7 @@ function releaseDue() {
   }
   if (changed) save("posts");
 }
-setInterval(releaseDue, 20 * 1000).unref();
+every(releaseDue, 20 * 1000).unref();
 function upcomingView(p, me) {
   const m = p.media[0] || {};
   return { id: p.id, type: p.type, title: p.title, text: p.text.slice(0, 200), poster: m.poster || null, duration: m.duration || null, publishAt: p.publishAt, reminded: (p.reminders || []).includes(me.id), reminders: (p.reminders || []).length, isMine: p.userId === me.id };

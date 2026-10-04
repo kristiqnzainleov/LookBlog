@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
 const { db, save, UPLOAD_DIR } = require("./db");
 const { broadcast } = require("./realtime");
+const store = require("./store");
 
 const LADDER = [1080, 720, 480, 360];
 function findFfmpeg() {
@@ -16,7 +17,7 @@ function findFfmpeg() {
   }
   return null;
 }
-let FFMPEG = findFfmpeg();
+let FFMPEG = store.enabled ? null : findFfmpeg(); // online the files are in Supabase Storage and there's no ffmpeg
 const available = () => Boolean(FFMPEG);
 
 function run(args) {
@@ -62,7 +63,9 @@ async function work() {
   busy = false;
   setImmediate(work);
 }
-setInterval(work, 20 * 1000).unref();
-setTimeout(work, 3000).unref();
+if (!store.enabled) {
+  setInterval(work, 20 * 1000).unref();
+  setTimeout(work, 3000).unref();
+}
 
 module.exports = { qualityAvailable: available };

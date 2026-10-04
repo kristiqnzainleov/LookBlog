@@ -5,7 +5,9 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { db, save, UPLOAD_DIR } = require("./db");
+const store = require("./store");
 const { sendJSON, httpError, rateLimit } = require("./http");
+const { every } = require("./ticker");
 
 const MB = 1024 * 1024;
 const startsWith = (buf, bytes, at = 0) => bytes.every((b, i) => buf[at + i] === b);
@@ -31,8 +33,59 @@ const TYPES = {
 const CONTENT_TYPE = Object.fromEntries(Object.entries(TYPES).map(([type, t]) => [t.ext, type]));
 const NAME_RE = /^[0-9a-f-]{36}\.(jpg|png|gif|webp|mp4|mov|webm|weba|ogg|m4a|mp3|wav)$/;
 
+/* ---------- Online: files live in Supabase Storage (bucket "media") ----------
+   The browser asks for an upload address (POST /api/upload/start), sends the file straight to Supabase,
+   then tells us it's done (POST /api/upload/finish). We check the first bytes like we do locally. */
+const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+const SB_KEY = process.env.SUPABASE_SERVICE_KEY || "";
+const ONLINE_MAX = 50 * MB; // the largest file Supabase's free plan takes
+const sbHeaders = () => ({ apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` });
+const publicUrl = (name) => `${SB_URL}/storage/v1/object/public/media/${name}`;
+const sign = (text) => crypto.createHmac("sha256", SB_KEY).update(text).digest("base64url");
+const limitOf = (t) => (store.enabled ? Math.min(t.max, ONLINE_MAX) : t.max);
+const tooBigFor = (t) => httpError(413, t.kind === "image" ? `Photos can be up to ${limitOf(t) / MB} MB.` : t.kind === "audio" ? `Sounds can be up to ${limitOf(t) / MB} MB.` : `Videos can be up to ${limitOf(t) / MB} MB.`);
+
+// POST /api/upload/start { type, size } -> { uploadUrl, name, ticket }
+async function startUpload(req, res, me, body) {
+  rateLimit("upload:" + me.id, 60, 10 * 60 * 1000, "You’re uploading a lot. Take a short break.");
+  const type = String(body.type || "").split(";")[0].trim().toLowerCase();
+  const t = TYPES[type];
+  if (!t) throw httpError(415, "Use a JPG, PNG, GIF or WebP photo, an MP4, MOV or WebM video, or a sound (MP3, M4A, OGG, WAV).");
+  const size = Number(body.size) || 0;
+  if (!size) throw httpError(400, "That file is empty.");
+  if (size > limitOf(t)) throw tooBigFor(t);
+  const name = `${crypto.randomUUID()}.${t.ext}`;
+  const r = await fetch(`${SB_URL}/storage/v1/object/upload/sign/media/${name}`, { method: "POST", headers: { ...sbHeaders(), "Content-Type": "application/json" }, body: "{}" });
+  if (!r.ok) throw httpError(502, "Couldn’t start the upload. Try again.");
+  const { url } = await r.json();
+  sendJSON(res, 200, { uploadUrl: `${SB_URL}/storage/v1${url}`, name, type, ticket: sign(`${me.id}:${name}:${type}`) });
+}
+
+// POST /api/upload/finish { name, type, ticket } -> { url, kind }
+async function finishUpload(req, res, me, body) {
+  const name = String(body.name || ""), type = String(body.type || "");
+  const t = TYPES[type];
+  if (!t || !NAME_RE.test(name) || !name.endsWith("." + t.ext) || body.ticket !== sign(`${me.id}:${name}:${type}`)) throw httpError(400, "That upload isn’t valid.");
+  if (db.uploads[name]) return sendJSON(res, 201, { url: "/media/" + name, kind: t.kind });
+  const r = await fetch(publicUrl(name) + "?t=" + Date.now(), { headers: { Range: "bytes=0-15" } });
+  const head = r.ok ? Buffer.from(await r.arrayBuffer()).subarray(0, 16) : Buffer.alloc(0);
+  const size = Number(String(r.headers.get("content-range") || "").split("/")[1]) || Number(r.headers.get("content-length")) || 0;
+  const bad = !r.ok ? httpError(400, "The file didn’t arrive. Try again.") : size > limitOf(t) ? tooBigFor(t)
+    : !t.check(head) ? httpError(415, `That file doesn’t look like a real ${t.kind === "image" ? "photo" : t.kind === "audio" ? "recording" : "video"}.`) : null;
+  if (bad) { removeObject(name); throw bad; }
+  db.uploads[name] = { ownerId: me.id, kind: t.kind, size, createdAt: new Date().toISOString() };
+  save("uploads");
+  sendJSON(res, 201, { url: "/media/" + name, kind: t.kind });
+}
+
+function removeObject(name) {
+  fetch(`${SB_URL}/storage/v1/object/media`, { method: "DELETE", headers: { ...sbHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ prefixes: [name] }) })
+    .catch((err) => console.error("[media] delete", err.message));
+}
+
 /* ---------- POST /api/upload  (raw file body, type in Content-Type) ---------- */
 async function handleUpload(req, res, me) {
+  if (store.enabled) throw httpError(400, "Uploads go straight to storage now. Reload the page and try again.");
   rateLimit("upload:" + me.id, 60, 10 * 60 * 1000, "You’re uploading a lot. Take a short break.");
   const type = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
   const t = TYPES[type];
@@ -101,7 +154,7 @@ function markUsed(url, usedBy) {
 }
 
 // Remove uploads nobody attached to anything within a day
-setInterval(() => {
+every(() => {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   for (const [name, meta] of Object.entries(db.uploads)) {
     if (!meta.usedBy && new Date(meta.createdAt).getTime() < cutoff) deleteMedia("/media/" + name);
@@ -113,6 +166,7 @@ function deleteMedia(url) {
   if (!NAME_RE.test(name) || !db.uploads[name]) return;
   delete db.uploads[name];
   save("uploads");
+  if (store.enabled) return removeObject(name);
   fs.rm(path.join(UPLOAD_DIR, name), { force: true }, () => {});
 }
 
@@ -121,6 +175,11 @@ function serveMedia(req, res, name) {
   if (!NAME_RE.test(name) || !db.uploads[name]) {
     res.writeHead(404, { "Content-Type": "text/plain" });
     return res.end("Not found");
+  }
+  // Online the file is in Supabase Storage (it handles seeking and caching)
+  if (store.enabled) {
+    res.writeHead(302, { Location: publicUrl(name), "Cache-Control": "public, max-age=86400" });
+    return res.end();
   }
   const file = path.join(UPLOAD_DIR, name);
   let stat;
@@ -156,4 +215,4 @@ function serveMedia(req, res, name) {
   fs.createReadStream(file).pipe(res);
 }
 
-module.exports = { handleUpload, ownedMedia, markUsed, deleteMedia, serveMedia };
+module.exports = { handleUpload, startUpload, finishUpload, ownedMedia, markUsed, deleteMedia, serveMedia };

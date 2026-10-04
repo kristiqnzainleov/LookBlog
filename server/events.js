@@ -8,6 +8,7 @@ const { ownedMedia, markUsed, deleteMedia } = require("./media");
 const { broadcast, sendTo } = require("./realtime");
 const { notify } = require("./notifications");
 const { authorView, clean, chars, blockedBetween } = require("./social");
+const { every } = require("./ticker");
 
 const SOON_MS = 6 * 3600 * 1000; // events stay "upcoming" for a few hours after they start
 
@@ -172,7 +173,7 @@ async function handleEvents(req, res, url, me) {
 }
 
 // Remind people who are going, 15 minutes before
-setInterval(() => {
+every(() => {
   const now = Date.now();
   let changed = false;
   for (const ev of db.events) {

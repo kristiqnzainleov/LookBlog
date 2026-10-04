@@ -3,6 +3,7 @@
 const crypto = require("crypto");
 const { db, save, findUser, findByUsername, VERIFIED } = require("./db");
 const { sendJSON, httpError, readJSON, parseCookies, rateLimit } = require("./http");
+const { every } = require("./ticker");
 
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const RESET_MS = 30 * 60 * 1000; // 30 minutes
@@ -95,10 +96,11 @@ function endSessionsFor(userId) {
 }
 
 // Drop expired sessions once an hour
-setInterval(() => {
+every(() => {
   const now = Date.now();
   let changed = false;
   for (const [k, s] of Object.entries(db.sessions)) if (s.expires < now) { delete db.sessions[k]; changed = true; }
+  for (const [k, t] of Object.entries(db.tokens)) if (t.expires < now) { delete db.tokens[k]; save("tokens"); }
   if (changed) save("sessions");
 }, 60 * 60 * 1000).unref();
 
@@ -108,15 +110,25 @@ const codeOk = (u, code) => {
   const a = Buffer.from(String(code || "").replace(/\s+/g, "")), b = Buffer.from(String(u.twoFactor.code));
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
-const pending2fa = new Map(); // sha256(ticket) -> { userId, remember, expires, tries, keep }
-function askForCode(user, remember, keep) {
+// Short-lived tickets live in db.tokens (hashed), so any server can finish what another one started
+function tokenMap(kind) {
+  const k = (key) => kind + ":" + key;
+  return {
+    get: (key) => db.tokens[k(key)] || undefined,
+    set: (key, value) => { db.tokens[k(key)] = value; save("tokens"); },
+    delete: (key) => { if (db.tokens[k(key)]) { delete db.tokens[k(key)]; save("tokens"); } },
+    *[Symbol.iterator]() { for (const [key, v] of Object.entries(db.tokens)) if (key.startsWith(kind + ":")) yield [key.slice(kind.length + 1), v]; },
+  };
+}
+const pending2fa = tokenMap("2fa"); // sha256(ticket) -> { userId, remember, expires, tries }
+function askForCode(user, remember) {
   const ticket = crypto.randomBytes(24).toString("hex");
-  pending2fa.set(sha256(ticket), { userId: user.id, remember, expires: Date.now() + 5 * 60 * 1000, tries: 0, keep });
+  pending2fa.set(sha256(ticket), { userId: user.id, remember, expires: Date.now() + 5 * 60 * 1000, tries: 0 });
   return ticket;
 }
 
 /* ---------- Password reset links ---------- */
-const resetTokens = new Map(); // sha256(token) -> { userId, expires }
+const resetTokens = tokenMap("reset"); // sha256(token) -> { userId, expires }
 
 /* ---------- Public shape of the logged-in user ---------- */
 function meView(u) {
@@ -224,7 +236,7 @@ async function handleAuth(req, res, url, { port }) {
     checkNotBanned(user);
     // 2FA on: the password was right, now we need the code
     if (twoFA(user)) {
-      sendJSON(res, 200, { needCode: true, ticket: askForCode(user, Boolean(body.remember), keepPrevious(req, user)), name: user.name });
+      sendJSON(res, 200, { needCode: true, ticket: askForCode(user, Boolean(body.remember)), name: user.name });
       return true;
     }
     sendJSON(res, 200, { user: meView(user) }, { "Set-Cookie": [startSession(user, Boolean(body.remember)), ...keepPrevious(req, user)] });
@@ -242,10 +254,11 @@ async function handleAuth(req, res, url, { port }) {
     if (!user || !twoFA(user)) { pending2fa.delete(key); throw httpError(400, "Log in again."); }
     if (!codeOk(user, body.code)) {
       if (++t.tries >= 5) { pending2fa.delete(key); throw httpError(401, "Too many wrong codes. Log in again."); }
+      pending2fa.set(key, t);
       throw httpError(401, `That code isn’t right. ${5 - t.tries} tries left.`);
     }
     pending2fa.delete(key);
-    sendJSON(res, 200, { user: meView(user) }, { "Set-Cookie": [startSession(user, t.remember), ...(t.keep || [])] });
+    sendJSON(res, 200, { user: meView(user) }, { "Set-Cookie": [startSession(user, t.remember), ...keepPrevious(req, user)] });
     return true;
   }
 
@@ -393,7 +406,7 @@ async function handleAuth(req, res, url, { port }) {
       console.log(`[google] new account @${username}`);
     }
     if (twoFA(user)) {
-      sendJSON(res, 200, { needCode: true, ticket: askForCode(user, true, keepPrevious(req, user)), name: user.name });
+      sendJSON(res, 200, { needCode: true, ticket: askForCode(user, true), name: user.name });
       return true;
     }
     sendJSON(res, 200, { user: meView(user), isNew }, { "Set-Cookie": [startSession(user, true), ...keepPrevious(req, user)] });

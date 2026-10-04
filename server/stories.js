@@ -5,6 +5,7 @@ const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { markUsed, deleteMedia } = require("./media");
 const { sendTo } = require("./realtime");
 const { buildMedia, authorView, clean, chars } = require("./social");
+const { every } = require("./ticker");
 
 const DAY = 24 * 60 * 60 * 1000;
 const live = (s) => Date.now() - new Date(s.createdAt).getTime() < DAY;
@@ -34,7 +35,7 @@ function sweep() {
   db.stories = db.stories.filter(live);
   save("stories");
 }
-setInterval(sweep, 10 * 60 * 1000).unref();
+every(sweep, 10 * 60 * 1000).unref();
 setTimeout(sweep, 5000).unref();
 
 // Who has a story right now, for rings around avatars

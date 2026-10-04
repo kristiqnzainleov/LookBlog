@@ -10,6 +10,7 @@ const { sendTo, broadcast } = require("./realtime");
 const { notify } = require("./notifications");
 const { authorView, clean, chars, blockedBetween, buildMedia, claim, postView } = require("./social");
 const { ownedMedia, markUsed, deleteMedia } = require("./media");
+const { every } = require("./ticker");
 const REACTIONS = ["❤️", "🔥", "😂", "😮", "👏", "💯", "🎉", "😢"];
 const SOUNDS = ["airhorn", "tada", "drum", "boing", "ding", "sad"];
 // Older streams get the newer fields
@@ -80,7 +81,7 @@ function endStream(st) {
 }
 
 // A stream whose host disappeared (closed the tab) ends after a minute
-setInterval(() => {
+every(() => {
   const now = Date.now();
   for (const st of db.streams) if (st.live && now - (st.hostSeen || 0) > 60 * 1000) endStream(st);
   // Guests who closed the page drop off the screen

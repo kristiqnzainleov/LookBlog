@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 .railway/
 .env*
+.vercel
+supabase/.temp/
+.vercel

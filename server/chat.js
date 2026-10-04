@@ -2,15 +2,16 @@
 // Messages can carry text, a photo or video, or a shared post. Live delivery goes only to members.
 
 const crypto = require("crypto");
-const { db, save, findUser, findByUsername, findPost, findChat } = require("./db");
+const { db, save, findUser, findByUsername, findPost, findChat, onLoad, flush } = require("./db");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { ownedMedia, markUsed, deleteMedia } = require("./media");
-const { sendTo, presence } = require("./realtime");
+const { sendTo, presence, flushRealtime } = require("./realtime");
 const { notify } = require("./notifications");
 const { handleInvites, ensureGroup, can, rank, groupExtras, memberExtras, nicknameOf, firstText, handleGroupRoutes, COLOR_RE } = require("./groups");
 const { handleVoice, participants: voiceRoom, sweep: sweepVoice, leaveVoice } = require("./voice");
 const RULES = require("../public/js/games/rules.js");
 const { CARD_GAMES, waitingSeats, botMove } = require("./cards");
+const { every, keepAlive } = require("./ticker");
 const BOT_NAMES = ["Rosie", "Max", "Luna", "Theo", "Ivy", "Niko", "Mila", "Leo"];
 const isBot = (id) => typeof id === "string" && id.startsWith("bot:");
 const botView = (id) => ({ name: "🤖 " + id.slice(4), username: "", avatar: null, verified: false, bot: true });
@@ -42,24 +43,28 @@ function pushGame(chat, msg) {
   }
 }
 // After a restart: bots whose turn it was carry on
-setTimeout(() => { for (const m of db.messages) if (m.game?.card && m.game.phase === "play" && m.game.players.some(isBot)) { const c = findChat(m.chatId); if (c) runBots(c, m); } }, 3000).unref?.();
+onLoad(() => setTimeout(() => { for (const m of db.messages) if (m.game?.card && m.game.phase === "play" && m.game.players.some(isBot)) { const c = findChat(m.chatId); if (c) runBots(c, m); } }, 3000).unref?.());
 // Bots take their turns on their own, a moment apart so people can follow
 const botTimers = new Map();
 function runBots(chat, msg) {
   if (botTimers.has(msg.id)) return;
+  let done;
+  keepAlive(new Promise((resolve) => (done = resolve)).then(() => Promise.all([flush(), flushRealtime()])));
   botTimers.set(msg.id, setTimeout(() => {
     botTimers.delete(msg.id);
-    const g = msg.game;
-    if (!g?.card || g.phase !== "play" || !g.players.some(isBot)) return;
-    const def = CARD_GAMES[g.type];
-    const seat = waitingSeats(g.type, g.state).find((i) => isBot(g.players[i]));
-    if (seat === undefined) return;
-    try { def.act(g.state, seat, botMove(g.type, g.state, seat), seatNames(chat, g)); }
-    catch (err) { console.error("[bot]", g.type, err.message); return; }
-    if (def.over(g.state)) { g.phase = "over"; recordResult(g); }
-    save("messages");
-    pushGame(chat, msg);
-    runBots(chat, msg);
+    try {
+      const g = msg.game;
+      if (!g?.card || g.phase !== "play" || !g.players.some(isBot)) return;
+      const def = CARD_GAMES[g.type];
+      const seat = waitingSeats(g.type, g.state).find((i) => isBot(g.players[i]));
+      if (seat === undefined) return;
+      try { def.act(g.state, seat, botMove(g.type, g.state, seat), seatNames(chat, g)); }
+      catch (err) { console.error("[bot]", g.type, err.message); return; }
+      if (def.over(g.state)) { g.phase = "over"; recordResult(g); }
+      save("messages");
+      pushGame(chat, msg);
+      runBots(chat, msg);
+    } finally { done(); }
   }, 900));
 }
 const gameDef = (t) => RULES.GAMES[t] || CARD_GAMES[t];
@@ -368,7 +373,7 @@ function dmInvite(me, user, group, code) {
 
 // Which text channel a group message belongs to (older messages had none: they live in the first one)
 const channelOf = (chat, msg) => msg.channelId || firstText(chat)?.id;
-setInterval(() => sweepVoice(db.chats), 15 * 1000).unref();
+every(() => sweepVoice(db.chats), 15 * 1000).unref();
 
 async function handleChat(req, res, url, me) {
   const parts = url.pathname.split("/").filter(Boolean).slice(1); // without "api"

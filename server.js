@@ -29,6 +29,11 @@ const { handleLinks } = require("./server/links");
 const { handleLeaderboard } = require("./server/leaderboard");
 const { handleStreams } = require("./server/streams");
 const { handleAdmin } = require("./server/admin");
+const { ready, sync, flush } = require("./server/db");
+const store = require("./server/store");
+const { runDue } = require("./server/ticker");
+const { realtimeInfo, ping, flushRealtime } = require("./server/realtime");
+const { startUpload, finishUpload } = require("./server/media");
 require("./server/transcode"); // makes 360p–1080p copies of videos when ffmpeg is installed
 const { badgesFor, checkBadges, ROLES, rolesOf, findRole } = require("./server/badges");
 const crypto = require("crypto");
@@ -86,17 +91,26 @@ async function handleApi(req, res, url) {
   const me = sessionUser(req);
   if (!me) return sendJSON(res, 401, { error: "Please log in." });
 
-  if (req.method === "GET" && url.pathname === "/api/events") return handleEvents(req, res, me);
+  if (req.method === "GET" && url.pathname === "/api/events") {
+    if (store.enabled) return sendJSON(res, 410, { error: "Live updates moved. Reload the page." });
+    return handleEvents(req, res, me);
+  }
+  // Where my browser listens for live updates, and "my tab is open"
+  if (req.method === "GET" && url.pathname === "/api/realtime") return sendJSON(res, 200, store.enabled ? realtimeInfo(me) : { mode: "sse" });
+  if (req.method === "POST" && url.pathname === "/api/ping") { if (store.enabled) ping(me); return sendJSON(res, 200, { ok: true }); }
+  // Online uploads go straight to storage
+  if (store.enabled && req.method === "POST" && url.pathname === "/api/upload/start") return startUpload(req, res, me, await readJSON(req));
+  if (store.enabled && req.method === "POST" && url.pathname === "/api/upload/finish") return finishUpload(req, res, me, await readJSON(req));
   if (await handleAdmin(req, res, url, me)) return;
   if (req.method === "POST" && url.pathname === "/api/upload") return handleUpload(req, res, me);
   // After anything that changes data, see if someone earned a badge
-  if (req.method !== "GET") res.on("finish", () => setImmediate(() => {
+  if (req.method !== "GET") afterAnswer(res, () => {
     try {
       checkBadges(me);
       const m = url.pathname.match(/^\/api\/users\/([^/]+)\/follow$/);
       if (m) checkBadges(findByUsername(decodeURIComponent(m[1])));
     } catch (err) { console.error("[badges]", err); } // never take the server down over a badge
-  }));
+  });
 
   // Badges and awards: GET /api/users/:username/badges
   const bm = req.method === "GET" && url.pathname.match(/^\/api\/users\/([^/]+)\/badges$/);
@@ -209,7 +223,30 @@ async function handleApi(req, res, url) {
   sendJSON(res, 404, { error: "Not found." });
 }
 
-const server = http.createServer(async (req, res) => {
+// Work to do after answering. Locally right after; online just before the answer goes out
+// (the server may sleep as soon as it has answered).
+function afterAnswer(res, fn) {
+  if (store.enabled) res.beforeEnd.push(fn);
+  else res.on("finish", () => setImmediate(fn));
+}
+
+async function handle(req, res) {
+  await ready;
+  if (store.enabled) {
+    await sync(); // what other servers changed
+    runDue(); // jobs that are due
+    // Write everything and send live updates before the answer leaves
+    res.beforeEnd = [];
+    const end = res.end.bind(res);
+    res.end = (...args) => {
+      Promise.resolve()
+        .then(() => { for (const fn of res.beforeEnd.splice(0)) fn(); })
+        .then(() => Promise.all([flush(), flushRealtime()]))
+        .catch((err) => console.error("[store]", err))
+        .finally(() => end(...args));
+      return res;
+    };
+  }
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const p = url.pathname;
   try {
@@ -239,9 +276,15 @@ const server = http.createServer(async (req, res) => {
     if (res.headersSent) return res.end();
     sendJSON(res, err.status || 500, { error: err.expose ? err.message : "Something went wrong.", ...(err.extra || {}) });
   }
-});
+}
 
-server.requestTimeout = 30 * 60 * 1000; // big video uploads can take a while
-server.listen(PORT, () => {
-  console.log(`LookBlog is running at http://localhost:${PORT}`);
-});
+// Online (Vercel) api/index.js calls handle(); locally this file runs its own server
+if (require.main === module) {
+  const server = http.createServer(handle);
+  server.requestTimeout = 30 * 60 * 1000; // big video uploads can take a while
+  server.listen(PORT, () => {
+    console.log(`LookBlog is running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { handle };

@@ -8,7 +8,7 @@
 - music like Spotify;
 - movies and series like Netflix.
 
-🌐 **Live site:** https://lookblog-production.up.railway.app
+🌐 **Live site:** https://lookblog.vercel.app
 
 The design is pink (`#ff4fa3`) on black. The interface is in English and can be switched to Bulgarian, Spanish, Russian, German, Serbian or Romanian.
 
@@ -134,8 +134,8 @@ LookBlog has **no external dependencies**: no frameworks and no npm packages. Ev
 | Part | Technology |
 | --- | --- |
 | Server | **Node.js** (`http` module), its own router, its own rate limiting |
-| Database | Its own **JSON-file database** (`data/*.json`), batched atomic writes |
-| Real-time updates | **Server-Sent Events (SSE)** |
+| Database | Its own in-memory database: **Supabase Postgres** online (one JSON row per record, only changes are synced and written), JSON files locally |
+| Real-time updates | **Supabase Realtime** online (a tiny hand-written client), Server-Sent Events locally |
 | Live streams, calls, voice rooms | **WebRTC** (peer-to-peer, STUN). The server is used only for signalling |
 | Stream mixing | **Canvas 2D**, `captureStream`, `ImageDecoder` (GIFs), Web Workers as a clock |
 | Sound | **Web Audio API** (synthesised sound effects, mixing, limiter) |
@@ -143,7 +143,7 @@ LookBlog has **no external dependencies**: no frameworks and no npm packages. Ev
 | Front end | **Vanilla JavaScript** (ES modules), HTML and CSS, a single-page app with its own router |
 | YouTube music | YouTube IFrame Player API, oEmbed |
 | Security | scrypt password hashes, HttpOnly session cookies, a CSRF header (`X-LookBlog: 1`), uploads checked by their contents |
-| Hosting | **Docker** on **Railway**, with a persistent volume for the data |
+| Hosting | **Vercel** (the server runs as one function, static files on Vercel's CDN), files in **Supabase Storage** |
 
 ---
 
@@ -163,6 +163,10 @@ Then open http://localhost:3000. The `data/` folder is created on first start.
 | --- | --- |
 | `PORT` | Port to listen on (default `3000`) |
 | `LOOKBLOG_DATA` | Where the data and uploads are kept (default `./data`) |
+| `SUPABASE_URL` | Turns on online mode: the Supabase project's address |
+| `SUPABASE_SERVICE_KEY` | The project's service key (server only, never sent to browsers) |
+| `SUPABASE_PUBLIC_KEY` | The public key browsers use to listen for live updates |
+| `VERIFIED_USERNAMES` | Usernames that always get the tick, comma-separated (default `ko6i`) |
 | `TRUST_PROXY` | Set to `1` behind a hosting proxy so each visitor's real IP is used |
 | `ADMINS` | Usernames of the owners of the admin page, comma-separated (default `ko6i`) |
 | `GOOGLE_CLIENT_ID` | Turns on "Sign in with Google" |
@@ -170,11 +174,17 @@ Then open http://localhost:3000. The `data/` folder is created on first start.
 
 ### Deploying
 
-The `Dockerfile` builds an image with Node and ffmpeg. On Railway:
-1. Run `railway up`.
-2. Add a volume mounted at `/data`.
+LookBlog runs on **Vercel** with **Supabase**:
+1. In Supabase, run the migration in `supabase/migrations`. It creates the `docs` table.
+2. Create a public storage bucket called `media`.
+3. In Vercel, set the `SUPABASE_*` variables.
+4. Run `vercel deploy --prod`.
 
-The database and uploads are never part of the image.
+`vercel.json` sends pages and `/api` to the function in `api/index.js` and serves `public/` directly.
+
+Online, the browser uploads files straight to Supabase Storage. The server checks the file afterwards, and `/media/...` links redirect there.
+
+Without the `SUPABASE_*` variables, `npm start` uses JSON files in `data/` instead. A `Dockerfile` for a classic server is included too.
 
 ---
 
@@ -197,8 +207,12 @@ server/              the API
   recommend.js       "For you" recommendations
   badges.js          badges and roles
   leaderboard.js     leaderboards
-  realtime.js        Server-Sent Events
-  db.js              JSON-file database
+  realtime.js        live updates (Supabase Realtime or Server-Sent Events) and who is online
+  db.js              the in-memory database (JSON files locally)
+  store.js           keeps the database in Supabase: loads it, syncs changes, writes what changed
+  ticker.js          repeating jobs (run at request time online)
+api/index.js         the Vercel function
+supabase/            the database table
 public/              everything the browser loads
   index.html         landing page (log in / sign up)
   app.html, app.css  the app
@@ -210,7 +224,7 @@ old-versions/        earlier designs of the home, landing, login and ticket page
 ## Limits
 
 - Photos can be up to 15 MB (JPG, PNG, GIF, WebP).
-- Videos can be up to 500 MB (MP4, MOV, WebM).
+- Videos can be up to 500 MB locally (MP4, MOV, WebM). Online every file can be up to 50 MB, the limit of Supabase's free plan.
 - Shorts can be up to 90 seconds.
 - Posts can be up to 1000 characters.
 

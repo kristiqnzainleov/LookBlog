@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "public",
+  "regions": ["fra1"],
+  "functions": {
+    "api/index.js": { "maxDuration": 60, "includeFiles": "{public,server}/**" }
+  },
+  "routes": [
+    { "src": "/(index\\.html|app\\.html)?", "dest": "/api/index" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/api/index" }
+  ]
+}

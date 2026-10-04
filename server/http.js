@@ -1,5 +1,6 @@
 // Small HTTP helpers shared by the routes.
 
+const { every } = require("./ticker");
 function sendJSON(res, status, data, headers = {}) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...headers });
   res.end(JSON.stringify(data));
@@ -53,7 +54,7 @@ function tooMany(key, limit = 10, windowMs = 15 * 60 * 1000) {
   entry.count++;
   return entry.count > limit;
 }
-setInterval(() => {
+every(() => {
   const now = Date.now();
   for (const [k, v] of attempts) if (v.reset < now) attempts.delete(k);
 }, 10 * 60 * 1000).unref();

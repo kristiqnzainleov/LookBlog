@@ -22,7 +22,30 @@ export async function api(path, { method = "GET", body } = {}) {
 }
 
 // Upload one file with progress (0..1). Resolves to { url, kind }.
-export function upload(file, onProgress = () => {}) {
+// Online the file goes straight to storage (start -> send -> finish). Locally it goes to the server.
+let direct = null; // null = don't know yet
+export async function upload(file, onProgress = () => {}) {
+  if (direct !== false) {
+    let start;
+    try { start = await api("/api/upload/start", { method: "POST", body: { type: file.type, size: file.size } }); direct = true; }
+    catch (err) { if (direct === true || err.error !== "Not found.") throw err; direct = false; }
+    if (start) {
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", start.uploadUrl);
+        xhr.setRequestHeader("Content-Type", start.type);
+        xhr.setRequestHeader("x-upsert", "false");
+        xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject({ error: "Upload failed. Try again." }));
+        xhr.onerror = () => reject({ error: "Upload failed. Check your connection." });
+        xhr.send(file);
+      });
+      return api("/api/upload/finish", { method: "POST", body: { name: start.name, type: start.type, ticket: start.ticket } });
+    }
+  }
+  return uploadToServer(file, onProgress);
+}
+function uploadToServer(file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/upload");
