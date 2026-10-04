@@ -202,7 +202,21 @@ function setupMenu() {
     navigate(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
     $("topSearchInput").value = "";
     $("topSearchInput").blur();
+    document.body.classList.remove("search-open");
   });
+  // Phones: the search is a round button that opens into a full-width bar
+  const phone = matchMedia("(max-width: 640px)");
+  $("topSearch").addEventListener("click", (e) => {
+    if (!phone.matches || document.body.classList.contains("search-open")) return;
+    e.preventDefault();
+    document.body.classList.add("search-open");
+    $("topSearchInput").focus();
+  });
+  $("topSearchInput").addEventListener("blur", () => {
+    // Wait a moment so a tap on a suggestion still works
+    setTimeout(() => { if (!$("topSearch").contains(document.activeElement)) document.body.classList.remove("search-open"); }, 250);
+  });
+  $("topSearchInput").addEventListener("keydown", (e) => { if (e.key === "Escape") $("topSearchInput").blur(); });
 
   // Live: messages, mentions, cools, groups
   on("message", (ev) => {

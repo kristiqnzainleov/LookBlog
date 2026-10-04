@@ -4293,6 +4293,16 @@ body[data-page="messages"] .group-view { grid-template-columns: clamp(250px, 19v
   .composer-bar .cat-select { max-width: 100%; }
   .app-modal .composer { padding: 14px 12px 10px; }
 
+  /* Search: a round button in the top bar; a tap opens it into a full-width bar */
+  .top-search { width: 42px; height: 42px; padding: 0; justify-content: center; cursor: pointer; justify-self: end; }
+  .top-search input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  body.search-open .top-search {
+    position: absolute; z-index: 45; grid-column: 1 / -1; grid-row: 1; left: 0; right: 0; top: calc((var(--topbar) - 46px) / 2);
+    width: auto; height: 46px; padding: 0 16px; justify-content: flex-start; justify-self: stretch; cursor: text;
+    background: var(--card); border-color: var(--pink); box-shadow: 0 0 0 4px rgba(255, 79, 163, 0.12), 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  body.search-open .top-search input { position: static; width: auto; height: auto; opacity: 1; pointer-events: auto; padding: 10px 0; font-size: 16px; }
+
   /* Pop-ups use the whole width */
   .notif-pop { position: fixed; left: 8px; right: 8px; top: calc(var(--topbar) + 6px); width: auto; max-height: calc(100dvh - var(--topbar) - 110px); }
   .me-pop { position: fixed; left: auto; right: 8px; top: calc(var(--topbar) + 6px); max-height: calc(100dvh - var(--topbar) - 110px); overflow-y: auto; }
