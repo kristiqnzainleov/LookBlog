@@ -3,7 +3,7 @@ import { h, icon, avatar, count, empty, tick } from "../ui.js";
 import { taggedSlot } from "../components/tags.js";
 import { api } from "../api.js";
 import { on } from "../state.js";
-import { actions, trackPlay, trackImpression } from "../components/post.js";
+import { actions, trackPlay, trackImpression, likeBurst } from "../components/post.js";
 import { profileHref } from "../router.js";
 import { followButton } from "./profile.js";
 import { postTextEl } from "../components/edit-post.js";
@@ -47,7 +47,14 @@ export function shortsPage(view, _m, params) {
     video.addEventListener("dblclick", (e) => {
       clearTimeout(clickTimer);
       const r = video.getBoundingClientRect();
-      const step = e.clientX - r.left < r.width / 2 ? -5 : 5;
+      // The middle: like it. Left or right: 5 seconds back or forward.
+      const at = (e.clientX - r.left) / r.width;
+      if (at > 0.33 && at < 0.67) {
+        video.closest(".reel-item")?.querySelector(".reel-rail .post-actions")?.likeOnce?.();
+        likeBurst(e.clientX, e.clientY);
+        return;
+      }
+      const step = at < 0.5 ? -5 : 5;
       video.currentTime = Math.max(0, Math.min((video.duration || 1e9) - 0.05, video.currentTime + step));
       (video.closest(".lb-player, .reel-frame") || video.parentElement).querySelectorAll(".lbp-skip").forEach((x) => x.remove());
       const flash = h("div", { class: "lbp-skip " + (step < 0 ? "left" : "right") }, h("span", { class: "skip-ripple" }), h("span", { class: "skip-arrows" }, h("i"), h("i"), h("i")), h("b", { text: "5 seconds" }));

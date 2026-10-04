@@ -866,10 +866,13 @@ async function handleChat(req, res, url, me) {
       const old = me.wallpapers[chat.id];
       let next = null;
       if (body.image) {
-        const img = ownedMedia(body.image, me.id, "image");
+        // A new photo, or the one already here (just moved, zoomed or darkened)
+        const img = old?.image && old.image === body.image ? { url: old.image } : ownedMedia(body.image, me.id, "image");
         if (!img) throw httpError(400, "That photo couldn’t be found. Add it again.");
-        markUsed(img.url, `wallpaper:${me.id}:${chat.id}`);
-        next = { image: img.url };
+        if (img.url !== old?.image) markUsed(img.url, `wallpaper:${me.id}:${chat.id}`);
+        // Where it was moved to, how far zoomed in, how dark
+        const num = (v, lo, hi, d) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Number(v))) : d);
+        next = { image: img.url, x: num(body.x, 0, 100, 50), y: num(body.y, 0, 100, 50), zoom: num(body.zoom, 1, 4, 1), dim: num(body.dim, 0, 0.8, 0.38) };
       } else if (WALLS.includes(body.preset)) next = { preset: body.preset };
       else if (!body.clear) throw httpError(400, "Pick a wallpaper.");
       if (old?.image && old.image !== next?.image) deleteMedia(old.image);

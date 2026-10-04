@@ -5,6 +5,7 @@
 import { h, modal, toast } from "../ui.js";
 import { api, upload } from "../api.js";
 import { on } from "../state.js";
+import { openCropper } from "./cropper.js";
 
 export const WALLS = {
   "pink-night": ["Pink night", "radial-gradient(circle at 20% 15%, rgba(255,79,163,0.45), transparent 45%), radial-gradient(circle at 85% 80%, rgba(140,60,255,0.35), transparent 50%), #160f14"],
@@ -40,13 +41,101 @@ on("chat:theme", (ev) => {
   document.querySelectorAll(`.convo[data-wall-chat="${CSS.escape(ev.chatId)}"]`).forEach((el) => applyTheme(el, ev.theme));
 });
 
+// A photo wallpaper keeps where you moved it (x, y in %), how far you zoomed in, and how dark it is.
+// Its size is worked out for the box it's in, so it looks right on a phone and on a computer.
+const sizes = new Map(); // url -> [width, height]
+function imageSize(url) {
+  if (sizes.has(url)) return Promise.resolve(sizes.get(url));
+  return new Promise((ok) => { const i = new Image(); i.onload = () => { sizes.set(url, [i.naturalWidth, i.naturalHeight]); ok(sizes.get(url)); }; i.onerror = () => ok([1, 1]); i.src = url; });
+}
+export function wallCss(wp, boxW, boxH) {
+  const [iw, ih] = sizes.get(wp.image) || [boxW, boxH];
+  const scale = Math.max(boxW / iw, boxH / ih) * (wp.zoom || 1);
+  return `url("${wp.image}") ${wp.x ?? 50}% ${wp.y ?? 50}% / ${Math.ceil(iw * scale)}px ${Math.ceil(ih * scale)}px no-repeat`;
+}
+async function layoutWall(convoEl) {
+  const wp = convoEl._wall, list = convoEl.querySelector(".convo-list");
+  if (!wp?.image || !list) return;
+  await imageSize(wp.image);
+  if (convoEl._wall !== wp) return;
+  convoEl.style.setProperty("--chat-wall", wallCss(wp, list.clientWidth || 400, list.clientHeight || 600));
+}
 // Put the wallpaper behind the messages of a conversation
 export function applyWallpaper(convoEl, wp, chatId) {
   if (chatId) convoEl.dataset.wallChat = chatId;
+  convoEl._wall = wp || null;
   convoEl.classList.toggle("has-wall", Boolean(wp));
   convoEl.style.removeProperty("--chat-wall");
-  if (wp?.image) convoEl.style.setProperty("--chat-wall", `url("${wp.image}") center / cover no-repeat`);
-  else if (wp?.preset && WALLS[wp.preset]) convoEl.style.setProperty("--chat-wall", WALLS[wp.preset][1]);
+  convoEl.style.setProperty("--wall-dim", String(wp?.dim ?? 0.38));
+  if (wp?.image) {
+    layoutWall(convoEl);
+    if (!convoEl._wallWatch && window.ResizeObserver) {
+      convoEl._wallWatch = new ResizeObserver(() => layoutWall(convoEl));
+      const list = convoEl.querySelector(".convo-list");
+      if (list) convoEl._wallWatch.observe(list);
+    }
+  } else if (wp?.preset && WALLS[wp.preset]) convoEl.style.setProperty("--chat-wall", WALLS[wp.preset][1]);
+}
+
+// Move, zoom and darken a photo before it becomes the wallpaper. Resolves to { x, y, zoom, dim } or null.
+export async function openWallpaperEditor(image, start = {}) {
+  await imageSize(image);
+  const [iw, ih] = sizes.get(image);
+  let x = start.x ?? 50, y = start.y ?? 50, zoom = start.zoom || 1, dim = start.dim ?? 0.38;
+  // Same shape as the chat on this screen
+  const list = document.querySelector(".convo-list");
+  const ratio = list && list.clientWidth ? list.clientWidth / list.clientHeight : 9 / 16;
+  const box = h("div", { class: "wall-edit", style: `aspect-ratio:${ratio}` },
+    h("div", { class: "we-dim" }),
+    h("div", { class: "we-bubbles" }, h("i", { class: "we-b other", text: "Hey! 👋" }), h("i", { class: "we-b mine", text: "Looks great" }), h("i", { class: "we-b other", text: "Drag to move, zoom to fit" })));
+  const zoomIn = h("input", { type: "range", min: "1", max: "4", step: "0.01", value: String(zoom), "aria-label": "Zoom" });
+  const dimIn = h("input", { type: "range", min: "0", max: "0.8", step: "0.01", value: String(dim), "aria-label": "Darken" });
+  const paint = () => {
+    const r = box.getBoundingClientRect();
+    box.style.background = wallCss({ image, x, y, zoom }, r.width || 300, r.height || 500);
+    box.querySelector(".we-dim").style.background = `rgba(10, 9, 9, ${dim})`;
+  };
+  // Drag to move (one finger or the mouse), pinch or scroll to zoom
+  const pts = new Map();
+  let pinch = null;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  box.addEventListener("pointerdown", (e) => { box.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), zoom }; } });
+  box.addEventListener("pointermove", (e) => {
+    if (!pts.has(e.pointerId)) return;
+    const [px, py] = pts.get(e.pointerId);
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2 && pinch) {
+      const [a, b] = [...pts.values()];
+      zoom = clamp(pinch.zoom * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d, 1, 4);
+      zoomIn.value = String(zoom);
+    } else if (pts.size === 1) {
+      const r = box.getBoundingClientRect();
+      const scale = Math.max(r.width / iw, r.height / ih) * zoom;
+      const spareX = iw * scale - r.width, spareY = ih * scale - r.height;
+      if (spareX > 0) x = clamp(x - ((e.clientX - px) / spareX) * 100, 0, 100);
+      if (spareY > 0) y = clamp(y - ((e.clientY - py) / spareY) * 100, 0, 100);
+    }
+    paint();
+  });
+  const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+  box.addEventListener("pointerup", up);
+  box.addEventListener("pointercancel", up);
+  box.addEventListener("wheel", (e) => { e.preventDefault(); zoom = clamp(zoom * (e.deltaY < 0 ? 1.08 : 0.93), 1, 4); zoomIn.value = String(zoom); paint(); }, { passive: false });
+  zoomIn.addEventListener("input", () => { zoom = Number(zoomIn.value); paint(); });
+  dimIn.addEventListener("input", () => { dim = Number(dimIn.value); paint(); });
+  const reset = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Reset", onclick: () => { x = 50; y = 50; zoom = 1; zoomIn.value = "1"; paint(); } });
+  const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Use this" });
+  return new Promise((resolve) => {
+    let done = false;
+    const m = modal({ title: "Adjust wallpaper", onClose: () => { if (!done) resolve(null); }, body: h("div", { class: "create-form wall-editor" },
+      box,
+      h("label", { class: "we-row" }, h("span", { text: "🔍 Zoom" }), zoomIn),
+      h("label", { class: "we-row" }, h("span", { text: "🌗 Darken" }), dimIn),
+      h("div", { class: "we-row" }, h("span", { class: "muted", text: "Drag the photo to move it. Pinch or scroll to zoom." }), reset),
+      save) });
+    save.addEventListener("click", () => { done = true; m.close(); resolve({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, zoom: Math.round(zoom * 100) / 100, dim: Math.round(dim * 100) / 100 }); });
+    requestAnimationFrame(paint);
+  });
 }
 // Another tab (or the picker) changed it
 on("chat:wallpaper", (ev) => {
@@ -94,8 +183,12 @@ export function openWallpaperPicker(chat, onDone) {
     const f = file.files[0]; file.value = "";
     if (!f) return;
     photo.querySelector("b").textContent = "Uploading…";
-    try { const up = await upload(f); await save({ image: up.url }, "Wallpaper set."); }
-    catch (err) { toast(err.error || "Couldn’t upload it."); photo.querySelector("b").textContent = "Your photo"; }
+    try {
+      const up = await upload(f);
+      photo.querySelector("b").textContent = "Your photo";
+      const fit = await openWallpaperEditor(up.url);
+      if (fit) await save({ image: up.url, ...fit }, "Wallpaper set.");
+    } catch (err) { toast(err.error || "Couldn’t upload it."); photo.querySelector("b").textContent = "Your photo"; }
   });
   const current = chat.wallpaper;
   const m = modal({ title: `Wallpaper${name ? " · " + name : ""}`, body: h("div", { class: "create-form wall-picker" },
@@ -107,6 +200,10 @@ export function openWallpaperPicker(chat, onDone) {
         b.addEventListener("click", () => save({ preset: id }, `Wallpaper: ${label}.`));
         return b;
       })),
+    current?.image ? h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "✏️ Adjust my photo (move, zoom, darken)", onclick: async () => {
+      const fit = await openWallpaperEditor(current.image, current);
+      if (fit) await save({ image: current.image, ...fit }, "Wallpaper adjusted.");
+    } }) : null,
     current ? h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Remove wallpaper", onclick: () => save({ clear: true }, "Wallpaper removed.") }) : null) });
 }
 
@@ -140,9 +237,12 @@ function pickGroupPhoto(chat, onDone) {
     const f = file.files[0];
     file.remove();
     if (!f) return;
+    // Fit it in the circle first
+    const blob = await openCropper(f, { aspect: 1, round: true, title: "Adjust group photo" });
+    if (!blob) return;
     toast("Uploading…");
     try {
-      const up = await upload(f);
+      const up = await upload(new File([blob], "group.jpg", { type: "image/jpeg" }));
       const r = await api(`/api/chats/${chat.id}/photo`, { method: "POST", body: { image: up.url } });
       chat.cover = r.cover;
       onDone?.(r.cover);

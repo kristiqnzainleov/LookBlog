@@ -264,6 +264,8 @@ export function actions(p, { onDeleted, big = false } = {}) {
   const bar = p.film
     ? h("div", { class: "post-actions" + (big ? " big" : "") }, starsChip, comments, share, views)
     : h("div", { class: "post-actions" + (big ? " big" : "") }, cool, like, dislike, repost, comments, share, views);
+  // Double-tap on the post likes it (and never takes a like back)
+  if (!p.film) bar.likeOnce = () => { if (p.reaction !== "like") react("like", like); };
   if (!p.mine) {
     const rep = h("button", { class: "act act-report", "aria-label": "Report", title: `Report this ${p.stream ? "past live" : p.type === "video" ? "video" : p.type === "short" ? "short" : "post"}` }, icon("flag"), h("span", { class: "act-label", text: "Report" }));
     rep.addEventListener("click", (e) => { e.stopPropagation(); openReport(p); });
@@ -441,3 +443,34 @@ export function withReason(el, p) {
   (el.querySelector(".post-head") || el.querySelector(".tile-text h3") || el.firstChild)?.after(why);
   return el;
 }
+
+/* ---------- Double-tap a post to like it (like Instagram) ---------- */
+// Buttons, links, fields and video players keep their own double-click.
+const NO_TAP = "button, a, input, textarea, select, video, audio, .lb-player, .post-actions, .poll, .replies, .comments, .composer, [contenteditable]";
+export function likeBurst(x, y) {
+  const el = h("span", { class: "like-burst", style: `left:${x}px;top:${y}px` }, "❤️");
+  document.body.append(el);
+  setTimeout(() => el.remove(), 900);
+}
+function tapLike(e) {
+  if (e.target.closest?.(NO_TAP)) return false;
+  const host = e.target.closest?.(".post, .detail");
+  const bar = host && [...host.querySelectorAll(".post-actions")].find((b) => b.likeOnce && b.closest(".post, .detail") === host);
+  if (!bar) return false;
+  bar.likeOnce();
+  likeBurst(e.clientX, e.clientY);
+  window.getSelection?.().removeAllRanges();
+  return true;
+}
+let lastTap = { t: 0, x: 0, y: 0 }, touchLikedAt = 0;
+// Phones: two quick taps in the same spot
+document.addEventListener("pointerup", (e) => {
+  if (e.pointerType !== "touch") return;
+  const now = Date.now();
+  if (now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40) {
+    if (tapLike(e)) touchLikedAt = now;
+    lastTap = { t: 0, x: 0, y: 0 };
+  } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+});
+// Computers: double-click
+document.addEventListener("dblclick", (e) => { if (Date.now() - touchLikedAt > 600) tapLike(e); });
