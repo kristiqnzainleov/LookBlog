@@ -24,7 +24,12 @@ function verifyPassword(password, stored) {
 const DUMMY_HASH = hashPassword("not-a-real-password"); // keeps timing equal for unknown users
 
 /* ---------- Sessions (only a hash of each token is stored) ---------- */
+// Accounts suspended by the LookBlog team can't log in
+function checkNotBanned(user) {
+  if (user?.banned) throw httpError(403, "This account has been suspended by the LookBlog team" + (user.banned.reason ? ` (${user.banned.reason})` : "") + ".");
+}
 function startSession(user, remember) {
+  checkNotBanned(user);
   const token = crypto.randomBytes(32).toString("hex");
   db.sessions[sha256(token)] = { userId: user.id, expires: Date.now() + SESSION_MS };
   save("sessions");
@@ -37,12 +42,13 @@ function startSession(user, remember) {
    lb_session = the account in use · lb_accounts = the other accounts' tokens, dot-separated */
 const MAX_ACCOUNTS = 5;
 function newSession(user) {
+  checkNotBanned(user);
   const token = crypto.randomBytes(32).toString("hex");
   db.sessions[sha256(token)] = { userId: user.id, expires: Date.now() + SESSION_MS };
   save("sessions");
   return token;
 }
-const userOfToken = (t) => { const s = t && db.sessions[sha256(t)]; return s && s.expires > Date.now() ? findUser(s.userId) : null; };
+const userOfToken = (t) => { const s = t && db.sessions[sha256(t)]; const u = s && s.expires > Date.now() ? findUser(s.userId) : null; return u && !u.banned ? u : null; };
 const sessionCookie = (t) => `lb_session=${t}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_MS / 1000}`;
 const accountsCookie = (list) => list.length ? `lb_accounts=${list.join(".")}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_MS / 1000}` : "lb_accounts=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0";
 function otherTokens(req) {
@@ -79,7 +85,8 @@ function sessionUser(req) {
     save("sessions");
     return null;
   }
-  return findUser(s.userId);
+  const user = findUser(s.userId);
+  return user && !user.banned ? user : null;
 }
 
 function endSessionsFor(userId) {
@@ -128,6 +135,7 @@ function meView(u) {
     lang: u.lang || null,
     canMakeFilms: require("./social").canMakeFilms(u),
     canMakeMusic: require("./social").canMakeMusic(u),
+    ...(require("./admin").isAdmin(u) ? { admin: true, owner: require("./admin").isOwner(u) } : {}),
     private: Boolean(u.private),
     categories: u.categories || [],
   };
@@ -213,6 +221,7 @@ async function handleAuth(req, res, url, { port }) {
     const user = id.includes("@") ? db.users.find((u) => u.email === id.toLowerCase()) : findByUsername(id);
     const ok = verifyPassword(password, user ? user.passwordHash : DUMMY_HASH) && Boolean(user);
     if (!ok) throw httpError(401, "Wrong email/username or password.");
+    checkNotBanned(user);
     // 2FA on: the password was right, now we need the code
     if (twoFA(user)) {
       sendJSON(res, 200, { needCode: true, ticket: askForCode(user, Boolean(body.remember), keepPrevious(req, user)), name: user.name });
@@ -306,6 +315,7 @@ async function handleAuth(req, res, url, { port }) {
     const user = id.includes("@") ? db.users.find((u) => u.email === id.toLowerCase()) : findByUsername(id);
     const ok = verifyPassword(String(body.password || ""), user ? user.passwordHash : DUMMY_HASH) && Boolean(user);
     if (!ok) throw httpError(401, "Wrong email/username or password.");
+    checkNotBanned(user);
     if (user.id === me.id) throw httpError(400, "You’re already using this account.");
     if (twoFA(user) && !body.code) throw httpError(401, "This account has 2-step verification. Enter its code.", { needCode: true });
     if (twoFA(user) && !codeOk(user, body.code)) throw httpError(401, "That 2-step code isn’t right.", { needCode: true });
@@ -446,4 +456,4 @@ async function handleAuth(req, res, url, { port }) {
   return false;
 }
 
-module.exports = { handleAuth, sessionUser, meView };
+module.exports = { handleAuth, sessionUser, meView, endSessionsFor };

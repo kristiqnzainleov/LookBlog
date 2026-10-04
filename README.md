@@ -93,6 +93,21 @@ The design is pink (`#ff4fa3`) on black. The interface is in English and can be 
   - They have no likes or dislikes.
   - They can't be added to normal playlists.
 
+### Admin page for the LookBlog team (`/admin`)
+- **Reports:** reports of posts, accounts, live streams and live chat messages.
+  - Grouped by what was reported, the most reported first.
+  - The team can dismiss a report, remove the content or suspend the author.
+  - Reporters and authors are told by a notification from the LookBlog Team.
+- **Verification:** see each request with followers and posts, choose the kind of tick, approve or reject.
+- **Support and bugs:** read messages to the team and bug reports with screenshots, and reply. The reply arrives as a notification.
+- **Deleted accounts:** why people left.
+- **Accounts:**
+  - search, verify or remove the tick;
+  - suspend or unsuspend (a suspended account can't log in);
+  - delete accounts;
+  - owners can add and remove admins.
+- **Overview:** what's waiting, totals and new accounts per day. Counts update live.
+
 ### Profiles and community
 - **Profiles:** banner, photo, bio, live follower counts, verified tick and badges. There are over 60 badges, for example Live, Music & film and Games.
 - **Stories and notes:** stories disappear after 24 hours. Notes can carry a photo or GIF.
@@ -149,6 +164,7 @@ Then open http://localhost:3000. The `data/` folder is created on first start.
 | `PORT` | Port to listen on (default `3000`) |
 | `LOOKBLOG_DATA` | Where the data and uploads are kept (default `./data`) |
 | `TRUST_PROXY` | Set to `1` behind a hosting proxy so each visitor's real IP is used |
+| `ADMINS` | Usernames of the owners of the admin page, comma-separated (default `ko6i`) |
 | `GOOGLE_CLIENT_ID` | Turns on "Sign in with Google" |
 | `FFMPEG_PATH` | Path to ffmpeg, if it isn't found automatically |
 
@@ -170,6 +186,7 @@ server/              the API
   auth.js            accounts, sessions, password reset, Google sign-in
   social.js          posts, shorts, videos, comments, reactions, follows, search
   streams.js         live streams, guests, moderators, live chat
+  admin.js           the admin page: reports, verification, support, accounts
   chat.js            messages, groups, typing, read receipts, card games
   voice.js           voice rooms and shared music
   groups.js          Discord-style servers, roles, channels

@@ -19,7 +19,7 @@ function view(n) {
   return {
     id: n.id,
     type: n.type,
-    actor: actor ? { name: actor.name, username: actor.username, avatar: actor.avatar } : { name: "Someone", username: "", avatar: null },
+    actor: n.actorId === "team" ? { name: "LookBlog Team", username: "", avatar: null, team: true } : actor ? { name: actor.name, username: actor.username, avatar: actor.avatar } : { name: "Someone", username: "", avatar: null },
     postId: post ? post.id : null,
     postType: post ? post.type : null,
     postText: post ? snippet(post.title || post.text) : null,
@@ -31,6 +31,7 @@ function view(n) {
     code: n.code || null,
     eventId: n.eventId || null,
     streamId: n.streamId || null,
+    link: n.link || null,
     createdAt: n.createdAt,
     read: Boolean(n.read),
   };
@@ -62,12 +63,13 @@ function notify(recipientId, type, actor, extra = {}) {
     actorId: actor.id,
     postId: extra.postId || null,
     emoji: extra.emoji || null,
-    text: extra.text ? snippet(extra.text) : null,
+    text: extra.text ? snippet(extra.text, actor.id === "team" ? 400 : 80) : null,
     chatId: extra.chatId || null, // groups: events and invites
     group: extra.group || null,
     code: extra.code || null,
     eventId: extra.eventId || null, // public events
     streamId: extra.streamId || null, // live streams
+    link: extra.link || null, // where it opens (messages from the LookBlog team)
     createdAt: new Date().toISOString(),
     read: false,
   };

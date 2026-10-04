@@ -45,7 +45,7 @@ export function startRouter() {
     if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const url = new URL(a.href, location.href);
     if (url.origin !== location.origin || a.target || a.hasAttribute("download")) return;
-    if (!/^\/(feed|shorts|videos|search|post\/|watch\/|u\/|playlist\/|messages|groups|invite\/|events|cinema|music|history|settings|album\/|leaderboard|editor|live\/|event\/|verified|analytics|people)/.test(url.pathname)) return;
+    if (!/^\/(feed|shorts|videos|search|post\/|watch\/|u\/|playlist\/|messages|groups|invite\/|events|cinema|music|history|settings|album\/|leaderboard|editor|live\/|event\/|verified|analytics|people|admin)/.test(url.pathname)) return;
     e.preventDefault();
     navigate(url.pathname + url.search);
   });

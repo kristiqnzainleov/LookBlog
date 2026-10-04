@@ -28,6 +28,7 @@ const { handleAccount } = require("./server/account");
 const { handleLinks } = require("./server/links");
 const { handleLeaderboard } = require("./server/leaderboard");
 const { handleStreams } = require("./server/streams");
+const { handleAdmin } = require("./server/admin");
 require("./server/transcode"); // makes 360p–1080p copies of videos when ffmpeg is installed
 const { badgesFor, checkBadges, ROLES, rolesOf, findRole } = require("./server/badges");
 const crypto = require("crypto");
@@ -52,7 +53,7 @@ const TYPES = {
 // Pages of the app (all served by app.html, which shows the right one)
 const APP_PAGES = [
   /^\/feed$/, /^\/shorts$/, /^\/videos$/, /^\/search$/, /^\/post\/[\w-]+$/, /^\/watch\/[\w-]+$/, /^\/u\/[^/]+$/,
-  /^\/playlist\/[\w-]+$/, /^\/messages(\/[\w-]+)?$/, /^\/groups$/, /^\/invite\/[\w-]+$/, /^\/events$/, /^\/cinema$/, /^\/music$/, /^\/history$/, /^\/settings$/, /^\/leaderboard$/, /^\/editor$/, /^\/live\/[\w-]+$/, /^\/album\/[\w-]+$/, /^\/event\/[\w-]+$/, /^\/verified$/, /^\/analytics$/, /^\/people$/,
+  /^\/playlist\/[\w-]+$/, /^\/messages(\/[\w-]+)?$/, /^\/groups$/, /^\/invite\/[\w-]+$/, /^\/events$/, /^\/cinema$/, /^\/music$/, /^\/history$/, /^\/settings$/, /^\/leaderboard$/, /^\/editor$/, /^\/live\/[\w-]+$/, /^\/album\/[\w-]+$/, /^\/event\/[\w-]+$/, /^\/verified$/, /^\/analytics$/, /^\/people$/, /^\/admin$/,
 ];
 
 function redirect(res, to) {
@@ -86,6 +87,7 @@ async function handleApi(req, res, url) {
   if (!me) return sendJSON(res, 401, { error: "Please log in." });
 
   if (req.method === "GET" && url.pathname === "/api/events") return handleEvents(req, res, me);
+  if (await handleAdmin(req, res, url, me)) return;
   if (req.method === "POST" && url.pathname === "/api/upload") return handleUpload(req, res, me);
   // After anything that changes data, see if someone earned a badge
   if (req.method !== "GET") res.on("finish", () => setImmediate(() => {
@@ -132,6 +134,7 @@ async function handleApi(req, res, url) {
       const t = { id: crypto.randomUUID().slice(0, 8), userId: me.id, username: me.username, email: me.email || null, topic, message, page: String(body.page || "").slice(0, 200), userAgent: String(req.headers["user-agent"] || "").slice(0, 200), status: "open", createdAt: new Date().toISOString() };
       db.support.push(t);
       save("support");
+      require("./server/admin").pingAdmins();
       console.log(`[support] #${t.id} ${topic} from @${me.username}: ${message.slice(0, 120)}`);
       return sendJSON(res, 201, { ticket: { id: t.id, topic, message, status: t.status, createdAt: t.createdAt } });
     }
@@ -158,6 +161,7 @@ async function handleApi(req, res, url) {
     };
     db.support.push(t);
     save("support");
+    require("./server/admin").pingAdmins();
     console.log(`[bug] #${t.id} (${t.area}) from @${me.username} on ${t.page}: ${what.slice(0, 140)}`);
     return sendJSON(res, 201, { id: t.id });
   }

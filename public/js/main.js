@@ -26,6 +26,7 @@ import { historyPage } from "./pages/history.js";
 import { settingsPage } from "./pages/settings.js";
 import { albumPage } from "./pages/album.js";
 import { leaderboardPage } from "./pages/leaderboard.js";
+import { adminPage } from "./pages/admin.js";
 import { peoplePage } from "./pages/people.js";
 import { editorPage } from "./pages/editor.js";
 import { livePage } from "./pages/live.js";
@@ -51,6 +52,7 @@ route(/^\/history$/, historyPage);
 route(/^\/settings$/, settingsPage);
 route(/^\/album\/([\w-]+)$/, albumPage);
 route(/^\/leaderboard$/, leaderboardPage);
+route(/^\/admin$/, adminPage);
 route(/^\/editor$/, editorPage);
 route(/^\/live\/([\w-]+)$/, livePage);
 route(/^\/event\/([\w-]+)$/, eventPage);
@@ -72,6 +74,7 @@ function paintMe() {
   $("meName").textContent = me.name;
   $("meHandle").textContent = "@" + me.username;
   $("navProfile").href = $("menuProfile").href = profileHref(me.username);
+  $("menuAdmin").hidden = !me.admin;
 }
 
 /* ---------- Account menu in the top bar ---------- */
@@ -170,6 +173,14 @@ function setupMenu() {
   $("meLang").textContent = i18n.LANGS.find((l) => l.id === i18n.currentLang())?.native || "English";
   paintMe();
   on("me:updated", paintMe);
+  // The LookBlog team: a badge on the Admin menu item with what's waiting
+  if (state.me.admin) {
+    const paintAdmin = (c) => { const n = c.reports + c.verifications + c.support + c.bugs; $("adminBadge").textContent = n > 99 ? "99+" : String(n); $("adminBadge").hidden = !n; };
+    api("/api/admin").then((d) => paintAdmin(d.counts)).catch(() => {});
+    on("admin:update", (ev) => paintAdmin(ev.counts));
+  }
+  // Suspended or deleted by the LookBlog team: back to the start page
+  on("account:banned", () => { location.href = "/"; });
   setupMenu();
   setupNotifications();
   listenForCalls();

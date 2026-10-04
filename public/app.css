@@ -4150,3 +4150,88 @@ body[data-page="messages"] .group-view { grid-template-columns: clamp(250px, 19v
 .creator-heart-btn:hover { background: rgba(255, 79, 163, 0.12); }
 .ch-outline { color: var(--muted); font-size: 1.1rem; line-height: 1; }
 .creator-heart-btn:hover .ch-outline { color: #ff4fa3; }
+
+/* ---------- Admin page (/admin) ---------- */
+.admin-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--pink); color: #000; font: 800 0.72rem/20px var(--body); text-align: center; }
+.avatar.team-av { background: var(--pink); color: #000; }
+.page-admin .adm-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.adm-tab { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font: 700 0.9rem var(--body); cursor: pointer; }
+.adm-tab:hover { color: var(--paper); }
+.adm-tab.on { background: var(--pink); border-color: var(--pink); color: #000; }
+.adm-count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--pink); color: #000; font: 800 0.72rem/20px var(--body); text-align: center; }
+.adm-tab.on .adm-count { background: #000; color: var(--pink); }
+.adm-body { display: flex; flex-direction: column; gap: 14px; }
+.adm-h2 { font: 700 1.05rem var(--display); margin: 14px 0 0; }
+.adm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.adm-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--card); color: var(--paper); font: 600 0.92rem var(--body); text-align: left; cursor: pointer; }
+.adm-card b { font: 800 2rem var(--display); }
+.adm-card-emoji { font-size: 1.4rem; }
+.adm-card.hot { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink) inset; }
+.adm-card.hot b { color: var(--pink); }
+.adm-card:hover { background: var(--card-2); }
+.adm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.adm-stat { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); }
+.adm-stat b { font: 800 1.35rem var(--display); }
+.adm-stat span { color: var(--muted); font-size: 0.85rem; }
+.adm-chart { display: grid; grid-template-columns: repeat(14, 1fr); gap: 6px; align-items: end; height: 160px; padding: 14px; border-radius: var(--radius-md); background: var(--card); border: 1px solid var(--line); }
+.adm-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.adm-bar i { width: 100%; max-width: 28px; min-height: 3px; border-radius: 6px 6px 2px 2px; background: var(--pink); }
+.adm-bar small, .adm-bar-n { color: var(--muted); font-size: 0.72rem; }
+.adm-list { display: flex; flex-direction: column; gap: 12px; }
+.adm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 14px; background: var(--card); }
+.adm-who { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: var(--paper); text-decoration: none; }
+.adm-who-text { display: flex; flex-direction: column; min-width: 0; }
+.adm-who-text b { display: inline-flex; align-items: center; gap: 4px; }
+.adm-who-text small, .adm-who-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--card-2); border: 1px solid var(--line); font: 700 0.78rem var(--body); color: var(--paper); white-space: nowrap; }
+.adm-chip.pink { background: rgba(255, 79, 163, 0.14); border-color: rgba(255, 79, 163, 0.5); color: var(--pink); }
+.adm-chip.red { background: rgba(255, 45, 61, 0.12); border-color: rgba(255, 45, 61, 0.5); color: var(--error); }
+.adm-chip.green { background: rgba(60, 220, 130, 0.12); border-color: rgba(60, 220, 130, 0.45); color: #5ee49a; }
+.adm-seg { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); }
+.adm-seg button { padding: 7px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 700 0.85rem var(--body); cursor: pointer; }
+.adm-seg button.on { background: var(--paper); color: #000; }
+.adm-case, .adm-user { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: var(--radius-md); background: var(--card); border: 1px solid var(--line); }
+.adm-case.closed { opacity: 0.85; }
+.adm-case-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.adm-grow { margin-left: auto; font-size: 0.85rem; }
+.adm-target { display: flex; gap: 14px; align-items: flex-start; }
+.adm-target-text { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.adm-thumb { width: 120px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; background: #000; flex-shrink: 0; }
+.adm-quote { margin: 0; padding: 10px 12px; border-left: 3px solid var(--pink); border-radius: 0 10px 10px 0; background: var(--card-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.adm-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.adm-details summary { cursor: pointer; color: var(--muted); font-weight: 700; font-size: 0.88rem; }
+.adm-details[open] summary { margin-bottom: 10px; }
+.adm-report { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); }
+.adm-report p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.adm-actions { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.adm-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.adm-user .adm-btns { justify-content: flex-start; }
+.adm-resolved { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 0.88rem; }
+.adm-note { margin: 0; width: 100%; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
+.adm-input { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--ink-2); color: var(--paper); font: 500 0.95rem var(--body); resize: vertical; }
+.adm-input:focus { outline: none; border-color: var(--pink); }
+.adm-select { width: auto; cursor: pointer; }
+.adm-label { display: flex; align-items: center; gap: 10px; }
+.adm-facts { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.adm-facts span { display: flex; flex-direction: column; gap: 2px; }
+.adm-about { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.adm-links { display: flex; flex-direction: column; gap: 4px; }
+.adm-links a { color: var(--pink); overflow-wrap: anywhere; }
+.adm-small { margin: 0; font-size: 0.82rem; overflow-wrap: anywhere; }
+.adm-shot { max-width: 100%; max-height: 280px; border-radius: 12px; border: 1px solid var(--line); }
+.adm-reply { padding: 10px 12px; border-radius: 12px; background: rgba(255, 79, 163, 0.08); border: 1px solid rgba(255, 79, 163, 0.3); }
+.adm-reply p { margin: 4px 0 0; white-space: pre-wrap; }
+.adm-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.adm-toolbar .adm-input { flex: 1; min-width: 220px; }
+.adm-user-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.adm-user-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.adm-modal { display: flex; flex-direction: column; gap: 14px; }
+.adm-modal p { margin: 0; }
+.btn-danger-outline { background: transparent; color: var(--error); border-color: rgba(255, 45, 61, 0.45); }
+.btn-danger-outline:hover { background: rgba(255, 45, 61, 0.1); border-color: var(--error); }
+@media (max-width: 600px) {
+  .adm-target { flex-direction: column; }
+  .adm-thumb { width: 100%; }
+  .adm-chart { gap: 3px; padding: 10px; }
+  .adm-grow { margin-left: 0; width: 100%; }
+}

@@ -218,6 +218,7 @@ async function handleStreams(req, res, url, me) {
       db.reports.push({ id: crypto.randomUUID(), streamId: st.id, live: st.live, messageId: msg?.id || null, messageText: msg?.text || null, authorId: msg ? msg.userId : st.userId,
         reporterId: me.id, reason: body.reason, details: clean(body.details).slice(0, 500), at: st.startedAt ? Math.round((Date.now() - new Date(st.startedAt)) / 1000) : null, createdAt: new Date().toISOString(), status: "open" });
       save("reports");
+      require("./admin").pingAdmins();
       console.log(`[report] ${body.reason} on ${msg ? "a chat message in" : "live"} ${st.id} by @${me.username}`);
     }
     sendJSON(res, 200, { ok: true });
@@ -521,4 +522,13 @@ async function handleStreams(req, res, url, me) {
   return false;
 }
 
-module.exports = { handleStreams };
+// The LookBlog team removes one live chat message
+function removeChatMessage(st, messageId) {
+  st.chat = (st.chat || []).filter((x) => x.id !== messageId);
+  if (st.pinned?.id === messageId) st.pinned = null;
+  const v = viewers.get(st.id);
+  sendTo([st.userId, ...(v ? v.keys() : [])], { type: "stream:chat-deleted", streamId: st.id, messageId });
+  save("streams");
+}
+
+module.exports = { handleStreams, endStream, removeChatMessage };

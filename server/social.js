@@ -678,18 +678,7 @@ async function handleSocial(req, res, url, me) {
     if (i === -1) throw httpError(404, "This post doesn’t exist anymore.");
     const post = db.posts[i];
     if (post.userId !== me.id) throw httpError(403, "You can only delete your own posts.");
-    db.posts.splice(i, 1);
-    for (const md of post.media) { deleteMedia(md.url); if (md.poster) deleteMedia(md.poster); for (const r of md.renditions || []) deleteMedia(r.url); }
-    db.comments = db.comments.filter((x) => {
-      if (x.postId !== post.id) return true;
-      if (x.media && !x.media.gif && !x.media.sticker && !x.media.shared) { deleteMedia(x.media.url); if (x.media.poster) deleteMedia(x.media.poster); }
-      return false;
-    });
-    // A stream's recording: the stream goes with it
-    if (post.stream?.id && db.streams) { const si = db.streams.findIndex((x) => x.id === post.stream.id && !x.live); if (si > -1) { db.streams.splice(si, 1); save("streams"); } }
-    save("posts");
-    save("comments");
-    broadcast({ type: "post:deleted", id: post.id });
+    removePost(post);
     sendJSON(res, 200, { ok: true });
     return true;
   }
@@ -855,6 +844,7 @@ async function handleSocial(req, res, url, me) {
     if (!db.reports.some((r) => r.postId === post.id && r.reporterId === me.id)) {
       db.reports.push({ id: crypto.randomUUID(), postId: post.id, authorId: post.userId, reporterId: me.id, reason, details, createdAt: new Date().toISOString(), status: "open" });
       save("reports");
+      require("./admin").pingAdmins();
       console.log(`[report] ${reason} on post ${post.id} by @${me.username}`);
     }
     sendJSON(res, 200, { ok: true });
@@ -883,6 +873,7 @@ async function handleSocial(req, res, url, me) {
     if (open) Object.assign(open, { reason, details: details || open.details, message: message || open.message, updatedAt: new Date().toISOString() });
     else db.reports.push({ id: crypto.randomUUID(), kind: "user", userId: user.id, reporterId: me.id, reason, details, message, createdAt: new Date().toISOString(), status: "open" });
     save("reports");
+    require("./admin").pingAdmins();
     console.log(`[report] ${reason} on @${user.username} by @${me.username}${message ? " (message)" : ""}`);
     // Optionally block them at the same time
     if (body.block) {
@@ -1731,6 +1722,7 @@ async function handleSocial(req, res, url, me) {
       if (links.some((l) => !/^https?:\/\/[^\s]+\.[^\s]+/i.test(l))) throw httpError(400, "Links should start with http:// or https://");
       db.verifyRequests.push({ id: crypto.randomUUID(), userId: me.id, username: me.username, fullName, category, about, links, status: "pending", createdAt: new Date().toISOString() });
       save("verifyRequests");
+      require("./admin").pingAdmins();
       console.log(`[verification] @${me.username} applied (${category}). See data/verifyRequests.json`);
       sendJSON(res, 201, { ok: true });
       return true;
@@ -1836,4 +1828,22 @@ async function handleSocial(req, res, url, me) {
   return false;
 }
 
-module.exports = { starsView, notPlainVideo, resolveExtras, cleanClip, handleSocial, resolveGif, canView, blockedBetween, canMakeFilms, canMakeMusic, postView, authorView, buildMedia, claim, findMentions, usernamesOf, clean, chars };
+// Deletes a post with its files and replies (used by its author and by the LookBlog team)
+function removePost(post) {
+  const i = db.posts.indexOf(post);
+  if (i === -1) return;
+  db.posts.splice(i, 1);
+  for (const md of post.media) { deleteMedia(md.url); if (md.poster) deleteMedia(md.poster); for (const r of md.renditions || []) deleteMedia(r.url); }
+  db.comments = db.comments.filter((x) => {
+    if (x.postId !== post.id) return true;
+    if (x.media && !x.media.gif && !x.media.sticker && !x.media.shared) { deleteMedia(x.media.url); if (x.media.poster) deleteMedia(x.media.poster); }
+    return false;
+  });
+  // A stream's recording: the stream goes with it
+  if (post.stream?.id && db.streams) { const si = db.streams.findIndex((x) => x.id === post.stream.id && !x.live); if (si > -1) { db.streams.splice(si, 1); save("streams"); } }
+  save("posts");
+  save("comments");
+  broadcast({ type: "post:deleted", id: post.id });
+}
+
+module.exports = { removePost, starsView, notPlainVideo, resolveExtras, cleanClip, handleSocial, resolveGif, canView, blockedBetween, canMakeFilms, canMakeMusic, postView, authorView, buildMedia, claim, findMentions, usernamesOf, clean, chars };

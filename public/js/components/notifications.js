@@ -10,6 +10,7 @@ function sentence(n) {
   const what = kindWord(n.postType);
   switch (n.type) {
     case "follow": return "started following you";
+    case "team": return "";
     case "security": return "· security";
     case "song-comment": return "commented on your song";
     case "song": return `released a new song${n.text ? ": " + n.text : ""}`;
@@ -46,6 +47,8 @@ function sentence(n) {
   }
 }
 function target(n) {
+  if (n.link) return n.link;
+  if (n.type === "team") return null;
   if (n.streamId) return `/live/${encodeURIComponent(n.streamId)}`;
   if (n.eventId) return `/event/${encodeURIComponent(n.eventId)}`;
   if (n.type === "invite" && n.code) return `/invite/${encodeURIComponent(n.code)}`;
@@ -57,12 +60,12 @@ function target(n) {
   const hash = ["comment", "answer", "reaction"].includes(n.type) ? "#replies" : "";
   return postHref(n.postId) + hash;
 }
-const ICON = { "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
+const ICON = { team: "🛡️", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
 
 function itemEl(n, close) {
   const quote = n.type === "badge" ? null : n.text || n.postText;
   const el = h("a", { class: "notif" + (n.read ? "" : " unread"), href: target(n) },
-    h("span", { class: "notif-pic" }, avatar(n.actor, 44), h("span", { class: "notif-kind", text: n.type === "reaction" ? n.emoji || "❤️" : ICON[n.type] || "•" })),
+    h("span", { class: "notif-pic" }, avatar(n.actor, 44, n.actor.team ? "team-av" : ""), h("span", { class: "notif-kind", text: n.type === "reaction" ? n.emoji || "❤️" : ICON[n.type] || "•" })),
     h("span", { class: "notif-text" },
       h("span", {}, h("b", {}, n.actor.name, tick(n.actor, 14)), (/^(event-start|public-event-start|event-now|public-event-now)$/.test(n.type) ? "" : " ") + sentence(n)),
       quote ? h("span", { class: "notif-quote", text: quote }) : null,
@@ -88,7 +91,7 @@ function itemEl(n, close) {
     if (e.metaKey || e.ctrlKey) return;
     e.preventDefault();
     close();
-    navigate(target(n));
+    if (target(n)) navigate(target(n));
   });
   return el;
 }

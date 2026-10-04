@@ -100,4 +100,4 @@ async function handleAccount(req, res, url, me) {
   return true;
 }
 
-module.exports = { handleAccount, REASONS };
+module.exports = { handleAccount, REASONS, wipe };
