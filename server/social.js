@@ -1536,6 +1536,7 @@ async function handleSocial(req, res, url, me) {
       if (media && !media.gif && media.url !== old?.url) markUsed(media.url, "note:" + me.id);
       if (media && media.url !== old?.url) me.noteMediaCount = (me.noteMediaCount || 0) + 1;
       me.note = { text, media, createdAt: new Date().toISOString() };
+      me.noteCount = (me.noteCount || 0) + 1;
     } else if (m === "DELETE") {
       if (me.note?.media && !me.note.media.gif) deleteMedia(me.note.media.url);
       me.note = null;

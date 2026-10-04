@@ -97,7 +97,39 @@ const BADGES = [
   // Fun
   { id: "soundmaker", cat: "Just for fun", emoji: "🔊", name: "Sound maker", how: "Add one of your own sounds.", test: (s) => s.mySounds >= 1, progress: (s) => [s.mySounds, 1] },
   { id: "picnote", cat: "Just for fun", emoji: "🖼️", name: "Picture note", how: "Share a note with a photo or GIF.", test: (s) => s.noteMedia >= 1, progress: (s) => [s.noteMedia, 1] },
-  { id: "sharedaround", cat: "Reach", emoji: "📤", name: "Shared around", how: "Get your posts shared 25 times.", test: (s) => s.sharesReceived >= 25, progress: (s) => [s.sharesReceived, 25] }
+  { id: "sharedaround", cat: "Reach", emoji: "📤", name: "Shared around", how: "Get your posts shared 25 times.", test: (s) => s.sharesReceived >= 25, progress: (s) => [s.sharesReceived, 25] },
+  // More: community
+  { id: "partystarter", cat: "Community", emoji: "🎉", name: "Party starter", how: "Host a public event.", test: (s) => s.eventsHosted >= 1, progress: (s) => [s.eventsHosted, 1] },
+  { id: "outandabout", cat: "Community", emoji: "🎟️", name: "Out and about", how: "Go to 5 public events.", test: (s) => s.eventsJoined >= 5, progress: (s) => [s.eventsJoined, 5] },
+  { id: "amplifier", cat: "Community", emoji: "📣", name: "Amplifier", how: "Repost 10 posts.", test: (s) => s.repostsMade >= 10, progress: (s) => [s.repostsMade, 10] },
+  { id: "notepal", cat: "Community", emoji: "💭", name: "Note pal", how: "Reply to 5 notes.", test: (s) => s.noteReplies >= 5, progress: (s) => [s.noteReplies, 5] },
+  { id: "noticed", cat: "Community", emoji: "💗", name: "Noticed", how: "Get a heart from the creator on one of your replies.", test: (s) => s.heartsReceived >= 1, progress: (s) => [s.heartsReceived, 1] },
+  { id: "bigheart", cat: "Community", emoji: "💞", name: "Big heart", how: "Heart 10 replies on your own posts.", test: (s) => s.heartsGiven >= 10, progress: (s) => [s.heartsGiven, 10] },
+  { id: "groupboss", cat: "Community", emoji: "👑", name: "Group boss", how: "Start 3 groups.", test: (s) => s.groupsOwned >= 3, progress: (s) => [s.groupsOwned, 3] },
+  { id: "bestbuds", cat: "Community", emoji: "🫶", name: "Best buds", how: "Follow each other with 10 people.", test: (s) => s.mutuals >= 10, progress: (s) => [s.mutuals, 10] },
+  // More: creators
+  { id: "shortstar", cat: "Creators", emoji: "🌟", name: "Short star", how: "Post 100 shorts.", test: (s) => s.shorts >= 100, progress: (s) => [s.shorts, 100] },
+  { id: "studio", cat: "Creators", emoji: "🏢", name: "Studio", how: "Upload 50 videos.", test: (s) => s.videos >= 50, progress: (s) => [s.videos, 50] },
+  { id: "noteworthy", cat: "Creators", emoji: "🗒️", name: "Noteworthy", how: "Share 10 notes.", test: (s) => s.notesShared >= 10, progress: (s) => [s.notesShared, 10] },
+  // More: reach
+  { id: "coolkid", cat: "Reach", emoji: "😎", name: "Cool kid", how: "Get 100 Cools in total.", test: (s) => s.cools >= 100, progress: (s) => [s.cools, 100] },
+  { id: "hottake", cat: "Reach", emoji: "🌶️", name: "Hot take", how: "Get 50 replies on one post.", test: (s) => s.topReplies >= 50, progress: (s) => [s.topReplies, 50] },
+  { id: "megastar", cat: "Reach", emoji: "💫", name: "Megastar", how: "Get 5,000 likes in total.", test: (s) => s.likesReceived >= 5000, progress: (s) => [s.likesReceived, 5000] },
+  { id: "celebrity", cat: "Reach", emoji: "🌠", name: "Celebrity", how: "Reach 5,000 followers.", test: (s) => s.followers >= 5000, progress: (s) => [s.followers, 5000] },
+  // More: live
+  { id: "marathon", cat: "Live", emoji: "🏃", name: "Live marathon", how: "Go live 50 times.", test: (s) => s.streams >= 50, progress: (s) => [s.streams, 50] },
+  { id: "packed", cat: "Live", emoji: "🏟️", name: "Packed house", how: "Have 100 people watching your live at once.", test: (s) => s.streamPeak >= 100, progress: (s) => [s.streamPeak, 100] },
+  { id: "cohost", cat: "Live", emoji: "🎤", name: "Co-host", how: "Join 5 lives as a guest.", test: (s) => s.guestLives >= 5, progress: (s) => [s.guestLives, 5] },
+  // More: music & film
+  { id: "hitmaker", cat: "Music & film", emoji: "🎶", name: "Hitmaker", how: "Release 10 songs.", test: (s) => s.songs >= 10, progress: (s) => [s.songs, 10] },
+  { id: "platinum", cat: "Music & film", emoji: "💿", name: "Platinum", how: "Get 100,000 plays on your songs.", test: (s) => s.songPlays >= 100000, progress: (s) => [s.songPlays, 100000] },
+  { id: "critic", cat: "Music & film", emoji: "⭐", name: "Critic", how: "Rate 10 movies or series with stars.", test: (s) => s.starsGiven >= 10, progress: (s) => [s.starsGiven, 10] },
+  // More: games
+  { id: "champion", cat: "Games", emoji: "🏆", name: "Champion", how: "Win 50 games.", test: (s) => s.gameWins + s.cardWins >= 50, progress: (s) => [s.gameWins + s.cardWins, 50] },
+  { id: "gamenight", cat: "Games", emoji: "🕹️", name: "Game night", how: "Finish 100 games.", test: (s) => s.gamesFinished >= 100, progress: (s) => [s.gamesFinished, 100] },
+  // More: streaks and fun
+  { id: "streak14", cat: "Streaks", emoji: "🌟", name: "Two weeks strong", how: "Keep a 14-day LookStreak.", test: (s) => s.bestStreak >= 14, progress: (s) => [s.bestStreak, 14] },
+  { id: "oneofakind", cat: "Just for fun", emoji: "💎", name: "One of a kind", how: "Get a special badge from the LookBlog team.", test: (s) => s.specialBadges >= 1 },
 ];
 
 const TIERS = [["bronze", "🥉"], ["silver", "🥈"], ["gold", "🥇"]];
@@ -180,6 +212,17 @@ function statsFor(user) {
     mySounds: (user.sounds || []).length,
     noteMedia: user.noteMediaCount || 0,
     sharesReceived: mine.reduce((n, p) => n + (p.shares || 0), 0),
+    eventsHosted: (db.events || []).filter((e) => e.hostId === user.id).length,
+    eventsJoined: (db.events || []).filter((e) => e.hostId !== user.id && (e.going || []).includes(user.id)).length,
+    repostsMade: db.posts.filter((p) => p.userId !== user.id && p.reposts.some((r) => r.userId === user.id)).length,
+    noteReplies: user.noteReplyCount || 0,
+    notesShared: user.noteCount || 0,
+    heartsReceived: db.comments.filter((c) => c.userId === user.id && c.creatorHeart).length,
+    heartsGiven: (() => { const own = new Set(mine.map((p) => p.id)); return db.comments.filter((c) => c.creatorHeart && own.has(c.postId) && c.userId !== user.id).length; })(),
+    mutuals: user.following.filter((id) => db.users.some((u) => u.id === id && u.following.includes(user.id))).length,
+    topReplies: visible.reduce((n, p) => Math.max(n, p.commentCount || 0), 0),
+    starsGiven: db.posts.filter((p) => p.film && p.stars?.[user.id]).length + db.playlists.filter((pl) => pl.stars?.[user.id]).length,
+    specialBadges: (user.specialBadges || []).length,
   };
 }
 

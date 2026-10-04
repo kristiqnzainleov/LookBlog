@@ -447,6 +447,8 @@ async function handleChat(req, res, url, me) {
       chat = { id: crypto.randomUUID(), kind: "dm", members: [me.id, other.id], createdAt: new Date().toISOString(), lastAt: new Date().toISOString(), reads: {} };
       db.chats.push(chat);
     }
+    me.noteReplyCount = (me.noteReplyCount || 0) + 1;
+    save("users");
     if (!chat) {
       notify(other.id, "note-reply", me, { text: `${text}` });
       sendJSON(res, 201, { sent: "notification" });
