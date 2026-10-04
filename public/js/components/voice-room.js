@@ -92,15 +92,26 @@ function peer(username) {
   room.peers.set(username, p);
   for (const t of room.stream.getAudioTracks()) pc.addTrack(t, room.stream);
   if (room.video) pc.addTrack(room.video.track, room.stream);
-  // Perfect negotiation: either side may (re)negotiate; the "polite" one gives way on collisions
+  // Perfect negotiation: either side may (re)negotiate; the "polite" one gives way on collisions.
+  // The connection details (ICE candidates) go inside the offer/answer itself, in one message:
+  // separate candidate messages can arrive in the wrong order online and get lost.
   pc.onnegotiationneeded = async () => {
     try {
       p.makingOffer = true;
       await pc.setLocalDescription();
+      await gathered(pc);
       signal(p, { description: pc.localDescription });
     } catch {} finally { p.makingOffer = false; }
   };
-  pc.onicecandidate = (e) => e.candidate && signal(p, { candidate: e.candidate.toJSON() });
+  // If it isn't connected in 10 seconds, try again (up to 3 times)
+  p.tries = 0;
+  const watch = () => setTimeout(() => {
+    if (!room || room.peers.get(username) !== p || pc.connectionState === "connected" || pc.connectionState === "closed" || p.tries >= 3) return;
+    p.tries++;
+    pc.restartIce();
+    watch();
+  }, 10000);
+  watch();
   pc.ontrack = (e) => {
     const s = e.streams[0] || new MediaStream([e.track]);
     if (e.track.kind === "audio") { p.audio.srcObject = s; playAudio(p.audio); }
@@ -118,6 +129,16 @@ function closePeer(p) {
   p.audio.srcObject = null;
   p.audio.remove();
   room?.peers.delete(p.username);
+}
+// Wait until the browser has found its ways to be reached (or 3 seconds, whichever comes first)
+function gathered(pc) {
+  if (pc.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise((ok) => {
+    const done = () => { pc.removeEventListener("icegatheringstatechange", check); clearTimeout(t); ok(); };
+    const check = () => { if (pc.iceGatheringState === "complete") done(); };
+    pc.addEventListener("icegatheringstatechange", check);
+    const t = setTimeout(done, 3000);
+  });
 }
 // Play someone's voice; if the browser blocks it, show a "Tap to hear" button
 function playAudio(a) {
@@ -187,11 +208,15 @@ async function onSignal(ev) {
         p.ignoreOffer = !p.polite && collision;
         if (p.ignoreOffer) return;
         await pc.setRemoteDescription(d.description);
+        // Candidates that came early (from an older version of the page) go in now
+        for (const c of (p.early || []).splice(0)) await pc.addIceCandidate(c).catch(() => {});
         if (d.description.type === "offer") {
           await pc.setLocalDescription();
+          await gathered(pc);
           signal(p, { description: pc.localDescription });
         }
       } else if (d.candidate) {
+        if (!pc.remoteDescription) { (p.early = p.early || []).push(d.candidate); return; }
         try { await pc.addIceCandidate(d.candidate); } catch (err) { if (!p.ignoreOffer) throw err; }
       }
     } catch (err) { console.warn("[voice]", err); }
@@ -220,23 +245,43 @@ on("voice:sound", (ev) => {
   if (ev.username !== state.me.username) playSoundHere(ev);
   showSoundToast(ev);
 });
-const decoded = new Map(); // url -> AudioBuffer
+// Soundboard sounds play in an <audio> on the page, like people's voices
+// (browsers keep that playing during a call; the Web Audio engine they sometimes put to sleep).
+const builtinFiles = new Map(); // builtin id -> blob URL of a WAV made once in the browser
+async function builtinUrl(id) {
+  if (builtinFiles.has(id)) return builtinFiles.get(id);
+  const rate = 44100, off = new OfflineAudioContext(1, rate * 2.6, rate);
+  playBuiltin(id, off, off.destination);
+  const buf = await off.startRendering();
+  const url = URL.createObjectURL(wavBlob(buf));
+  builtinFiles.set(id, url);
+  return url;
+}
+function wavBlob(buf) {
+  const data = buf.getChannelData(0), n = data.length, out = new DataView(new ArrayBuffer(44 + n * 2));
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) out.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, "RIFF"); out.setUint32(4, 36 + n * 2, true); str(8, "WAVE"); str(12, "fmt ");
+  out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true); out.setUint32(24, buf.sampleRate, true);
+  out.setUint32(28, buf.sampleRate * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true); str(36, "data"); out.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, data[i])) * 0x7fff, true);
+  return new Blob([out], { type: "audio/wav" });
+}
 async function playSoundHere(s) {
   if (room?.deaf) return;
-  if (s.builtin) return playBuiltin(s.builtin);
   try {
-    const ctx = audioEngine();
-    let buf = decoded.get(s.url);
-    if (!buf) {
-      buf = await ctx.decodeAudioData(await (await fetch(s.url)).arrayBuffer());
-      decoded.set(s.url, buf);
-    }
-    const src = ctx.createBufferSource(), g = ctx.createGain();
-    src.buffer = buf;
-    g.gain.value = 0.9;
-    src.connect(g); g.connect(ctx.destination);
-    src.start();
-  } catch { new Audio(s.url).play().catch(() => {}); }
+    const a = h("audio", { src: s.builtin ? await builtinUrl(s.builtin) : s.url, playsInline: true });
+    a.volume = 0.9;
+    const spk = audioPrefs().speakerId;
+    if (spk && a.setSinkId) await a.setSinkId(spk).catch(() => {});
+    (room?.audioBox || document.body).append(a);
+    a.addEventListener("ended", () => a.remove());
+    setTimeout(() => a.remove(), 15000);
+    await a.play();
+  } catch {
+    // Blocked or not supported: fall back to the sound engine, and offer the "Tap to hear" button
+    if (s.builtin) playBuiltin(s.builtin);
+    if (room && !room.needsTap) { room.needsTap = true; paintDock(); }
+  }
 }
 on("group:changed", async (ev) => {
   if (!room || ev.chatId !== room.chat.id || ev.what !== "sounds") return;
