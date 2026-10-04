@@ -67,7 +67,28 @@ export function settingsPage(view) {
   const del = h("button", { type: "button", class: "btn btn-danger", text: "Delete my account" });
   del.addEventListener("click", openDelete);
 
+  // Email: the address you log in with and get password reset links at
+  const subLine = view.querySelector(".page-sub");
+  const emailNow = h("p", { class: "set-status on" }, h("span", { class: "dot" }), state.me.email || "No email yet");
+  const emailIn = h("input", { type: "email", class: "text-input", placeholder: "New email address", autocomplete: "email", maxlength: 254 });
+  const emailBtn = h("button", { type: "button", class: "btn btn-sm btn-primary", text: "Change email" });
+  emailBtn.addEventListener("click", () => {
+    const email = emailIn.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast("That email address doesn’t look right."); return emailIn.focus(); }
+    askPassword("Change your email", async (password, m) => {
+      const { user } = await api("/api/me/email", { method: "POST", body: { email, password } });
+      state.me.email = user.email;
+      emailNow.lastChild.textContent = user.email;
+      subLine.textContent = `@${state.me.username} · ${user.email}`;
+      emailIn.value = "";
+      m.close();
+      toast("Email changed.");
+    });
+  });
+  emailIn.addEventListener("keydown", (e) => { if (e.key === "Enter") emailBtn.click(); });
+
   view.append(
+    section("Email", "You log in with it and get password reset links there.", emailNow, h("div", { class: "set-row" }, emailIn, emailBtn)),
     section("Two-step verification (2FA)", "When it’s on, LookBlog asks for your code after your password — so knowing your password (or email) isn’t enough to get into your account. LookBlog can make the code for you, or you can pick your own.", twoBox),
     section("Preferences", null, h("div", { class: "set-row" }, lang, priv)),
     section("Delete account", "This removes your profile, posts, videos, songs, messages and everything else you made. It can’t be undone.", del));

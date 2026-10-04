@@ -14,8 +14,11 @@ import { openEmojiPicker, insertAtCursor } from "../components/emoji.js";
 import { openStickers } from "../components/stickers.js";
 import { openSoundPicker } from "../components/sounds.js";
 import { openReportLive } from "../components/report.js";
+import { iceServers, micConstraints } from "../components/audio-devices.js";
 
-const ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
+let ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
+// Use LookBlog's connection servers (with TURN, so calls work across mobile networks too)
+iceServers().then((list) => (ICE = list));
 const post = (id, path, body) => api(`/api/streams/${id}/${path}`, { method: "POST", body });
 const when = (iso) => new Date(iso).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 // For <input type="datetime-local">
@@ -29,11 +32,11 @@ const CW = 1280, CH = 720;
 async function grabMedia(source) {
   let screen = null, cam = null;
   if (source === "camera") {
-    cam = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: { echoCancellation: true, noiseSuppression: true } });
+    cam = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: micConstraints() });
   } else {
     screen = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
     try {
-      cam = await navigator.mediaDevices.getUserMedia(source === "both" ? { video: { width: 640, height: 360 }, audio: { echoCancellation: true } } : { audio: { echoCancellation: true } });
+      cam = await navigator.mediaDevices.getUserMedia(source === "both" ? { video: { width: 640, height: 360 }, audio: micConstraints() } : { audio: micConstraints() });
     } catch { if (source === "both") toast("Couldn’t open the camera — streaming the screen only."); }
   }
   return { screen, cam };

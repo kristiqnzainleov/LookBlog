@@ -5,8 +5,7 @@ import { h, icon, avatar, toast, tick } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic } from "./voice-music.js";
-
-const ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
+import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings } from "./audio-devices.js";
 let room = null;
 export const currentVoice = () => room && { chatId: room.chat.id, channelId: room.channel.id };
 export const speakingNow = new Set();
@@ -29,32 +28,25 @@ export async function joinVoice(chat, channel) {
   if (window.__lbInCall?.()) return toast("Hang up your call first.");
   if (room) await leaveVoice();
   if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) return toast("Your browser can’t do voice chat.");
-  let stream;
-  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+  // Start the sound engine right at the tap (phones only allow sound after one)
+  audioEngine();
+  // We send the microphone itself (soundboard sounds are played by everyone's own browser instead,
+  // so nothing can go silent if the browser pauses its sound engine)
+  let mic;
+  try { mic = await getMic(); }
   catch { return toast("LookBlog needs your microphone for voice channels."); }
-  // What we send = microphone + soundboard, mixed together, so everyone hears the sounds through the call
-  const mic = stream;
-  let mix = null;
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    await ctx.resume?.();
-    const micGain = ctx.createGain(), sfx = ctx.createGain(), dest = ctx.createMediaStreamDestination();
-    ctx.createMediaStreamSource(mic).connect(micGain);
-    micGain.connect(dest);
-    sfx.gain.value = 0.9;
-    sfx.connect(dest);
-    sfx.connect(ctx.destination); // and I hear my own sounds
-    mix = { ctx, micGain, sfx };
-    stream = dest.stream;
-  } catch {}
-  room = { chat, channel, stream, mic, mix, peers: new Map(), muted: false, deaf: false, video: null, people: [], ended: false };
+  const ice = await iceServers();
+  const audioBox = h("div", { class: "vr-audio", "aria-hidden": "true" });
+  document.body.append(audioBox);
+  room = { chat, channel, stream: mic, mic, ice, audioBox, peers: new Map(), muted: false, deaf: false, video: null, people: [], ended: false, needsTap: false };
+  watchMicEnd();
   let others, joined;
   setupMusic({ send: (b) => post(b), changed: () => paintDock() });
   try { joined = await post({ kind: "join" }); others = joined.participants; }
-  catch (err) { stream.getTracks().forEach((t) => t.stop()); room = null; return toast(err.error || "Couldn’t join the voice channel."); }
+  catch (err) { mic.getTracks().forEach((t) => t.stop()); audioBox.remove(); room = null; return toast(err.error || "Couldn’t join the voice channel."); }
   buildDock();
   applyMusic(joined.music || null);
-  watchLevel(state.me.username, mic);
+  watchLocal(mic);
   for (const p of others) peer(p.username); // I call everyone who is already here
   room.ping = setInterval(() => post({ kind: "ping" }).catch((err) => { if (/not in that voice/i.test(err.error || "")) leaveVoice(true); }), 15000);
   playTone(true);
@@ -69,9 +61,8 @@ export async function leaveVoice(silent) {
   clearInterval(r.ping);
   clearInterval(r.place);
   for (const p of r.peers.values()) closePeer(p);
-  r.stream.getTracks().forEach((t) => t.stop());
   r.mic.getTracks().forEach((t) => t.stop());
-  r.mix?.ctx.close().catch(() => {});
+  r.audioBox?.remove();
   r.video?.track.stop();
   r.dock?.remove();
   leaveMusic();
@@ -90,10 +81,14 @@ addEventListener("pagehide", () => {
 /* ---------- Connections to each person ---------- */
 function peer(username) {
   if (room.peers.has(username)) return room.peers.get(username);
-  const pc = new RTCPeerConnection({ iceServers: ICE });
-  const p = { username, pc, polite: state.me.username > username, makingOffer: false, ignoreOffer: false, inbox: Promise.resolve(), outbox: Promise.resolve(), audio: new Audio(), videoStream: null };
-  p.audio.autoplay = true;
+  const pc = new RTCPeerConnection({ iceServers: room.ice, iceCandidatePoolSize: 2 });
+  // Their voice plays in an <audio> on the page (phones are pickier about ones that aren't)
+  const audio = h("audio", { autoplay: true, playsInline: true });
+  room.audioBox.append(audio);
+  const p = { username, pc, polite: state.me.username > username, makingOffer: false, ignoreOffer: false, inbox: Promise.resolve(), outbox: Promise.resolve(), audio, videoStream: null };
   p.audio.muted = room.deaf;
+  const spk = audioPrefs().speakerId;
+  if (spk && audio.setSinkId) audio.setSinkId(spk).catch(() => {});
   room.peers.set(username, p);
   for (const t of room.stream.getAudioTracks()) pc.addTrack(t, room.stream);
   if (room.video) pc.addTrack(room.video.track, room.stream);
@@ -108,16 +103,74 @@ function peer(username) {
   pc.onicecandidate = (e) => e.candidate && signal(p, { candidate: e.candidate.toJSON() });
   pc.ontrack = (e) => {
     const s = e.streams[0] || new MediaStream([e.track]);
-    if (e.track.kind === "audio") { p.audio.srcObject = s; watchLevel(username, s); }
+    if (e.track.kind === "audio") { p.audio.srcObject = s; playAudio(p.audio); }
     else { p.videoStream = new MediaStream([e.track]); e.track.onunmute = paintStage; e.track.onended = paintStage; paintStage(); }
   };
-  pc.onconnectionstatechange = () => { if (pc.connectionState === "failed") pc.restartIce(); };
+  // A dropped connection tries again on its own
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === "failed") pc.restartIce();
+    if (pc.connectionState === "disconnected") setTimeout(() => { if (pc.connectionState === "disconnected") pc.restartIce(); }, 4000);
+  };
   return p;
 }
 function closePeer(p) {
   p.pc.close();
   p.audio.srcObject = null;
+  p.audio.remove();
   room?.peers.delete(p.username);
+}
+// Play someone's voice; if the browser blocks it, show a "Tap to hear" button
+function playAudio(a) {
+  a.play().then(() => { if (room?.needsTap && [...room.peers.values()].every((p) => !p.audio.paused || !p.audio.srcObject)) { room.needsTap = false; paintDock(); } })
+    .catch(() => { if (room && !room.needsTap) { room.needsTap = true; paintDock(); } });
+}
+// Any tap on the page while in voice wakes the sound up again (phones pause it when they feel like it)
+function wakeAudio() {
+  if (!room) return;
+  audioEngine();
+  for (const p of room.peers.values()) if (p.audio.srcObject && p.audio.paused) playAudio(p.audio);
+}
+addEventListener("pointerdown", wakeAudio, true);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") wakeAudio(); });
+
+/* ---------- The microphone ---------- */
+// Use another microphone (from Voice settings, or when the one in use is unplugged)
+async function switchMic() {
+  if (!room) return;
+  let s;
+  try { s = await getMic(); } catch { return toast("Couldn’t use that microphone."); }
+  if (!room) return s.getTracks().forEach((t) => t.stop());
+  const track = s.getAudioTracks()[0];
+  for (const p of room.peers.values()) {
+    const sender = p.pc.getSenders().find((x) => x.track?.kind === "audio");
+    if (sender) await sender.replaceTrack(track).catch(() => {});
+  }
+  const old = room.mic;
+  room.mic = s;
+  room.stream = s;
+  old.getTracks().forEach((t) => t.stop());
+  setMicOpen();
+  watchLocal(s);
+  watchMicEnd();
+}
+function watchMicEnd() {
+  const t = room?.mic.getAudioTracks()[0];
+  if (t) t.onended = () => { if (room?.mic.getAudioTracks()[0] === t) { toast("Your microphone disconnected. Switching to another one."); switchMic(); } };
+}
+navigator.mediaDevices?.addEventListener?.("devicechange", async () => {
+  if (!room) return;
+  const t = room.mic.getAudioTracks()[0];
+  if (!t || t.readyState === "ended") return switchMic();
+  // The microphone picked in settings was plugged back in: use it
+  const want = audioPrefs().micId;
+  if (want && t.getSettings().deviceId !== want) {
+    const all = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    if (all.some((d) => d.deviceId === want)) switchMic();
+  }
+});
+function setSpeaker(id) {
+  if (!room) return;
+  for (const p of room.peers.values()) if (p.audio.setSinkId) p.audio.setSinkId(id || "").catch(() => {});
 }
 // Set-up messages go out one at a time so they arrive in order
 function signal(p, data) {
@@ -163,24 +216,27 @@ on("voice:music", (ev) => {
 });
 on("voice:sound", (ev) => {
   if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
-  // The sound itself comes through the call (the person who pressed it mixes it into their audio)
+  // Everyone's browser plays the sound itself (the one who pressed it already heard it)
+  if (ev.username !== state.me.username) playSoundHere(ev);
   showSoundToast(ev);
 });
 const decoded = new Map(); // url -> AudioBuffer
-async function playIntoRoom(s) {
-  if (!room?.mix) { return s.builtin ? playBuiltin(s.builtin) : new Audio(s.url).play().catch(() => {}); }
-  const { ctx, sfx } = room.mix;
-  await ctx.resume?.();
-  if (s.builtin) return playBuiltin(s.builtin, ctx, sfx);
-  let buf = decoded.get(s.url);
-  if (!buf) {
-    buf = await ctx.decodeAudioData(await (await fetch(s.url)).arrayBuffer());
-    decoded.set(s.url, buf);
-  }
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  src.connect(sfx);
-  src.start();
+async function playSoundHere(s) {
+  if (room?.deaf) return;
+  if (s.builtin) return playBuiltin(s.builtin);
+  try {
+    const ctx = audioEngine();
+    let buf = decoded.get(s.url);
+    if (!buf) {
+      buf = await ctx.decodeAudioData(await (await fetch(s.url)).arrayBuffer());
+      decoded.set(s.url, buf);
+    }
+    const src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = buf;
+    g.gain.value = 0.9;
+    src.connect(g); g.connect(ctx.destination);
+    src.start();
+  } catch { new Audio(s.url).play().catch(() => {}); }
 }
 on("group:changed", async (ev) => {
   if (!room || ev.chatId !== room.chat.id || ev.what !== "sounds") return;
@@ -199,8 +255,7 @@ on("voice:state", (ev) => {
 // Muting silences only the microphone, so soundboard sounds still go out
 function setMicOpen() {
   const open = !room.muted && !room.deaf;
-  if (room.mix) room.mix.micGain.gain.value = open ? 1 : 0;
-  else room.stream.getAudioTracks().forEach((t) => (t.enabled = open));
+  room.mic.getAudioTracks().forEach((t) => (t.enabled = open));
 }
 function setMuted(v) {
   room.muted = v;
@@ -244,33 +299,40 @@ async function setVideo(kind) {
 }
 
 /* ---------- Who is talking (green ring) ---------- */
-let audioCtx = null, levelTimer = null;
-const meters = new Map();
-function watchLevel(username, stream) {
+// My own microphone is measured directly. Other people's loudness comes from the connection's stats,
+// so their sound never goes through the page's sound engine (on iPhones that can silence it).
+let levelTimer = null, localMeter = null;
+function watchLocal(stream) {
   try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    audioCtx.resume?.();
-    const an = audioCtx.createAnalyser();
+    const ac = audioEngine(), an = ac.createAnalyser();
     an.fftSize = 512;
-    audioCtx.createMediaStreamSource(stream).connect(an);
-    meters.set(username, { an, buf: new Uint8Array(an.fftSize) });
-  } catch { return; }
+    ac.createMediaStreamSource(stream).connect(an);
+    localMeter = { an, buf: new Uint8Array(an.fftSize) };
+  } catch { localMeter = null; }
   if (levelTimer) return;
-  levelTimer = setInterval(() => {
-    let changed = false;
-    for (const [u, m] of meters) {
-      m.an.getByteTimeDomainData(m.buf);
+  levelTimer = setInterval(async () => {
+    if (!room) return;
+    const now = new Set();
+    if (localMeter && !room.muted && !room.deaf) {
+      localMeter.an.getByteTimeDomainData(localMeter.buf);
       let peak = 0;
-      for (const v of m.buf) peak = Math.max(peak, Math.abs(v - 128));
-      const talking = peak > 14 && !(u === state.me.username && (room?.muted || room?.deaf));
-      if (talking !== speakingNow.has(u)) { talking ? speakingNow.add(u) : speakingNow.delete(u); changed = true; }
+      for (const v of localMeter.buf) peak = Math.max(peak, Math.abs(v - 128));
+      if (peak > 14) now.add(state.me.username);
     }
-    if (changed) { emit("voice:speaking", [...speakingNow]); paintSpeaking(); }
-  }, 150);
+    await Promise.all([...room.peers].map(async ([u, p]) => {
+      try { (await p.pc.getStats()).forEach((r) => { if (r.type === "inbound-rtp" && r.kind === "audio" && (r.audioLevel || 0) > 0.03) now.add(u); }); } catch {}
+    }));
+    const changed = now.size !== speakingNow.size || [...now].some((u) => !speakingNow.has(u));
+    if (!changed) return;
+    speakingNow.clear();
+    now.forEach((u) => speakingNow.add(u));
+    emit("voice:speaking", [...speakingNow]);
+    paintSpeaking();
+  }, 250);
 }
 function stopLevels() {
   clearInterval(levelTimer); levelTimer = null;
-  meters.clear(); speakingNow.clear();
+  localMeter = null; speakingNow.clear();
   emit("voice:speaking", []);
 }
 function paintSpeaking() {
@@ -285,15 +347,9 @@ export const BUILTIN_SOUNDS = [
 ];
 // The built-in sounds are made right here in the browser (no files)
 // One audio engine for all previews (making a new one per sound runs out after a few and sounds start to break)
-let previewCtx = null;
-function previewEngine() {
-  if (!previewCtx || previewCtx.state === "closed") previewCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (previewCtx.state === "suspended") previewCtx.resume().catch(() => {});
-  return previewCtx;
-}
 function playBuiltin(id, shared = null, into = null) {
   try {
-    const ctx = shared || previewEngine();
+    const ctx = shared || audioEngine();
     const t0 = ctx.currentTime + 0.02, out = ctx.createGain();
     // A limiter at the end so loud sounds never crackle
     const limiter = ctx.createDynamicsCompressor();
@@ -351,7 +407,7 @@ let boardEl = null;
 function openSoundboard(anchor) {
   if (boardEl) { boardEl.remove(); boardEl = null; return; }
   const play = (s) => post({ kind: "sound", ...(s.builtin ? { builtin: s.builtin } : { soundId: s.id }) })
-    .then(() => playIntoRoom(s))
+    .then(() => playSoundHere(s))
     .catch((err) => toast(err.error || "Couldn’t play it."));
   const item = (s) => {
     const b = h("button", { type: "button", class: "sb-item" }, h("span", { class: "sb-emoji", text: s.emoji || "🔊" }), h("span", { class: "sb-name", text: s.name }));
@@ -379,7 +435,7 @@ export const previewSound = (s) => (s.builtin ? playBuiltin(s.builtin) : new Aud
 /* ---------- Little sounds for join / leave ---------- */
 function playTone(up, soft) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioEngine();
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.frequency.setValueAtTime(up ? 520 : 660, ctx.currentTime);
     o.frequency.linearRampToValueAtTime(up ? 780 : 420, ctx.currentTime + 0.18);
@@ -387,7 +443,6 @@ function playTone(up, soft) {
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
     o.connect(g); g.connect(ctx.destination);
     o.start(); o.stop(ctx.currentTime + 0.32);
-    setTimeout(() => ctx.close(), 500);
   } catch {}
 }
 
@@ -416,6 +471,7 @@ function paintDock() {
     h("div", { class: "vd-info" },
       h("span", { class: "vd-live" }, h("span", { class: "vd-dot" }), "Voice connected"),
       h("a", { class: "vd-where", href: `/messages/${room.chat.id}`, text: `${room.channel.name} / ${room.chat.name}` }),
+      room.needsTap ? h("button", { type: "button", class: "vd-now vd-tap", onclick: () => wakeAudio() }, "🔊 Tap to hear everyone") : null,
       musicState()?.now ? (musicNeedsTap()
         ? h("button", { type: "button", class: "vd-now vd-tap", title: "Your browser paused the sound — tap to hear it", onclick: () => resumeMusic() }, "🔊 Tap to hear: " + musicState().now.title)
         : h("button", { type: "button", class: "vd-now", title: "Music", onclick: () => openMusicPanel() }, (musicState().pausedAt != null ? "⏸ " : "🎧 ") + musicState().now.title)) : null),
@@ -425,6 +481,7 @@ function paintDock() {
       btn("video", room.video?.kind === "camera" ? "Turn camera off" : "Turn camera on", room.video?.kind === "camera", () => setVideo(room.video?.kind === "camera" ? null : "camera")),
       btn("screen", room.video?.kind === "screen" ? "Stop sharing" : "Share your screen", room.video?.kind === "screen", () => setVideo(room.video?.kind === "screen" ? null : "screen")),
       (() => { const b = btn("sound", "Soundboard", false, () => openSoundboard(b)); return b; })(),
+      btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker })),
       btn("note", "Music", Boolean(musicState()?.now), () => openMusicPanel(), "vd-music"),
       btn("leave", "Leave voice", false, () => leaveVoice(), "danger")));
 }

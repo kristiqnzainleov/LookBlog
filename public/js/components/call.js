@@ -5,8 +5,11 @@ import { api } from "../api.js";
 import { on } from "../state.js";
 import { gameView, openGamePicker } from "./games.js";
 import { currentVoice } from "./voice-room.js";
+import { iceServers, micConstraints } from "./audio-devices.js";
 
-const ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
+let ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
+// Use LookBlog's connection servers (with TURN, so calls work across mobile networks too)
+iceServers().then((list) => (ICE = list));
 let current = null; // one call at a time
 window.__lbInCall = () => Boolean(current);
 
@@ -57,7 +60,7 @@ function callUI({ chatId, person, video, outgoing, callId }) {
 
   async function getMedia() {
     try {
-      st.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: video ? { width: 1280, height: 720 } : false });
+      st.stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints(), video: video ? { width: 1280, height: 720 } : false });
     } catch {
       if (video) { // fall back to a voice call if the camera isn't available
         st.stream = await navigator.mediaDevices.getUserMedia({ audio: true });

@@ -288,6 +288,26 @@ async function handleAuth(req, res, url, { port }) {
     return true;
   }
   // POST /api/me/2fa { action: enable|disable|show|change, password, code }
+  // Change my email: POST /api/me/email { email, password }
+  if (route === "POST /api/me/email") {
+    const me = sessionUser(req);
+    if (!me) throw httpError(401, "Not logged in.");
+    rateLimit("email:" + me.id, 10, 60 * 60 * 1000, "You’ve tried a lot of times. Try again in an hour.");
+    const body = await readJSON(req);
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!EMAIL_RE.test(email) || email.length > 254) throw httpError(400, "That email address doesn’t look right.");
+    if (email === String(me.email || "").toLowerCase()) throw httpError(400, "That’s already your email.");
+    if (db.users.some((u) => u.id !== me.id && String(u.email || "").toLowerCase() === email)) throw httpError(400, "There’s already an account with this email.");
+    // Accounts made with Google may not have a password; everyone else confirms with theirs
+    if (me.passwordHash && !verifyPassword(String(body.password || ""), me.passwordHash)) throw httpError(401, "Your password isn’t right.");
+    const old = me.email;
+    me.email = email;
+    save("users");
+    require("./notifications").notify(me.id, "security", me, { text: `Your email was changed${old ? ` from ${old}` : ""} to ${email}. If this wasn’t you, change your password right away.` });
+    sendJSON(res, 200, { user: meView(me) });
+    return true;
+  }
+
   if (route === "POST /api/me/2fa") {
     const me = sessionUser(req);
     if (!me) throw httpError(401, "Not logged in.");

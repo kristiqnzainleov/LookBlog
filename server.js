@@ -95,6 +95,8 @@ async function handleApi(req, res, url) {
     if (store.enabled) return sendJSON(res, 410, { error: "Live updates moved. Reload the page." });
     return handleEvents(req, res, me);
   }
+  // Connection servers for calls, voice and lives: GET /api/ice
+  if (req.method === "GET" && url.pathname === "/api/ice") return sendJSON(res, 200, { iceServers: await iceServers() });
   // Where my browser listens for live updates, and "my tab is open"
   if (req.method === "GET" && url.pathname === "/api/realtime") return sendJSON(res, 200, store.enabled ? realtimeInfo(me) : { mode: "sse" });
   if (req.method === "POST" && url.pathname === "/api/ping") { if (store.enabled) ping(me); return sendJSON(res, 200, { ok: true }); }
@@ -221,6 +223,25 @@ async function handleApi(req, res, url) {
   if (await handleSocial(req, res, url, me)) return;
 
   sendJSON(res, 404, { error: "Not found." });
+}
+
+// STUN finds your public address; TURN relays the sound when two people can't reach each other directly
+// (common on mobile networks). TURN comes from TURN_URLS/TURN_USERNAME/TURN_CREDENTIAL, or from Metered
+// (METERED_DOMAIN + METERED_API_KEY, fresh credentials every hour).
+let turnCache = null;
+async function iceServers() {
+  const list = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun.cloudflare.com:3478"] }];
+  if (process.env.TURN_URLS) list.push({ urls: process.env.TURN_URLS.split(",").map((x) => x.trim()), username: process.env.TURN_USERNAME, credential: process.env.TURN_CREDENTIAL });
+  if (process.env.METERED_DOMAIN && process.env.METERED_API_KEY) {
+    if (!turnCache || Date.now() - turnCache.at > 60 * 60 * 1000) {
+      try {
+        const r = await fetch(`https://${process.env.METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${encodeURIComponent(process.env.METERED_API_KEY)}`, { signal: AbortSignal.timeout(5000) });
+        if (r.ok) turnCache = { at: Date.now(), list: (await r.json()).filter((x) => /^turns?:/.test(String(x.urls))) };
+      } catch (err) { console.error("[turn]", err.message); }
+    }
+    if (turnCache) list.push(...turnCache.list);
+  }
+  return list;
 }
 
 // Work to do after answering. Locally right after; online just before the answer goes out

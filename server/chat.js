@@ -150,6 +150,7 @@ function chatView(chat, me, { full = false } = {}) {
     unread: unread(chat, me),
     member: isMember(chat, me),
     pinnedCount: (chat.pins || []).length,
+    wallpaper: me.wallpapers?.[chat.id] || null, // only mine: everyone picks their own
   };
   if (chat.kind === "dm") {
     const other = findUser(chat.members.find((id) => id !== me.id));
@@ -852,6 +853,30 @@ async function handleChat(req, res, url, me) {
       sendTo(chat.members, { type: "message:pinned", chatId: chat.id, messageId: msg.id, pinned: on, count: chat.pins.length });
       if (on) systemMessage(chat, me, `📌 ${me.name} pinned a message`, chat.kind === "group" ? { channelId: msg.channelId || firstText(chat).id } : {});
       sendJSON(res, 200, { pinned: on, count: chat.pins.length });
+      return true;
+    }
+
+    // My wallpaper for this chat (only I see it): POST /api/chats/:id/wallpaper { preset } | { image } | { clear: true }
+    if (m === "POST" && c === "wallpaper" && parts.length === 3) {
+      if (!chat.members.includes(me.id)) throw httpError(403, "Join to change the wallpaper.");
+      const body = await readJSON(req);
+      const WALLS = ["pink-night", "sunset", "ocean", "aurora", "hearts", "dots", "grid", "mono"];
+      me.wallpapers = me.wallpapers || {};
+      const old = me.wallpapers[chat.id];
+      let next = null;
+      if (body.image) {
+        const img = ownedMedia(body.image, me.id, "image");
+        if (!img) throw httpError(400, "That photo couldn’t be found. Add it again.");
+        markUsed(img.url, `wallpaper:${me.id}:${chat.id}`);
+        next = { image: img.url };
+      } else if (WALLS.includes(body.preset)) next = { preset: body.preset };
+      else if (!body.clear) throw httpError(400, "Pick a wallpaper.");
+      if (old?.image && old.image !== next?.image) deleteMedia(old.image);
+      if (next) me.wallpapers[chat.id] = next;
+      else delete me.wallpapers[chat.id];
+      save("users");
+      sendTo([me.id], { type: "chat:wallpaper", chatId: chat.id, wallpaper: next });
+      sendJSON(res, 200, { wallpaper: next });
       return true;
     }
 

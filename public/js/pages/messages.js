@@ -6,6 +6,7 @@ import { navigate } from "../router.js";
 import { conversation, chatPic, chatTitle, callNoteText } from "../components/chat.js";
 import { notesRow } from "../components/notes.js";
 import { groupView } from "../components/group.js";
+import { onHold, openWallpaperPicker, applyWallpaper } from "../components/wallpaper.js";
 
 function openNewMessage() {
   const list = h("div", { class: "conn-list" }, spinner());
@@ -45,6 +46,12 @@ export function messagesPage(view, m) {
   const messenger = h("div", { class: "messenger" + (openId ? " has-open" : "") }, inbox, pane);
   view.append(messenger);
 
+  // Hold a chat (or right-click it) to pick its wallpaper
+  function holdForWallpaper(c, item) {
+    onHold(item, () => openWallpaperPicker(c, (wp) => document.querySelectorAll(`.convo[data-wall-chat="${CSS.escape(c.id)}"]`).forEach((el) => applyWallpaper(el, wp))));
+    return item;
+  }
+
   async function loadList() {
     try {
       const { chats } = await api("/api/chats");
@@ -55,7 +62,7 @@ export function messagesPage(view, m) {
         return;
       }
       for (const c of chats) {
-        listEl.append(h("a", { class: "inbox-item" + (c.id === openId ? " active" : "") + (c.unread ? " unread" : ""), href: `/messages/${c.id}`, dataset: { chat: c.id } },
+        listEl.append(holdForWallpaper(c, h("a", { class: "inbox-item" + (c.id === openId ? " active" : "") + (c.unread ? " unread" : ""), href: `/messages/${c.id}`, dataset: { chat: c.id } },
           chatPic(c, 48),
           h("div", { class: "inbox-text" },
             h("div", { class: "inbox-top" }, h("b", {}, chatTitle(c), c.kind === "dm" ? tick(c.other, 15) : null), h("span", { class: "muted", text: timeAgo(c.lastAt) })),
@@ -64,7 +71,7 @@ export function messagesPage(view, m) {
               c.streak ? h("span", { class: "streak-chip" + (c.streak.doneToday ? "" : " at-risk"), title: c.streak.doneToday ? `${c.streak.days}-day LookStreak` : "Write today to keep your LookStreak", text: `🔥 ${c.streak.days}` }) : null)
           ),
           c.unread ? h("span", { class: "badge-count", text: String(c.unread) }) : null
-        ));
+        )));
       }
     } catch (err) {
       listEl.replaceChildren(empty("Couldn’t load your messages.", err.error || ""));

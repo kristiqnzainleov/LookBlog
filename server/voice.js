@@ -141,7 +141,7 @@ async function handleVoice(req, res, me, chat, chats) {
     const snd = (chat.sounds || []).find((x) => x.id === body.soundId);
     const builtin = BUILTIN_SOUNDS.includes(body.builtin) ? body.builtin : null;
     if (!snd && !builtin) throw httpError(404, "That sound is gone.");
-    sendTo(Object.keys(room), { type: "voice:sound", chatId: chat.id, channelId: channel.id, by: me.name, url: snd?.url || null, builtin, name: snd?.name || builtin, emoji: snd?.emoji || null });
+    sendTo(Object.keys(room), { type: "voice:sound", chatId: chat.id, channelId: channel.id, by: me.name, username: me.username, url: snd?.url || null, builtin, name: snd?.name || builtin, emoji: snd?.emoji || null });
     sendJSON(res, 200, { ok: true });
     return true;
   }
