@@ -1,7 +1,7 @@
 // Voice channels in groups (like Discord): everyone in a channel talks to everyone else.
 // Each pair of people has its own WebRTC connection; the server only passes set-up messages along.
 // You can mute, deafen, turn on your camera and share your screen.
-import { h, icon, avatar, toast, tick } from "../ui.js";
+import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic } from "./voice-music.js";
@@ -339,16 +339,29 @@ function setDeaf(v) {
   post({ kind: "state", deaf: v }).catch(() => {});
   paintDock();
 }
-async function setVideo(kind) {
-  // kind: "camera" | "screen" | null (turn off)
+// Phones' browsers can't share the screen (Apple and Google don't allow it), so offer a camera instead
+const canShareScreen = () => Boolean(navigator.mediaDevices?.getDisplayMedia);
+function phoneScreenInfo() {
+  const pick = (facing, label) => h("button", { type: "button", class: "co-item", onclick: () => { m.close(); setVideo("camera", facing); } },
+    h("span", { class: "co-ic", text: facing === "user" ? "🤳" : "📷" }), h("span", { class: "co-text" }, h("b", { text: label }), h("small", { class: "muted", text: facing === "user" ? "Your face" : "What’s in front of your phone" })));
+  const m = modal({ title: "Share from your phone", body: h("div", { class: "co-list" },
+    h("p", { class: "muted", text: "Phone browsers don’t allow sharing the screen (Apple and Google block it). Open LookBlog on a computer to share your screen, or show people your camera:" }),
+    pick("environment", "Back camera"), pick("user", "Front camera")) });
+}
+async function setVideo(kind, facing = "user") {
+  // kind: "camera" | "screen" | null (turn off); facing: which camera on a phone
   let track = null;
+  if (kind === "screen" && !canShareScreen()) return phoneScreenInfo();
   if (kind) {
     try {
       const s = kind === "screen"
         ? await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false })
-        : await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+        : await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: facing } });
       track = s.getVideoTracks()[0];
-    } catch { return toast(kind === "screen" ? "Screen sharing was cancelled." : "Camera isn’t available."); }
+    } catch (err) {
+      if (kind === "screen" && matchMedia("(pointer: coarse)").matches) return phoneScreenInfo();
+      return toast(kind === "screen" ? "Screen sharing was cancelled." : "Camera isn’t available.");
+    }
     if (!room) return track.stop();
     track.onended = () => { if (room?.video?.track === track) setVideo(null); };
   }
@@ -360,7 +373,8 @@ async function setVideo(kind) {
     else if (track) p.pc.addTrack(track, room.stream);
   }
   old?.stop();
-  room.video = track ? { track, kind } : null;
+  room.video = track ? { track, kind, facing } : null;
+  relay.setRelayVideo(track, kind); // people we can only reach through the relay get pictures that way
   post({ kind: "state", video: kind === "camera", screen: kind === "screen" }).catch(() => {});
   paintDock();
   paintStage();
@@ -549,12 +563,42 @@ function paintDock() {
       btn(room.muted ? "mute" : "mic", room.muted ? "Unmute" : "Mute", room.muted, () => setMuted(!room.muted)),
       btn("headphones", room.deaf ? "Undeafen" : "Deafen", room.deaf, () => setDeaf(!room.deaf)),
       btn("video", room.video?.kind === "camera" ? "Turn camera off" : "Turn camera on", room.video?.kind === "camera", () => setVideo(room.video?.kind === "camera" ? null : "camera")),
-      btn("screen", room.video?.kind === "screen" ? "Stop sharing" : "Share your screen", room.video?.kind === "screen", () => setVideo(room.video?.kind === "screen" ? null : "screen")),
+      room.video?.kind === "camera" && matchMedia("(pointer: coarse)").matches ? btn("flip", "Switch camera", false, () => setVideo("camera", room.video.facing === "user" ? "environment" : "user")) : null,
+      btn("screen", room.video?.kind === "screen" ? "Stop sharing" : canShareScreen() ? "Share your screen" : "Share (camera)", room.video?.kind === "screen", () => setVideo(room.video?.kind === "screen" ? null : "screen")),
       (() => { const b = btn("sound", "Soundboard", false, () => openSoundboard(b)); return b; })(),
       btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker })),
       btn("note", "Music", Boolean(musicState()?.now), () => openMusicPanel(), "vd-music"),
       btn("leave", "Leave voice", false, () => leaveVoice(), "danger")));
 }
+
+// Camera or screen from someone we can only reach through the relay: pictures drawn into a canvas,
+// which becomes their video (real video over a direct connection always wins)
+relay.onRelayVideo((user, f) => {
+  const p = room?.peers.get(user);
+  if (!p) return;
+  if (!f) {
+    if (p.videoFromRelay) { p.videoStream = null; p.videoFromRelay = false; p.relayVid = null; paintStage(); }
+    return;
+  }
+  const direct = !p.videoFromRelay && p.videoStream?.getVideoTracks()[0];
+  if (direct && direct.readyState === "live" && !direct.muted && p.pc.connectionState === "connected") return;
+  if (!p.relayVid || !p.videoFromRelay) {
+    const c = document.createElement("canvas");
+    c.width = f.w; c.height = f.h;
+    p.relayVid = { c, g: c.getContext("2d") };
+    p.videoStream = c.captureStream();
+    p.videoFromRelay = true;
+  }
+  const img = new Image();
+  img.onload = () => {
+    const rv = p.relayVid;
+    if (!rv) return;
+    if (rv.c.width !== f.w || rv.c.height !== f.h) { rv.c.width = f.w; rv.c.height = f.h; }
+    rv.g.drawImage(img, 0, 0);
+    if (!room?.tileEls?.has(user + (f.kind === "screen" ? ":screen" : ""))) paintStage();
+  };
+  img.src = "data:image/jpeg;base64," + f.d;
+});
 
 /* ---------- Video tiles (camera / screen) ---------- */
 function paintStage() {

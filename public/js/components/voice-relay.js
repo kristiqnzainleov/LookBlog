@@ -104,6 +104,8 @@ export async function startRelay({ topic, me, mic, box, speakerId }) {
     if (event === "req" && p.to === me) { r.sendTo.add(p.from); need(p.from); } // they can't reach me directly: send to them, and listen to them
     else if (event === "stop" && p.to === me) r.sendTo.delete(p.from);
     else if (event === "a" && r.wantFrom.has(p.from) && !r.deaf) play(p.from, p.d);
+    else if (event === "v" && r.wantFrom.has(p.from)) videoHandler?.(p.from, p);
+    else if (event === "voff" && r.wantFrom.has(p.from)) videoHandler?.(p.from, null);
   });
   // Ask again every few seconds, in case a request got lost
   r.keep = setInterval(() => { for (const u of r.wantFrom) realtimeLink.send(topic, "req", { from: me, to: u }); }, 5000);
@@ -162,9 +164,42 @@ export function setRelayDeaf(v) { if (relay) { relay.deaf = v; for (const pl of 
 export function setRelaySpeaker(id) { if (relay) { relay.speakerId = id; for (const pl of relay.players.values()) pl.audio.setSinkId?.(id || "").catch(() => {}); } }
 export function wakeRelay() { if (relay) for (const pl of relay.players.values()) if (pl.audio.paused) pl.audio.play().catch(() => {}); }
 
+/* ---------- Video through the relay (camera or screen, a few pictures a second) ----------
+   Only for people we can't reach directly; everyone else gets real video over the direct connection. */
+let videoHandler = null;
+export const onRelayVideo = (fn) => { videoHandler = fn; };
+let vidLoop = null;
+export function setRelayVideo(track, kind) {
+  clearInterval(vidLoop); vidLoop = null;
+  const r = relay;
+  if (!r) return;
+  if (!track) { for (const u of r.sendTo) realtimeLink.send(r.topic, "voff", { from: r.me, to: u }); return; }
+  const v = h("video", { muted: true, playsInline: true, autoplay: true });
+  v.srcObject = new MediaStream([track]);
+  v.play().catch(() => {});
+  const c = document.createElement("canvas"), g = c.getContext("2d");
+  const maxW = kind === "screen" ? 960 : 360, every = kind === "screen" ? 600 : 250, q = kind === "screen" ? 0.55 : 0.6;
+  let busy = false;
+  vidLoop = setInterval(() => {
+    if (relay !== r || busy || !r.sendTo.size || !v.videoWidth || track.readyState !== "live") return;
+    const w = Math.min(maxW, v.videoWidth), hh = Math.round((w / v.videoWidth) * v.videoHeight);
+    c.width = w; c.height = hh;
+    g.drawImage(v, 0, 0, w, hh);
+    busy = true;
+    c.toBlob(async (blob) => {
+      busy = false;
+      if (!blob || relay !== r) return;
+      const b64 = toB64(new Uint8Array(await blob.arrayBuffer()));
+      realtimeLink.send(r.topic, "v", { from: r.me, kind, w, h: hh, d: b64 });
+    }, "image/jpeg", q);
+  }, every);
+  track.addEventListener("ended", () => { if (vidLoop) setRelayVideo(null); });
+}
+
 export function stopRelay() {
   const r = relay;
   if (!r) return;
+  clearInterval(vidLoop); vidLoop = null;
   relay = null;
   clearInterval(r.keep);
   for (const u of [...r.wantFrom]) realtimeLink.send(r.topic, "stop", { from: r.me, to: u });
