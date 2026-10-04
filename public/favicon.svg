@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- LookBlog: the two eyes from the "oo" in Look -->
+  <rect width="64" height="64" rx="15" fill="#ff4fa3"/>
+  <circle cx="19.5" cy="33" r="13" fill="#f4efe8"/>
+  <circle cx="44.5" cy="33" r="13" fill="#f4efe8"/>
+  <circle cx="21.5" cy="31" r="6.2" fill="#121111"/>
+  <circle cx="46.5" cy="31" r="6.2" fill="#121111"/>
+  <circle cx="19.6" cy="28.8" r="1.9" fill="#f4efe8"/>
+  <circle cx="44.6" cy="28.8" r="1.9" fill="#f4efe8"/>
+</svg>
