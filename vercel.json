@@ -5,6 +5,6 @@
   "installCommand": "",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/(.*)", "destination": "https://lb-origin-4e2b200a.up.railway.app/$1" }
+    { "source": "/(.*)", "destination": "https://lookblog-production.up.railway.app/$1" }
   ]
 }

@@ -8,7 +8,7 @@
 - music like Spotify;
 - movies and series like Netflix.
 
-🌐 **Live site:** https://lookblog.vercel.app
+🌐 **Live site:** https://lookblog-production.up.railway.app (also at https://lookblog.vercel.app)
 
 The design is pink (`#ff4fa3`) on black. The interface is in English and can be switched to Bulgarian, Spanish, Russian, German, Serbian or Romanian.
 
