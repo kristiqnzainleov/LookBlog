@@ -62,6 +62,8 @@ function wipe(me) {
   db.events = db.events.filter((ev) => ev.hostId !== id);
   for (const ev of db.events) { ev.going = ev.going.filter((x) => x !== id); ev.posts = ev.posts.filter((p) => p.userId !== id); }
   for (const st of db.stories) if (st.userId === id) media(st.media);
+  for (const hl of db.highlights || []) if (hl.userId === id && hl.cover?.own) files.add(hl.cover.url);
+  db.highlights = (db.highlights || []).filter((hl) => hl.userId !== id);
   db.stories = db.stories.filter((st) => st.userId !== id);
   db.notifications = db.notifications.filter((n) => n.userId !== id && n.actorId !== id);
   // Everyone else forgets them
@@ -76,7 +78,7 @@ function wipe(me) {
   // Sessions and the account itself
   for (const [k, s] of Object.entries(db.sessions)) if (s.userId === id) delete db.sessions[k];
   db.users = db.users.filter((u) => u.id !== id);
-  for (const name of ["users", "posts", "comments", "chats", "messages", "playlists", "songs", "events", "stories", "notifications", "sessions", "uploads"]) save(name);
+  for (const name of ["users", "posts", "comments", "chats", "messages", "playlists", "songs", "events", "stories", "highlights", "notifications", "sessions", "uploads"]) save(name);
   if (db.albums) save("albums");
 }
 

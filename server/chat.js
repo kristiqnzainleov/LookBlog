@@ -244,6 +244,7 @@ function messageView(msg, me) {
     pingsMe: msg.userId !== me.id && (msg.mentions.includes(me.id) || Boolean(msg.everyone)),
     reactions: reactionsView(msg, me),
     replyTo: replyPreview(msg),
+    storyReply: msg.storyReply ? { ...require("./stories").storyPreview(msg.storyReply.storyId, me), reaction: msg.storyReply.reaction, toMe: msg.storyReply.owner === me.id } : null,
     noteReply: msg.noteReply ? { text: msg.noteReply.text, media: msg.noteReply.media, toMe: msg.noteReply.owner === me.id } : null,
     author: { ...authorView(findUser(msg.userId)), nickname: nicknameOf(chat, msg.userId) },
     mine: msg.userId === me.id,
@@ -957,4 +958,4 @@ async function handleChat(req, res, url, me) {
   return false;
 }
 
-module.exports = { handleChat, streakOf };
+module.exports = { handleChat, streakOf, deliverMessage: (chat, msg) => deliver(chat, msg) };

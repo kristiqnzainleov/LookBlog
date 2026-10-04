@@ -1,11 +1,12 @@
 // Stories: the bar at the top of the feed, posting one, and the full-screen viewer.
 import { h, icon, avatar, timeAgo, toast, modal, tick } from "../ui.js";
 import { api, upload } from "../api.js";
-import { on } from "../state.js";
+import { on, state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
 import { inspectVideo } from "./media-picker.js";
 
 const IMAGE_SECONDS = 5;
+const REACTIONS = ["😂", "😮", "😍", "😢", "👏", "🔥", "❤️", "💯"];
 
 /* ---------- Posting a story ---------- */
 export async function addStory() {
@@ -100,7 +101,7 @@ export function openStories(groups, startGroup = 0, onClosed) {
     elapsed = 0; started = performance.now(); paused = false;
     const u = group().user;
     who.replaceChildren(h("a", { href: profileHref(u.username), onclick: (e) => { e.preventDefault(); close(); navigate(profileHref(u.username)); } }, avatar(u, 34)),
-      h("b", {}, u.name, tick(u, 14)), h("span", { class: "muted", text: timeAgo(s.createdAt) }));
+      h("b", {}, u.name, tick(u, 14)), group().highlight ? h("span", { class: "sv-hl", text: group().highlight.title }) : null, h("span", { class: "muted", text: timeAgo(s.createdAt) }));
     video?.pause();
     video = null;
     if (s.media.kind === "video") {
@@ -134,7 +135,7 @@ export function openStories(groups, startGroup = 0, onClosed) {
           viewersBtn.querySelector("span").textContent = `${s.viewers.length} ${s.viewers.length === 1 ? "viewer" : "viewers"}`;
           list.replaceChildren(...(s.viewers.length
             ? [h("p", { class: "muted seen-count", text: `${s.viewers.length} ${s.viewers.length === 1 ? "person" : "people"} watched this story` }),
-               ...s.viewers.map((v) => h("div", { class: "conn-row" }, avatar(v, 40), h("div", { class: "who" }, h("b", {}, v.name, tick(v, 14)), h("span", { class: "muted", text: "@" + v.username + " · " + timeAgo(v.at) }))))]
+               ...s.viewers.map((v) => h("div", { class: "conn-row" }, avatar(v, 40), h("div", { class: "who" }, h("b", {}, v.name, tick(v, 14)), h("span", { class: "muted", text: "@" + v.username + " · " + timeAgo(v.at) })), v.reaction ? h("span", { class: "sv-viewer-react", title: "Their reaction", text: v.reaction }) : null))]
             : [h("p", { class: "muted", text: "Nobody has watched it yet." })]));
         }).catch(() => list.replaceChildren(h("p", { class: "muted", text: "Couldn’t load the list." })));
       });
@@ -150,32 +151,58 @@ export function openStories(groups, startGroup = 0, onClosed) {
           show();
         } catch (err) { toast(err.error || "Couldn’t delete it."); }
       });
-      foot.replaceChildren(viewersBtn, del);
+      // Keep it on my profile: add it to a highlight
+      const hlBtn = h("button", { type: "button", class: "sv-pill" }, h("span", { class: "sv-hl-ic", text: "♡" }), h("span", { text: "Highlight" }));
+      hlBtn.addEventListener("click", () => {
+        pause(true);
+        import("./highlights.js").then((mod) => mod.addToHighlight(s, state.me));
+      });
+      const editHl = group().highlight ? h("button", { type: "button", class: "sv-pill" }, h("span", { text: "✏️ Edit highlight" })) : null;
+      editHl?.addEventListener("click", () => {
+        close();
+        import("./highlights.js").then((mod) => mod.openHighlightEditor({ highlight: group().highlight, onDone: onClosed }));
+      });
+      foot.replaceChildren(viewersBtn, hlBtn, ...(editHl ? [editHl] : []), del);
     } else {
-      const input = h("input", { type: "text", class: "sv-reply", placeholder: `Reply to ${group().user.name}…`, maxlength: 500 });
+      // Quick reactions (tap the same one again to take it back)
+      const reacts = h("div", { class: "sv-reacts" }, ...REACTIONS.map((e) => {
+        const b = h("button", { type: "button", class: "sv-react" + (s.myReaction === e ? " on" : ""), text: e, "aria-label": `React ${e}` });
+        b.addEventListener("click", async () => {
+          b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop");
+          try {
+            const r = await api(`/api/stories/${s.id}/react`, { method: "POST", body: { emoji: e } });
+            s.myReaction = r.myReaction;
+            reacts.querySelectorAll(".sv-react").forEach((x) => x.classList.toggle("on", x.textContent === s.myReaction));
+            if (r.myReaction) floatUp(e);
+          } catch (err) { toast(err.error || "Couldn’t react."); }
+        });
+        return b;
+      }));
+      const input = h("input", { type: "text", class: "sv-reply", placeholder: `Reply to ${group().user.name}…`, maxlength: 1000 });
+      const send = h("button", { type: "button", class: "sv-send", "aria-label": "Send", disabled: true }, icon("send"));
       input.addEventListener("focus", () => pause(true));
       input.addEventListener("blur", () => pause(false));
-      input.addEventListener("keydown", async (e) => {
-        e.stopPropagation();
-        if (e.key !== "Enter" || !input.value.trim()) return;
+      input.addEventListener("input", () => { send.disabled = !input.value.trim(); });
+      const sendReply = async () => {
+        if (!input.value.trim()) return;
+        send.disabled = true;
         try {
-          const { chat } = await api(`/api/dm/${encodeURIComponent(group().user.username)}`, { method: "POST" });
-          await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { text: `↩ Replied to your story: ${input.value.trim()}` } });
+          const r = await api(`/api/stories/${s.id}/reply`, { method: "POST", body: { text: input.value } });
           input.value = "";
           input.blur();
-          toast("Reply sent.");
-        } catch (err) { toast(err.error || "You can reply when you follow each other."); }
-      });
-      const heart = h("button", { type: "button", class: "sv-heart", "aria-label": "Like" }, "❤️");
-      heart.addEventListener("click", async () => {
-        heart.classList.remove("pop"); void heart.offsetWidth; heart.classList.add("pop");
-        try {
-          const { chat } = await api(`/api/dm/${encodeURIComponent(group().user.username)}`, { method: "POST" });
-          await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { text: "❤️ Loved your story" } });
-        } catch {}
-      });
-      foot.replaceChildren(input, heart);
+          toast(r.sent === "message" ? "Reply sent in Messages." : `Reply sent. ${group().user.name.split(" ")[0]} gets it as a notification.`);
+        } catch (err) { toast(err.error || "Couldn’t send it."); send.disabled = false; }
+      };
+      input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") sendReply(); });
+      send.addEventListener("click", sendReply);
+      foot.replaceChildren(reacts, h("div", { class: "sv-reply-row" }, input, send));
     }
+  }
+  // A reaction floats up over the story
+  function floatUp(emoji) {
+    const el = h("span", { class: "sv-float", text: emoji });
+    frame.append(el);
+    setTimeout(() => el.remove(), 1400);
   }
   let holding = false;
   function pause(on) {

@@ -335,7 +335,9 @@ export async function profilePage(view, m, params) {
     avatarWrap.title = profile.story ? (profile.isMe ? "Watch your story" : `Watch ${profile.name}’s story`) : "";
   };
   paintRing();
+  let reloadHighlights = () => {};
   const refreshStory = async () => {
+    reloadHighlights();
     try { profile.story = (await api(`/api/users/${encodeURIComponent(profile.username)}`)).profile.story; paintRing(); } catch {}
   };
   if (!profile.isMe) {
@@ -681,6 +683,14 @@ export async function profilePage(view, m, params) {
     badgeStrip.querySelector(".badge-all").addEventListener("click", () => openBadges(profile, data));
     badgeStrip.hidden = !earned.length && !medals.length && !data.special?.length && !profile.isMe;
   }).catch(() => {});
+
+  /* Highlights: stories that stay on the profile */
+  import("../components/highlights.js").then((mod) => {
+    const row = mod.highlightsRow(profile);
+    badgeStrip.after(row);
+    // Adding a story to a highlight from the viewer: show it here when the viewer closes
+    reloadHighlights = row.reload;
+  });
 
   /* Tabs: Posts | Shorts | Videos */
   const tabs = h("div", { class: "tabs profile-tabs", role: "tablist" });
