@@ -1,0 +1,11 @@
+# Vercel serves only the static files from public/ (scripts, styles, GIFs).
+# Pages, the API, uploads and live updates are proxied to the server on Railway (see vercel.json).
+data
+old-versions
+server
+server.js
+*.log
+.env*
+Dockerfile
+public/*.html
+public/info/*.html

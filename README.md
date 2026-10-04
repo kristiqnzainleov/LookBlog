@@ -8,7 +8,7 @@
 - music like Spotify;
 - movies and series like Netflix.
 
-🌐 **Live site:** https://lookblog-production.up.railway.app
+🌐 **Live site:** https://lookblog.vercel.app
 
 The design is pink (`#ff4fa3`) on black. The interface is in English and can be switched to Bulgarian, Spanish, Russian, German, Serbian or Romanian.
 
@@ -128,7 +128,7 @@ LookBlog has **no external dependencies**: no frameworks and no npm packages. Ev
 | Front end | **Vanilla JavaScript** (ES modules), HTML and CSS, a single-page app with its own router |
 | YouTube music | YouTube IFrame Player API, oEmbed |
 | Security | scrypt password hashes, HttpOnly session cookies, a CSRF header (`X-LookBlog: 1`), uploads checked by their contents |
-| Hosting | **Docker** on **Railway**, with a persistent volume for the data |
+| Hosting | **Vercel** (public address, static files) in front of **Docker** on **Railway** (server, persistent volume for the data) |
 
 ---
 
@@ -154,11 +154,15 @@ Then open http://localhost:3000. The `data/` folder is created on first start.
 
 ### Deploying
 
-The `Dockerfile` builds an image with Node and ffmpeg. On Railway:
-1. Run `railway up`.
-2. Add a volume mounted at `/data`.
+There are two parts:
+1. **Server: Railway.** The `Dockerfile` builds an image with Node and ffmpeg.
+   - Run `railway up`.
+   - Add a volume mounted at `/data`.
+2. **Public address: Vercel.** Vercel serves the static files from `public/`: scripts, styles and GIFs.
+   - `vercel.json` sends everything else to the Railway server: pages, the API, uploads and live updates.
+   - Deploy with `vercel deploy --prod`.
 
-The database and uploads are never part of the image.
+The database and uploads are never part of either deployment.
 
 ---
 

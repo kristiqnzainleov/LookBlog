@@ -5,3 +5,5 @@ data/
 node_modules/
 .DS_Store
 .railway/
+.vercel
+.env*
