@@ -1087,7 +1087,7 @@ video.msg-media { max-height: 360px; background: #000; }
 
 /* ---------- Smaller screens ---------- */
 @media (max-width: 1100px) {
-  .watch { grid-template-columns: 1fr; }
+  .watch { grid-template-columns: minmax(0, 1fr); }
   .next-card .thumb { flex-basis: 150px; }
 }
 @media (max-width: 900px) {
@@ -3175,7 +3175,7 @@ button.grole:not(.on):not(:disabled):hover { color: var(--paper); border-style: 
   .sr-body { padding: 10px 0 30px; }
 }
 /* the cinema page */
-.view.page-cinema { max-width: none; padding-top: 0; }
+.view.page-cinema { max-width: none; padding-top: calc(var(--topbar) + 6px); }
 .cn-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; max-width: 1400px; margin: 10px auto 18px; padding: 0 2vw; }
 .cn-head h1 { font: 900 2.2rem var(--display); letter-spacing: -0.04em; }
 .cn-make { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -4234,4 +4234,67 @@ body[data-page="messages"] .group-view { grid-template-columns: clamp(250px, 19v
   .adm-thumb { width: 100%; }
   .adm-chart { gap: 3px; padding: 10px; }
   .adm-grow { margin-left: 0; width: 100%; }
+}
+
+/* =========================================================
+   Phones: everything fits the screen, nothing scrolls sideways
+   ========================================================= */
+@media (max-width: 860px) {
+  /* A group shows one column at a time (channel list or the chat) */
+  body[data-page="messages"] .group-view { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  html, body { overflow-x: clip; }
+  /* Tabs at the top of a page scroll sideways instead of wrapping into big pills */
+  .column-head .tabs { display: flex; max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .column-head .tabs::-webkit-scrollbar { display: none; }
+  .column-head .tabs .tab { flex-shrink: 0; white-space: nowrap; padding: 9px 14px; font-size: 0.92rem; }
+  .page-analytics .column-head .tabs { flex-wrap: wrap; }
+  .head-row h1 { font-size: 2rem; }
+
+  /* Full-width tops (cinema, series, theater player) line up with the page's 12px edge */
+  .page-watch.theater .watch-stage { margin: -8px -12px 16px; }
+  .cn-hero, .sr-hero {
+    margin: -8px -12px 20px; min-height: 0; display: block;
+    padding-top: 54vw; background-size: 100% auto; background-position: center top;
+  }
+  .cn-hero::before, .sr-hero::before { background: linear-gradient(0deg, var(--ink) 0%, var(--ink) calc(100% - 54vw - 10px), rgba(18, 17, 17, 0.55) calc(100% - 22vw), rgba(18, 17, 17, 0) 100%); }
+  .cn-hero-text, .sr-hero-text { max-width: none; padding: 0 16px 22px; gap: 10px; }
+  .sr-hero-text h1, .cn-hero-text h1 { font-size: 2.3rem; }
+
+  /* Chat: the name keeps its room, buttons get smaller */
+  .convo-head { gap: 8px; padding: 10px 10px 10px 8px; }
+  .convo-head .convo-back { width: 38px; height: 38px; }
+  .convo-who { gap: 8px; }
+  .convo-who .avatar-presence .avatar { --size: 38px !important; }
+  .convo-head .streak { display: none; }
+  .convo-who > div b, .convo-who > div .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .convo-tools { gap: 0; flex-shrink: 0; }
+  .convo-tools .icon-btn { width: 36px; height: 36px; }
+  .convo-tools .icon-btn svg { width: 19px; height: 19px; }
+  /* Writing: the text gets the whole first line, the buttons sit under it */
+  .convo-foot { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  .convo-input { flex-wrap: wrap; row-gap: 2px; padding: 4px 6px; border-radius: 20px; }
+  .convo-input textarea { order: -1; flex: 1 1 100%; min-width: 0; padding: 8px 6px 4px; }
+  .convo-input .mic-btn { margin-left: auto; }
+  .convo-input .mic-btn[hidden] + * { margin-left: auto; }
+
+  /* Shorts: the buttons on the right fit between the sound button and the caption */
+  .reel-rail { bottom: 132px; right: 8px; }
+  .reel-rail .post-actions { gap: 6px; }
+  .reel-rail .act { gap: 2px; font-size: 0.74rem; }
+  .reel-rail .act svg { width: 42px; height: 42px; padding: 11px; }
+  .reel-rail .act-label { display: none; }
+  .reel-info { padding-right: 66px; }
+  .reel-sound { top: 12px; }
+
+  /* Writing a post: the buttons wrap instead of running off the card */
+  .composer-bar { flex-wrap: wrap; gap: 8px; }
+  .composer-bar .cat-select { max-width: 100%; }
+  .app-modal .composer { padding: 14px 12px 10px; }
+
+  /* Pop-ups use the whole width */
+  .notif-pop { position: fixed; left: 8px; right: 8px; top: calc(var(--topbar) + 6px); width: auto; max-height: calc(100dvh - var(--topbar) - 110px); }
+  .me-pop { position: fixed; left: auto; right: 8px; top: calc(var(--topbar) + 6px); max-height: calc(100dvh - var(--topbar) - 110px); overflow-y: auto; }
+  .app-modal { width: calc(100% - 16px); }
 }
