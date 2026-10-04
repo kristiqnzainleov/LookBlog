@@ -1,20 +1,28 @@
 // Voice channels in groups. Everyone in a channel connects to everyone else (WebRTC);
 // the server keeps the list of who is in which channel and passes the set-up messages along.
+// Who is in a channel (and its music) lives in db.voice, so every server sees the same rooms
+// (online several servers answer requests, and they sleep in between).
 
-const { db, findUser, findByUsername } = require("./db");
+const { db, save, findUser, findByUsername } = require("./db");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { sendTo } = require("./realtime");
 const { can, rank } = require("./groups");
 const BUILTIN_SOUNDS = ["airhorn", "tada", "drum", "boing", "ding", "sad"];
 
-const rooms = new Map(); // "chatId:channelId" -> Map(userId -> { muted, deaf, video, screen, seen })
-const where = new Map(); // userId -> "chatId:channelId"
+// db.voice["chatId:channelId"] = { members: { userId: { muted, deaf, video, screen, seen } }, music }
 const STALE_MS = 45 * 1000; // no heartbeat for this long = gone
+const roomAt = (key) => db.voice[key]?.members || null;
+const roomIds = (key) => Object.keys(roomAt(key) || {});
+const whereIs = (userId) => Object.keys(db.voice).find((k) => db.voice[k].members?.[userId]) || null;
+const music = {
+  get: (key) => db.voice[key]?.music || undefined,
+  set: (key, m) => { if (db.voice[key]) { db.voice[key].music = m; save("voice"); } },
+  delete: (key) => { if (db.voice[key]?.music) { db.voice[key].music = null; save("voice"); } },
+};
 
 /* ---------- Music in a voice channel ----------
    Everyone's browser plays the same thing at the same spot (a LookBlog song or a YouTube video);
    the server keeps what's playing, from when, and the queue. Each person sets their own volume. */
-const music = new Map(); // room key -> { now: item|null, startedAt, pausedAt, queue: [] }
 const YT_RE = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([A-Za-z0-9_-]{11})/;
 async function youtubeInfo(url) {
   const m = String(url || "").match(YT_RE);
@@ -36,8 +44,8 @@ function musicView(key) {
 }
 function sendMusic(chat, channelId) {
   const key = chat.id + ":" + channelId;
-  const room = rooms.get(key);
-  if (room) sendTo([...room.keys()], { type: "voice:music", chatId: chat.id, channelId, music: musicView(key) });
+  const ids = roomIds(key);
+  if (ids.length) sendTo(ids, { type: "voice:music", chatId: chat.id, channelId, music: musicView(key) });
 }
 function playNext(key) {
   const m = music.get(key);
@@ -45,12 +53,13 @@ function playNext(key) {
   m.now = m.queue.shift() || null;
   m.startedAt = Date.now(); m.pausedAt = null;
   if (!m.now) music.delete(key);
+  else save("voice");
 }
 
 function participants(chatId, channelId) {
-  const room = rooms.get(chatId + ":" + channelId);
+  const room = roomAt(chatId + ":" + channelId);
   if (!room) return [];
-  return [...room].map(([id, s]) => {
+  return Object.entries(room).map(([id, s]) => {
     const u = findUser(id);
     return u && { name: u.name, username: u.username, avatar: u.avatar, verified: Boolean(u.verified), verifiedType: u.verifiedType || null, muted: s.muted, deaf: s.deaf, video: s.video, screen: s.screen };
   }).filter(Boolean);
@@ -61,18 +70,18 @@ function announce(chat, channelId) {
 }
 
 function leave(userId, chats) {
-  const key = where.get(userId);
+  const key = whereIs(userId);
   if (!key) return;
-  where.delete(userId);
-  const room = rooms.get(key);
-  room?.delete(userId);
-  if (room && !room.size) { rooms.delete(key); music.delete(key); }
+  delete db.voice[key].members[userId];
+  const left = roomIds(key);
+  if (!left.length) delete db.voice[key];
+  save("voice");
   const [chatId, channelId] = key.split(":");
   const chat = chats.find((c) => c.id === chatId);
   if (chat) {
     announce(chat, channelId);
     const u = findUser(userId);
-    if (u && room) sendTo([...room.keys()], { type: "voice:left", chatId, channelId, username: u.username });
+    if (u && left.length) sendTo(left, { type: "voice:left", chatId, channelId, username: u.username });
   }
 }
 
@@ -86,13 +95,13 @@ async function handleVoice(req, res, me, chat, chats) {
   if (body.kind === "join") {
     if (!channel) throw httpError(404, "That voice channel doesn’t exist.");
     rateLimit("voice:" + me.id, 60, 10 * 60 * 1000, "Slow down a little.");
-    if (where.get(me.id) !== key) leave(me.id, chats);
-    if (!rooms.has(key)) rooms.set(key, new Map());
-    const room = rooms.get(key);
-    if (room.size >= 12 && !room.has(me.id)) throw httpError(400, "This voice channel is full (12 people).");
+    if (whereIs(me.id) !== key) leave(me.id, chats);
+    if (!db.voice[key]) db.voice[key] = { members: {}, music: null };
+    const room = db.voice[key].members;
+    if (Object.keys(room).length >= 12 && !room[me.id]) throw httpError(400, "This voice channel is full (12 people).");
     const others = participants(chat.id, channel.id).filter((p) => p.username !== me.username);
-    room.set(me.id, { muted: Boolean(body.muted), deaf: false, video: false, screen: false, seen: Date.now() });
-    where.set(me.id, key);
+    room[me.id] = { muted: Boolean(body.muted), deaf: false, video: false, screen: false, seen: Date.now() };
+    save("voice");
     announce(chat, channel.id);
     sendJSON(res, 200, { participants: others, music: musicView(key) });
     return true;
@@ -105,21 +114,23 @@ async function handleVoice(req, res, me, chat, chats) {
   // Disconnect someone from the channel (needs "Remove people", and only people below you)
   if (body.kind === "kick") {
     const target = findByUsername(String(body.username || ""));
-    const room = key && rooms.get(key);
-    if (!target || !room || !room.has(target.id)) throw httpError(404, "They’re not in this channel.");
+    const room = key && roomAt(key);
+    if (!target || !room || !room[target.id]) throw httpError(404, "They’re not in this channel.");
     if (!can(chat, me, "kick") || rank(chat, target.id) >= rank(chat, me.id)) throw httpError(403, "You can’t disconnect them.");
     leave(target.id, chats);
     sendTo([target.id], { type: "voice:kicked", chatId: chat.id, by: me.name });
     sendJSON(res, 200, { ok: true });
     return true;
   }
-  const room = key && rooms.get(key);
-  if (!room || !room.has(me.id)) throw httpError(409, "You’re not in that voice channel.");
-  const mine = room.get(me.id);
-  mine.seen = Date.now();
+  const room = key && roomAt(key);
+  if (!room || !room[me.id]) throw httpError(409, "You’re not in that voice channel.");
+  const mine = room[me.id];
+  // Heartbeat: written at most every 10 seconds
+  if (Date.now() - (mine.seen || 0) > 10 * 1000) { mine.seen = Date.now(); save("voice"); }
   if (body.kind === "ping") { sendJSON(res, 200, { ok: true }); return true; }
   if (body.kind === "state") {
     for (const k of ["muted", "deaf", "video", "screen"]) if (k in body) mine[k] = Boolean(body[k]);
+    save("voice");
     announce(chat, channel.id);
     sendJSON(res, 200, { ok: true });
     return true;
@@ -130,7 +141,7 @@ async function handleVoice(req, res, me, chat, chats) {
     const snd = (chat.sounds || []).find((x) => x.id === body.soundId);
     const builtin = BUILTIN_SOUNDS.includes(body.builtin) ? body.builtin : null;
     if (!snd && !builtin) throw httpError(404, "That sound is gone.");
-    sendTo([...room.keys()], { type: "voice:sound", chatId: chat.id, channelId: channel.id, by: me.name, url: snd?.url || null, builtin, name: snd?.name || builtin, emoji: snd?.emoji || null });
+    sendTo(Object.keys(room), { type: "voice:sound", chatId: chat.id, channelId: channel.id, by: me.name, url: snd?.url || null, builtin, name: snd?.name || builtin, emoji: snd?.emoji || null });
     sendJSON(res, 200, { ok: true });
     return true;
   }
@@ -167,13 +178,14 @@ async function handleVoice(req, res, me, chat, chats) {
     else if (a === "volume") m.volume = Math.max(0, Math.min(100, Math.round(Number(body.volume) || 0)));
     else if (a === "unqueue") m.queue = m.queue.filter((x) => x.id !== body.itemId);
     else throw httpError(400, "Unknown music action.");
+    save("voice");
     sendMusic(chat, channel.id);
     sendJSON(res, 200, { music: musicView(key) });
     return true;
   }
   if (body.kind === "signal") {
     const to = findByUsername(String(body.to || ""));
-    if (!to || !room.has(to.id)) throw httpError(404, "They left the channel.");
+    if (!to || !room[to.id]) throw httpError(404, "They left the channel.");
     sendTo([to.id], { type: "voice:signal", chatId: chat.id, channelId: channel.id, from: me.username, data: body.data ?? null });
     sendJSON(res, 200, { ok: true });
     return true;
@@ -184,7 +196,7 @@ async function handleVoice(req, res, me, chat, chats) {
 // Drop people whose page stopped sending heartbeats (closed tab, lost connection)
 function sweep(chats) {
   const now = Date.now();
-  for (const [, room] of rooms) for (const [id, s] of room) if (now - s.seen > STALE_MS) leave(id, chats);
+  for (const key of Object.keys(db.voice)) for (const [id, s] of Object.entries(db.voice[key]?.members || {})) if (now - s.seen > STALE_MS) leave(id, chats);
 }
 
 module.exports = { handleVoice, participants, sweep, leaveVoice: leave };

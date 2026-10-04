@@ -1,7 +1,7 @@
 // Voice channels in groups (like Discord): everyone in a channel talks to everyone else.
 // Each pair of people has its own WebRTC connection; the server only passes set-up messages along.
 // You can mute, deafen, turn on your camera and share your screen.
-import { h, icon, avatar, toast } from "../ui.js";
+import { h, icon, avatar, toast, tick } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic } from "./voice-music.js";
@@ -438,7 +438,7 @@ function paintStage() {
   for (const p of room.peers.values()) {
     const info = room.people.find((x) => x.username === p.username);
     const t = p.videoStream?.getVideoTracks()[0];
-    if (t && t.readyState === "live" && !t.muted && info && (info.video || info.screen)) tiles.push({ u: p.username, name: label(p.username), stream: p.videoStream, screen: info.screen });
+    if (t && t.readyState === "live" && !t.muted && info && (info.video || info.screen)) tiles.push({ u: p.username, name: label(p.username), who: info, stream: p.videoStream, screen: info.screen });
   }
   if (!tiles.length) { if (document.fullscreenElement === room.stage) document.exitFullscreen().catch(() => {}); room.stage?.remove(); room.stage = null; room.tileEls = null; return; }
   // Gets big on its own when two or more cameras are on (unless you made it small yourself)
@@ -466,7 +466,7 @@ function paintStage() {
     v.classList.toggle("mirror", Boolean(t.mine && !t.screen));
     el.classList.toggle("screen", Boolean(t.screen));
     el.classList.toggle("focused", room.focus === key);
-    el.querySelector(".vs-name").textContent = (t.screen ? "🖥️ " : "") + t.name;
+    el.querySelector(".vs-name").replaceChildren((t.screen ? "🖥️ " : "") + t.name, ...(t.who ? [tick(t.who, 13)] : []));
     return el;
   });
   for (const k of [...els.keys()]) if (!keep.has(k)) els.delete(k);
@@ -494,7 +494,7 @@ export function voicePerson(p, onKick) {
   const kick = onKick && p.username !== state.me.username ? h("button", { type: "button", class: "vc-kick", title: `Disconnect ${p.name}`, "aria-label": `Disconnect ${p.name}` }, icon("close")) : null;
   kick?.addEventListener("click", (e) => { e.stopPropagation(); onKick(p); });
   return h("div", { class: "vc-person" + (speakingNow.has(p.username) ? " speaking" : ""), dataset: { voiceUser: p.username } }, kick,
-    avatar(p, 24), h("span", { class: "vc-name", text: p.name }),
+    avatar(p, 24), h("span", { class: "vc-name", text: p.name }), tick(p, 13),
     p.screen ? h("span", { class: "vc-flag live", text: "LIVE" }) : null,
     p.video ? h("span", { class: "vc-flag", title: "Camera on" }, icon("video")) : null,
     p.deaf ? h("span", { class: "vc-flag", title: "Deafened" }, icon("headphones")) : p.muted ? h("span", { class: "vc-flag", title: "Muted" }, icon("mute")) : null);

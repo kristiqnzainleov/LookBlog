@@ -38,7 +38,9 @@ const db = {
   songs: load("songs", []), // music (Spotify style)
   albums: load("albums", []), // albums, EPs and singles
   streams: load("streams", []), // live streams (and their recordings)
-  highlights: load("highlights", []), // groups of stories that stay on a profile
+  highlights: load("highlights", []),
+  voice: load("voice", {}),
+  liveViewers: load("liveViewers", {}), // who is watching each live right now // who is in which voice channel right now, and its music // groups of stories that stay on a profile
   tokens: load("tokens", {}), // short-lived: 2-step login tickets and password reset links (hashed)
 };
 

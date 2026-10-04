@@ -34,7 +34,36 @@ function canJoinAsGuest(st, me) {
 }
 const canMod = (st, u) => u && (st.userId === u.id || st.mods.includes(u.id));
 
-const viewers = new Map(); // streamId -> Map(userId -> lastSeen)
+// Who is watching each live: db.liveViewers[streamId] = { userId: lastSeen }.
+// Kept in the database so every server sees the same viewers (online several servers answer, and they sleep in between).
+class ViewerMap {
+  constructor(id) { this.id = id; }
+  get obj() { return db.liveViewers[this.id] || (db.liveViewers[this.id] = {}); }
+  get size() { return Object.keys(this.obj).length; }
+  has(userId) { return userId in this.obj; }
+  get(userId) { return this.obj[userId]; }
+  set(userId, at) {
+    const old = this.obj[userId];
+    this.obj[userId] = at;
+    if (old === undefined || at - old > 10 * 1000) save("liveViewers"); // heartbeats are written at most every 10 seconds
+    return this;
+  }
+  delete(userId) { if (!(userId in this.obj)) return false; delete this.obj[userId]; save("liveViewers"); return true; }
+  keys() { return Object.keys(this.obj)[Symbol.iterator](); }
+  [Symbol.iterator]() { return Object.entries(this.obj)[Symbol.iterator](); }
+}
+const viewers = {
+  get: (id) => (db.liveViewers[id] ? new ViewerMap(id) : undefined),
+  open: (id) => { if (!db.liveViewers[id]) { db.liveViewers[id] = {}; save("liveViewers"); } return new ViewerMap(id); },
+  delete: (id) => { if (db.liveViewers[id]) { delete db.liveViewers[id]; save("liveViewers"); } },
+  *[Symbol.iterator]() { for (const id of Object.keys(db.liveViewers)) yield [id, new ViewerMap(id)]; },
+};
+// The streamer is still there (written at most every 10 seconds, so every server knows)
+function hostHere(st) {
+  const old = st.hostSeen || 0;
+  st.hostSeen = Date.now();
+  if (st.hostSeen - old > 10 * 1000) save("streams");
+}
 const MAX_VIEWERS = 25;
 
 function streamView(st, me) {
@@ -63,7 +92,8 @@ function startStream(st, me) {
   st.live = true;
   st.startedAt = new Date().toISOString();
   st.hostSeen = Date.now();
-  viewers.set(st.id, new Map());
+  viewers.delete(st.id);
+  viewers.open(st.id);
   save("streams");
   const notifyIds = new Set([...db.users.filter((u) => u.following.includes(me.id) && !blockedBetween(u, me)).map((u) => u.id), ...(st.reminders || [])]);
   for (const id of notifyIds) notify(id, "live", me, { text: st.title, streamId: st.id });
@@ -327,7 +357,7 @@ async function handleStreams(req, res, url, me) {
   if (m === "POST" && c === "resume" && parts.length === 3) {
     if (!isHost) throw httpError(403, "Only the streamer can do that.");
     if (!st.live) throw httpError(409, "This stream has ended.");
-    st.hostSeen = Date.now();
+    hostHere(st);
     const v = viewers.get(st.id);
     for (const id of v ? v.keys() : []) { const u = findUser(id); if (u) sendTo([st.userId], { type: "stream:viewer", streamId: st.id, username: u.username, name: u.name }); }
     sendTo(st.guests, { type: "stream:guest-reconnect", streamId: st.id });
@@ -420,10 +450,9 @@ async function handleStreams(req, res, url, me) {
   }
   // Viewer joins / leaves / still here
   if (m === "POST" && (c === "join" || c === "leave" || c === "ping") && parts.length === 3) {
-    if (isHost) { st.hostSeen = Date.now(); sendJSON(res, 200, { ok: true }); return true; }
+    if (isHost) { hostHere(st); sendJSON(res, 200, { ok: true }); return true; }
     if (!st.live) throw httpError(409, "This stream has ended.");
-    const v = viewers.get(st.id) || new Map();
-    viewers.set(st.id, v);
+    const v = viewers.open(st.id);
     if (c === "leave") { v.delete(me.id); sendTo([st.userId], { type: "stream:viewer-left", streamId: st.id, username: me.username }); }
     else {
       const isNew = !v.has(me.id);
