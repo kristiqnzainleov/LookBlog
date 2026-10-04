@@ -47,8 +47,12 @@ function handle(ev) {
 
 // Locally the server streams events (SSE). Online they come through Supabase Realtime.
 export async function connect() {
-  let info = { mode: "sse" };
-  try { const r = await fetch("/api/realtime", { credentials: "same-origin" }); if (r.ok) info = await r.json(); } catch {}
+  // Ask how live updates work here; if the server is waking up or the network blips, ask again
+  let info = null;
+  for (let wait = 1000; !info; wait = Math.min(wait * 2, 15000)) {
+    try { const r = await fetch("/api/realtime", { credentials: "same-origin" }); if (r.ok) info = await r.json(); else if (r.status === 401) return; } catch {}
+    if (!info) await new Promise((ok) => setTimeout(ok, wait));
+  }
   if (info.mode !== "supabase") {
     const es = new EventSource("/api/events");
     es.onmessage = (e) => { let ev; try { ev = JSON.parse(e.data); } catch { return; } handle(ev); };

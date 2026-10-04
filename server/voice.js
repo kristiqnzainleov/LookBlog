@@ -129,7 +129,8 @@ async function handleVoice(req, res, me, chat, chats) {
   const mine = room[me.id];
   // Heartbeat: written at most every 10 seconds
   if (Date.now() - (mine.seen || 0) > 10 * 1000) { mine.seen = Date.now(); save("voice"); }
-  if (body.kind === "ping") { sendJSON(res, 200, { ok: true }); return true; }
+  // The heartbeat also says who is in the channel, so a missed update fixes itself
+  if (body.kind === "ping") { sendJSON(res, 200, { ok: true, participants: participants(chat.id, channel.id) }); return true; }
   if (body.kind === "state") {
     for (const k of ["muted", "deaf", "video", "screen"]) if (k in body) mine[k] = Boolean(body[k]);
     save("voice");

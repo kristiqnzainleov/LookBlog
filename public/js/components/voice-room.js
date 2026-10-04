@@ -11,6 +11,7 @@ let room = null;
 export const currentVoice = () => room && { chatId: room.chat.id, channelId: room.channel.id };
 export const speakingNow = new Set();
 // For checking a call from the browser console: how loud each person arrives
+window.__lbVoicePeers = () => (room ? [...room.peers.values()] : []);
 window.__lbVoiceLevels = async () => {
   if (!room) return null;
   const out = {};
@@ -51,7 +52,7 @@ export async function joinVoice(chat, channel) {
   // The fallback for people we can't reach directly
   relay.startRelay({ topic: joined.relayTopic, me: state.me.username, mic, box: audioBox, speakerId: audioPrefs().speakerId }).catch((err) => console.warn("[relay]", err));
   for (const p of others) peer(p.username); // I call everyone who is already here
-  room.ping = setInterval(() => post({ kind: "ping" }).catch((err) => { if (/not in that voice/i.test(err.error || "")) leaveVoice(true); }), 15000);
+  room.ping = setInterval(() => post({ kind: "ping" }).then((r) => syncPeople(r.participants)).catch((err) => { if (/not in that voice/i.test(err.error || "")) leaveVoice(true); }), 15000);
   playTone(true);
   emit("voice:local", currentVoice());
 }
@@ -299,13 +300,21 @@ on("group:changed", async (ev) => {
   if (!room || ev.chatId !== room.chat.id || ev.what !== "sounds") return;
   try { room.chat.sounds = (await api(`/api/chats/${room.chat.id}`)).chat.sounds; } catch {}
 });
-on("voice:state", (ev) => {
-  if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
+// Who is in the channel (from a live update or the heartbeat): call anyone new, drop anyone gone
+function syncPeople(list) {
+  if (!room || !Array.isArray(list)) return;
   const before = room.people.length;
-  room.people = ev.participants;
-  if (ev.participants.length > before && before) playTone(true, true);
+  room.people = list;
+  const here = new Set(list.map((p) => p.username));
+  for (const u of here) if (u !== state.me.username && !room.peers.has(u)) peer(u);
+  for (const [u, p] of [...room.peers]) if (!here.has(u)) closePeer(p);
+  if (list.length > before && before) playTone(true, true);
   paintDock();
   paintStage();
+}
+on("voice:state", (ev) => {
+  if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
+  syncPeople(ev.participants);
 });
 
 /* ---------- Mute, deafen, camera, screen ---------- */

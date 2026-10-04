@@ -77,10 +77,9 @@ function handleEvents(req, res, me) {
 }
 
 /* ---------- Online: Supabase Realtime ---------- */
-const topicOf = (u) => {
-  if (!u.rtKey) { u.rtKey = crypto.randomBytes(18).toString("base64url"); save("users"); }
-  return "lb-" + u.rtKey;
-};
+// Each person's topic is worked out from their id with the secret key: every server gets the same name,
+// nothing is stored (a stored random key could end up different on two servers), and nobody can guess it.
+const topicOf = (u) => "lb-" + crypto.createHmac("sha256", SB_KEY || "lb").update("user:" + u.id).digest("base64url").slice(0, 28);
 // Where my browser listens: GET /api/realtime
 function realtimeInfo(me) {
   return { mode: "supabase", url: SB_URL.replace(/^http/, "ws") + "/realtime/v1/websocket", key: SB_PUBLIC_KEY, topics: [topicOf(me), ALL_TOPIC] };

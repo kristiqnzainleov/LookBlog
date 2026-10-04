@@ -514,5 +514,18 @@ export function groupView(chatId, { onBack } = {}) {
   ];
 
   load().catch((err) => side.replaceChildren(empty("Couldn’t open this group.", err.error || "")));
-  return { el, stop: () => { convo?.stop(); offs.forEach((f) => f()); } };
+  // Who is in the voice channels: checked every 15 seconds too, in case a live update was missed
+  const voiceCheck = setInterval(async () => {
+    if (document.visibilityState !== "visible" || !chat) return;
+    try {
+      const fresh = (await api(`/api/chats/${chatId}`)).chat;
+      let changed = false;
+      for (const c of chat.channels) {
+        const f = fresh.channels?.find((x) => x.id === c.id);
+        if (f && JSON.stringify(f.voice || []) !== JSON.stringify(c.voice || [])) { c.voice = f.voice; changed = true; }
+      }
+      if (changed) paintSide();
+    } catch {}
+  }, 15000);
+  return { el, stop: () => { clearInterval(voiceCheck); convo?.stop(); offs.forEach((f) => f()); } };
 }
