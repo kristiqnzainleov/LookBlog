@@ -1,13 +1,12 @@
 // Voice channels in groups (like Discord): everyone in a channel talks to everyone else.
 // Each pair of people has its own WebRTC connection; the server only passes set-up messages along.
 // You can mute, deafen, turn on your camera and share your screen.
-import { h, icon, avatar, toast, tick, modal } from "../ui.js";
+import { h, icon, avatar, toast, tick } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic } from "./voice-music.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
-import { realtimeLink } from "../realtime.js";
 let room = null;
 export const currentVoice = () => room && { chatId: room.chat.id, channelId: room.channel.id };
 export const speakingNow = new Set();
@@ -33,15 +32,12 @@ export async function joinVoice(chat, channel) {
   if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) return toast("Your browser can’t do voice chat.");
   // Start the sound engine right at the tap (phones only allow sound after one)
   audioEngine();
-  // Tell the group right away (the server confirms a moment later)
-  hint(chat, channel, true);
   // We send the microphone itself (soundboard sounds are played by everyone's own browser instead,
   // so nothing can go silent if the browser pauses its sound engine)
   let mic;
-  const iceP = iceServers(); // at the same time as the microphone
   try { mic = await getMic(); }
-  catch { hint(chat, channel, false); return toast("LookBlog needs your microphone for voice channels."); }
-  const ice = await iceP;
+  catch { return toast("LookBlog needs your microphone for voice channels."); }
+  const ice = await iceServers();
   const audioBox = h("div", { class: "vr-audio", "aria-hidden": "true" });
   document.body.append(audioBox);
   room = { chat, channel, stream: mic, mic, ice, audioBox, peers: new Map(), muted: false, deaf: false, video: null, people: [], ended: false, needsTap: false };
@@ -49,7 +45,7 @@ export async function joinVoice(chat, channel) {
   let others, joined;
   setupMusic({ send: (b) => post(b), changed: () => paintDock() });
   try { joined = await post({ kind: "join" }); others = joined.participants; }
-  catch (err) { hint(chat, channel, false); mic.getTracks().forEach((t) => t.stop()); audioBox.remove(); room = null; return toast(err.error || "Couldn’t join the voice channel."); }
+  catch (err) { mic.getTracks().forEach((t) => t.stop()); audioBox.remove(); room = null; return toast(err.error || "Couldn’t join the voice channel."); }
   buildDock();
   applyMusic(joined.music || null);
   watchLocal(mic);
@@ -61,13 +57,6 @@ export async function joinVoice(chat, channel) {
   emit("voice:local", currentVoice());
 }
 
-// "I'm joining / leaving" straight to the group's other browsers
-function hint(chat, channel, on) {
-  if (!chat?.liveTopic) return;
-  const me = state.me;
-  realtimeLink.send(chat.liveTopic, "vj", { channelId: channel.id, on, user: { name: me.name, username: me.username, avatar: me.avatar, verified: me.verified, verifiedType: me.verifiedType } });
-}
-
 export async function leaveVoice(silent) {
   if (!room) return;
   const r = room;
@@ -76,7 +65,6 @@ export async function leaveVoice(silent) {
   clearInterval(r.ping);
   clearInterval(r.place);
   relay.stopRelay();
-  hint(r.chat, r.channel, false);
   for (const p of r.peers.values()) closePeer(p);
   r.mic.getTracks().forEach((t) => t.stop());
   r.audioBox?.remove();
@@ -351,29 +339,16 @@ function setDeaf(v) {
   post({ kind: "state", deaf: v }).catch(() => {});
   paintDock();
 }
-// Phones' browsers can't share the screen (Apple and Google don't allow it), so offer a camera instead
-const canShareScreen = () => Boolean(navigator.mediaDevices?.getDisplayMedia);
-function phoneScreenInfo() {
-  const pick = (facing, label) => h("button", { type: "button", class: "co-item", onclick: () => { m.close(); setVideo("camera", facing); } },
-    h("span", { class: "co-ic", text: facing === "user" ? "🤳" : "📷" }), h("span", { class: "co-text" }, h("b", { text: label }), h("small", { class: "muted", text: facing === "user" ? "Your face" : "What’s in front of your phone" })));
-  const m = modal({ title: "Share from your phone", body: h("div", { class: "co-list" },
-    h("p", { class: "muted", text: "Phone browsers don’t allow sharing the screen (Apple and Google block it). Open LookBlog on a computer to share your screen, or show people your camera:" }),
-    pick("environment", "Back camera"), pick("user", "Front camera")) });
-}
-async function setVideo(kind, facing = "user") {
-  // kind: "camera" | "screen" | null (turn off); facing: which camera on a phone
+async function setVideo(kind) {
+  // kind: "camera" | "screen" | null (turn off)
   let track = null;
-  if (kind === "screen" && !canShareScreen()) return phoneScreenInfo();
   if (kind) {
     try {
       const s = kind === "screen"
         ? await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false })
-        : await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: facing } });
+        : await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
       track = s.getVideoTracks()[0];
-    } catch (err) {
-      if (kind === "screen" && /NotSupported|NotAllowed|TypeError/.test(err?.name || "") && matchMedia("(pointer: coarse)").matches) return phoneScreenInfo();
-      return toast(kind === "screen" ? "Screen sharing was cancelled." : "Camera isn’t available.");
-    }
+    } catch { return toast(kind === "screen" ? "Screen sharing was cancelled." : "Camera isn’t available."); }
     if (!room) return track.stop();
     track.onended = () => { if (room?.video?.track === track) setVideo(null); };
   }
@@ -385,7 +360,7 @@ async function setVideo(kind, facing = "user") {
     else if (track) p.pc.addTrack(track, room.stream);
   }
   old?.stop();
-  room.video = track ? { track, kind, facing } : null;
+  room.video = track ? { track, kind } : null;
   post({ kind: "state", video: kind === "camera", screen: kind === "screen" }).catch(() => {});
   paintDock();
   paintStage();
@@ -574,8 +549,7 @@ function paintDock() {
       btn(room.muted ? "mute" : "mic", room.muted ? "Unmute" : "Mute", room.muted, () => setMuted(!room.muted)),
       btn("headphones", room.deaf ? "Undeafen" : "Deafen", room.deaf, () => setDeaf(!room.deaf)),
       btn("video", room.video?.kind === "camera" ? "Turn camera off" : "Turn camera on", room.video?.kind === "camera", () => setVideo(room.video?.kind === "camera" ? null : "camera")),
-      room.video?.kind === "camera" && matchMedia("(pointer: coarse)").matches ? btn("flip", "Switch camera", false, () => setVideo("camera", room.video.facing === "user" ? "environment" : "user")) : null,
-      btn("screen", room.video?.kind === "screen" ? "Stop sharing" : canShareScreen() ? "Share your screen" : "Share (camera)", room.video?.kind === "screen", () => setVideo(room.video?.kind === "screen" ? null : "screen")),
+      btn("screen", room.video?.kind === "screen" ? "Stop sharing" : "Share your screen", room.video?.kind === "screen", () => setVideo(room.video?.kind === "screen" ? null : "screen")),
       (() => { const b = btn("sound", "Soundboard", false, () => openSoundboard(b)); return b; })(),
       btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker })),
       btn("note", "Music", Boolean(musicState()?.now), () => openMusicPanel(), "vd-music"),

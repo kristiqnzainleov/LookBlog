@@ -7,8 +7,6 @@ import { navigate, profileHref } from "../router.js";
 import { conversation, chatPic, groupVisibilityPicker } from "./chat.js";
 import { openReportUser } from "./report.js";
 import { joinVoice, leaveVoice, currentVoice, voicePerson, speakingNow, placeDock, BUILTIN_SOUNDS, previewSound } from "./voice-room.js";
-import { realtimeLink } from "../realtime.js";
-import { iceServers } from "./audio-devices.js";
 
 const COLORS = ["#ff4fa3", "#ff3b4f", "#ff8a3b", "#ffcc33", "#1fc77a", "#66d1ff", "#3b6bff", "#a66bff", "#f5f0eb"];
 const has = (chat, p) => chat.perms?.includes(p);
@@ -79,25 +77,8 @@ export function groupView(chatId, { onBack } = {}) {
   let chat = null, convo = null, active = null;
   const unread = new Set();
 
-  // Browsers in the group tell each other about voice joins directly, before the server confirms (faster)
-  let liveTopic = null;
-  function listenLive(topic) {
-    if (!topic || topic === liveTopic) return;
-    if (liveTopic) realtimeLink.leave(liveTopic);
-    liveTopic = topic;
-    realtimeLink.join(topic, (event, p) => {
-      if (event !== "vj" || !chat || !p?.user?.username) return;
-      const c = chat.channels.find((x) => x.id === p.channelId);
-      if (!c) return;
-      const list = (c.voice || []).filter((x) => x.username !== p.user.username);
-      c.voice = p.on ? [...list, { ...p.user, muted: false, deaf: false, video: false, screen: false }] : list;
-      paintSide();
-    });
-  }
   async function load() {
     chat = (await api(`/api/chats/${chatId}`)).chat;
-    listenLive(chat.liveTopic);
-    iceServers(); // get the connection servers ready before anyone presses a voice channel
     el.style.setProperty("--group", chat.color || "#ff4fa3");
     const want = new URLSearchParams(location.search).get("c");
     const texts = chat.channels.filter((c) => c.kind === "text");
@@ -546,5 +527,5 @@ export function groupView(chatId, { onBack } = {}) {
       if (changed) paintSide();
     } catch {}
   }, 15000);
-  return { el, stop: () => { clearInterval(voiceCheck); if (liveTopic) realtimeLink.leave(liveTopic); convo?.stop(); offs.forEach((f) => f()); } };
+  return { el, stop: () => { clearInterval(voiceCheck); convo?.stop(); offs.forEach((f) => f()); } };
 }
