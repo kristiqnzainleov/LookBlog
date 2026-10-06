@@ -21,6 +21,14 @@ export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"],
 export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"]];
 export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradient"], ["aurora", "Aurora"], ["stars", "Stars"], ["grid", "Grid"], ["dots", "Dots"], ["waves", "Waves"]];
 export const BANNERS = [["", "Default"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["aurora", "Aurora"], ["candy", "Candy"], ["fire", "Fire"], ["galaxy", "Galaxy"], ["night", "Night"], ["mint", "Mint"], ["mono", "Mono"]];
+// Something falling or floating over my profile, and a decoration on my photo
+export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "💗 Hearts"], ["sparkles", "✨ Sparkles"], ["stars", "⭐ Stars"], ["sakura", "🌸 Sakura"],
+  ["confetti", "🎉 Confetti"], ["bubbles", "🫧 Bubbles"], ["fire", "🔥 Fire"], ["leaves", "🍂 Leaves"], ["money", "💸 Money"]];
+const FX_PARTS = { snow: ["❄️", "❅", "❆"], hearts: ["💗", "💖", "💕", "❤️"], sparkles: ["✨", "💫", "⭐"], stars: ["⭐", "🌟", "✦"], sakura: ["🌸", "🌺", "💮"],
+  confetti: ["🎉", "🎊", "✨", "🟣", "🟡"], bubbles: ["🫧", "○", "◦"], fire: ["🔥", "✨"], leaves: ["🍂", "🍁", "🍃"], money: ["💸", "💵", "🪙"] };
+const RISING = new Set(["bubbles", "fire"]);
+export const AVATAR_DECOS = [["", "None", ""], ["crown", "Crown", "👑"], ["halo", "Halo", "😇"], ["horns", "Horns", "😈"], ["cat", "Cat ears", "🐱"], ["headphones", "Headphones", "🎧"],
+  ["flowers", "Flowers", "🌸"], ["bow", "Bow", "🎀"], ["flame", "Flame", "🔥"], ["star", "Star", "⭐"], ["cap", "Party hat", "🥳"]];
 const NAME_EMOJIS = ["✨", "💖", "🔥", "👑", "🦋", "🌸", "⭐", "🌙", "💎", "🎀", "🍓", "🐾", "🎧", "⚡", "🌈", "💫"];
 const ACCENTS = ["#ff4fa3", "#ff4757", "#ff8a3d", "#ffd23f", "#2ee6a6", "#19d3c5", "#4cc9ff", "#3d7bff", "#9b5cff", "#d6a4ff"];
 
@@ -61,10 +69,52 @@ export function applyLook(el, look) {
 }
 
 // The profile page: ring around the photo, background, and banner colours (when there's no banner picture)
-export function applyProfileLook({ view, avatarWrap, banner }, look) {
+export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, songSlot, fxBox }, look, song) {
   if (avatarWrap) { if (look?.ring) avatarWrap.dataset.ring = look.ring; else delete avatarWrap.dataset.ring; }
   if (view) { if (look?.bg) view.dataset.pbg = look.bg; else delete view.dataset.pbg; }
   if (banner) { if (look?.banner) banner.dataset.bfx = look.banner; else delete banner.dataset.bfx; }
+  // A decoration on the photo (a crown, cat ears, a halo…)
+  if (avatarWrap) {
+    avatarWrap.querySelector(":scope > .av-deco")?.remove();
+    const d = AVATAR_DECOS.find(([k]) => k && k === look?.deco);
+    if (d) avatarWrap.append(h("span", { class: "av-deco", dataset: { deco: d[0] }, "aria-hidden": "true" }, ...decoParts(d[0], d[2])));
+  }
+  // Falling (or rising) things over the profile
+  const fxHost = fxBox || view;
+  if (fxHost) {
+    fxHost.querySelector(":scope > .pfx")?.remove();
+    if (look?.fx && FX_PARTS[look.fx] && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const parts = FX_PARTS[look.fx], n = fxBox ? 10 : 22;
+      fxHost.append(h("div", { class: "pfx" + (RISING.has(look.fx) ? " rise" : "") + (fxBox ? " inside" : ""), "aria-hidden": "true" }, ...Array.from({ length: n }, (_, i) => h("span", {
+        text: parts[i % parts.length],
+        style: `left:${(i * 97) % 100}%;--dur:${7 + ((i * 37) % 9)}s;--delay:-${(i * 53) % 12}s;--size:${0.8 + ((i * 29) % 10) / 10}em;--drift:${((i * 41) % 60) - 30}px`,
+      }))));
+    }
+  }
+  if (bio) { if (look?.bioFont) { bio.dataset.nf = look.bioFont; bio.classList.add("nl"); loadFonts(); } else { delete bio.dataset.nf; } }
+  // Status under the name
+  if (statusSlot) statusSlot.replaceChildren(...(look?.status ? [h("p", { class: "pf-status" }, look.status.emoji ? h("span", { class: "pf-status-e", text: look.status.emoji }) : null, h("span", { text: look.status.text || "" }))] : []));
+  // The profile's song
+  if (songSlot) {
+    songSlot.replaceChildren();
+    if (song) {
+      const play = h("button", { type: "button", class: "pf-song", title: "Play" },
+        h("span", { class: "pf-song-cover", style: song.cover ? `background-image:url("${song.cover}")` : "" }, h("i", { text: "▶" })),
+        h("span", { class: "pf-song-text" }, h("small", { text: "🎵 Profile song" }), h("b", { text: song.title }), h("span", { class: "muted", text: song.artist?.name || "" })),
+        h("span", { class: "pf-song-eq", "aria-hidden": "true" }, h("i"), h("i"), h("i")));
+      play.addEventListener("click", () => import("./music.js").then((m) => { m.playSongs([song], 0); play.classList.add("playing"); }));
+      songSlot.append(play);
+    }
+  }
+}
+// Some decorations are two pieces (cat ears, horns)
+function decoParts(k, e) {
+  if (k === "cat") return [h("i", { class: "ear l" }), h("i", { class: "ear r" })];
+  if (k === "horns") return [h("i", { class: "horn l" }), h("i", { class: "horn r" })];
+  if (k === "halo") return [h("i", { class: "halo" })];
+  if (k === "headphones") return [h("i", { class: "phones" }), h("b", { text: "🎧" })];
+  if (k === "flowers") return [h("b", { class: "f1", text: "🌸" }), h("b", { class: "f2", text: "🌼" }), h("b", { class: "f3", text: "🌷" })];
+  return [h("b", { text: e })];
 }
 
 // Names next to a tick (or the empty hook) get their owner's look, everywhere on the site
@@ -80,16 +130,21 @@ export function lookHook(user, mark) {
 }
 
 // The editor: pick a colour, font and effect for your name, and an accent colour for your profile
-export function openLookEditor(onSaved) {
-  const cur = { color: "", font: "", effect: "", accent: "", ring: "", bg: "", banner: "", emoji: "", ...(state.me.look || {}) };
+export function openLookEditor(onSaved, opts = {}) {
+  const cur = { color: "", font: "", effect: "", accent: "", ring: "", bg: "", banner: "", emoji: "", fx: "", deco: "", bioFont: "", status: null, song: "", ...(state.me.look || {}) };
+  let songObj = opts.song || null;
   const preview = h("span", { class: "look-preview-name", text: state.me.name });
   const miniBanner = h("div", { class: "look-mini-banner profile-banner" + (state.me.banner ? "" : " empty"), style: state.me.banner ? `background-image:url("${state.me.banner}")` : "" });
   const miniAvatar = h("div", { class: "look-mini-avatar profile-avatar" }, avatar(state.me, 64));
+  const previewStatus = h("div", { class: "look-preview-status" });
   const previewWrap = h("div", { class: "look-preview" }, miniBanner, miniAvatar,
-    h("b", { class: "look-preview-b" }, preview, tick(state.me, 24)), h("small", { class: "muted", text: "@" + state.me.username }));
+    h("b", { class: "look-preview-b" }, preview, tick(state.me, 24)), h("small", { class: "muted", text: "@" + state.me.username }), previewStatus);
   const paint = () => {
     applyLook(previewWrap.querySelector(".look-preview-b"), cur);
-    applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner }, cur);
+    applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner, fxBox: previewWrap, statusSlot: previewStatus }, cur);
+    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
+    songLabel.textContent = songObj ? `🎵 ${songObj.title} · ${songObj.artist?.name || ""}` : "No song";
+    songClear.hidden = !songObj;
     previewWrap.style.setProperty("--accent", cur.accent || "#ff4fa3");
     previewWrap.style.setProperty("--pink", cur.accent || "#ff4fa3");
     for (const [box, key] of [[emojis, "emoji"], [rings, "ring"], [bgs, "bg"], [banners, "banner"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
@@ -164,6 +219,50 @@ export function openLookEditor(onSaved) {
   const rings = pickRow(RINGS, "ring", "look-chip look-ring");
   const bgs = pickRow(PROFILE_BGS, "bg");
   const banners = pickRow(BANNERS, "banner", "look-chip look-banner");
+  // Profile effects, photo decoration, bio font
+  const fxs = pickRow(PROFILE_FX, "fx");
+  const decos = h("div", { class: "look-chips" }, ...AVATAR_DECOS.map(([v, label, e]) => {
+    const b = h("button", { type: "button", class: "look-chip", dataset: { v }, text: e ? `${e} ${label}` : label });
+    b.addEventListener("click", () => { cur.deco = v; paint(); });
+    return b;
+  }));
+  const bioFonts = h("div", { class: "look-chips" }, ...[...NAME_FONTS, ...GAMER_FONTS].map(([v, label]) => {
+    const b = h("button", { type: "button", class: "look-chip", dataset: { v, nf: v }, text: label });
+    b.addEventListener("click", () => { cur.bioFont = v; paint(); });
+    return b;
+  }));
+  // Status: an emoji and a few words under my name
+  const stEmoji = h("button", { type: "button", class: "look-emo st-emoji", title: "Pick an emoji", text: cur.status?.emoji || "🙂" });
+  const stText = h("input", { type: "text", class: "text-input st-text", maxlength: 60, placeholder: "e.g. Playing Minecraft · At the gym · Listening to music", value: cur.status?.text || "" });
+  const stClear = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Clear" });
+  const syncStatus = () => { const t = stText.value.trim(), e = stEmoji.dataset.set ? stEmoji.textContent : ""; cur.status = t || e ? { emoji: e, text: t } : null; paint(); };
+  if (cur.status?.emoji) stEmoji.dataset.set = "1";
+  stEmoji.addEventListener("click", () => import("./emoji.js").then(({ openEmojiPicker }) => openEmojiPicker(stEmoji, (e) => { stEmoji.textContent = e; stEmoji.dataset.set = "1"; syncStatus(); })));
+  stText.addEventListener("input", syncStatus);
+  stClear.addEventListener("click", () => { stText.value = ""; stEmoji.textContent = "🙂"; delete stEmoji.dataset.set; syncStatus(); });
+  const statusRow = h("div", { class: "st-row" }, stEmoji, stText, stClear);
+  // Profile song: search LookBlog's music
+  const songLabel = h("span", { class: "song-label" });
+  const songClear = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Remove" });
+  songClear.addEventListener("click", () => { songObj = null; cur.song = ""; paint(); });
+  const songSearch = h("input", { type: "search", class: "text-input", placeholder: "Search a song or artist", autocomplete: "off" });
+  const songResults = h("div", { class: "song-results" });
+  let songSeq = 0, songTimer;
+  const findSongs = async () => {
+    const n = ++songSeq;
+    try {
+      const { songs } = await api(`/api/songs/search?q=${encodeURIComponent(songSearch.value.trim())}`);
+      if (n !== songSeq) return;
+      songResults.replaceChildren(...songs.slice(0, 6).map((sg) => {
+        const b = h("button", { type: "button", class: "song-res" }, h("span", { class: "sr-cover", style: sg.cover ? `background-image:url("${sg.cover}")` : "" }), h("span", { class: "sr-text" }, h("b", { text: sg.title }), h("small", { class: "muted", text: sg.artist.name })));
+        b.addEventListener("click", () => { songObj = sg; cur.song = sg.id; paint(); });
+        return b;
+      }));
+      if (!songs.length) songResults.append(h("p", { class: "muted", text: "No songs found." }));
+    } catch {}
+  };
+  songSearch.addEventListener("input", () => { clearTimeout(songTimer); songTimer = setTimeout(findSongs, 220); });
+  findSongs();
   const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save my look" });
   const reset = h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Back to default" });
   const m = modal({ title: "Customize your profile", body: h("div", { class: "create-form look-editor" },
@@ -177,6 +276,11 @@ export function openLookEditor(onSaved) {
     h("p", { class: "look-label", text: "Profile accent colour" }), h("p", { class: "create-hint", text: "Buttons, tabs and highlights on your profile." }), accents,
     h("p", { class: "look-label", text: "Ring around your photo" }), rings,
     h("p", { class: "look-label", text: "Profile background" }), bgs,
+    h("p", { class: "look-label", text: "Status" }), h("p", { class: "create-hint", text: "A few words under your name, with an emoji." }), statusRow,
+    h("p", { class: "look-label", text: "Profile effect" }), h("p", { class: "create-hint", text: "Things that fall or float over your profile." }), fxs,
+    h("p", { class: "look-label", text: "Photo decoration" }), decos,
+    h("p", { class: "look-label", text: "Profile song" }), h("p", { class: "create-hint", text: "People can play it from your profile." }), h("div", { class: "song-now" }, songLabel, songClear), songSearch, songResults,
+    h("p", { class: "look-label", text: "Bio font" }), bioFonts,
     h("p", { class: "look-label", text: "Banner colours" }), h("p", { class: "create-hint", text: state.me.banner ? "Shown when you remove your banner picture." : "For your banner (you don’t have a banner picture)." }), banners,
     save, reset) });
   const store = async (look) => {
@@ -187,11 +291,12 @@ export function openLookEditor(onSaved) {
       emit("me:updated", state.me);
       m.close();
       toast("Your look is saved. Your name looks like this everywhere.");
-      onSaved?.(r.look);
+      onSaved?.(r.look, r.look?.song ? songObj : null);
     } catch (err) { toast(err.error || "Couldn’t save it."); save.disabled = reset.disabled = false; }
   };
   save.addEventListener("click", () => store({ color: cur.color || null, font: cur.font || null, effect: cur.effect || null, accent: cur.accent || null,
-    ring: cur.ring || null, bg: cur.bg || null, banner: cur.banner || null, emoji: cur.emoji || null }));
+    ring: cur.ring || null, bg: cur.bg || null, banner: cur.banner || null, emoji: cur.emoji || null,
+    fx: cur.fx || null, deco: cur.deco || null, bioFont: cur.bioFont || null, status: cur.status || null, song: songObj?.id || null }));
   reset.addEventListener("click", () => store({}));
   paint();
   paintGrad();

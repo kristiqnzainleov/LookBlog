@@ -234,6 +234,9 @@ export async function profilePage(view, m, params) {
   const requestsBtn = profile.isMe && profile.requests ? h("button", { class: "btn btn-sm btn-primary", onclick: () => openPrivacy() }, h("span", { text: `Follow requests · ${profile.requests}` })) : null;
 
   const bioEl = h("p", { class: "bio" });
+  // From "Customize": a status under the name, and a song on the profile
+  const statusSlot = h("div", { class: "pf-status-slot" });
+  const songSlot = h("div", { class: "pf-song-slot" });
   const bioWrap = h("div", { class: "bio-wrap" }, bioEl);
   function paintBio() {
     if (profile.isMe) {
@@ -301,7 +304,7 @@ export async function profilePage(view, m, params) {
     bioEl.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startEdit(); } });
   }
   const AVATAR = matchMedia("(max-width: 640px)").matches ? 104 : 144;
-  const avatarWrap = h("div", { class: "profile-avatar" }, avatar({ ...profile, live: profile.liveNow }, AVATAR));
+  const avatarWrap = h("div", { class: "profile-avatar", style: `--av:${AVATAR}px` }, avatar({ ...profile, live: profile.liveNow }, AVATAR));
   paintAccent();
   // Streaming right now: a big red "LIVE — Watch" button under the name
   const liveBtn = h("a", { class: "pf-live-btn", hidden: !profile.liveNow, href: profile.liveNow ? `/live/${profile.liveNow}` : "#" }, h("span", { text: "🔴 LIVE NOW" }), h("span", { text: profile.isMe ? "· Open your stream" : "· Watch" }));
@@ -356,7 +359,7 @@ export async function profilePage(view, m, params) {
   function paintAccent() {
     if (profile.look?.accent) view.style.setProperty("--pink", profile.look.accent); else view.style.removeProperty("--pink");
     // Ring around the photo, background, banner colours
-    import("../components/profile-look.js").then(({ applyProfileLook }) => applyProfileLook({ view, avatarWrap, banner }, profile.look));
+    import("../components/profile-look.js").then(({ applyProfileLook }) => applyProfileLook({ view, avatarWrap, banner, bio: bioEl, statusSlot, songSlot }, profile.look, profile.profileSong));
   }
 
   /* Role badges (Musician, Artist, …) under the name */
@@ -436,11 +439,12 @@ export async function profilePage(view, m, params) {
 
   /* Customize: name colour, font, effect, and the profile's accent colour */
   function customize() {
-    import("../components/profile-look.js").then(({ openLookEditor, applyLook }) => openLookEditor((look) => {
+    import("../components/profile-look.js").then(({ openLookEditor, applyLook }) => openLookEditor((look, song) => {
       profile.look = look;
+      profile.profileSong = song || null;
       applyLook(nameEl, look);
       paintAccent();
-    }));
+    }, { song: profile.profileSong }));
   }
 
   /* @username: on my profile, click it to pick a new one */
@@ -671,6 +675,8 @@ export async function profilePage(view, m, params) {
     h("div", { class: "profile-top" }, avatarWrap, h("div", { class: "profile-btns" }, requestsBtn, ...(profile.blocked ? [] : [messageBtn, bellBtn, actionBtn]), moreBtn)),
     nameEl,
     handleEl,
+    statusSlot,
+    songSlot,
     liveBtn,
     specialEl,
     rolesEl,

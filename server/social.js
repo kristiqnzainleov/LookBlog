@@ -184,7 +184,12 @@ function liveOf(id) {
 function authorView(u) {
   if (!u) return { name: "Deleted account", username: "", avatar: null, verified: false };
   const live = liveOf(u.id);
-  return { name: u.name, username: u.username, avatar: u.avatar, verified: Boolean(u.verified), verifiedType: u.verified ? u.verifiedType || "creator" : null, ...(live ? { live } : {}), ...(u.look ? { look: lookOf(u) } : {}) };
+  return { name: u.name, username: u.username, avatar: u.avatar, verified: Boolean(u.verified), verifiedType: u.verified ? u.verifiedType || "creator" : null, ...(live ? { live } : {}), ...(u.look ? { look: nameLookOf(u) } : {}) };
+}
+// Next to a name anywhere on the site, only how the name looks is needed
+function nameLookOf(u) {
+  const { color, font, effect, emoji } = u.look || {};
+  return { ...(color ? { color } : {}), ...(font ? { font } : {}), ...(effect ? { effect } : {}), ...(emoji ? { emoji } : {}) };
 }
 // How someone's name looks (colour, font, effect) and their profile's accent colour
 const NAME_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "lilac", "white",
@@ -198,6 +203,8 @@ const NAME_EFFECTS = ["glow", "shine", "shadow"];
 const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white"];
 const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora"];
 const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono"];
+const PROFILE_FX = ["snow", "hearts", "sparkles", "stars", "sakura", "confetti", "bubbles", "fire", "leaves", "money"];
+const AVATAR_DECOS = ["crown", "halo", "horns", "cat", "headphones", "flowers", "bow", "flame", "star", "cap"];
 const EMOJI_ONE = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u;
 const HEX = /^#[0-9a-f]{6}$/i;
 function cleanLook(b) {
@@ -211,6 +218,16 @@ function cleanLook(b) {
   if (PROFILE_BGS.includes(b.bg)) out.bg = b.bg; // my profile's background
   if (BANNERS.includes(b.banner)) out.banner = b.banner; // banner colours when there's no banner picture
   if (typeof b.emoji === "string" && b.emoji.length <= 16 && EMOJI_ONE.test(b.emoji)) out.emoji = b.emoji; // an emoji next to my name
+  if (PROFILE_FX.includes(b.fx)) out.fx = b.fx; // something falling or floating over my profile
+  if (AVATAR_DECOS.includes(b.deco)) out.deco = b.deco; // a decoration on my photo
+  if (NAME_FONTS.includes(b.bioFont)) out.bioFont = b.bioFont; // my bio's font
+  // A status under my name: an emoji and a few words
+  const st = b.status && typeof b.status === "object" ? b.status : null;
+  const stText = st ? clean(String(st.text || "")).replace(/\s+/g, " ").slice(0, 60) : "";
+  const stEmoji = st && typeof st.emoji === "string" && st.emoji.length <= 16 && EMOJI_ONE.test(st.emoji) ? st.emoji : "";
+  if (stText || stEmoji) out.status = { emoji: stEmoji, text: stText };
+  // A song on my profile (one from LookBlog's music)
+  if (typeof b.song === "string" && db.songs.some((x) => x.id === b.song && !x.deleted)) out.song = b.song;
   return Object.keys(out).length ? out : null;
 }
 const lookOf = (u) => (u.look ? { ...u.look } : null);
@@ -340,6 +357,7 @@ function profileView(user, me) {
     id: user.id,
     name: user.name,
     look: lookOf(user),
+    profileSong: (() => { const sg = user.look?.song && db.songs.find((x) => x.id === user.look.song && !x.deleted); return sg ? require("./music").songView(sg, me) : null; })(),
     username: user.username,
     bio: user.bio,
     bioMentions: usernamesOf(findMentions(user.bio)),

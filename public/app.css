@@ -4932,3 +4932,63 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 /* Looktures pile: a bit bigger when there are new ones */
 .inst-pile.has-new { width: 74px; height: 80px; }
 .inst-pile.has-new .inst-stack { width: 64px; height: 74px; }
+
+/* ---------- Profile effects (falling / rising things) ---------- */
+.pfx { position: fixed; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
+.pfx.inside { position: absolute; z-index: 0; border-radius: inherit; }
+.pfx span { position: absolute; top: -10%; font-size: var(--size, 1em); opacity: 0.85; animation: pfxFall var(--dur, 9s) linear var(--delay, 0s) infinite; will-change: transform; }
+.pfx.rise span { top: auto; bottom: -10%; animation-name: pfxRise; }
+@keyframes pfxFall { from { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(var(--drift), 55vh) rotate(180deg); } to { transform: translate(calc(var(--drift) * -1), 115vh) rotate(360deg); } }
+@keyframes pfxRise { from { transform: translate(0, 0) scale(0.8); opacity: 0; } 15% { opacity: 0.85; } to { transform: translate(var(--drift), -115vh) scale(1.15); opacity: 0; } }
+.pfx.inside span { animation-name: pfxFallIn; }
+.pfx.inside.rise span { animation-name: pfxRiseIn; }
+@keyframes pfxFallIn { from { transform: translateY(0) rotate(0); } to { transform: translate(var(--drift), 340px) rotate(300deg); } }
+@keyframes pfxRiseIn { from { transform: translateY(0); opacity: 0; } 20% { opacity: 0.85; } to { transform: translate(var(--drift), -340px); opacity: 0; } }
+.look-preview > *:not(.pfx) { position: relative; z-index: 1; }
+.look-preview > .look-mini-banner { position: absolute; }
+
+/* ---------- Photo decorations ---------- */
+.av-deco { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.av-deco b { position: absolute; font-style: normal; line-height: 1; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
+.av-deco[data-deco="crown"] b, .av-deco[data-deco="cap"] b { left: 50%; top: -16%; font-size: 42%; transform: translateX(-50%) rotate(-8deg); font-size: calc(var(--av, 120px) * 0.42); }
+.av-deco[data-deco="flame"] b, .av-deco[data-deco="star"] b { right: -2%; top: -4%; font-size: calc(var(--av, 120px) * 0.32); transform: rotate(12deg); }
+.av-deco[data-deco="bow"] b { right: 2%; top: 0; font-size: calc(var(--av, 120px) * 0.34); transform: rotate(18deg); }
+.av-deco .halo { position: absolute; left: 18%; right: 18%; top: -9%; height: 16%; border-radius: 50%; border: 5px solid #ffe27a; box-shadow: 0 0 14px #ffd23f, inset 0 0 8px #ffd23f; animation: haloFloat 3s ease-in-out infinite; }
+@keyframes haloFloat { 50% { transform: translateY(-5px); } }
+.av-deco .ear { position: absolute; top: -5%; width: 30%; height: 30%; background: #f5f0f0; border: 4px solid #1b1919; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.av-deco .ear::after { content: ""; position: absolute; inset: 30% 25% 0; background: #ff9cc8; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.av-deco .ear.l { left: 6%; transform: rotate(-22deg); } .av-deco .ear.r { right: 6%; transform: rotate(22deg); }
+.av-deco .horn { position: absolute; top: -8%; width: 16%; height: 26%; background: linear-gradient(#ff3b3b, #8b0000); border-radius: 50% 50% 10% 10% / 90% 90% 10% 10%; }
+.av-deco .horn.l { left: 16%; transform: rotate(-24deg); } .av-deco .horn.r { right: 16%; transform: rotate(24deg); }
+.av-deco .phones { position: absolute; left: 2%; right: 2%; top: 2%; height: 60%; border: 7px solid #1b1919; border-bottom: none; border-radius: 50% 50% 0 0 / 70% 70% 0 0; box-shadow: 0 0 0 2px var(--pink); }
+.av-deco[data-deco="headphones"] b { display: none; }
+.av-deco[data-deco="flowers"] b { font-size: calc(var(--av, 120px) * 0.2); }
+.av-deco .f1 { left: 12%; top: 0; } .av-deco .f2 { left: 42%; top: -9%; } .av-deco .f3 { right: 10%; top: 0; }
+.profile-avatar { --av: 132px; }
+.look-mini-avatar { --av: 64px; }
+
+/* ---------- Status and profile song ---------- */
+.pf-status { display: inline-flex; align-items: center; gap: 8px; margin: 6px 0 4px; padding: 6px 14px; border-radius: 999px; background: color-mix(in srgb, var(--pink) 14%, var(--card-2)); border: 1px solid color-mix(in srgb, var(--pink) 35%, transparent); font-weight: 600; font-size: 0.92rem; }
+.pf-status-e { font-size: 1.1rem; }
+.pf-song { display: flex; align-items: center; gap: 12px; width: min(100%, 380px); margin: 8px 0; padding: 8px 14px 8px 8px; border-radius: 16px; border: 1px solid var(--line); background: var(--card-2); color: var(--paper); font: inherit; text-align: left; cursor: pointer; }
+.pf-song:hover { border-color: var(--pink); }
+.pf-song-cover { position: relative; width: 48px; height: 48px; flex: none; border-radius: 10px; background: linear-gradient(135deg, var(--pink), #9b5cff) center / cover; display: grid; place-items: center; }
+.pf-song-cover i { font-style: normal; width: 26px; height: 26px; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; display: grid; place-items: center; font-size: 0.7rem; }
+.pf-song-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pf-song-text small { color: var(--pink); font-weight: 700; font-size: 0.72rem; }
+.pf-song-text b, .pf-song-text .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-song-eq { display: flex; align-items: flex-end; gap: 2px; height: 16px; opacity: 0.4; }
+.pf-song-eq i { width: 3px; height: 40%; background: var(--pink); border-radius: 2px; }
+.pf-song.playing .pf-song-eq { opacity: 1; }
+.pf-song.playing .pf-song-eq i { animation: eqBar 0.9s ease-in-out infinite; }
+.pf-song.playing .pf-song-eq i:nth-child(2) { animation-delay: 0.2s; } .pf-song.playing .pf-song-eq i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes eqBar { 50% { height: 100%; } }
+.look-preview-status .pf-status { margin-top: 8px; font-size: 0.8rem; }
+.st-row { display: flex; gap: 8px; align-items: center; }
+.st-row .text-input { flex: 1; min-width: 0; margin: 0; }
+.song-now { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-weight: 600; font-size: 0.88rem; }
+.song-results { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+.song-res { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 12px; border: 1px solid var(--line); background: var(--card-2); color: var(--paper); font: inherit; text-align: left; cursor: pointer; }
+.song-res:hover { border-color: var(--pink); }
+.sr-cover { width: 38px; height: 38px; border-radius: 8px; flex: none; background: linear-gradient(135deg, var(--pink), #9b5cff) center / cover; }
+.sr-text { display: flex; flex-direction: column; min-width: 0; }
