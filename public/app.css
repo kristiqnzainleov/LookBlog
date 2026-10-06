@@ -5085,7 +5085,21 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .vd-watch.on { background: color-mix(in srgb, var(--pink) 25%, transparent); }
 .wt-msg-btn { margin-top: 6px; }
 @media (max-width: 640px) { .wt-pop { right: 10px; left: 10px; width: auto; top: 70px; bottom: auto; } .wt-pop.tall { left: auto; width: 62vw; } }
-.set-pass { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
-.set-pass .text-input { margin: 0; }
-.set-pass .btn { align-self: flex-start; }
-.set-show { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); cursor: pointer; }
+.set-pass { display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
+.pw-field { display: flex; flex-direction: column; gap: 6px; }
+.pw-label { font: 700 0.85rem var(--body); color: var(--paper); }
+.pw-box { position: relative; display: flex; align-items: center; height: 46px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--ink); transition: border-color 0.15s, box-shadow 0.15s; }
+.pw-box:focus-within { border-color: var(--pink); box-shadow: 0 0 0 4px rgba(255, 79, 163, 0.12); }
+.pw-input { flex: 1; min-width: 0; height: 100%; padding: 0 14px; border: none; outline: none; background: none; color: var(--paper); font: 400 1rem var(--body); letter-spacing: 0.02em; }
+.pw-input::placeholder { color: var(--muted); letter-spacing: 0; }
+.pw-eye { flex: none; width: 40px; height: 36px; margin-right: 4px; border: none; border-radius: 9px; background: none; font-size: 1rem; cursor: pointer; opacity: 0.55; filter: grayscale(1); transition: opacity 0.15s; }
+.pw-eye:hover, .pw-eye.on { opacity: 1; filter: none; background: var(--card-2); }
+.pw-strength { display: flex; align-items: center; gap: 10px; margin-top: -4px; }
+.pw-meter { display: flex; gap: 4px; flex: 1; max-width: 220px; }
+.pw-meter i { flex: 1; height: 5px; border-radius: 3px; background: var(--line); transition: background 0.2s; }
+.pw-meter[data-score="1"] i:nth-child(-n+1) { background: #ff4757; }
+.pw-meter[data-score="2"] i:nth-child(-n+2) { background: #ffb020; }
+.pw-meter[data-score="3"] i:nth-child(-n+3) { background: #b6f23a; }
+.pw-meter[data-score="4"] i { background: #2ee6a6; }
+.pw-meter-text { font-size: 0.78rem; min-width: 70px; }
+.set-pass .btn { align-self: flex-start; margin-top: 2px; }

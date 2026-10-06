@@ -102,12 +102,28 @@ export function settingsPage(view) {
   });
   paintNsfw();
 
-  // Password: the current one, then the new one twice
-  const pw = (ph, ac) => h("input", { type: "password", class: "text-input", placeholder: ph, autocomplete: ac, maxlength: 128 });
-  const pwNow = pw("Current password", "current-password"), pwNew = pw("New password (at least 8 characters)", "new-password"), pwAgain = pw("New password again", "new-password");
-  const pwShow = h("label", { class: "set-show" }, h("input", { type: "checkbox", onchange: (e) => [pwNow, pwNew, pwAgain].forEach((x) => (x.type = e.target.checked ? "text" : "password")) }), h("span", { text: "Show passwords" }));
+  // Password: the current one, then the new one twice (an eye in each box shows what you typed)
+  const pwField = (ph, ac, label) => {
+    const input = h("input", { type: "password", class: "pw-input", placeholder: ph, autocomplete: ac, maxlength: 128, "aria-label": label });
+    const eye = h("button", { type: "button", class: "pw-eye", title: "Show", "aria-label": "Show password", text: "👁" });
+    eye.addEventListener("click", () => { const show = input.type === "password"; input.type = show ? "text" : "password"; eye.classList.toggle("on", show); eye.title = show ? "Hide" : "Show"; input.focus(); });
+    return { input, el: h("label", { class: "pw-field" }, h("span", { class: "pw-label", text: label }), h("span", { class: "pw-box" }, input, eye)) };
+  };
+  const now = pwField("Your current password", "current-password", "Current password");
+  const neu = pwField("At least 8 characters", "new-password", "New password");
+  const again = pwField("Type it once more", "new-password", "New password again");
+  const pwNow = now.input, pwNew = neu.input, pwAgain = again.input;
+  // How strong the new one is
+  const meter = h("div", { class: "pw-meter" }, h("i"), h("i"), h("i"), h("i"));
+  const meterText = h("small", { class: "pw-meter-text muted" });
+  pwNew.addEventListener("input", () => {
+    const v = pwNew.value;
+    const score = !v ? 0 : Math.min(4, (v.length >= 8) + (v.length >= 12) + (/[A-Z]/.test(v) && /[a-z]/.test(v)) + (/\d/.test(v)) + (/[^A-Za-z0-9]/.test(v)) - (v.length < 8 ? 1 : 0));
+    meter.dataset.score = String(Math.max(0, score));
+    meterText.textContent = !v ? "" : v.length < 8 ? "Too short" : ["Weak", "Weak", "Okay", "Good", "Strong 💪"][score];
+  });
   const pwErr = h("p", { class: "form-error", role: "alert", hidden: true });
-  const pwBtn = h("button", { type: "button", class: "btn btn-primary btn-sm", text: "Change password" });
+  const pwBtn = h("button", { type: "button", class: "btn btn-primary", text: "Change password" });
   pwBtn.addEventListener("click", async () => {
     pwErr.hidden = true;
     const fail = (t) => { pwErr.textContent = t; pwErr.hidden = false; };
@@ -117,6 +133,7 @@ export function settingsPage(view) {
     try {
       await api("/api/me/password", { method: "POST", body: { current: pwNow.value, password: pwNew.value } });
       [pwNow, pwNew, pwAgain].forEach((x) => (x.value = ""));
+      pwNew.dispatchEvent(new Event("input"));
       toast("Password changed. Other devices were logged out.");
     } catch (err) { fail(err.error || "Couldn’t change it."); }
     pwBtn.disabled = false;
@@ -125,7 +142,7 @@ export function settingsPage(view) {
 
   view.append(
     section("Email", "You log in with it and get password reset links there.", emailNow, h("div", { class: "set-row" }, emailIn, emailBtn)),
-    section("Password", "Changing it logs you out on your other devices. (Signed up with Google? Leave the current one empty to set a password.)", h("div", { class: "set-pass" }, pwNow, pwNew, pwAgain, pwShow, pwErr, pwBtn)),
+    section("Password", "Changing it logs you out on your other devices. (Signed up with Google? Leave the current one empty to set a password.)", h("div", { class: "set-pass" }, now.el, neu.el, h("div", { class: "pw-strength" }, meter, meterText), again.el, pwErr, pwBtn)),
     section("Two-step verification (2FA)", "When it’s on, LookBlog asks for your code after your password — so knowing your password (or email) isn’t enough to get into your account. LookBlog can make the code for you, or you can pick your own.", twoBox),
     section("Preferences", null, h("div", { class: "set-row" }, lang, priv)),
     section("🔞 Sensitive content (NSFW)", "LookBlog checks photos and videos when they’re posted. Sensitive ones (nudity and other 18+ things) are blurred and aren’t recommended to people who didn’t ask for them.", h("div", { class: "set-row" }, nsfwState, nsfwBtn)),
