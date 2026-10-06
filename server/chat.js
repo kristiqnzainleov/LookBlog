@@ -246,7 +246,9 @@ function viewOnceView(msg, me, out) {
   const others = (chat?.members || []).filter((id) => id !== msg.userId);
   const opened = msg.viewOnce.openedBy || [];
   const kind = msg.viewOnce.gone ? msg.viewOnce.kind : msg.media ? msg.media.kind : "text";
-  out.viewOnce = { kind, opened: opened.includes(me.id), openedCount: opened.length, everyone: others.length > 0 && others.every((id) => opened.includes(id)) };
+  const max = msg.viewOnce.max || 1, done = (id) => (msg.viewOnce.opens?.[id] ?? (opened.includes(id) ? 1 : 0)) >= max;
+  out.viewOnce = { kind, replay: max > 1, opened: done(me.id), replayLeft: max > 1 && opened.includes(me.id) && !done(me.id), openedCount: opened.length,
+    everyone: others.length > 0 && others.every(done) };
   // Nobody sees the content in the chat itself: the others open it once, and the sender only sees that it was sent
   out.text = ""; out.media = null; out.mentions = [];
   return out;
@@ -685,7 +687,8 @@ async function handleChat(req, res, url, me) {
       // View once: the others can open it one time, then it's gone (like Instagram)
       if (body.viewOnce) {
         if (post || commentRef || songRef || media?.sticker || media?.gif || media?.kind === "audio" || media?.shared) throw httpError(400, "View once works for text, photos and videos.");
-        msg.viewOnce = { openedBy: [] };
+        // "replay": each person can open it twice (like Instagram's "Allow replay")
+        msg.viewOnce = { openedBy: [], ...(body.viewOnce === "replay" ? { max: 2, opens: {} } : {}) };
       }
       if (chat.kind === "group") {
         const ch = chat.channels.find((x) => x.id === body.channelId && x.kind === "text") || firstText(chat);
@@ -713,11 +716,14 @@ async function handleChat(req, res, url, me) {
       const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
       if (!msg?.viewOnce) throw httpError(404, "That message is gone.");
       if (msg.userId === me.id) throw httpError(400, "It’s for the others: you can’t open your own view-once message.");
-      if (msg.viewOnce.gone || msg.viewOnce.openedBy.includes(me.id)) throw httpError(410, "You’ve already opened it.");
+      const max = msg.viewOnce.max || 1, opensOf = (id) => msg.viewOnce.opens?.[id] ?? (msg.viewOnce.openedBy.includes(id) ? 1 : 0);
+      if (msg.viewOnce.gone || opensOf(me.id) >= max) throw httpError(410, "You’ve already opened it.");
       const content = { text: msg.text, media: msg.media ? { kind: msg.media.kind, url: msg.media.url, poster: msg.media.poster || null, width: msg.media.width || null, height: msg.media.height || null } : null };
-      msg.viewOnce.openedBy.push(me.id);
+      const before = opensOf(me.id);
+      if (msg.viewOnce.opens) msg.viewOnce.opens[me.id] = before + 1;
+      if (!msg.viewOnce.openedBy.includes(me.id)) msg.viewOnce.openedBy.push(me.id);
       const others = chat.members.filter((id) => id !== msg.userId);
-      if (others.every((id) => msg.viewOnce.openedBy.includes(id))) {
+      if (others.every((id) => opensOf(id) >= max)) {
         // Everyone saw it: delete it (a short moment later, so the photo can still load for the last person)
         msg.viewOnce.kind = msg.media ? msg.media.kind : "text";
         msg.viewOnce.gone = true;
@@ -745,6 +751,18 @@ async function handleChat(req, res, url, me) {
       save("messages");
       notifyMembers(chat, { type: "message:deleted", chatId: chat.id, messageId: msg.id });
       sendJSON(res, 200, { ok: true });
+      return true;
+    }
+
+    // Who reacted: GET /api/chats/:id/messages/:messageId/reactions → [{ user, emoji, mine }]
+    if (m === "GET" && c === "messages" && d && parts[4] === "reactions" && parts.length === 5) {
+      if (!canRead(chat, me)) throw httpError(403, "You can’t see this conversation.");
+      const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
+      if (!msg) throw httpError(404, "That message doesn’t exist.");
+      const people = Object.entries(msg.reactions || {}).map(([id, emoji]) => ({ u: findUser(id), emoji })).filter((x) => x.u)
+        .map((x) => ({ user: { ...authorView(x.u), nickname: nicknameOf(chat, x.u.id) }, emoji: x.emoji, mine: x.u.id === me.id }))
+        .sort((a, b) => Number(b.mine) - Number(a.mine));
+      sendJSON(res, 200, { reactions: people });
       return true;
     }
 

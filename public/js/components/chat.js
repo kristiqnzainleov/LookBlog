@@ -111,13 +111,51 @@ function sharedPost(p) {
 function reactionsEl(msg, chat) {
   const row = h("div", { class: "reactions" });
   for (const r of msg.reactions || []) {
-    const chip = h("button", { type: "button", class: "reaction" + (r.mine ? " mine" : ""), title: r.names.join(", ") + (r.mine ? " (tap to remove yours)" : "") },
+    const chip = h("button", { type: "button", class: "reaction" + (r.mine ? " mine" : ""), title: r.names.join(", ") + " · tap to see who reacted" },
       h("span", { class: "reaction-emoji", text: r.emoji }), r.count > 1 ? h("span", { class: "reaction-count", text: String(r.count) }) : null);
-    chip.addEventListener("click", () => react(msg, chat, r.emoji));
+    chip.addEventListener("click", () => openReactions(msg, chat));
     row.append(chip);
   }
   row.hidden = !(msg.reactions || []).length;
   return row;
+}
+
+// Who reacted (like Instagram): everyone with their emoji, a tab per emoji; tap yours to take it back
+async function openReactions(msg, chat) {
+  const tabs = h("div", { class: "rx-tabs", role: "tablist" });
+  const list = h("div", { class: "rx-list" }, spinner());
+  const m = modal({ title: "Reactions", body: h("div", { class: "rx-sheet" }, tabs, list) });
+  let people;
+  try { people = (await api(`/api/chats/${chat.id}/messages/${msg.id}/reactions`)).reactions; }
+  catch (err) { list.replaceChildren(h("p", { class: "muted", text: err.error || "Couldn’t load the reactions." })); return; }
+  let tab = "all";
+  function paint() {
+    const counts = new Map();
+    for (const p of people) counts.set(p.emoji, (counts.get(p.emoji) || 0) + 1);
+    tabs.replaceChildren(...[["all", `All ${people.length}`], ...[...counts].sort((a, b) => b[1] - a[1]).map(([e, n]) => [e, `${e} ${n}`])].map(([k, label]) => {
+      const b = h("button", { type: "button", class: "rx-tab" + (k === tab ? " on" : ""), role: "tab", "aria-selected": String(k === tab), text: label });
+      b.addEventListener("click", () => { tab = k; paint(); });
+      return b;
+    }));
+    const shown = people.filter((p) => tab === "all" || p.emoji === tab);
+    list.replaceChildren(...shown.map((p) => {
+      const row = h(p.mine ? "button" : "a", { class: "rx-row" + (p.mine ? " mine" : ""), type: p.mine ? "button" : null, href: p.mine ? null : profileHref(p.user.username) },
+        avatar(p.user, 40),
+        h("span", { class: "rx-who" }, h("b", {}, p.mine ? "You" : shownName(p.user), tick(p.user, 13)), h("small", { class: "muted", text: p.mine ? "Tap to remove" : "@" + p.user.username })),
+        h("span", { class: "rx-emoji", text: p.emoji }));
+      if (p.mine) row.addEventListener("click", async () => {
+        await react(msg, chat, p.emoji);
+        people = people.filter((x) => !x.mine);
+        if (!people.length) return m.close();
+        if (tab !== "all" && !people.some((x) => x.emoji === tab)) tab = "all";
+        paint();
+      });
+      else row.addEventListener("click", (e) => { e.preventDefault(); m.close(); navigate(profileHref(p.user.username)); });
+      return row;
+    }));
+    if (!shown.length) list.append(h("p", { class: "muted", text: "No reactions yet." }));
+  }
+  paint();
 }
 
 async function react(msg, chat, emoji) {
@@ -238,6 +276,38 @@ async function translateMessage(msg, bubble, toLang = null) {
   } catch (err) { box.replaceChildren(h("span", { class: "muted", text: err.error || "Couldn’t translate it." })); }
 }
 
+// The sheet for a disappearing photo or video: preview, how it can be seen, send
+function openDisappearing(file, send) {
+  let mode = "once", sending = false;
+  const err = h("p", { class: "form-error", hidden: true });
+  const sendBtn = h("button", { type: "button", class: "btn btn-primary btn-full", disabled: true, text: "Uploading…" });
+  const picker = createPicker({ accept: "both", max: 1, onChange: () => paint(), onError: (t) => { err.textContent = t; err.hidden = !t; } });
+  const caption = h("input", { type: "text", class: "text-input", maxlength: 300, placeholder: "Add a message (optional)" });
+  const MODES = [["once", "View once", "①"], ["replay", "Allow replay", "②"], ["keep", "Keep in chat", "∞"]];
+  const modes = h("div", { class: "dp-modes", role: "radiogroup" }, ...MODES.map(([k, label, ic]) => {
+    const b = h("button", { type: "button", class: "dp-mode" + (k === mode ? " on" : ""), role: "radio", "aria-checked": String(k === mode) }, h("span", { class: "dp-ic", text: ic }), h("b", { text: label }));
+    b.addEventListener("click", () => { mode = k; modes.querySelectorAll(".dp-mode").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", String(x === b)); }); paint(); });
+    return b;
+  }));
+  const hint = h("p", { class: "create-hint" });
+  function paint() {
+    const ready = picker.media().length && !picker.busy();
+    sendBtn.disabled = !ready || sending;
+    sendBtn.textContent = sending ? "Sending…" : !ready ? "Uploading…" : mode === "keep" ? "Send" : "Send disappearing " + (picker.items()[0]?.kind === "video" ? "video" : "photo");
+    hint.textContent = mode === "once" ? "They can open it one time, then it’s gone." : mode === "replay" ? "They can open it twice, then it’s gone." : "It stays in the chat like a normal message.";
+  }
+  const m = modal({ title: "Disappearing photo", onClose: () => picker.clear(), body: h("div", { class: "create-form dp-sheet" }, picker.previews, modes, hint, caption, err, sendBtn) });
+  picker.add([file]);
+  paint();
+  sendBtn.addEventListener("click", async () => {
+    sending = true; paint();
+    try {
+      await send({ text: caption.value, media: picker.media()[0], ...(mode === "keep" ? {} : { viewOnce: mode === "replay" ? "replay" : true }) });
+      m.close();
+    } catch (ex) { err.textContent = ex.error || "Couldn’t send it."; err.hidden = false; sending = false; paint(); }
+  });
+}
+
 // A view-once message: the others tap to open it one time; the sender sees who opened it
 function viewOnceRow(msg, chat, onRemoved) {
   const v = msg.viewOnce;
@@ -246,7 +316,9 @@ function viewOnceRow(msg, chat, onRemoved) {
   if (msg.mine) {
     label = `View-once ${what}`;
     sub = v.everyone ? "Opened" : v.openedCount ? `Opened by ${v.openedCount}` : "Sent";
+    if (v.replay) sub += " · replay allowed";
   } else if (v.opened) label = "Opened";
+  else if (v.replayLeft) { label = `Tap to replay ${what}`; openable = true; }
   else { label = `Tap to view ${what}`; openable = true; }
   const bubble = h(openable ? "button" : "div", { type: openable ? "button" : null, class: "bubble vo-bubble" + (openable ? " vo-closed" : " vo-done") },
     chat.kind === "group" && !msg.mine ? h("span", { class: "bubble-name", text: shownName(msg.author) }) : null,
@@ -268,12 +340,14 @@ async function openViewOnce(msg, chat, row) {
   let c;
   try { c = await api(`/api/chats/${chat.id}/messages/${msg.id}/open`, { method: "POST" }); }
   catch (err) { toast(err.error || "It’s gone."); msg.viewOnce.opened = true; row.replaceWith(viewOnceRow(msg, chat)); return; }
-  msg.viewOnce.opened = true;
+  const firstOfTwo = msg.viewOnce.replay && !msg.viewOnce.replayLeft;
+  msg.viewOnce.opened = !firstOfTwo;
+  msg.viewOnce.replayLeft = firstOfTwo;
   const shown = viewOnceRow(msg, chat);
   row.replaceWith(shown);
   // Shown once, full screen; closing it is the end
   const box = h("div", { class: "vo-view", role: "dialog", "aria-modal": "true", "aria-label": "View once" },
-    h("div", { class: "vo-top" }, avatar(msg.author, 30), h("b", { text: shownName(msg.author) }), h("span", { class: "muted", text: "View once · it’s gone when you close it" })),
+    h("div", { class: "vo-top" }, avatar(msg.author, 30), h("b", { text: shownName(msg.author) }), h("span", { class: "muted", text: firstOfTwo ? "You can replay it one more time" : "View once · it’s gone when you close it" })),
     c.media?.kind === "image" ? h("img", { class: "vo-media", src: c.media.url, alt: "" })
       : c.media?.kind === "video" ? h("video", { class: "vo-media", src: c.media.url, poster: c.media.poster || null, autoplay: true, playsInline: true, controls: true })
       : null,
@@ -890,6 +964,22 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     });
     text.dataset.ph = text.placeholder;
     inputRow.insertBefore(voBtn, text);
+    // Disappearing photo or video (like Instagram's camera): pick or take one, then View once / Allow replay / Keep in chat
+    const camBtn = h("button", { type: "button", class: "tool-btn cam-btn", "aria-label": "Disappearing photo", title: "Disappearing photo or video" }, icon("camera"));
+    const camInput = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm", hidden: true });
+    camBtn.addEventListener("click", () => camInput.click());
+    camInput.addEventListener("change", () => {
+      const f = camInput.files[0];
+      camInput.value = "";
+      if (f) openDisappearing(f, async (body) => {
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } });
+        setReply(null);
+        add(message);
+        toBottom();
+      });
+    });
+    inputRow.insertBefore(camBtn, voBtn);
+    footer.append(camInput);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (send.disabled) return;
