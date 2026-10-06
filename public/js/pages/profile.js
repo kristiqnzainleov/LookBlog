@@ -302,6 +302,7 @@ export async function profilePage(view, m, params) {
   }
   const AVATAR = matchMedia("(max-width: 640px)").matches ? 104 : 144;
   const avatarWrap = h("div", { class: "profile-avatar" }, avatar({ ...profile, live: profile.liveNow }, AVATAR));
+  paintAccent();
   // Streaming right now: a big red "LIVE — Watch" button under the name
   const liveBtn = h("a", { class: "pf-live-btn", hidden: !profile.liveNow, href: profile.liveNow ? `/live/${profile.liveNow}` : "#" }, h("span", { text: "🔴 LIVE NOW" }), h("span", { text: profile.isMe ? "· Open your stream" : "· Watch" }));
   on("stream:state", (ev) => {
@@ -352,8 +353,11 @@ export async function profilePage(view, m, params) {
   });
   const nameEl = h("h2", {}, profile.name, tick(profile, 26), profile.private ? h("span", { class: "private-lock", title: "Private account", text: "🔒" }) : null);
   // Their own accent colour for the whole profile
-  const paintAccent = () => { if (profile.look?.accent) view.style.setProperty("--pink", profile.look.accent); else view.style.removeProperty("--pink"); };
-  paintAccent();
+  function paintAccent() {
+    if (profile.look?.accent) view.style.setProperty("--pink", profile.look.accent); else view.style.removeProperty("--pink");
+    // Ring around the photo, background, banner colours
+    import("../components/profile-look.js").then(({ applyProfileLook }) => applyProfileLook({ view, avatarWrap, banner }, profile.look));
+  }
 
   /* Role badges (Musician, Artist, …) under the name */
   const rolesEl = h("div", { class: "role-badges" });

@@ -5,7 +5,9 @@ import { navigate } from "../router.js";
 import { state, on } from "../state.js";
 import { postCard, pagedList, recommendedLoader, withReason } from "../components/post.js";
 
-let scope = (() => { try { const v = localStorage.getItem("lb_scope"); return ["following", "all"].includes(v) ? v : "foryou"; } catch { return "foryou"; } })();
+let scope = (() => { try { const v = localStorage.getItem("lb_scope"); return ["following", "all", "trending"].includes(v) ? v : "foryou"; } catch { return "foryou"; } })();
+// Trending: what kind, and over how long
+let trendType = "all", trendPeriod = "week";
 // A different line under "Feed" every time you come back
 const LINES = {
   all: [
@@ -26,6 +28,11 @@ const LINES = {
     "Picked for you from what you watch, like and reply to.",
     "Things you might like, from people you might not know yet.",
     "The more you like and watch, the better this gets.",
+  ],
+  trending: [
+    "What everyone is liking, replying to and watching right now.",
+    "The hottest posts and videos on LookBlog.",
+    "Hot right now. Newer things count more.",
   ],
   following: [
     "You and the people you follow, with their reposts.",
@@ -75,16 +82,28 @@ export function feedPage(view) {
 
   const subtitle = h("p", { class: "page-sub" });
   const tabs = h("div", { class: "tabs", role: "tablist" });
-  for (const [s, label] of [["foryou", "For you"], ["all", "All"], ["following", "Following"]]) {
+  for (const [s, label] of [["foryou", "For you"], ["trending", "🔥 Trending"], ["all", "All"], ["following", "Following"]]) {
     const b = h("button", { class: "tab", role: "tab", text: label, dataset: { scope: s } });
     b.addEventListener("click", () => { scope = s; try { localStorage.setItem("lb_scope", s); } catch {} load(); });
     tabs.append(b);
   }
 
+  // Trending: Posts / Videos / Shorts, and Today / This week / This month
+  const trendBar = h("div", { class: "trend-bar", hidden: true });
+  const chipRow = (list, get, set) => h("div", { class: "trend-chips" }, ...list.map(([v, label]) => {
+    const b = h("button", { type: "button", class: "trend-chip", dataset: { v }, text: label });
+    b.addEventListener("click", () => { set(v); load(); });
+    return b;
+  }));
+  const typeChips = chipRow([["all", "✨ All"], ["post", "📝 Posts"], ["video", "🎬 Videos"], ["short", "⚡ Shorts"]], () => trendType, (v) => { trendType = v; });
+  const periodChips = chipRow([["day", "Today"], ["week", "This week"], ["month", "This month"]], () => trendPeriod, (v) => { trendPeriod = v; });
+  trendBar.append(typeChips, periodChips);
+
   view.append(
     h("header", { class: "column-head" },
       h("div", { class: "head-row" }, h("div", { class: "head-text" }, h("h1", { text: "Feed" }), subtitle)),
-      tabs
+      tabs,
+      trendBar
     ),
     liveStrip(),
     pill,
@@ -102,20 +121,36 @@ export function feedPage(view) {
       t.setAttribute("aria-selected", String(t.dataset.scope === scope));
     });
     list.replaceChildren();
+    trendBar.hidden = scope !== "trending";
+    typeChips.querySelectorAll(".trend-chip").forEach((b) => b.classList.toggle("on", b.dataset.v === trendType));
+    periodChips.querySelectorAll(".trend-chip").forEach((b) => b.classList.toggle("on", b.dataset.v === trendPeriod));
+    let rank = 0;
+    const trendingCard = (p) => {
+      const card = postCard(p);
+      rank++;
+      card.classList.add("trending-card");
+      card.prepend(h("span", { class: "trend-rank" + (rank <= 3 ? " top" : ""), text: `🔥 #${rank}` }));
+      return card;
+    };
     pager = pagedList({
       container: list,
-      load: scope === "foryou" ? recommendedLoader() : (before) => api(`/api/feed?scope=${scope === "all" ? "latest&sort=cool" : "following"}${before ? "&before=" + encodeURIComponent(before) : ""}`),
-      render: (p) => (scope === "foryou" ? withReason(postCard(p), p) : postCard(p)),
+      load: scope === "foryou" ? recommendedLoader()
+        : scope === "trending" ? (before) => api(`/api/trending?type=${trendType}&period=${trendPeriod}${before ? "&before=" + encodeURIComponent(before) : ""}`)
+        : (before) => api(`/api/feed?scope=${scope === "all" ? "latest&sort=cool" : "following"}${before ? "&before=" + encodeURIComponent(before) : ""}`),
+      render: (p) => (scope === "foryou" ? withReason(postCard(p), p) : scope === "trending" ? trendingCard(p) : postCard(p)),
       emptyEl: () => scope === "following"
         ? empty("Your feed is quiet.", "Posts from you and the people you follow show up here. Follow a few people, or look at the latest posts.",
             h("button", { class: "btn btn-primary btn-sm", text: "See all posts", onclick: () => tabs.querySelector('[data-scope="all"]').click() }))
-        : empty("Nothing here yet.", "Nobody has posted so far. Write the first post on Look Blog."),
+        : scope === "trending"
+          ? empty("Nothing trending yet.", trendPeriod === "month" ? "When people like, reply to and watch things, they show up here." : "Try a longer time, like this month.",
+              trendPeriod === "month" ? null : h("button", { class: "btn btn-primary btn-sm", text: "This month", onclick: () => { trendPeriod = "month"; load(); } }))
+          : empty("Nothing here yet.", "Nobody has posted so far. Write the first post on Look Blog."),
     });
   }
 
   // My own new posts go straight to the top
   const offCreated = on("post:created", (p) => {
-    if (p.type === "short") return; // shorts live on the Shorts page
+    if (p.type === "short" || scope === "trending") return; // shorts live on the Shorts page
     list.querySelector(".empty")?.remove();
     const card = postCard(p);
     card.classList.add("new");
@@ -124,7 +159,7 @@ export function feedPage(view) {
 
   // Other people's new posts: offer a "show new posts" button instead of jumping the page
   const offNew = on("post:new", (ev) => {
-    if (ev.authorId === state.me.id || ev.postType === "short") return;
+    if (ev.authorId === state.me.id || ev.postType === "short" || scope === "trending") return;
     if (scope === "following" && !state.me.following?.includes(ev.authorId)) return;
     waiting++;
     pill.textContent = waiting === 1 ? "Show 1 new post" : `Show ${waiting} new posts`;

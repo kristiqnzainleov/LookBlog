@@ -4769,3 +4769,60 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .look-chip[data-nf="wide"] { letter-spacing: 0.08em; text-transform: uppercase; }
 .look-chip.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
 .look-editor .btn-full { margin-top: 10px; }
+
+/* ---------- Trending ---------- */
+.trend-bar { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 12px; max-width: 100%; }
+.trend-bar[hidden] { display: none; }
+.trend-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+.trend-chips::-webkit-scrollbar { display: none; }
+.trend-chip { flex: none; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card-2); color: var(--paper); font: 700 0.85rem var(--body); cursor: pointer; }
+.trend-chip.on { background: var(--pink); border-color: var(--pink); color: #000; }
+.trend-chips + .trend-chips .trend-chip { padding: 5px 12px; font-size: 0.78rem; font-weight: 600; }
+.trend-chips + .trend-chips .trend-chip.on { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+.trending-card { position: relative; }
+.trend-rank { position: absolute; top: 12px; right: 14px; z-index: 2; padding: 3px 10px; border-radius: 999px; background: var(--card-2); border: 1px solid var(--line); color: var(--paper); font: 800 0.78rem var(--body); }
+.trend-rank.top { background: linear-gradient(135deg, #ff8a3d, #ff4fa3); border-color: transparent; color: #000; }
+
+/* ---------- More profile looks: name emoji, photo ring, profile background, banner colours ---------- */
+.nl-emoji { display: inline-block; margin-left: 5px; -webkit-text-fill-color: initial; font-family: var(--body); font-style: normal; text-transform: none; letter-spacing: 0; filter: none; }
+/* Photo ring */
+.profile-avatar[data-ring]::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; z-index: 2; pointer-events: none; background: var(--ring);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px)); }
+.profile-avatar[data-ring="accent"] { --ring: var(--pink); }
+.profile-avatar[data-ring="sunset"] { --ring: conic-gradient(#ff7a3d, #ff4f8b, #b44cff, #ff7a3d); }
+.profile-avatar[data-ring="ocean"] { --ring: conic-gradient(#1f8bff, #29d3e6, #2ee6a6, #1f8bff); }
+.profile-avatar[data-ring="gold"] { --ring: conic-gradient(#fff3b0, #ffd23f, #c9971c, #ffd23f, #fff3b0); }
+.profile-avatar[data-ring="rainbow"] { --ring: conic-gradient(#ff4757, #ff8a3d, #ffd23f, #2ee6a6, #4cc9ff, #9b5cff, #ff4757); }
+.profile-avatar[data-ring="spin"] { --ring: conic-gradient(var(--pink), #ffd1ec, #9b5cff, #4cc9ff, var(--pink)); }
+.profile-avatar[data-ring="spin"]::after { animation: storySpin 3s linear infinite; filter: drop-shadow(0 0 10px var(--pink)); }
+.profile-avatar[data-ring="neon"] { --ring: linear-gradient(#39ff14, #00f0ff); }
+.profile-avatar[data-ring="neon"]::after { filter: drop-shadow(0 0 10px #39ff14); }
+.profile-avatar[data-ring="white"] { --ring: #fff; }
+/* Profile background */
+.view[data-pbg], .look-preview[data-pbg] { position: relative; isolation: isolate; }
+.view[data-pbg]::before, .look-preview[data-pbg]::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: 24px; }
+.view[data-pbg="glow"]::before, .look-preview[data-pbg="glow"]::before { background: radial-gradient(60% 420px at 50% 0, color-mix(in srgb, var(--pink) 32%, transparent), transparent); }
+.view[data-pbg="gradient"]::before, .look-preview[data-pbg="gradient"]::before { background: linear-gradient(180deg, color-mix(in srgb, var(--pink) 28%, transparent), transparent 720px); }
+.view[data-pbg="aurora"]::before, .look-preview[data-pbg="aurora"]::before { background: radial-gradient(40% 380px at 20% 0, rgba(46, 230, 166, 0.25), transparent), radial-gradient(40% 380px at 80% 60px, rgba(155, 92, 255, 0.3), transparent), radial-gradient(50% 300px at 50% 200px, color-mix(in srgb, var(--pink) 20%, transparent), transparent); }
+.view[data-pbg="stars"]::before, .look-preview[data-pbg="stars"]::before { background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent), radial-gradient(1px 1px at 90px 120px, #fff, transparent), radial-gradient(1.5px 1.5px at 160px 60px, color-mix(in srgb, var(--pink) 80%, #fff), transparent), radial-gradient(1px 1px at 230px 170px, #fff, transparent); background-size: 260px 220px; opacity: 0.55; }
+.view[data-pbg="grid"]::before, .look-preview[data-pbg="grid"]::before { background-image: linear-gradient(color-mix(in srgb, var(--pink) 16%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--pink) 16%, transparent) 1px, transparent 1px); background-size: 34px 34px; -webkit-mask: linear-gradient(#000, transparent 900px); mask: linear-gradient(#000, transparent 900px); }
+.view[data-pbg="dots"]::before, .look-preview[data-pbg="dots"]::before { background-image: radial-gradient(color-mix(in srgb, var(--pink) 35%, transparent) 1.5px, transparent 1.6px); background-size: 22px 22px; -webkit-mask: linear-gradient(#000, transparent 900px); mask: linear-gradient(#000, transparent 900px); }
+.view[data-pbg="waves"]::before, .look-preview[data-pbg="waves"]::before { background: repeating-radial-gradient(circle at 50% -200px, transparent 0 38px, color-mix(in srgb, var(--pink) 12%, transparent) 39px 41px); -webkit-mask: linear-gradient(#000, transparent 900px); mask: linear-gradient(#000, transparent 900px); }
+/* Banner colours (no banner picture) */
+.profile-banner.empty[data-bfx="sunset"] { background: linear-gradient(120deg, #ff7a3d, #ff4f8b, #b44cff); }
+.profile-banner.empty[data-bfx="ocean"] { background: linear-gradient(120deg, #0b3d91, #1f8bff, #29d3e6); }
+.profile-banner.empty[data-bfx="aurora"] { background: linear-gradient(120deg, #052e2b, #2ee6a6, #4cc9ff, #9b5cff); }
+.profile-banner.empty[data-bfx="candy"] { background: linear-gradient(120deg, #ff4fa3, #ffd1ec, #7ad7ff); }
+.profile-banner.empty[data-bfx="fire"] { background: linear-gradient(120deg, #ffd23f, #ff8a3d, #ff2e2e); }
+.profile-banner.empty[data-bfx="galaxy"] { background: radial-gradient(2px 2px at 30% 40%, #fff, transparent), radial-gradient(1.5px 1.5px at 70% 25%, #fff, transparent), radial-gradient(1.5px 1.5px at 85% 70%, #fff, transparent), linear-gradient(120deg, #1a0b3d, #4b1d8f, #b44cff, #ff4fa3); }
+.profile-banner.empty[data-bfx="night"] { background: linear-gradient(180deg, #05050a, #1a1430 70%, #3a1d4f); }
+.profile-banner.empty[data-bfx="mint"] { background: linear-gradient(120deg, #c9ffe9, #2ee6a6, #12b981); }
+.profile-banner.empty[data-bfx="mono"] { background: repeating-linear-gradient(135deg, #1a1818 0 24px, #232121 24px 48px); }
+/* The editor's little profile preview */
+.look-preview { position: relative; overflow: hidden; padding: 0 12px 16px; }
+.look-mini-banner { position: absolute; left: 0; right: 0; top: 0; height: 64px; background-size: cover; background-position: center; }
+.look-mini-avatar { position: relative; margin-top: 30px; z-index: 1; }
+.look-mini-avatar .avatar { border: 4px solid var(--card-2); }
+.look-preview-b { position: relative; z-index: 1; }
+.look-emo { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--card-2); font-size: 1.1rem; cursor: pointer; color: var(--paper); }
+.look-emo.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 20%, transparent); }

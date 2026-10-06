@@ -191,6 +191,10 @@ const NAME_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "s
   "sunset", "ocean", "aurora", "candy", "fire", "galaxy", "rainbow", "peach", "neon", "ice"];
 const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide"];
 const NAME_EFFECTS = ["glow", "shine", "shadow"];
+const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white"];
+const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora"];
+const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono"];
+const EMOJI_ONE = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u;
 const HEX = /^#[0-9a-f]{6}$/i;
 function cleanLook(b) {
   if (!b || typeof b !== "object") return null;
@@ -199,6 +203,10 @@ function cleanLook(b) {
   if (NAME_FONTS.includes(b.font)) out.font = b.font;
   if (NAME_EFFECTS.includes(b.effect)) out.effect = b.effect;
   if (HEX.test(b.accent || "")) out.accent = String(b.accent).toLowerCase();
+  if (RINGS.includes(b.ring)) out.ring = b.ring; // the ring around my photo
+  if (PROFILE_BGS.includes(b.bg)) out.bg = b.bg; // my profile's background
+  if (BANNERS.includes(b.banner)) out.banner = b.banner; // banner colours when there's no banner picture
+  if (typeof b.emoji === "string" && b.emoji.length <= 16 && EMOJI_ONE.test(b.emoji)) out.emoji = b.emoji; // an emoji next to my name
   return Object.keys(out).length ? out : null;
 }
 const lookOf = (u) => (u.look ? { ...u.look } : null);
@@ -602,6 +610,29 @@ async function handleSocial(req, res, url, me) {
     const items = scope === "following"
       ? timeline({ authors: people, reposters: people, type, sort, noShorts })
       : timeline({ type, sort, noShorts });
+    sendJSON(res, 200, page(items, url, me));
+    return true;
+  }
+
+  // Trending: GET /api/trending?type=all|post|video|short&period=day|week|month&before=
+  // What people are liking, Cool-ing, replying to, reposting and watching the most right now (newer counts more)
+  if (m === "GET" && a === "trending" && parts.length === 1) {
+    const type = TYPES.includes(url.searchParams.get("type")) ? url.searchParams.get("type") : null;
+    const HOURS = { day: 24, week: 24 * 7, month: 24 * 30 };
+    const hours = HOURS[url.searchParams.get("period")] || HOURS.week;
+    const now = Date.now(), from = now - hours * 3600 * 1000;
+    const items = [];
+    for (const p of db.posts) {
+      if (p.visibility !== "public" || ms(p.createdAt) < from) continue;
+      if (type && p.type !== type) continue;
+      if (type === "video" && notPlainVideo(p)) continue;
+      const engagement = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + p.viewedBy.length * 0.15 - p.dislikes.length * 0.5;
+      if (engagement <= 0) continue;
+      const age = (now - ms(p.createdAt)) / 3600000;
+      const score = (engagement + 1) / Math.pow(age + 2, hours <= 24 ? 1.5 : 1.1);
+      items.push({ post: p, at: p.createdAt, by: null, key: score + (ms(p.createdAt) % 1e6) / 1e15 });
+    }
+    items.sort((x, y) => y.key - x.key);
     sendJSON(res, 200, page(items, url, me));
     return true;
   }
