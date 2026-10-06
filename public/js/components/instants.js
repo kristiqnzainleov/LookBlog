@@ -41,10 +41,11 @@ function openInstants(data, reload) {
   const box = h("div", { class: "inst-screen", role: "dialog", "aria-modal": "true", "aria-label": "Looktures" });
   document.body.append(box);
   document.body.classList.add("no-scroll");
-  let stream = null, closed = false;
+  let stream = null, closed = false, sentCount = 0, sending = 0;
   const close = () => {
     if (closed) return;
     closed = true;
+    if (sentCount) toast(`⚡ ${sentCount} lookture${sentCount === 1 ? "" : "s"} sent to your friends.`);
     stream?.getTracks().forEach((t) => t.stop());
     box.remove();
     document.body.classList.remove("no-scroll");
@@ -96,7 +97,8 @@ function openInstants(data, reload) {
     mineBtn.addEventListener("click", () => openMine(data.mine));
     box.replaceChildren(
       h("header", { class: "inst-head" }, closeBtn(), h("b", { class: "inst-title", text: "Looktures" }), mineBtn),
-      h("div", { class: "inst-frame" }, video, h("span", { class: "inst-zoom", hidden: true })),
+      h("div", { class: "inst-frame" }, video, h("span", { class: "inst-zoom", hidden: true }), h("span", { class: "inst-sent", hidden: true })),
+      h("input", { type: "text", class: "inst-caption", placeholder: "Caption (optional)…", maxlength: 80, enterkeyhint: "done" }),
       h("p", { class: "inst-once", text: data.friends ? `Goes to your ${data.friends} friend${data.friends === 1 ? "" : "s"} · they see it once` : "Looktures go to friends: people you follow who follow you back" }),
       h("div", { class: "inst-controls" }, h("span"), shutter, flip));
     try {
@@ -140,39 +142,35 @@ function openInstants(data, reload) {
       g.drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, out, out);
       box.classList.add("flash");
       setTimeout(() => box.classList.remove("flash"), 250);
-      c.toBlob((blob) => blob && review(blob, facing), "image/jpeg", 0.88);
+      // Sent right away, and the camera stays open: snap as many as you like
+      const captionIn = box.querySelector(".inst-caption"), caption = captionIn.value;
+      captionIn.value = "";
+      c.toBlob((blob) => blob && fire(blob, caption, c.toDataURL("image/jpeg", 0.4)), "image/jpeg", 0.88);
     });
   }
 
-  // The photo you just took: add a few words, send it to your friends, or take another
-  function review(blob, facing) {
-    stream?.getTracks().forEach((t) => t.stop());
-    const src = URL.createObjectURL(blob);
-    const caption = h("input", { type: "text", class: "inst-caption", placeholder: "Add a caption…", maxlength: 80 });
-    const sendBtn = h("button", { type: "button", class: "btn btn-primary inst-send", text: data.friends ? `Send to ${data.friends} friend${data.friends === 1 ? "" : "s"}` : "Send" });
-    const retake = h("button", { type: "button", class: "btn btn-outline-light", text: "Retake" });
-    retake.addEventListener("click", () => { URL.revokeObjectURL(src); camera(facing); });
-    sendBtn.addEventListener("click", async () => {
-      sendBtn.disabled = retake.disabled = true;
-      sendBtn.textContent = "Sending…";
-      try {
-        const { url } = await upload(new File([blob], "instant.jpg", { type: "image/jpeg" }));
-        const r = await api("/api/instants", { method: "POST", body: { image: url, caption: caption.value } });
-        URL.revokeObjectURL(src);
-        toast(`⚡ Lookture sent to ${r.sentTo} friend${r.sentTo === 1 ? "" : "s"}.`);
-        close();
-      } catch (err) {
-        toast(err.error || "Couldn’t send it.");
-        sendBtn.disabled = retake.disabled = false;
-        sendBtn.textContent = "Send";
-      }
-    });
-    box.replaceChildren(
-      h("header", { class: "inst-head" }, closeBtn(), h("b", { class: "inst-title", text: "Looktures" }), h("span")),
-      h("figure", { class: "inst-photo" }, h("img", { src, alt: "" })),
-      caption,
-      h("div", { class: "inst-foot" }, retake, sendBtn));
-    caption.focus();
+  async function fire(blob, caption, thumb) {
+    const frame = box.querySelector(".inst-frame");
+    if (frame) {
+      const fly = h("img", { class: "inst-fly", src: thumb, alt: "" });
+      frame.append(fly);
+      setTimeout(() => fly.remove(), 700);
+    }
+    sending++;
+    paintSent();
+    try {
+      const { url } = await upload(new File([blob], "lookture.jpg", { type: "image/jpeg" }));
+      await api("/api/instants", { method: "POST", body: { image: url, caption } });
+      sentCount++;
+    } catch (err) { toast(err.error || "Couldn’t send that one."); }
+    sending--;
+    paintSent();
+  }
+  function paintSent() {
+    const el = box.querySelector(".inst-sent");
+    if (!el) return;
+    el.hidden = !sentCount && !sending;
+    el.textContent = sending ? `Sending… ${sentCount ? "· " + sentCount + " sent" : ""}` : `✓ ${sentCount} sent`;
   }
 }
 

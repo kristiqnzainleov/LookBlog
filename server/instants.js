@@ -70,7 +70,8 @@ async function handleInstants(req, res, url, me) {
 
   // Send one: POST /api/instants { image, caption }  (the photo was just taken with the camera)
   if (m === "POST" && parts.length === 1) {
-    rateLimit("instant:" + me.id, 60, 60 * 60 * 1000, "You’ve sent a lot of looktures. Try again later.");
+    rateLimit("instant:" + me.id, 40, 60 * 1000, "Wow, that’s a lot of looktures! Wait a minute.");
+    rateLimit("instant-h:" + me.id, 400, 60 * 60 * 1000, "You’ve sent a lot of looktures. Try again later.");
     const body = await readJSON(req);
     const img = ownedMedia(body.image, me.id, "image");
     if (!img) throw httpError(400, "Take a photo first.");
