@@ -5,7 +5,7 @@ import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake } from "./voice-music.js";
-import { playFx, setBeat, playCustom } from "./dj.js";
+import { playFx, setBeat, playCustom, setBeatMix } from "./dj.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings, hdDescription, hdSenders } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
 import * as wt from "./watch-together.js";
@@ -61,6 +61,7 @@ export async function joinVoice(chat, channel) {
   // DJ: who's on the decks, and their drum machine
   setDj(joined.dj || null);
   setBeat(joined.beat || null, room.skew);
+  if (joined.beatMix) setBeatMix(joined.beatMix);
   room.status = joined.status || null;
   room.ping = setInterval(() => post({ kind: "ping" }).then((r) => { syncPeople(r.participants); syncWatch(r); }).catch((err) => { if (/not in that voice/i.test(err.error || "")) leaveVoice(true); }), 15000);
   playTone(true);
@@ -368,6 +369,7 @@ on("voice:dj", (ev) => {
     if (ev.fx === "brake") musicBrake();
   }
   if (ev.action === "beat") setBeat(ev.beat, room.skew);
+  if (ev.action === "beatmix" && ev.beatMix) setBeatMix(ev.beatMix);
   if (ev.action === "release") setBeat(null);
   paintDock();
 });

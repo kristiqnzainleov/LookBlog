@@ -45,7 +45,9 @@ const level = () => (deaf ? 0 : Math.round((current?.volume ?? volume) * fadeMul
 let deckB = null; // { id, yt, box, audio }
 const mixX = () => current?.mix?.x || 0;
 function applyVols() {
-  const a = level() * (1 - mixX()), b = level() * mixX();
+  // The DJ's mixer: crossfader between the decks, and each deck's channel fader
+  const lv = current?.levels || { a: 1, b: 1 };
+  const a = level() * (1 - mixX()) * (lv.a ?? 1), b = level() * mixX() * (lv.b ?? 1);
   if (audio) audio.volume = Math.max(0, Math.min(1, a / 100));
   try { yt?.setVolume(Math.round(a)); } catch {}
   if (deckB?.audio) deckB.audio.volume = Math.max(0, Math.min(1, b / 100));
@@ -285,7 +287,10 @@ export function openMusicPanel() {
   const dj = djConsole({ post: (b) => post(b), music: () => current, position: () => (current?.now ? position(current) : 0), duration: () => musicDuration(), dj: () => djNow });
   const djWrap = h("div", { class: "dj-wrap", hidden: !djNow }, dj.el);
   const djBtn = h("button", { type: "button", class: "btn btn-sm dj-toggle" + (djNow ? " on" : ""), text: djNow ? `🎛 DJ Mode · 🎧 @${djNow.username}` : "🎛 DJ Mode" });
-  djBtn.addEventListener("click", () => { djWrap.hidden = !djWrap.hidden; djBtn.classList.toggle("open", !djWrap.hidden); if (!djWrap.hidden) dj.paint(); });
+  // The controller is wide: keep the window on the screen
+  const fit = () => requestAnimationFrame(() => { const w = djWrap.closest(".float-win"); if (!w) return; const r = w.getBoundingClientRect(); if (r.right > innerWidth - 8) w.style.left = Math.max(8, innerWidth - r.width - 8) + "px"; });
+  djBtn.addEventListener("click", () => { djWrap.hidden = !djWrap.hidden; djBtn.classList.toggle("open", !djWrap.hidden); if (!djWrap.hidden) dj.paint(); fit(); });
+  setTimeout(fit, 50);
   const prevChange2 = onChange;
   onChange = () => { prevChange2(); if (!body.isConnected) return; dj.paint(); djBtn.textContent = djNow ? `🎛 DJ Mode · 🎧 @${djNow.username}` : "🎛 DJ Mode"; djBtn.classList.toggle("on", Boolean(djNow)); };
   body.append(djBtn, djWrap, now,

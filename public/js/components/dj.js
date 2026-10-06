@@ -7,9 +7,19 @@ import { api as apiCall, upload } from "../api.js";
 import { state } from "../state.js";
 
 let ctx = null, master = null;
+// The drum machine has its own channel on the mixer: gain → low / mid / high EQ → filter → level meter
+let beatBus = null;
 function engine() {
   if (!ctx) {
-    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination); } catch { return null; }
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination);
+      const gain = ctx.createGain(), low = ctx.createBiquadFilter(), mid = ctx.createBiquadFilter(), high = ctx.createBiquadFilter(), filter = ctx.createBiquadFilter(), meter = ctx.createAnalyser();
+      low.type = "lowshelf"; low.frequency.value = 200; mid.type = "peaking"; mid.frequency.value = 1000; mid.Q.value = 0.9; high.type = "highshelf"; high.frequency.value = 4000;
+      filter.type = "allpass"; meter.fftSize = 256;
+      gain.connect(low); low.connect(mid); mid.connect(high); high.connect(filter); filter.connect(meter); meter.connect(master);
+      beatBus = { gain, low, mid, high, filter, meter };
+      if (pendingMix) setBeatMix(pendingMix);
+    } catch { return null; }
   }
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
   return ctx;
@@ -25,10 +35,30 @@ const noise = (c, secs) => {
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   const s = c.createBufferSource(); s.buffer = b; return s;
 };
-function env(c, node, t, a, peak, d) { const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); node.connect(g); g.connect(master); return g; }
-function osc(c, type, f0, f1, t, dur, peak = 0.3, a = 0.01) {
+function env(c, node, t, a, peak, d, dest = master) { const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); node.connect(g); g.connect(dest); return g; }
+function osc(c, type, f0, f1, t, dur, peak = 0.3, a = 0.01, dest = master) {
   const o = c.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
-  env(c, o, t, a, peak, dur); o.start(t); o.stop(t + a + dur + 0.05); return o;
+  env(c, o, t, a, peak, dur, dest); o.start(t); o.stop(t + a + dur + 0.05); return o;
+}
+// The beat channel's knobs (everyone hears the same): gain, EQ in dB, filter −1 (low-pass) … 0 (off) … +1 (high-pass)
+let pendingMix = null, beatMixNow = { gain: 1, low: 0, mid: 0, high: 0, filter: 0 };
+export function setBeatMix(mix) {
+  beatMixNow = { ...beatMixNow, ...(mix || {}) };
+  if (!beatBus) { pendingMix = beatMixNow; return; }
+  const t = ctx.currentTime, b = beatBus, m = beatMixNow;
+  b.gain.gain.setTargetAtTime(m.gain, t, 0.03);
+  b.low.gain.setTargetAtTime(m.low, t, 0.03); b.mid.gain.setTargetAtTime(m.mid, t, 0.03); b.high.gain.setTargetAtTime(m.high, t, 0.03);
+  if (Math.abs(m.filter) < 0.04) b.filter.type = "allpass";
+  else if (m.filter < 0) { b.filter.type = "lowpass"; b.filter.frequency.setTargetAtTime(20000 * Math.pow(0.012, -m.filter), t, 0.03); }
+  else { b.filter.type = "highpass"; b.filter.frequency.setTargetAtTime(20 * Math.pow(200, m.filter), t, 0.03); }
+}
+export const beatMix = () => beatMixNow;
+// How loud the beat channel is right now (0–1), for its meter
+export function beatLevel() {
+  if (!beatBus) return 0;
+  const a = new Uint8Array(beatBus.meter.fftSize); beatBus.meter.getByteTimeDomainData(a);
+  let peak = 0; for (const v of a) peak = Math.max(peak, Math.abs(v - 128) / 128);
+  return Math.min(1, peak * 1.6);
 }
 
 // The effect pads
@@ -119,154 +149,218 @@ export function setBeat(b, skew = 0) {
   beat = { b, timer: setInterval(() => {
     while (nextAt < c.currentTime + 0.12) {
       const i = n % 16;
-      if (pat.kick[i] === "x") osc(c, "sine", 150, 40, nextAt, 0.25, 0.8, 0.002);
-      if (pat.snare[i] === "x") { const s = noise(c, 0.18), f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 1500; s.connect(f); env(c, f, nextAt, 0.001, 0.35, 0.15); s.start(nextAt); osc(c, "triangle", 220, 180, nextAt, 0.1, 0.15); }
-      if (pat.hat[i] === "x") { const s = noise(c, 0.05), f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7000; s.connect(f); env(c, f, nextAt, 0.001, 0.12, 0.04); s.start(nextAt); }
+      const bus = beatBus?.gain || master;
+      if (pat.kick[i] === "x") osc(c, "sine", 150, 40, nextAt, 0.25, 0.8, 0.002, bus);
+      if (pat.snare[i] === "x") { const s = noise(c, 0.18), f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 1500; s.connect(f); env(c, f, nextAt, 0.001, 0.35, 0.15, bus); s.start(nextAt); osc(c, "triangle", 220, 180, nextAt, 0.1, 0.15, 0.01, bus); }
+      if (pat.hat[i] === "x") { const s = noise(c, 0.05), f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7000; s.connect(f); env(c, f, nextAt, 0.001, 0.12, 0.04, bus); s.start(nextAt); }
       n++; nextAt += step;
     }
   }, 25) };
 }
 export const beatOn = () => beat?.b || null;
 
-/* ---------- The DJ console (inside the music window) ---------- */
-// api: { post(body), music() → current music, position() → seconds, dj() → { username } | null }
+/* ---------- The DJ controller (inside the music window) ----------
+   Like a real two-deck controller: deck A (what's playing) and deck B (the next song) with jog wheels,
+   a mixer in the middle (channel faders, knobs, meters, crossfader) and performance pads. */
+
+// A knob: drag up/down (or scroll) to turn it; double-click puts it back
+function knob(label, { min, max, value, def = value, step = 0.01, disabled = false, fmtv = (v) => v.toFixed(2), onChange, accent = "" }) {
+  let v = value;
+  const ind = h("i", { class: "knob-ind" });
+  const val = h("small", { class: "knob-val", text: fmtv(v) });
+  const dial = h("div", { class: "knob-dial" + (accent ? " " + accent : ""), role: "slider", tabindex: disabled ? -1 : 0, "aria-label": label, "aria-valuemin": min, "aria-valuemax": max }, ind);
+  const el = h("div", { class: "knob" + (disabled ? " off" : "") }, dial, h("b", { class: "knob-lbl", text: label }), val);
+  const show = () => { const k = (v - min) / (max - min); ind.style.transform = `rotate(${-135 + k * 270}deg)`; val.textContent = fmtv(v); dial.setAttribute("aria-valuenow", v); };
+  const set = (x) => { v = Math.max(min, Math.min(max, Math.round(x / step) * step)); show(); onChange?.(v); };
+  if (!disabled) {
+    let drag = null;
+    dial.addEventListener("pointerdown", (e) => { e.preventDefault(); drag = { y: e.clientY, v }; dial.setPointerCapture(e.pointerId); });
+    dial.addEventListener("pointermove", (e) => { if (drag) set(drag.v + ((drag.y - e.clientY) / 120) * (max - min)); });
+    dial.addEventListener("pointerup", () => { drag = null; });
+    dial.addEventListener("wheel", (e) => { e.preventDefault(); set(v - Math.sign(e.deltaY) * (max - min) / 40); }, { passive: false });
+    dial.addEventListener("dblclick", () => set(def));
+    dial.addEventListener("keydown", (e) => { if (e.key === "ArrowUp" || e.key === "ArrowRight") set(v + (max - min) / 40); if (e.key === "ArrowDown" || e.key === "ArrowLeft") set(v - (max - min) / 40); });
+  }
+  show();
+  return el;
+}
+// A vertical fader (0–1)
+function vfader(label, value, { disabled = false, onChange } = {}) {
+  const input = h("input", { type: "range", min: 0, max: 100, value: Math.round(value * 100), class: "vfader", disabled, "aria-label": label });
+  input.addEventListener("input", () => onChange?.(Number(input.value) / 100));
+  return h("div", { class: "vfader-wrap" }, input, h("b", { class: "knob-lbl", text: label }));
+}
+// A level meter: a column of lights
+function meter(levelFn) {
+  const leds = Array.from({ length: 12 }, (_, i) => h("i", { class: i >= 10 ? "red" : i >= 7 ? "amber" : "" }));
+  const el = h("div", { class: "vu" }, ...leds.slice().reverse());
+  const tick = () => {
+    if (!el.isConnected) return;
+    const n = Math.round(levelFn() * leds.length);
+    leds.forEach((l, i) => l.classList.toggle("on", i < n));
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  return el;
+}
+// Music meters: YouTube doesn't let a page measure its sound, so these move with what's playing and how loud the channel is set
+const fakeLevel = (on, lvl) => () => (on() ? Math.max(0, Math.min(1, lvl() * (0.55 + 0.35 * Math.abs(Math.sin(performance.now() / 140)) + Math.random() * 0.15))) : 0);
+
 export function djConsole(api) {
   const box = h("div", { class: "dj" });
   const cues = JSON.parse(sessionStorage.getItem("lb-dj-cues") || "{}");
-  let taps = [], autoMix = false, mixing = false;
-  let setMode = false;
+  let setMode = false, taps = [], autoMix = false, mixing = false, tab = "fx", holding = false, myPads = [];
   const send = (b) => api.post({ kind: "dj", ...b }).catch((err) => toast(err.error || "Couldn’t do that."));
-  let holding = false; // while the DJ's hand is on the record, the console isn't redrawn (it would drop the record)
+  const throttle = (fn, ms = 140) => { let t = null, last; return (...a) => { last = a; if (!t) t = setTimeout(() => { t = null; fn(...last); }, ms); }; };
+  const sendLevels = throttle((lv) => send({ action: "levels", ...lv }));
+  const sendBeatMix = throttle((mx) => { setBeatMix(mx); send({ action: "beatmix", ...mx }); });
+  const sendMaster = throttle((v) => api.post({ kind: "music", action: "volume", volume: Math.round(v * 100) }));
+  const sendX = throttle((x) => send({ action: "mix", x }));
+
   function paint() {
     if (holding) return;
     const dj = api.dj(), me = dj?.username === state.me.username, m = api.music();
     const lock = !me;
     const pad = (label, cls, fn, title) => { const b = h("button", { type: "button", class: "dj-pad " + cls, text: label, title: title || label, disabled: lock }); b.addEventListener("click", fn); return b; };
-    const head = h("div", { class: "dj-head" },
-      h("b", { text: "🎛 DJ Mode" }),
+    const nextItem = m?.mix?.item || m?.queue?.[0] || null;
+    const lv = m?.levels || { a: 1, b: 1 };
+
+    // ---- top bar ----
+    const top = h("div", { class: "djc-top" },
+      h("b", { class: "djc-brand", text: "LookBlog DDJ-2" }),
       dj ? h("span", { class: "dj-who" + (me ? " me" : ""), text: me ? "🎧 You’re the DJ" : `🎧 @${dj.username} is DJing` }) : h("span", { class: "muted", text: "Nobody is DJing" }),
+      me ? pad(autoMix ? "🤖 Auto-mix ON" : "🤖 Auto-mix", "dj-small" + (autoMix ? " on" : ""), () => { autoMix = !autoMix; paint(); toast(autoMix ? "Auto-mix is on: songs blend into each other." : "Auto-mix is off."); }) : null,
       me ? h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Step down", onclick: () => send({ action: "release" }) })
-        : h("button", { type: "button", class: "btn btn-xs btn-primary", text: dj ? "Take over" : "🎧 Take the decks", disabled: Boolean(dj), onclick: () => send({ action: "claim" }) }));
-    const track = m?.now ? h("div", { class: "dj-deck" }, turntable(m, me),
-      h("div", { class: "dj-track" }, h("b", { text: m.now.title }), h("small", { class: "muted", text: `${(m.rate || 1)}× speed${m.loop ? ` · 🔁 loop ${m.loop.len}s` : ""}` }),
-        m.queue?.length ? h("small", { class: "muted", text: `Next: ${m.queue[0].title}` }) : h("small", { class: "muted", text: "Nothing queued next" }),
-        me ? h("small", { class: "dj-hint", text: "🌀 Grab the record and turn it to scratch & scrub" }) : null))
-      : h("p", { class: "muted", text: "Play a song first (YouTube or LookBlog), then mix it here." });
-    // Crossfader: from what's playing (A) into the next song in the queue (B)
-    const xf = h("input", { type: "range", min: 0, max: 100, value: Math.round((m?.mix?.x || 0) * 100), class: "dj-xfader", disabled: lock || !m?.now || (!m?.queue?.length && !m?.mix), "aria-label": "Crossfader" });
-    let xfTimer;
-    xf.addEventListener("input", () => { clearTimeout(xfTimer); xfTimer = setTimeout(() => send({ action: "mix", x: Number(xf.value) / 100 }), 120); });
-    const mixRow = h("div", { class: "dj-mix" },
-      h("span", { class: "dj-deck-lbl", title: m?.now?.title || "", text: "A · " + (m?.now?.title || "—") }),
-      xf,
-      h("span", { class: "dj-deck-lbl b", title: (m?.mix?.item || m?.queue?.[0])?.title || "", text: "B · " + ((m?.mix?.item || m?.queue?.[0])?.title || "queue a song") }));
-    // Speed, and a nudge you hold (pitch bend) to push the track a little faster or slower
+        : h("button", { type: "button", class: "btn btn-xs btn-primary", text: dj ? "Taken" : "🎧 Take the decks", disabled: Boolean(dj), onclick: () => send({ action: "claim" }) }));
+
+    // ---- deck A: what's playing ----
+    const rateSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
+    const pitch = h("input", { type: "range", min: 0, max: rateSteps.length - 1, step: 1, value: Math.max(0, rateSteps.indexOf(m?.rate || 1)), class: "vfader pitch", disabled: lock || !m?.now, "aria-label": "Tempo" });
+    pitch.addEventListener("change", () => send({ action: "rate", rate: rateSteps[Number(pitch.value)] }));
     const nudge = (label, rate) => {
-      const b = h("button", { type: "button", class: "dj-pad dj-small", text: label, title: "Hold to nudge", disabled: lock });
-      const was = () => m?.rate || 1;
+      const b = h("button", { type: "button", class: "dj-pad dj-small", text: label, title: "Hold to nudge", disabled: lock || !m?.now });
       let base = 1;
-      b.addEventListener("pointerdown", () => { base = was(); send({ action: "rate", rate }); });
-      const back = () => send({ action: "rate", rate: base });
-      b.addEventListener("pointerup", back); b.addEventListener("pointerleave", (e) => { if (e.buttons) back(); });
+      b.addEventListener("pointerdown", () => { base = m?.rate || 1; send({ action: "rate", rate }); });
+      b.addEventListener("pointerup", () => send({ action: "rate", rate: base }));
       return b;
     };
-    const speeds = h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "Tempo" }),
-      ...[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => pad(r + "×", "dj-small" + ((m?.rate || 1) === r ? " on" : ""), () => send({ action: "rate", rate: r }))),
-      nudge("◀ Nudge", 0.75), nudge("Nudge ▶", 1.25));
-    // Beat jump: skip back or forward
-    const jumps = h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "Jump" }),
-      ...[-16, -8, -4, 4, 8, 16].map((d) => pad((d > 0 ? "+" : "") + d + "s", "dj-small", () => send({ action: "cue", at: Math.max(0, api.position() + d) }))));
-    // Hot cues: tap to jump (everyone); "Set" first to save the current moment
-    const cueRow = h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "Cues" }),
-      ...[1, 2, 3, 4].map((k) => pad(cues[m?.now?.id]?.[k] != null ? `${k} · ${fmt(cues[m.now.id][k])}` : `${k}`, "dj-cue" + (setMode ? " setting" : ""), () => {
+    const left = m?.now ? Math.max(0, (api.duration?.() || 0) - api.position()) : 0;
+    const deckA = h("div", { class: "djc-deck a" },
+      h("div", { class: "djc-deck-head" }, h("span", { class: "djc-tag", text: "A" }), h("b", { class: "djc-title", text: m?.now?.title || "No track" }),
+        h("small", { class: "djc-time" }, h("span", { class: "dj-pos", text: fmt(api.position()) }), left ? ` · −${fmt(left)}` : "")),
+      h("div", { class: "djc-jogrow" }, m?.now ? turntable(m, me) : h("div", { class: "tt empty" }),
+        h("div", { class: "djc-pitch" }, h("small", { text: "+" }), pitch, h("small", { text: "−" }), h("b", { class: "knob-lbl", text: (m?.rate || 1) + "×" }))),
+      h("div", { class: "djc-transport" },
+        pad("CUE", "dj-round cue", () => { const c = cues[m?.now?.id]?.[1]; send({ action: "cue", at: c ?? 0 }); }, "Back to cue 1 (or the start)"),
+        pad(m?.pausedAt == null ? "⏸" : "▶", "dj-round play" + (m?.pausedAt == null ? " on" : ""), () => api.post({ kind: "music", action: m?.pausedAt == null ? "pause" : "resume" })),
+        nudge("◀", 0.75), nudge("▶", 1.25)),
+      h("div", { class: "djc-hot" }, ...[1, 2, 3, 4].map((k) => pad(cues[m?.now?.id]?.[k] != null ? fmt(cues[m.now.id][k]) : `HOT ${k}`, "dj-hotcue c" + k + (setMode ? " setting" : ""), () => {
         if (!m?.now) return;
-        if (setMode || cues[m.now.id]?.[k] == null) {
-          cues[m.now.id] = { ...(cues[m.now.id] || {}), [k]: api.position() };
-          sessionStorage.setItem("lb-dj-cues", JSON.stringify(cues)); setMode = false; paint(); toast(`Cue ${k} set at ${fmt(api.position())}.`);
-        } else send({ action: "cue", at: cues[m.now.id][k] });
-      })),
-      pad(setMode ? "Setting…" : "Set", "dj-small" + (setMode ? " on" : ""), () => { setMode = !setMode; paint(); }, "Save the current moment on a cue"));
-    // Loops
-    const loops = h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "Loop" }),
-      ...[1, 2, 4, 8].map((sec) => pad(sec + "s", "dj-small" + (m?.loop?.len === sec ? " on" : ""), () => send({ action: "loop", seconds: sec }))),
-      pad("Off", "dj-small", () => send({ action: "loop", seconds: 0 })));
-    // Transport and moves on the music itself
-    const moves = h("div", { class: "dj-row" },
-      pad("🔉 Fade out", "dj-wide", () => send({ action: "fx", fx: "fade" })),
-      pad("🔊 Fade in", "dj-wide", () => send({ action: "fx", fx: "fadein" })),
-      pad("✂️ Cut", "dj-wide", () => send({ action: "fx", fx: "cut" }), "Silence the music for a moment"),
-      pad("〰️ Echo out", "dj-wide", () => send({ action: "fx", fx: "echo" }), "The music echoes away"),
-      pad("⏪ Backspin", "dj-wide", () => send({ action: "fx", fx: "backspin" }), "Spin the record back"));
-    const transport = h("div", { class: "dj-row" },
-      pad(m?.pausedAt == null ? "⏸ Pause" : "▶ Play", "dj-wide", () => api.post({ kind: "music", action: m?.pausedAt == null ? "pause" : "resume" })),
-      pad("🛑 Brake", "dj-wide", () => send({ action: "fx", fx: "brake" })),
-      pad("🌀 Mix to next", "dj-wide", async () => {
-        if (!m?.queue?.length) return toast("Queue a song first, then mix into it.");
-        await send({ action: "fx", fx: "fade" });
-        setTimeout(() => api.post({ kind: "music", action: "skip" }).catch(() => {}), 2600);
-      }, "Fade out and bring in the next song"));
-    // Effect pads
-    const fx = h("div", { class: "dj-pads" }, ...[["📯", "airhorn", "Airhorn"], ["🚨", "siren", "Siren"], ["💿", "scratch", "Scratch"], ["🔫", "laser", "Laser"], ["🚀", "riser", "Riser"], ["💥", "drop", "Drop"],
-      ["⏪", "rewind", "Rewind"], ["👏", "clap", "Clap"], ["🎺", "horn", "Horn"], ["🔊", "boom", "Boom"], ["🙌", "cheer", "Crowd"], ["😗", "whistle", "Whistle"],
-      ["🥁", "roll", "Snare roll"], ["⚡", "zap", "Zap"], ["🌊", "cymbal", "Rev. cymbal"], ["🫨", "bassdrop", "Bass drop"], ["🔔", "gong", "Gong"], ["📻", "vinyl", "Vinyl crackle"]].map(([e, k, label]) => pad(`${e} ${label}`, "dj-fx", () => send({ action: "fx", fx: k }))));
-    // Drum machine
-    const b = beatOn();
-    const bpm = h("input", { type: "range", min: 70, max: 180, value: b?.bpm || 124, class: "dj-bpm", disabled: lock });
-    const bpmN = h("span", { class: "dj-bpm-n", text: (b?.bpm || 124) + " BPM" });
-    bpm.addEventListener("input", () => { bpmN.textContent = bpm.value + " BPM"; });
-    bpm.addEventListener("change", () => { if (beatOn()) send({ action: "beat", bpm: Number(bpm.value), pattern: beatOn().pattern }); });
-    const NAMES = { hiphop: "Hip-hop", dnb: "Drum & bass", reggaeton: "Reggaeton" };
-    const beats = h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "Beat" }),
-      ...["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco"].map((p) => pad(NAMES[p] || p[0].toUpperCase() + p.slice(1), "dj-small" + (b?.pattern === p ? " on" : ""), () => send({ action: "beat", bpm: Number(bpm.value), pattern: p }))),
-      pad("Off", "dj-small", () => send({ action: "beat", bpm: 0 })));
-    // Tap tempo: tap 4 times in time to set the beat's BPM
-    const tap = pad("👆 Tap tempo", "dj-small", () => {
-      const now = performance.now();
-      taps = taps.filter((t) => now - t < 2500); taps.push(now);
-      if (taps.length >= 3) {
-        const gaps = taps.slice(1).map((t, i) => t - taps[i]), avg = gaps.reduce((a, x) => a + x, 0) / gaps.length;
-        const v = Math.max(70, Math.min(180, Math.round(60000 / avg)));
-        bpm.value = v; bpmN.textContent = v + " BPM";
-        if (beatOn()) send({ action: "beat", bpm: v, pattern: beatOn().pattern });
-      }
-    });
-    // Auto-mix: near the end of a song, the decks crossfade into the next one by themselves
-    const auto = pad(autoMix ? "🤖 Auto-mix: on" : "🤖 Auto-mix: off", "dj-small" + (autoMix ? " on" : ""), () => { autoMix = !autoMix; paint(); toast(autoMix ? "Auto-mix is on: songs blend into each other." : "Auto-mix is off."); });
-    // My own effects (MP3s): tap to play for everyone, ＋ to add one
-    const mine = h("div", { class: "dj-pads mine" },
-      ...myPads.map((p) => {
-        const b = pad(`${p.emoji} ${p.name}`, "dj-fx dj-mine", () => send({ action: "fx", fx: "custom", padId: p.id }));
-        const del = h("span", { class: "dj-del", title: "Remove", text: "✕" });
-        del.addEventListener("click", async (e) => { e.stopPropagation(); try { myPads = (await apiCall(`/api/me/dj-pads/${p.id}`, { method: "DELETE" })).pads; paint(); } catch {} });
-        b.append(del);
-        return b;
-      }),
+        if (setMode || cues[m.now.id]?.[k] == null) { cues[m.now.id] = { ...(cues[m.now.id] || {}), [k]: api.position() }; sessionStorage.setItem("lb-dj-cues", JSON.stringify(cues)); setMode = false; paint(); toast(`Hot cue ${k} at ${fmt(api.position())}.`); }
+        else send({ action: "cue", at: cues[m.now.id][k] });
+      })), pad(setMode ? "SET…" : "SET", "dj-small" + (setMode ? " on" : ""), () => { setMode = !setMode; paint(); }, "Save the moment on a hot cue")),
+      h("div", { class: "djc-loops" }, h("span", { class: "dj-lbl", text: "Loop" }), ...[1, 2, 4, 8].map((sec) => pad(String(sec), "dj-small" + (m?.loop?.len === sec ? " on" : ""), () => send({ action: "loop", seconds: sec }))), pad("✕", "dj-small", () => send({ action: "loop", seconds: 0 })),
+        h("span", { class: "dj-lbl", text: "Jump" }), pad("−8", "dj-small", () => send({ action: "cue", at: Math.max(0, api.position() - 8) })), pad("+8", "dj-small", () => send({ action: "cue", at: api.position() + 8 }))));
+
+    // ---- deck B: the next song ----
+    const deckB = h("div", { class: "djc-deck b" },
+      h("div", { class: "djc-deck-head" }, h("span", { class: "djc-tag", text: "B" }), h("b", { class: "djc-title", text: nextItem?.title || "Queue a song" }), h("small", { class: "djc-time", text: m?.mix ? "▶ playing" : nextItem ? "loaded" : "" })),
+      h("div", { class: "djc-jogrow" }, deckBDisc(nextItem, Boolean(m?.mix)), h("div", { class: "djc-pitch" }, h("small", { text: " " }), h("input", { type: "range", class: "vfader pitch", disabled: true, value: 2, min: 0, max: 4, "aria-label": "Tempo B" }), h("small", { text: " " }), h("b", { class: "knob-lbl", text: "1×" }))),
+      h("div", { class: "djc-transport" },
+        pad("▶ B", "dj-round play" + (m?.mix ? " on" : ""), () => { if (!nextItem) return toast("Queue a song to load it on deck B."); send({ action: "mix", x: Math.max(0.05, m?.mix?.x || 0.05) }); }, "Start deck B (it plays quietly under A)"),
+        pad("🌀 MIX", "dj-round", () => blend(m), "Blend into deck B over 8 seconds"),
+        pad("⏭ CUT", "dj-round", () => { if (!nextItem) return toast("Queue a song first."); send({ action: "mix", x: 1 }); }, "Straight to deck B")),
+      h("p", { class: "djc-note", text: nextItem ? "Deck B is the next song in the queue." : "Add songs to the queue (below) to load deck B." }));
+
+    // ---- mixer ----
+    const strip = (name, kids) => h("div", { class: "djc-strip" }, h("b", { class: "djc-strip-name", text: name }), ...kids);
+    const bm = beatMix();
+    const playingA = () => Boolean(api.music()?.now && api.music()?.pausedAt == null);
+    const mixer = h("div", { class: "djc-mixer" },
+      h("div", { class: "djc-strips" },
+        strip("CH A", [knob("GAIN", { min: 0, max: 1, value: lv.a, def: 1, disabled: lock || !m?.now, fmtv: (v) => Math.round(v * 100) + "%", onChange: (v) => sendLevels({ a: v }) }),
+          meter(fakeLevel(playingA, () => (api.music()?.levels?.a ?? 1) * (1 - (api.music()?.mix?.x || 0)))),
+          vfader("A", lv.a, { disabled: lock || !m?.now, onChange: (v) => sendLevels({ a: v }) })]),
+        strip("BEAT", [knob("HI", { min: -24, max: 12, value: bm.high, def: 0, step: 1, disabled: lock, fmtv: (v) => (v > 0 ? "+" : "") + v + "dB", onChange: (v) => sendBeatMix({ high: v }) }),
+          knob("MID", { min: -24, max: 12, value: bm.mid, def: 0, step: 1, disabled: lock, fmtv: (v) => (v > 0 ? "+" : "") + v + "dB", onChange: (v) => sendBeatMix({ mid: v }) }),
+          knob("LOW", { min: -24, max: 12, value: bm.low, def: 0, step: 1, disabled: lock, fmtv: (v) => (v > 0 ? "+" : "") + v + "dB", onChange: (v) => sendBeatMix({ low: v }) }),
+          knob("FILTER", { min: -1, max: 1, value: bm.filter, def: 0, disabled: lock, accent: "filter", fmtv: (v) => (Math.abs(v) < 0.04 ? "OFF" : v < 0 ? "LPF" : "HPF"), onChange: (v) => sendBeatMix({ filter: v }) }),
+          meter(beatLevel),
+          vfader("BEAT", Math.min(1, bm.gain), { disabled: lock, onChange: (v) => sendBeatMix({ gain: v }) })]),
+        strip("CH B", [knob("GAIN", { min: 0, max: 1, value: lv.b, def: 1, disabled: lock || !m?.now, fmtv: (v) => Math.round(v * 100) + "%", onChange: (v) => sendLevels({ b: v }) }),
+          meter(fakeLevel(() => Boolean(api.music()?.mix), () => (api.music()?.levels?.b ?? 1) * (api.music()?.mix?.x || 0))),
+          vfader("B", lv.b, { disabled: lock || !m?.now, onChange: (v) => sendLevels({ b: v }) })])),
+      h("div", { class: "djc-master" }, knob("MASTER", { min: 0, max: 1, value: (m?.volume ?? 70) / 100, def: 0.7, disabled: lock, fmtv: (v) => Math.round(v * 100) + "%", accent: "master", onChange: (v) => sendMaster(v) }),
+        knob("BPM", { min: 70, max: 180, value: beatOn()?.bpm || 124, def: 124, step: 1, disabled: lock, fmtv: (v) => String(v), onChange: throttle((v) => { if (beatOn()) send({ action: "beat", bpm: v, pattern: beatOn().pattern }); }, 300) })),
       (() => {
-        const file = h("input", { type: "file", accept: "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/x-m4a,.mp3,.wav,.ogg,.m4a", hidden: true });
-        const add = h("button", { type: "button", class: "dj-pad dj-fx dj-add", text: "＋ MP3", title: "Add your own effect (an MP3 up to 2 MB)" });
-        add.addEventListener("click", () => file.click());
-        file.addEventListener("change", async () => {
-          const f = file.files[0]; file.value = "";
-          if (!f) return;
-          if (f.size > 2 * 1024 * 1024) return toast("Keep effects short (up to 2 MB).");
-          add.disabled = true; add.textContent = "Uploading…";
-          try {
-            const { url } = await upload(f);
-            myPads = (await apiCall("/api/me/dj-pads", { method: "POST", body: { url, name: f.name.replace(/\.[^.]+$/, "").slice(0, 20) } })).pads;
-            toast("Your effect is on the decks.");
-          } catch (err) { toast(err.error || "Couldn’t add it."); }
-          paint();
-        });
-        return h("span", { class: "dj-add-wrap" }, add, file);
+        const xf = h("input", { type: "range", min: 0, max: 100, value: Math.round((m?.mix?.x || 0) * 100), class: "dj-xfader", disabled: lock || !m?.now || (!m?.queue?.length && !m?.mix), "aria-label": "Crossfader" });
+        xf.addEventListener("input", () => sendX(Number(xf.value) / 100));
+        return h("div", { class: "djc-xf" }, h("b", { text: "A" }), xf, h("b", { text: "B" }));
       })());
-    box.replaceChildren(head, track,
-      h("div", { class: "dj-console" + (lock ? " locked" : "") }, speeds, jumps, cueRow, loops, transport, moves, h("b", { class: "dj-sec", text: "Mix (crossfader)" }), mixRow, h("div", { class: "dj-row" }, auto),
-        h("b", { class: "dj-sec", text: "Effects" }), fx, h("b", { class: "dj-sec", text: "My effects" }), mine,
-        h("b", { class: "dj-sec", text: "Drum machine" }), beats, h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "" }), bpm, bpmN, tap)),
-      h("p", { class: "create-hint", text: lock ? "Only the DJ can use the decks. Everyone in the channel hears what the DJ does." : "Everyone in the voice channel hears everything you do here, at the same moment." }));
+
+    // ---- performance pads ----
+    const tabs = h("div", { class: "djc-tabs" }, ...[["fx", "FX"], ["moves", "MOVES"], ["samples", "MY SAMPLES"], ["beats", "BEATS"]].map(([k, l]) => {
+      const b = h("button", { type: "button", class: "djc-tab" + (tab === k ? " on" : ""), text: l });
+      b.addEventListener("click", () => { tab = k; paint(); });
+      return b;
+    }));
+    let grid;
+    if (tab === "fx") grid = [["📯", "airhorn", "Airhorn"], ["🚨", "siren", "Siren"], ["💿", "scratch", "Scratch"], ["🔫", "laser", "Laser"], ["🚀", "riser", "Riser"], ["💥", "drop", "Drop"],
+      ["⏪", "rewind", "Rewind"], ["👏", "clap", "Clap"], ["🎺", "horn", "Horn"], ["🔊", "boom", "Boom"], ["🙌", "cheer", "Crowd"], ["😗", "whistle", "Whistle"],
+      ["🥁", "roll", "Roll"], ["⚡", "zap", "Zap"], ["🌊", "cymbal", "Cymbal"], ["🫨", "bassdrop", "Bass drop"], ["🔔", "gong", "Gong"], ["📻", "vinyl", "Crackle"]].map(([e, k, l], i) => pad(`${e}\n${l}`, "dj-perf c" + (i % 4 + 1), () => send({ action: "fx", fx: k })));
+    else if (tab === "moves") grid = [["🔉", "fade", "Fade out"], ["🔊", "fadein", "Fade in"], ["✂️", "cut", "Cut"], ["〰️", "echo", "Echo out"], ["⏪", "backspin", "Backspin"], ["🛑", "brake", "Brake"]]
+      .map(([e, k, l], i) => pad(`${e}\n${l}`, "dj-perf c" + (i % 4 + 1), () => send({ action: "fx", fx: k })));
+    else if (tab === "samples") grid = [...myPads.map((p, i) => {
+      const b = pad(`${p.emoji}\n${p.name}`, "dj-perf c" + (i % 4 + 1) + " dj-mine", () => send({ action: "fx", fx: "custom", padId: p.id }));
+      const del = h("span", { class: "dj-del", title: "Remove", text: "✕" });
+      del.addEventListener("click", async (e) => { e.stopPropagation(); try { myPads = (await apiCall(`/api/me/dj-pads/${p.id}`, { method: "DELETE" })).pads; paint(); } catch {} });
+      b.append(del);
+      return b;
+    }), (() => {
+      const file = h("input", { type: "file", accept: "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/x-m4a,.mp3,.wav,.ogg,.m4a", hidden: true });
+      const add = h("button", { type: "button", class: "dj-pad dj-perf dj-add", text: "＋\nMP3", title: "Add your own sample (an MP3 up to 2 MB)", disabled: lock });
+      add.addEventListener("click", () => file.click());
+      file.addEventListener("change", async () => {
+        const f = file.files[0]; file.value = "";
+        if (!f) return;
+        if (f.size > 2 * 1024 * 1024) return toast("Keep samples short (up to 2 MB).");
+        add.disabled = true; add.textContent = "…";
+        try { const { url } = await upload(f); myPads = (await apiCall("/api/me/dj-pads", { method: "POST", body: { url, name: f.name.replace(/\.[^.]+$/, "").slice(0, 20) } })).pads; toast("Your sample is on a pad."); }
+        catch (err) { toast(err.error || "Couldn’t add it."); }
+        paint();
+      });
+      return h("span", { class: "dj-add-wrap" }, add, file);
+    })()];
+    else {
+      const NAMES = { hiphop: "Hip-hop", dnb: "D&B", reggaeton: "Reggaeton" };
+      const b = beatOn();
+      grid = [...["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco"].map((p, i) => pad(`🥁\n${NAMES[p] || p[0].toUpperCase() + p.slice(1)}`, "dj-perf c" + (i % 4 + 1) + (b?.pattern === p ? " on" : ""), () => send({ action: "beat", bpm: b?.bpm || 124, pattern: p }))),
+        pad("⏹\nBeat off", "dj-perf c4", () => send({ action: "beat", bpm: 0 })),
+        pad("👆\nTap tempo", "dj-perf c1", () => {
+          const now = performance.now();
+          taps = taps.filter((t) => now - t < 2500); taps.push(now);
+          if (taps.length >= 3) { const gaps = taps.slice(1).map((t, i) => t - taps[i]); const bpmV = Math.max(70, Math.min(180, Math.round(60000 / (gaps.reduce((x, y) => x + y, 0) / gaps.length)))); toast(`${bpmV} BPM`); if (beatOn()) send({ action: "beat", bpm: bpmV, pattern: beatOn().pattern }); }
+        })];
+    }
+    box.replaceChildren(h("div", { class: "djc" + (lock ? " locked" : "") }, top,
+      h("div", { class: "djc-main" }, deckA, mixer, deckB),
+      h("div", { class: "djc-pads" }, tabs, h("div", { class: "djc-grid" }, ...grid))),
+      h("p", { class: "create-hint", text: lock ? "Only the DJ can use the decks. Everyone in the channel hears what the DJ does." : "Everyone in the voice channel hears everything you do here, at the same moment. (YouTube doesn’t let pages change its sound, so EQ and filter work on the beat channel.)" }));
   }
-  // The record: it spins while the music plays (faster with more tempo); the DJ grabs it and turns it
-  // like a real turntable — forward or back — and everyone jumps to where they let go. 33⅓ rpm: one turn ≈ 1.8 s.
+  // Blend from A into B over 8 seconds
+  function blend(m) {
+    if (!(m?.mix?.item || m?.queue?.length)) return toast("Queue a song first, then mix into it.");
+    if (mixing) return;
+    mixing = true;
+    let x = m?.mix?.x || 0;
+    const step = setInterval(() => { x = Math.min(1, x + 0.125); send({ action: "mix", x }); if (x >= 1) { clearInterval(step); setTimeout(() => { mixing = false; }, 3000); } }, 1000);
+  }
+  // Deck B's record: the next song's picture, spinning once it plays
+  function deckBDisc(item, playing) {
+    const disc = h("div", { class: "tt-disc" + (playing ? " spin" : ""), style: "--spin:1.8s" }, h("div", { class: "tt-label", style: item?.thumb ? `background-image:url("${item.thumb}")` : "" }), h("i", { class: "tt-hole" }));
+    return h("div", { class: "tt" }, h("div", { class: "tt-plate" }, disc), h("div", { class: "tt-arm" + (playing ? " on" : "") }, h("i")));
+  }
+  // Deck A's record: it spins while the music plays; the DJ grabs it and turns it (forward or back) — one turn ≈ 1.8 s
   let spinAngle = 0;
   function turntable(m, me) {
     const playing = m.pausedAt == null, rate = m.rate || 1;
@@ -293,7 +387,6 @@ export function djConsole(api) {
       disc.style.transform = `rotate(${spinAngle}deg)`;
       const now = performance.now(), speed = d / Math.max(1, now - drag.lastT) * 16; drag.lastT = now;
       if (Math.abs(d) > 2) scratchGrain(speed);
-      // A fast scratch is heard by everyone too (not too often)
       if (Math.abs(speed) > 14 && now - drag.sent > 600) { drag.sent = now; send({ action: "fx", fx: "scratch" }); }
       time.textContent = fmt(Math.max(0, drag.pos + (drag.total / 360) * 1.8));
     });
@@ -311,21 +404,15 @@ export function djConsole(api) {
     disc.addEventListener("pointercancel", end);
     return deck;
   }
-  let myPads = [];
-  apiCall("/api/me/dj-pads").then((d) => { myPads = d.pads || []; paint(); }).catch(() => {});
-  // The tape's clock keeps moving
+  apiCall("/api/me/dj-pads").then((d) => { myPads = d.pads || []; if (tab === "samples") paint(); }).catch(() => {});
+  // Clocks, and auto-mix 12 seconds before the end
   const clock = setInterval(() => {
     if (!box.isConnected) return clearInterval(clock);
-    const t = box.querySelector(".tt:not(.dragging) .tt-time"); if (t) t.textContent = fmt(api.position());
-    // Auto-mix: 12 seconds before the end, blend into the next song over ~8 seconds
+    if (!holding) { const t = box.querySelector(".tt:not(.dragging) .tt-time"); if (t) t.textContent = fmt(api.position()); const p = box.querySelector(".dj-pos"); if (p) p.textContent = fmt(api.position()); }
     const m = api.music(), d = api.dj();
     if (!autoMix || !m?.now || d?.username !== state.me.username || !m.queue?.length || mixing) return;
-    const left = (api.duration?.() || 0) - api.position();
-    if (left > 0 && left < 12) {
-      mixing = true;
-      let x = 0;
-      const step = setInterval(() => { x = Math.min(1, x + 0.125); send({ action: "mix", x }); if (x >= 1) { clearInterval(step); setTimeout(() => { mixing = false; }, 3000); } }, 1000);
-    }
+    const leftS = (api.duration?.() || 0) - api.position();
+    if (leftS > 0 && leftS < 12) blend(m);
   }, 500);
   paint();
   return { el: box, paint };

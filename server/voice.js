@@ -41,7 +41,7 @@ async function youtubeInfo(url) {
 function musicView(key) {
   const m = music.get(key);
   if (!m || !m.now) return null;
-  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, mix: m.mix || null, changedBy: m.changedBy || null, serverNow: Date.now() };
+  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, mix: m.mix || null, levels: m.levels || null, changedBy: m.changedBy || null, serverNow: Date.now() };
 }
 function sendMusic(chat, channelId) {
   const key = chat.id + ":" + channelId;
@@ -140,7 +140,7 @@ async function handleVoice(req, res, me, chat, chats) {
     announce(chat, channel.id);
     // A secret topic for the fallback voice relay (when two people can't connect directly)
     const relayTopic = require("./store").enabled ? "vr-" + require("crypto").createHmac("sha256", process.env.SUPABASE_SERVICE_KEY || "lb").update("voice:" + key).digest("base64url").slice(0, 24) : null;
-    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic, watch: watchView(key), dj: db.voice[key].dj || null, beat: db.voice[key].beat || null, status: db.voice[key].status || null, now: Date.now() });
+    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic, watch: watchView(key), dj: db.voice[key].dj || null, beat: db.voice[key].beat || null, beatMix: db.voice[key].beatMix || null, status: db.voice[key].status || null, now: Date.now() });
     return true;
   }
   if (body.kind === "leave") {
@@ -304,6 +304,20 @@ async function handleVoice(req, res, me, chat, chats) {
         } else if (m.mix && x <= 0) m.mix = null;
         music.set(key, m);
         sendMusic(chat, channel.id);
+      } else if (a === "levels") {
+        // The mixer's channel faders for deck A and deck B (0–1, everyone hears it)
+        if (!m?.now) throw httpError(409, "Nothing is playing.");
+        const num = (x, d) => (Number.isFinite(Number(x)) ? Math.max(0, Math.min(1, Number(x))) : d);
+        m.levels = { a: num(body.a, m.levels?.a ?? 1), b: num(body.b, m.levels?.b ?? 1) };
+        music.set(key, m);
+        sendMusic(chat, channel.id);
+      } else if (a === "beatmix") {
+        // The drum machine's channel on the mixer: gain, EQ (low / mid / high) and a filter sweep
+        const num = (x, lo, hi, d) => (Number.isFinite(Number(x)) ? Math.max(lo, Math.min(hi, Number(x))) : d);
+        const prev = v.beatMix || {};
+        v.beatMix = { gain: num(body.gain, 0, 1.5, prev.gain ?? 1), low: num(body.low, -24, 12, prev.low ?? 0), mid: num(body.mid, -24, 12, prev.mid ?? 0),
+          high: num(body.high, -24, 12, prev.high ?? 0), filter: num(body.filter, -1, 1, prev.filter ?? 0) };
+        extra = { beatMix: v.beatMix };
       } else if (a === "beat") {
         const bpm = Number(body.bpm) || 0;
         v.beat = bpm >= 60 && bpm <= 200 ? { bpm: Math.round(bpm), pattern: ["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco"].includes(body.pattern) ? body.pattern : "house", at: Date.now() } : null;
