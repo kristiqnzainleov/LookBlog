@@ -21,6 +21,22 @@ export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"],
 export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"]];
 export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradient"], ["aurora", "Aurora"], ["stars", "Stars"], ["grid", "Grid"], ["dots", "Dots"], ["waves", "Waves"]];
 export const BANNERS = [["", "Default"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["aurora", "Aurora"], ["candy", "Candy"], ["fire", "Fire"], ["galaxy", "Galaxy"], ["night", "Night"], ["mint", "Mint"], ["mono", "Mono"]];
+// Photo shape, name animation, a frame around the profile, a trail behind the pointer
+export const AVATAR_SHAPES = [["", "Circle"], ["squircle", "Squircle"], ["hex", "Hexagon"], ["heart", "Heart"], ["star", "Star"], ["blob", "Blob"], ["diamond", "Diamond"]];
+export const NAME_ANIMS = [["", "None"], ["wave", "Wave"], ["bounce", "Bounce"], ["pulse", "Pulse"], ["glitch", "Glitch"], ["rainbow", "Rainbow cycle"], ["float", "Float"]];
+export const CARD_FRAMES = [["", "None"], ["neon", "Neon"], ["glass", "Glass"], ["gold", "Gold"], ["pixel", "Pixel"], ["comic", "Comic"], ["holo", "Holo"]];
+export const CURSOR_TRAILS = [["", "None"], ["sparkle", "✨ Sparkles"], ["hearts", "💗 Hearts"], ["stars", "⭐ Stars"], ["bubbles", "🫧 Bubbles"], ["fire", "🔥 Fire"], ["rainbow", "🌈 Rainbow"]];
+// One tap: a whole look at once
+export const LOOK_THEMES = [
+  ["🌸 Kawaii", { color: "candy", font: "rounded", effect: "glow", emoji: "🌸", accent: "#ff7eb3", ring: "spin", bg: "dots", banner: "candy", fx: "sakura", deco: "bow", shape: "heart", anim: "float", frame: "glass", trail: "hearts" }],
+  ["🎮 Gamer", { color: "neon", font: "minecraft", effect: "glow", emoji: "🎮", accent: "#39ff14", ring: "neon", bg: "grid", banner: "night", fx: "", deco: "headphones", shape: "squircle", anim: "glitch", frame: "pixel", trail: "fire" }],
+  ["🌌 Galaxy", { color: "galaxy", font: "scifi", effect: "shine", emoji: "🪐", accent: "#9b5cff", ring: "rainbow", bg: "stars", banner: "galaxy", fx: "stars", deco: "star", shape: "star", anim: "pulse", frame: "holo", trail: "stars" }],
+  ["🔥 Y2K", { color: "fire", font: "retro", effect: "shadow", emoji: "💿", accent: "#ff8a3d", ring: "sunset", bg: "waves", banner: "fire", fx: "confetti", deco: "flame", shape: "blob", anim: "bounce", frame: "comic", trail: "rainbow" }],
+  ["👑 Royal", { color: "gold", font: "classic", effect: "shine", emoji: "👑", accent: "#ffd23f", ring: "gold", bg: "glow", banner: "night", fx: "sparkles", deco: "crown", shape: "diamond", anim: "", frame: "gold", trail: "sparkle" }],
+  ["🖤 Minimal", { color: "white", font: "wide", effect: "", emoji: "", accent: "#f5f0f0", ring: "white", bg: "", banner: "mono", fx: "", deco: "", shape: "squircle", anim: "", frame: "", trail: "" }],
+];
+const TRAIL_PARTS = { sparkle: ["✨", "✦", "⋆"], hearts: ["💗", "💖", "💕"], stars: ["⭐", "🌟", "✦"], bubbles: ["🫧", "○"], fire: ["🔥", "✨"], rainbow: ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪"] };
+
 // Something falling or floating over my profile, and a decoration on my photo
 export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "💗 Hearts"], ["sparkles", "✨ Sparkles"], ["stars", "⭐ Stars"], ["sakura", "🌸 Sakura"],
   ["confetti", "🎉 Confetti"], ["bubbles", "🫧 Bubbles"], ["fire", "🔥 Fire"], ["leaves", "🍂 Leaves"], ["money", "💸 Money"]];
@@ -50,13 +66,14 @@ const colorValue = (c) => (c?.startsWith("#") ? c : c?.startsWith("grad:") ? gra
 export function applyLook(el, look) {
   if (!el) return;
   const c = colorValue(look?.color);
-  el.classList.toggle("nl", Boolean(look && (c || look.font || look.effect)));
+  el.classList.toggle("nl", Boolean(look && (c || look.font || look.effect || look.anim)));
   if (c) {
     el.style.setProperty("--ng", c.startsWith("linear") ? c : `linear-gradient(${c},${c})`);
     el.style.setProperty("--nc", c.startsWith("linear") ? c.match(/#[0-9a-f]{6}/i)?.[0] || "#ff4fa3" : c);
   } else { el.style.removeProperty("--ng"); el.style.removeProperty("--nc"); }
   if (look?.font) { el.dataset.nf = look.font; loadFonts(); } else delete el.dataset.nf;
   if (look?.effect) el.dataset.ne = look.effect; else delete el.dataset.ne;
+  if (look?.anim) { el.dataset.na = look.anim; el.classList.add("nl"); } else delete el.dataset.na;
   el.dataset.ncol = c ? "1" : "";
   // An emoji next to the name
   el.querySelector(":scope > .nl-emoji")?.remove();
@@ -69,8 +86,29 @@ export function applyLook(el, look) {
 }
 
 // The profile page: ring around the photo, background, and banner colours (when there's no banner picture)
-export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, songSlot, fxBox }, look, song) {
+export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, songSlot, fxBox, card }, look, song) {
   if (avatarWrap) { if (look?.ring) avatarWrap.dataset.ring = look.ring; else delete avatarWrap.dataset.ring; }
+  if (avatarWrap) { if (look?.shape) avatarWrap.dataset.shape = look.shape; else delete avatarWrap.dataset.shape; }
+  if (card) { if (look?.frame) card.dataset.frame = look.frame; else delete card.dataset.frame; }
+  // A trail behind the pointer while you look at the profile
+  const trailHost = fxBox || view;
+  if (trailHost) {
+    trailHost._trailOff?.();
+    if (look?.trail && TRAIL_PARTS[look.trail] && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const parts = TRAIL_PARTS[look.trail];
+      let last = 0, k = 0;
+      const move = (e) => {
+        const now = performance.now();
+        if (now - last < 45) return;
+        last = now;
+        const p = h("span", { class: "trail-dot", text: parts[k++ % parts.length], style: `left:${e.clientX}px;top:${e.clientY}px;--dx:${(Math.random() - 0.5) * 40}px` });
+        document.body.append(p);
+        setTimeout(() => p.remove(), 900);
+      };
+      trailHost.addEventListener("pointermove", move);
+      trailHost._trailOff = () => trailHost.removeEventListener("pointermove", move);
+    }
+  }
   if (view) { if (look?.bg) view.dataset.pbg = look.bg; else delete view.dataset.pbg; }
   if (banner) { if (look?.banner) banner.dataset.bfx = look.banner; else delete banner.dataset.bfx; }
   // A decoration on the photo (a crown, cat ears, a halo…)
@@ -131,7 +169,7 @@ export function lookHook(user, mark) {
 
 // The editor: pick a colour, font and effect for your name, and an accent colour for your profile
 export function openLookEditor(onSaved, opts = {}) {
-  const cur = { color: "", font: "", effect: "", accent: "", ring: "", bg: "", banner: "", emoji: "", fx: "", deco: "", bioFont: "", status: null, song: "", ...(state.me.look || {}) };
+  const cur = { color: "", font: "", effect: "", accent: "", ring: "", bg: "", banner: "", emoji: "", fx: "", deco: "", bioFont: "", status: null, song: "", shape: "", anim: "", frame: "", trail: "", featured: [], ...(state.me.look || {}) };
   let songObj = opts.song || null;
   const preview = h("span", { class: "look-preview-name", text: state.me.name });
   const miniBanner = h("div", { class: "look-mini-banner profile-banner" + (state.me.banner ? "" : " empty"), style: state.me.banner ? `background-image:url("${state.me.banner}")` : "" });
@@ -141,8 +179,8 @@ export function openLookEditor(onSaved, opts = {}) {
     h("b", { class: "look-preview-b" }, preview, tick(state.me, 24)), h("small", { class: "muted", text: "@" + state.me.username }), previewStatus);
   const paint = () => {
     applyLook(previewWrap.querySelector(".look-preview-b"), cur);
-    applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner, fxBox: previewWrap, statusSlot: previewStatus }, cur);
-    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
+    applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner, fxBox: previewWrap, statusSlot: previewStatus, card: previewWrap }, cur);
+    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
     songLabel.textContent = songObj ? `🎵 ${songObj.title} · ${songObj.artist?.name || ""}` : "No song";
     songClear.hidden = !songObj;
     previewWrap.style.setProperty("--accent", cur.accent || "#ff4fa3");
@@ -263,18 +301,51 @@ export function openLookEditor(onSaved, opts = {}) {
   };
   songSearch.addEventListener("input", () => { clearTimeout(songTimer); songTimer = setTimeout(findSongs, 220); });
   findSongs();
+  const shapes = pickRow(AVATAR_SHAPES, "shape");
+  const anims = pickRow(NAME_ANIMS, "anim");
+  const frames = pickRow(CARD_FRAMES, "frame");
+  const trails = pickRow(CURSOR_TRAILS, "trail");
+  // One-tap themes
+  const themes = h("div", { class: "look-themes" }, ...LOOK_THEMES.map(([label, t]) => {
+    const b = h("button", { type: "button", class: "look-theme", text: label });
+    b.addEventListener("click", () => { Object.assign(cur, { ...t, status: cur.status, song: cur.song, featured: cur.featured }); paint(); paintGradAfterTheme(); toast(`${label} look — tap Save to keep it.`); });
+    return b;
+  }));
+  // Featured badges: up to 3 next to my name
+  const featBox = h("div", { class: "look-chips look-feat" }, h("span", { class: "muted", text: "Loading your badges…" }));
+  let myBadges = [];
+  api(`/api/users/${encodeURIComponent(state.me.username)}/badges`).then((d) => {
+    myBadges = [...(d.special || []).map((b) => ({ id: "s:" + b.id, label: `${b.emoji || "🏅"} ${b.name}` })), ...d.badges.filter((b) => b.earned).map((b) => ({ id: b.id, label: `${b.emoji === "tick" ? "✔️" : b.emoji} ${b.name}` }))];
+    paintFeat();
+  }).catch(() => featBox.replaceChildren(h("span", { class: "muted", text: "Couldn’t load your badges." })));
+  function paintFeat() {
+    const f = cur.featured || [];
+    featBox.replaceChildren(...(myBadges.length ? myBadges.map((b) => {
+      const on = f.includes(b.id);
+      const btn = h("button", { type: "button", class: "look-chip" + (on ? " on" : ""), text: (on ? `${f.indexOf(b.id) + 1}. ` : "") + b.label });
+      btn.addEventListener("click", () => { const list = (cur.featured || []).filter((x) => x !== b.id); if (!on) { if (list.length >= 3) return toast("Pick up to 3."); list.push(b.id); } cur.featured = list; paintFeat(); });
+      return btn;
+    }) : [h("span", { class: "muted", text: "Earn badges first — then show your favourites here." })]));
+  }
+  const paintGradAfterTheme = () => { try { paintGrad(); } catch {} };
   const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save my look" });
   const reset = h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Back to default" });
   const m = modal({ title: "Customize your profile", body: h("div", { class: "create-form look-editor" },
     previewWrap,
+    h("p", { class: "look-label", text: "✨ One-tap themes" }), h("p", { class: "create-hint", text: "A whole look at once. Change anything after." }), themes,
     h("p", { class: "look-label", text: "Name colour" }), colors,
     h("p", { class: "look-label", text: "Your own gradient" }), h("p", { class: "create-hint", text: "Pick 2 to 4 colours and turn the direction. Tap the bar to use it." }), gradBox,
     h("p", { class: "look-label", text: "Name font" }), fonts,
     h("p", { class: "look-label", text: "🎮 Gamer fonts" }), gamerFonts,
     h("p", { class: "look-label", text: "Name effect" }), effects,
+    h("p", { class: "look-label", text: "Name animation" }), anims,
     h("p", { class: "look-label", text: "Emoji next to your name" }), emojis,
+    h("p", { class: "look-label", text: "🏅 Badges next to your name" }), h("p", { class: "create-hint", text: "Pick up to 3 of your badges to show off." }), featBox,
     h("p", { class: "look-label", text: "Profile accent colour" }), h("p", { class: "create-hint", text: "Buttons, tabs and highlights on your profile." }), accents,
     h("p", { class: "look-label", text: "Ring around your photo" }), rings,
+    h("p", { class: "look-label", text: "Photo shape" }), shapes,
+    h("p", { class: "look-label", text: "Profile frame" }), frames,
+    h("p", { class: "look-label", text: "Pointer trail" }), h("p", { class: "create-hint", text: "Little things that follow the mouse (or finger) on your profile." }), trails,
     h("p", { class: "look-label", text: "Profile background" }), bgs,
     h("p", { class: "look-label", text: "Status" }), h("p", { class: "create-hint", text: "A few words under your name, with an emoji." }), statusRow,
     h("p", { class: "look-label", text: "Profile effect" }), h("p", { class: "create-hint", text: "Things that fall or float over your profile." }), fxs,
@@ -296,7 +367,8 @@ export function openLookEditor(onSaved, opts = {}) {
   };
   save.addEventListener("click", () => store({ color: cur.color || null, font: cur.font || null, effect: cur.effect || null, accent: cur.accent || null,
     ring: cur.ring || null, bg: cur.bg || null, banner: cur.banner || null, emoji: cur.emoji || null,
-    fx: cur.fx || null, deco: cur.deco || null, bioFont: cur.bioFont || null, status: cur.status || null, song: songObj?.id || null }));
+    fx: cur.fx || null, deco: cur.deco || null, bioFont: cur.bioFont || null, status: cur.status || null, song: songObj?.id || null,
+    shape: cur.shape || null, anim: cur.anim || null, frame: cur.frame || null, trail: cur.trail || null, featured: cur.featured?.length ? cur.featured : null }));
   reset.addEventListener("click", () => store({}));
   paint();
   paintGrad();

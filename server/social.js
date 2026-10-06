@@ -188,8 +188,8 @@ function authorView(u) {
 }
 // Next to a name anywhere on the site, only how the name looks is needed
 function nameLookOf(u) {
-  const { color, font, effect, emoji } = u.look || {};
-  return { ...(color ? { color } : {}), ...(font ? { font } : {}), ...(effect ? { effect } : {}), ...(emoji ? { emoji } : {}) };
+  const { color, font, effect, emoji, anim } = u.look || {};
+  return { ...(color ? { color } : {}), ...(font ? { font } : {}), ...(effect ? { effect } : {}), ...(emoji ? { emoji } : {}), ...(anim ? { anim } : {}) };
 }
 // How someone's name looks (colour, font, effect) and their profile's accent colour
 const NAME_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "lilac", "white",
@@ -204,6 +204,10 @@ const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "
 const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora"];
 const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono"];
 const PROFILE_FX = ["snow", "hearts", "sparkles", "stars", "sakura", "confetti", "bubbles", "fire", "leaves", "money"];
+const AVATAR_SHAPES = ["squircle", "hex", "heart", "star", "blob", "diamond"];
+const NAME_ANIMS = ["wave", "bounce", "pulse", "glitch", "rainbow", "float"];
+const CARD_FRAMES = ["neon", "glass", "gold", "pixel", "comic", "holo"];
+const CURSOR_TRAILS = ["sparkle", "hearts", "stars", "bubbles", "fire", "rainbow"];
 const AVATAR_DECOS = ["crown", "halo", "horns", "cat", "headphones", "flowers", "bow", "flame", "star", "cap"];
 const EMOJI_ONE = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u;
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -221,6 +225,12 @@ function cleanLook(b) {
   if (PROFILE_FX.includes(b.fx)) out.fx = b.fx; // something falling or floating over my profile
   if (AVATAR_DECOS.includes(b.deco)) out.deco = b.deco; // a decoration on my photo
   if (NAME_FONTS.includes(b.bioFont)) out.bioFont = b.bioFont; // my bio's font
+  if (AVATAR_SHAPES.includes(b.shape)) out.shape = b.shape; // my photo's shape
+  if (NAME_ANIMS.includes(b.anim)) out.anim = b.anim; // my name moves
+  if (CARD_FRAMES.includes(b.frame)) out.frame = b.frame; // a frame around my profile
+  if (CURSOR_TRAILS.includes(b.trail)) out.trail = b.trail; // a trail behind the pointer on my profile
+  // Up to 3 badges shown next to my name
+  if (Array.isArray(b.featured)) { const f = [...new Set(b.featured.map(String).filter((x) => /^[\w:-]{1,40}$/.test(x)))].slice(0, 3); if (f.length) out.featured = f; }
   // A status under my name: an emoji and a few words
   const st = b.status && typeof b.status === "object" ? b.status : null;
   const stText = st ? clean(String(st.text || "")).replace(/\s+/g, " ").slice(0, 60) : "";

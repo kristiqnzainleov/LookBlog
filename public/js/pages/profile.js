@@ -359,7 +359,7 @@ export async function profilePage(view, m, params) {
   function paintAccent() {
     if (profile.look?.accent) view.style.setProperty("--pink", profile.look.accent); else view.style.removeProperty("--pink");
     // Ring around the photo, background, banner colours
-    import("../components/profile-look.js").then(({ applyProfileLook }) => applyProfileLook({ view, avatarWrap, banner, bio: bioEl, statusSlot, songSlot }, profile.look, profile.profileSong));
+    import("../components/profile-look.js").then(({ applyProfileLook }) => applyProfileLook({ view, avatarWrap, banner, bio: bioEl, statusSlot, songSlot, card: view.querySelector(".profile") }, profile.look, profile.profileSong));
   }
 
   /* Role badges (Musician, Artist, …) under the name */
@@ -444,6 +444,7 @@ export async function profilePage(view, m, params) {
       profile.profileSong = song || null;
       applyLook(nameEl, look);
       paintAccent();
+      paintFeatured();
     }, { song: profile.profileSong }));
   }
 
@@ -691,10 +692,24 @@ export async function profilePage(view, m, params) {
   ));
 
   /* Badges and awards */
+  // My favourite badges (up to 3) next to my name
+  var badgeData = null; // (var: paintFeatured can be called before this line runs)
+  function paintFeatured() {
+    nameEl.querySelector(":scope > .feat-badges")?.remove();
+    const f = profile.look?.featured || [];
+    if (!f.length || !badgeData) return;
+    const items = f.map((id) => {
+      if (id.startsWith("s:")) { const b = (badgeData.special || []).find((x) => String(x.id) === id.slice(2)); return b && h("span", { class: "feat-badge special" + (b.image ? " has-img" : ""), style: specialStyle(b), title: b.name }, b.image ? h("img", { src: b.image, alt: "" }) : b.emoji); }
+      const b = badgeData.badges.find((x) => x.id === id && x.earned);
+      return b && h("span", { class: "feat-badge", title: `${b.name}: ${b.how}` }, badgeIcon(b, badgeData, 22));
+    }).filter(Boolean);
+    if (items.length) nameEl.append(h("span", { class: "feat-badges" }, ...items));
+  }
   const badgeStrip = h("div", { class: "badge-strip", hidden: true });
   body.querySelector(".profile").append(badgeStrip);
   api(`/api/users/${encodeURIComponent(profile.username)}/badges`).then((data) => {
     allRoles = data.allRoles || [];
+    badgeData = data; paintFeatured();
     paintRoles(data.roles || []);
     paintSpecial(data.special || []);
     const earned = data.badges.filter((b) => b.earned);

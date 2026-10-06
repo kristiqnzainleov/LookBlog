@@ -100,6 +100,17 @@ function fadeTo(target, ms) {
   step();
 }
 export const musicFadeOut = (ms = 2500) => fadeTo(0, ms);
+export const musicFadeIn = (ms = 2500) => { if (fadeMul > 0.99) { fadeMul = 0; applyVols(); } fadeTo(1, ms); };
+// Cut: silence for a moment, then straight back
+export function musicCut(ms = 600) { cancelAnimationFrame(fadeAnim); fadeMul = 0; applyVols(); setTimeout(() => { fadeMul = 1; applyVols(); }, ms); }
+// Echo out: the music pulses away (like an echo), then comes back a few seconds later
+export function musicEcho() {
+  cancelAnimationFrame(fadeAnim);
+  [0.55, 1, 0.35, 0.7, 0.18, 0.4, 0.06, 0.15, 0].forEach((v, i) => setTimeout(() => { fadeMul = v; applyVols(); }, i * 170));
+  setTimeout(() => fadeTo(1, 1500), 4000);
+}
+// How long the song is (for auto-mix)
+export function musicDuration() { try { return yt?.getDuration?.() || audio?.duration || current?.now?.duration || 0; } catch { return 0; } }
 export const musicPosition = () => (current?.now ? position(current) : 0);
 // The DJ's brake: the record slows down and stops
 export function musicBrake() {
@@ -271,7 +282,7 @@ export function openMusicPanel() {
   const prevChange = onChange;
   onChange = () => { prevChange(); if (body.isConnected) paint(); };
   // 🎛 DJ Mode: a window in the music window
-  const dj = djConsole({ post: (b) => post(b), music: () => current, position: () => (current?.now ? position(current) : 0), dj: () => djNow });
+  const dj = djConsole({ post: (b) => post(b), music: () => current, position: () => (current?.now ? position(current) : 0), duration: () => musicDuration(), dj: () => djNow });
   const djWrap = h("div", { class: "dj-wrap", hidden: !djNow }, dj.el);
   const djBtn = h("button", { type: "button", class: "btn btn-sm dj-toggle" + (djNow ? " on" : ""), text: djNow ? `🎛 DJ Mode · 🎧 @${djNow.username}` : "🎛 DJ Mode" });
   djBtn.addEventListener("click", () => { djWrap.hidden = !djWrap.hidden; djBtn.classList.toggle("open", !djWrap.hidden); if (!djWrap.hidden) dj.paint(); });

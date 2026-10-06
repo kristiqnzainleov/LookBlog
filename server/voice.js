@@ -253,7 +253,8 @@ async function handleVoice(req, res, me, chat, chats) {
     } else {
       if (!isDj) throw httpError(403, "Only the DJ can do that. Take the decks first.");
       const m = music.get(key);
-      const FX = ["airhorn", "siren", "scratch", "laser", "riser", "drop", "rewind", "clap", "brake", "fade", "horn", "boom"];
+      const FX = ["airhorn", "siren", "scratch", "laser", "riser", "drop", "rewind", "clap", "brake", "fade", "fadein", "horn", "boom",
+        "cheer", "whistle", "roll", "zap", "cymbal", "bassdrop", "backspin", "cut", "echo", "gong", "vinyl"];
       if (a === "fx" && body.fx === "custom") {
         // One of the DJ's own effects (an MP3 they uploaded)
         const pad = (me.djPads || []).find((x) => x.id === body.padId);
@@ -263,6 +264,12 @@ async function handleVoice(req, res, me, chat, chats) {
         if (!FX.includes(body.fx)) throw httpError(400, "Unknown effect.");
         extra = { fx: body.fx };
         if (body.fx === "brake" && m?.now && m.pausedAt == null) { m.pausedAt = (Date.now() - m.startedAt) * (m.rate || 1); music.set(key, m); sendMusic(chat, channel.id); }
+        if (body.fx === "backspin" && m?.now) {
+          // The record spins back a few seconds
+          const rate = m.rate || 1, pos = m.pausedAt != null ? m.pausedAt : (Date.now() - m.startedAt) * rate, to = Math.max(0, pos - 4000);
+          if (m.pausedAt != null) m.pausedAt = to; else m.startedAt = Date.now() - to / rate;
+          m.loop = null; music.set(key, m); sendMusic(chat, channel.id);
+        }
       } else if (a === "rate" || a === "cue" || a === "loop") {
         if (!m?.now) throw httpError(409, "Nothing is playing.");
         const rate = m.rate || 1;
@@ -299,7 +306,7 @@ async function handleVoice(req, res, me, chat, chats) {
         sendMusic(chat, channel.id);
       } else if (a === "beat") {
         const bpm = Number(body.bpm) || 0;
-        v.beat = bpm >= 60 && bpm <= 200 ? { bpm: Math.round(bpm), pattern: ["house", "hiphop", "techno"].includes(body.pattern) ? body.pattern : "house", at: Date.now() } : null;
+        v.beat = bpm >= 60 && bpm <= 200 ? { bpm: Math.round(bpm), pattern: ["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco"].includes(body.pattern) ? body.pattern : "house", at: Date.now() } : null;
         if (!v.beat) delete v.beat;
         extra = { beat: v.beat || null };
       } else throw httpError(400, "Unknown DJ action.");

@@ -4,7 +4,7 @@
 import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
-import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicBrake } from "./voice-music.js";
+import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake } from "./voice-music.js";
 import { playFx, setBeat, playCustom } from "./dj.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings, hdDescription, hdSenders } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
@@ -362,6 +362,9 @@ on("voice:dj", (ev) => {
   if (ev.action === "fx") {
     if (ev.fx === "custom") playCustom(ev.url); else playFx(ev.fx);
     if (ev.fx === "fade") musicFadeOut(2500);
+    if (ev.fx === "fadein") musicFadeIn(2500);
+    if (ev.fx === "cut") musicCut(600);
+    if (ev.fx === "echo") musicEcho();
     if (ev.fx === "brake") musicBrake();
   }
   if (ev.action === "beat") setBeat(ev.beat, room.skew);
