@@ -5224,3 +5224,52 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .dj-add { border-style: dashed; background: transparent; color: var(--pink); }
 .dj-add-wrap { display: contents; }
 .vm-yt.deck-b { left: 250px; }
+
+/* ---------- DOS ---------- */
+.ucard.dos.wild { background: conic-gradient(#ff4757, #ffd23f, #2ee6a6, #1f8bff, #ff4757); color: #fff; }
+.ucard.dos.picked { transform: translateY(-10px); box-shadow: 0 0 0 3px var(--pink), 0 10px 20px rgba(0, 0, 0, 0.5); }
+.ucard.back.dos { background: linear-gradient(135deg, #1f8bff, #9b5cff); }
+.dos-center { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.dos-center .ucard[type="button"] { cursor: pointer; animation: dosGlow 1.4s ease-in-out infinite; }
+@keyframes dosGlow { 50% { box-shadow: 0 0 0 3px rgba(255, 79, 163, 0.6); } }
+
+/* ---------- Party games (drawing, stories) ---------- */
+.pg-round { margin: 4px 0; font-weight: 800; color: var(--pink); font-size: 0.85rem; }
+.pg-done { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.pg-who { position: relative; opacity: 0.45; }
+.pg-who.ok { opacity: 1; }
+.pg-who i { position: absolute; right: -4px; bottom: -4px; width: 16px; height: 16px; border-radius: 50%; background: #2ee6a6; color: #000; font: 900 0.6rem/16px var(--body); text-align: center; font-style: normal; }
+.pg-task { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--card-2); }
+.pg-quote { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--ink); font-weight: 700; overflow-wrap: anywhere; }
+.pg-quote.big { font-size: 1.4rem; text-align: center; padding: 24px; }
+.pg-input { margin: 0 !important; }
+.pg-img { display: block; width: 100%; max-width: 360px; aspect-ratio: 4 / 3; object-fit: contain; border-radius: 10px; background: #fff; }
+.pg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.pg-pick { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--ink); color: var(--paper); font: inherit; }
+button.pg-pick { cursor: pointer; }
+button.pg-pick:hover { border-color: var(--pink); }
+.pg-pick img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #fff; border-radius: 8px; }
+.pg-album { display: flex; flex-direction: column; gap: 14px; max-height: 420px; overflow-y: auto; margin-top: 8px; }
+.pg-sec { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--card-2); }
+.pg-step { display: flex; flex-direction: column; gap: 4px; }
+.cg.big .pg-album { max-height: none; }
+/* Drawing board */
+.dp { display: flex; flex-direction: column; gap: 10px; }
+.dp-canvas { width: 100%; max-width: 640px; aspect-ratio: 4 / 3; border-radius: 14px; background: #fff; touch-action: none; cursor: crosshair; align-self: center; box-shadow: 0 0 0 2px var(--line); }
+.dp-bar { display: flex; flex-direction: column; gap: 8px; }
+.dp-colors, .dp-sizes, .dp-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.dp-sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.dp-sw.on { border-color: var(--pink); transform: scale(1.15); }
+.dp-size { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--card-2); display: grid; place-items: center; cursor: pointer; }
+.dp-size i { display: block; border-radius: 50%; background: var(--paper); }
+.dp-size.on { border-color: var(--pink); }
+.dp-tool { padding: 7px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card-2); color: var(--paper); font: 700 0.82rem var(--body); cursor: pointer; }
+.dp-tool.on { border-color: var(--pink); color: var(--pink); }
+.dp-prompt { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--card-2); font-weight: 800; font-size: 1.05rem; }
+/* Replay */
+.rp { display: flex; flex-direction: column; gap: 12px; }
+.rp-bar { --p: 0%; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--pink) var(--p), var(--line) var(--p)); }
+.rp-stage { min-height: 360px; display: grid; place-items: center; }
+.rp-title { margin: 0; text-align: center; font: 900 1.4rem var(--display); animation: popIn 0.3s ease-out; }
+.rp-step { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; animation: popIn 0.35s ease-out; }
+.rp-step img { width: 100%; max-width: 520px; aspect-ratio: 4 / 3; object-fit: contain; background: #fff; border-radius: 14px; }

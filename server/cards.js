@@ -589,11 +589,12 @@ const belot = {
   over: (s) => (s.winner !== null ? { winner: s.winner, team: true } : null),
 };
 
-const CARD_GAMES = { poker, blackjack, santase, uno, belot };
+const CARD_GAMES = { poker, blackjack, santase, uno, belot, ...require("./party") }; // + DOS and the drawing/story party games
 
 /* ======================= Bots ======================= */
 // Who has to do something right now (so a bot in that seat can move)
 function waitingSeats(type, s) {
+  if (CARD_GAMES[type]?.waiting) return CARD_GAMES[type].waiting(s);
   if (type === "blackjack") {
     if (s.phase === "bet") return s.bets.map((b, i) => (b ? -1 : i)).filter((i) => i >= 0);
     return s.phase === "play" && s.turn >= 0 ? [s.turn] : [];
@@ -606,6 +607,7 @@ function waitingSeats(type, s) {
 const lowest = (cards, val) => [...cards].sort((a, b) => val(a) - val(b))[0];
 function botMove(type, s, seat) {
   const def = CARD_GAMES[type];
+  if (def.bot) return def.bot(s, seat);
   if (type === "blackjack") {
     if (s.phase === "bet") return { type: "bet", amount: Math.max(10, Math.min(s.chips[seat], 50)) };
     const v = bjValue(s.hands[seat]);

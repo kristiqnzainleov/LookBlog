@@ -218,7 +218,7 @@ function gameView(g, me) {
     const def = CARD_GAMES[g.type];
     const players = g.players.map((id) => (isBot(id) ? botView(id) : (findUser(id) ? authorView(findUser(id)) : null)));
     const myIndex = g.players.indexOf(me.id);
-    return { type: g.type, card: true, name: def.name, emoji: def.emoji, min: def.min, max: def.max, players, phase: g.phase, isHost: g.host === me.id, myIndex,
+    return { type: g.type, card: true, party: Boolean(def.party), noBots: Boolean(def.noBots), name: def.name, emoji: def.emoji, min: def.min, max: def.max, players, phase: g.phase, isHost: g.host === me.id, myIndex,
       view: g.state ? def.view(g.state, myIndex) : null, over: g.ended ? { ended: true, by: g.ended } : g.state ? def.over(g.state) : null };
   }
   const def = RULES.GAMES[g.type];
@@ -695,7 +695,9 @@ async function handleChat(req, res, url, me) {
         msg.viewOnce = { openedBy: [], ...(body.viewOnce === "replay" ? { max: 2, opens: {} } : {}) };
       }
       if (chat.kind === "group") {
-        const ch = chat.channels.find((x) => x.id === body.channelId && (x.kind === "text" || x.kind === "voice")) || firstText(chat);
+        // (a game's replay goes where the game was)
+        const replayFrom = body.replayOf ? db.messages.find((x) => x.id === body.replayOf && x.chatId === chat.id) : null;
+        const ch = chat.channels.find((x) => x.id === (body.channelId || replayFrom?.channelId) && (x.kind === "text" || x.kind === "voice")) || firstText(chat);
         msg.channelId = ch.id;
       }
       db.messages.push(msg);
@@ -858,6 +860,7 @@ async function handleChat(req, res, url, me) {
         } else if (action === "addbot") {
           if (g.phase !== "lobby") throw httpError(409, "This game already started.");
           if (g.host !== me.id) throw httpError(403, "Only the person who opened the table can add bots.");
+          if (def.noBots) throw httpError(400, "Bots can’t draw or write stories — invite people instead!");
           if (g.players.length >= def.max) throw httpError(409, "The table is full.");
           const name = BOT_NAMES.find((n) => !g.players.includes("bot:" + n)) || "Bot" + g.players.length;
           g.players.push("bot:" + name);

@@ -4,7 +4,7 @@ import { h, icon, modal, toast, avatar } from "../ui.js";
 import { api } from "../api.js";
 import { on } from "../state.js";
 import { GAMES, chessMoves, inCheck } from "../games/rules.js";
-import { cardGameView, CARD_LIST } from "./cardgames.js";
+import { cardGameView, CARD_LIST, PARTY_LIST } from "./cardgames.js";
 
 const boards = new Map(); // messageId -> Set of repaint functions
 on("game:update", (ev) => {
@@ -232,6 +232,12 @@ export function openGamePicker(chat, { channelId = null, onStarted } = {}) {
     b.addEventListener("click", () => start(type, b));
     return b;
   }));
+  const party = h("div", { class: "game-pick" }, ...PARTY_LIST.map(([type, emoji, name, desc]) => {
+    const b = h("button", { type: "button", class: "game-option" }, h("span", { class: "go-emoji", text: emoji }), h("b", { text: name }), h("span", { class: "muted", text: desc }));
+    b.addEventListener("click", () => start(type, b));
+    return b;
+  }));
   const m = modal({ title: "Play a game", wide: true, body: h("div", {}, h("p", { class: "create-hint", text: chat.kind === "dm" ? "You play against each other right here in the chat." : "Anyone in the channel can take the second seat." }), list,
+    h("h3", { class: "side-title", text: "🎨 Party games" }), h("p", { class: "create-hint", text: "Draw and write together — and watch the replay at the end." }), party,
     h("h3", { class: "side-title", text: "🃏 Card games" }), h("p", { class: "create-hint", text: "Open a table — people join, then you press Start." }), cards) });
 }
