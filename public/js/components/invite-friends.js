@@ -1,5 +1,5 @@
 // "Invite friends": my own Join LookBlog link (a referral). Shared in Instagram, Messenger and others it shows
-// the LookBlog logo and "Join LookBlog"; there's also a picture for an Instagram story, and who joined with it.
+// the LookBlog logo and "Join LookBlog". It also shows who joined with it.
 import { h, modal, toast, avatar, spinner, timeAgo } from "../ui.js";
 import { api } from "../api.js";
 import { state } from "../state.js";
@@ -22,6 +22,13 @@ export async function openInviteFriends() {
     else copy();
   };
   const enc = encodeURIComponent;
+  // Instagram: the link goes in a direct message (it shows the logo and "Join LookBlog").
+  // Phones: the share menu (pick Instagram). Otherwise: the link is copied and Instagram's "new message" opens to paste it.
+  const toInstagram = async () => {
+    if (isPhone() && navigator.share) { try { await navigator.share({ title: "Join LookBlog", text, url: d.url }); return; } catch (e) { if (e.name === "AbortError") return; } }
+    await copy();
+    open("https://www.instagram.com/direct/new/", "_blank", "noopener");
+  };
   const btn = (cls, label, fn, ic) => { const b = h("button", { type: "button", class: "inv-btn " + cls }, h("span", { class: "inv-ic", text: ic }), h("span", { text: label })); b.addEventListener("click", fn); return b; };
   const link = (cls, label, href, ic) => h("a", { class: "inv-btn " + cls, href, target: "_blank", rel: "noopener" }, h("span", { class: "inv-ic", text: ic }), h("span", { text: label }));
 
@@ -41,60 +48,10 @@ export async function openInviteFriends() {
       btn("share", navigator.share ? "Share…" : "Copy link", share, "📤"),
       isPhone() ? link("messenger", "Messenger", `fb-messenger://share/?link=${enc(d.url)}`, "💬")
         : btn("messenger", "Messenger", async () => { await copy(); open("https://www.messenger.com/", "_blank", "noopener"); }, "💬"),
-      btn("insta", "Instagram story", () => storyImage(d.url), "📸"),
+      btn("insta", "Instagram", () => toInstagram(), "📸"),
       link("whatsapp", "WhatsApp", `https://wa.me/?text=${enc(text + " " + d.url)}`, "🟢"),
       link("x", "X", `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(d.url)}`, "✖️"),
       link("fb", "Facebook", `https://www.facebook.com/sharer/sharer.php?u=${enc(d.url)}`, "📘")),
-    h("p", { class: "create-hint", text: isPhone() ? "Instagram: tap “Instagram story” to share a picture with your link, or copy the link and send it in a DM." : "Instagram and Messenger: copy the link and paste it in a message. It shows the LookBlog logo and “Join LookBlog”." }),
+    h("p", { class: "create-hint", text: isPhone() ? "Instagram: tap “Instagram” and pick Instagram to send your link in a message. It shows the LookBlog logo and “Join LookBlog”." : "Instagram and Messenger: your link is copied and the app opens. Paste it in a message: it shows the LookBlog logo and “Join LookBlog”." }),
     joined);
-}
-
-// A picture for an Instagram story (1080×1920): the logo with its eyes, "Join me on LookBlog", @me and the link
-async function storyImage(url) {
-  try { await document.fonts.load("900 120px Unbounded"); } catch {}
-  const W = 1080, H = 1920, c = h("canvas", { width: W, height: H }), g = c.getContext("2d");
-  g.fillStyle = "#0d0c0c"; g.fillRect(0, 0, W, H);
-  const glow = g.createRadialGradient(W / 2, 520, 40, W / 2, 520, 900);
-  glow.addColorStop(0, "rgba(255,79,163,0.55)"); glow.addColorStop(1, "rgba(255,79,163,0)");
-  g.fillStyle = glow; g.fillRect(0, 0, W, H);
-  // Logo: L(eye)(eye)k + Blog
-  g.textBaseline = "alphabetic";
-  g.font = "900 150px Unbounded, sans-serif";
-  const eye = 92, gap = 8, parts = [["L", "#f5f0f0"], ["eyes"], ["k", "#f5f0f0"], ["Blog", "#ff4fa3"]];
-  const widthOf = (p) => (p[0] === "eyes" ? eye * 2 + gap * 3 : g.measureText(p[0]).width - 10);
-  let x = (W - parts.reduce((n, p) => n + widthOf(p), 0)) / 2;
-  const base = 600;
-  for (const p of parts) {
-    if (p[0] === "eyes") {
-      for (let i = 0; i < 2; i++) {
-        const cx = x + gap + eye / 2 + i * (eye + gap), cy = base - eye / 2 - 4;
-        g.fillStyle = "#f5f0f0"; g.beginPath(); g.arc(cx, cy, eye / 2, 0, Math.PI * 2); g.fill();
-        g.fillStyle = "#0d0c0c"; g.beginPath(); g.arc(cx + (i ? -10 : 10), cy + 6, eye / 4.2, 0, Math.PI * 2); g.fill();
-        g.fillStyle = "#fff"; g.beginPath(); g.arc(cx + (i ? -16 : 4), cy - 2, 6, 0, Math.PI * 2); g.fill();
-      }
-    } else { g.fillStyle = p[1]; g.fillText(p[0], x, base); }
-    x += widthOf(p);
-  }
-  g.textAlign = "center";
-  g.fillStyle = "#f5f0f0"; g.font = "900 96px Unbounded, sans-serif";
-  g.fillText("Join me on", W / 2, 900); g.fillStyle = "#ff4fa3"; g.fillText("LookBlog", W / 2, 1010);
-  g.fillStyle = "#b9b0b0"; g.font = "600 46px 'Golos Text', sans-serif";
-  g.fillText("Follow people, not the algorithm.", W / 2, 1110);
-  // Me
-  g.fillStyle = "#f5f0f0"; g.font = "800 58px 'Golos Text', sans-serif";
-  g.fillText("@" + state.me.username, W / 2, 1330);
-  // The link in a pink pill
-  g.font = "800 44px 'Golos Text', sans-serif";
-  const label = url.replace(/^https?:\/\//, ""), lw = g.measureText(label).width + 90;
-  g.fillStyle = "#ff4fa3"; g.beginPath(); g.roundRect((W - lw) / 2, 1430, lw, 110, 55); g.fill();
-  g.fillStyle = "#000"; g.fillText(label, W / 2, 1502);
-  const blob = await new Promise((r) => c.toBlob(r, "image/png"));
-  const file = new File([blob], "join-lookblog.png", { type: "image/png" });
-  if (navigator.canShare?.({ files: [file] }) && matchMedia("(pointer: coarse)").matches) {
-    // Phones: the share sheet (Instagram is in it)
-    try { await navigator.share({ files: [file], title: "Join LookBlog", text: url }); return; } catch (e) { if (e.name === "AbortError") return; }
-  }
-  const a = h("a", { href: URL.createObjectURL(blob), download: "join-lookblog.png" });
-  document.body.append(a); a.click(); a.remove();
-  toast("Saved the picture. Put it in your Instagram story and add a link sticker with your invite link.");
 }

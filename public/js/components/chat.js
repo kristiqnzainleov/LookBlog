@@ -384,6 +384,58 @@ async function openViewOnce(msg, chat, row) {
   document.body.append(box);
 }
 
+// Like Instagram: pull a message to the right to answer it (finger or mouse)
+function swipeToReply(row, msg) {
+  const stack = row.querySelector(".msg-stack"), face = row.querySelector(".msg-avatar");
+  const moving = [stack, face].filter(Boolean);
+  const arrow = h("span", { class: "swipe-reply", "aria-hidden": "true" }, icon("replyArrow"));
+  row.prepend(arrow);
+  const LIMIT = 84, TRIGGER = 58;
+  let start = null, dx = 0, going = false, armed = false, swiped = false;
+  const reset = () => {
+    for (const el of [...moving, arrow]) el.style.transition = "transform 0.22s cubic-bezier(.2, .9, .3, 1.2), opacity 0.2s";
+    for (const el of moving) el.style.transform = "";
+    arrow.style.opacity = "0"; arrow.style.transform = "";
+    setTimeout(() => { for (const el of [...moving, arrow]) el.style.transition = ""; }, 240);
+  };
+  row.addEventListener("pointerdown", (e) => {
+    if (e.button || e.target.closest("button, a, input, textarea, video, .lb-player, .reaction, .msg-tools")) return;
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId }; dx = 0; going = armed = swiped = false;
+  });
+  row.addEventListener("pointermove", (e) => {
+    if (!start || e.pointerId !== start.id) return;
+    const mx = e.clientX - start.x, my = e.clientY - start.y;
+    if (!going) {
+      if (Math.abs(my) > 12 && Math.abs(my) > Math.abs(mx)) { start = null; return; } // scrolling up or down
+      if (mx < 12 || mx < Math.abs(my) * 1.4) return;
+      going = true; swiped = true;
+      try { row.setPointerCapture(e.pointerId); } catch {}
+      getSelection?.()?.removeAllRanges();
+    }
+    e.preventDefault();
+    dx = Math.max(0, Math.min(LIMIT, mx * 0.62));
+    for (const el of moving) el.style.transform = `translateX(${dx}px)`;
+    arrow.style.opacity = String(Math.min(1, dx / TRIGGER));
+    arrow.style.transform = `scale(${0.6 + Math.min(1, dx / TRIGGER) * 0.4})`;
+    if (dx >= TRIGGER && !armed) { armed = true; arrow.classList.add("armed"); navigator.vibrate?.(8); }
+    else if (dx < TRIGGER && armed) { armed = false; arrow.classList.remove("armed"); }
+  });
+  const end = () => {
+    if (!start) return;
+    start = null;
+    if (going) {
+      arrow.classList.remove("armed");
+      if (armed) startReply?.(msg);
+      reset();
+    }
+    going = false;
+  };
+  row.addEventListener("pointerup", end);
+  row.addEventListener("pointercancel", end);
+  // A swipe isn't a tap (no menu, no link)
+  row.addEventListener("click", (e) => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);
+}
+
 function messageEl(msg, chat, onRemoved) {
   // Small notes in the middle ("📅 New event", nickname changes)
   if (msg.system) {
@@ -501,6 +553,7 @@ function messageEl(msg, chat, onRemoved) {
     tools.children.length ? tools : null
   );
   row._msg = msg;
+  if (chat.canSend) swipeToReply(row, msg);
   // Phones have no hover: tap a message to show its menu
   bubble.addEventListener("click", (e) => {
     if (!matchMedia("(hover: none), (max-width: 640px)").matches || e.target.closest("a, video, button, .lb-player")) return;

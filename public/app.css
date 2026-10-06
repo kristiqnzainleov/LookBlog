@@ -4921,3 +4921,11 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .inst-deck-card.gone { transition: transform 0.32s ease-in, opacity 0.32s ease-in; pointer-events: none; }
 .inst-deck-card img { pointer-events: none; }
 .inv-grid { align-items: start; grid-auto-rows: auto; } .invite-friends .inv-btn { height: auto; min-height: 0; flex: none; }
+
+/* ---------- Swipe a message to the right to reply ---------- */
+.msg { position: relative; touch-action: pan-y; }
+.swipe-reply { position: absolute; left: 6px; top: 50%; margin-top: -17px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--card-2); color: var(--paper); opacity: 0; pointer-events: none; z-index: 0; }
+.swipe-reply svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; }
+.swipe-reply.armed { background: var(--pink); color: #000; }
+.msg .msg-stack { position: relative; z-index: 1; will-change: transform; }
+.msg .msg-avatar { position: relative; z-index: 1; }
