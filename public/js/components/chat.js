@@ -238,6 +238,55 @@ async function translateMessage(msg, bubble, toLang = null) {
   } catch (err) { box.replaceChildren(h("span", { class: "muted", text: err.error || "Couldn’t translate it." })); }
 }
 
+// A view-once message: the others tap to open it one time; the sender sees who opened it
+function viewOnceRow(msg, chat, onRemoved) {
+  const v = msg.viewOnce;
+  const what = v.kind === "image" ? "photo" : v.kind === "video" ? "video" : "message";
+  let label, sub = null, openable = false;
+  if (msg.mine) {
+    label = `View-once ${what}`;
+    sub = v.everyone ? "Opened" : v.openedCount ? `Opened by ${v.openedCount}` : "Sent";
+  } else if (v.opened) label = "Opened";
+  else { label = `Tap to view ${what}`; openable = true; }
+  const bubble = h(openable ? "button" : "div", { type: openable ? "button" : null, class: "bubble vo-bubble" + (openable ? " vo-closed" : " vo-done") },
+    chat.kind === "group" && !msg.mine ? h("span", { class: "bubble-name", text: shownName(msg.author) }) : null,
+    h("span", { class: "vo-line" }, h("span", { class: "vo-ic", text: v.kind === "image" ? "📷" : v.kind === "video" ? "🎬" : "👁" }), h("b", { text: label }), sub ? h("small", { text: " · " + sub }) : null),
+    h("span", { class: "bubble-time" }, timeEl(msg.createdAt)));
+  if (openable) bubble.addEventListener("click", () => openViewOnce(msg, chat, row));
+  const row = h("div", { class: "msg vo" + (msg.mine ? " mine" : ""), dataset: { id: msg.id } },
+    msg.mine ? null : h("a", { href: profileHref(msg.author.username), class: "msg-avatar", tabindex: "-1" }, avatar(msg.author, 34)),
+    h("div", { class: "msg-stack" }, bubble, reactionsEl(msg, chat)));
+  if (msg.mine) {
+    const del = h("button", { type: "button", class: "tool-icon msg-del", "aria-label": "Delete message", title: "Delete message" }, icon("trash"));
+    del.addEventListener("click", async () => { try { await api(`/api/chats/${chat.id}/messages/${msg.id}`, { method: "DELETE" }); row.remove(); onRemoved?.(); } catch (err) { toast(err.error || "Couldn’t delete it."); } });
+    row.append(h("div", { class: "msg-tools" }, del));
+  }
+  row._msg = msg;
+  return row;
+}
+async function openViewOnce(msg, chat, row) {
+  let c;
+  try { c = await api(`/api/chats/${chat.id}/messages/${msg.id}/open`, { method: "POST" }); }
+  catch (err) { toast(err.error || "It’s gone."); msg.viewOnce.opened = true; row.replaceWith(viewOnceRow(msg, chat)); return; }
+  msg.viewOnce.opened = true;
+  const shown = viewOnceRow(msg, chat);
+  row.replaceWith(shown);
+  // Shown once, full screen; closing it is the end
+  const box = h("div", { class: "vo-view", role: "dialog", "aria-modal": "true", "aria-label": "View once" },
+    h("div", { class: "vo-top" }, avatar(msg.author, 30), h("b", { text: shownName(msg.author) }), h("span", { class: "muted", text: "View once · it’s gone when you close it" })),
+    c.media?.kind === "image" ? h("img", { class: "vo-media", src: c.media.url, alt: "" })
+      : c.media?.kind === "video" ? h("video", { class: "vo-media", src: c.media.url, poster: c.media.poster || null, autoplay: true, playsInline: true, controls: true })
+      : null,
+    c.text ? h("p", { class: "vo-text", text: c.text }) : null,
+    h("button", { type: "button", class: "btn btn-primary vo-close", text: "Close" }));
+  const close = () => { box.querySelector("video")?.pause(); box.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  box.querySelector(".vo-close").addEventListener("click", close);
+  box.addEventListener("contextmenu", (e) => e.preventDefault());
+  document.addEventListener("keydown", onKey);
+  document.body.append(box);
+}
+
 function messageEl(msg, chat, onRemoved) {
   // Small notes in the middle ("📅 New event", nickname changes)
   if (msg.system) {
@@ -258,6 +307,7 @@ function messageEl(msg, chat, onRemoved) {
       ? h("a", { href: msg.media.url, target: "_blank", rel: "noopener", class: "msg-media" }, h("img", { src: msg.media.url, alt: "", loading: "lazy" }))
       : createPlayer({ src: msg.media.url, poster: msg.media.poster || null, width: msg.media.width, height: msg.media.height, className: "msg-media" })
     : null;
+  if (msg.viewOnce) return viewOnceRow(msg, chat, onRemoved);
   const call = chat.kind === "dm" && !msg.media && !msg.post ? callNoteText(msg.text, msg.mine, chat.other.name) : null;
   const onlyEmoji = msg.text && !msg.media && !msg.post && /^(\p{Extended_Pictographic}|\p{Emoji_Component}|\u200D|\uFE0F|\s){1,24}$/u.test(msg.text) && [...msg.text.replace(/\s/g, "")].length <= 12;
   const quote = msg.replyTo ? replyQuote(msg.replyTo) : null;
@@ -827,6 +877,19 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const chatGif = gifButton((g) => sendGif(g));
     inputRow.insertBefore(chatGif, text);
     const form = h("form", { class: "convo-form", novalidate: true }, replyBar, picker.previews, inputRow, recBar, err);
+    // View once: the next messages can be opened one time only (tap again to turn it off)
+    let viewOnce = false;
+    const voBtn = h("button", { type: "button", class: "tool-btn vo-btn", "aria-label": "View once", "aria-pressed": "false", title: "View once: they can open it one time" }, h("span", { text: "1" }));
+    voBtn.addEventListener("click", () => {
+      viewOnce = !viewOnce;
+      voBtn.classList.toggle("on", viewOnce);
+      voBtn.setAttribute("aria-pressed", String(viewOnce));
+      text.placeholder = viewOnce ? "View-once message…" : text.dataset.ph || text.placeholder;
+      toast(viewOnce ? "View once is on: they can open your messages one time." : "View once is off.");
+      text.focus();
+    });
+    text.dataset.ph = text.placeholder;
+    inputRow.insertBefore(voBtn, text);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (send.disabled) return;
@@ -834,7 +897,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       send.disabled = true;
       closeEmojiPicker();
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null } });
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}) } });
         setReply(null);
         add(message);
         toBottom();
@@ -1004,6 +1067,12 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     paintPins();
   });
   const offNicks = on("chat:nicknames", (ev) => { if (ev.chatId === chatId && chat) refresh().catch(() => {}); });
+  const offVo = on("message:viewonce", (ev) => {
+    if (ev.chatId !== chatId || !chat) return;
+    const row = list.querySelector(`.msg[data-id="${CSS.escape(ev.messageId)}"]`);
+    if (row && !document.querySelector(".vo-view")) row.replaceWith(messageEl(ev.message, chat, () => ids.delete(ev.messageId)));
+    else if (row) row._msg = ev.message;
+  });
   const offVanish = on("chat:vanish", (ev) => { if (ev.chatId === chatId && chat) { chat.vanish = ev.vanish; paintHead(); } });
   // Disappearing messages leave the screen the moment their time is up
   const vanishTick = setInterval(() => {
@@ -1011,6 +1080,6 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     list.querySelectorAll(".msg").forEach((row) => { if (row._msg?.expiresAt && row._msg.expiresAt <= now) { ids.delete(row._msg.id); row.remove(); } });
   }, 5000);
 
-  return { el, stop: () => { offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
+  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
 }
 

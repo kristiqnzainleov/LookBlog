@@ -61,6 +61,7 @@ export async function leaveVoice(silent) {
   if (!room) return;
   const r = room;
   room = null;
+  reactBar?.remove(); reactBar = null;
   r.ended = true;
   clearInterval(r.ping);
   clearInterval(r.place);
@@ -258,6 +259,58 @@ on("voice:sound", (ev) => {
   if (ev.username !== state.me.username) playSoundHere(ev);
   showSoundToast(ev);
 });
+/* ---------- Reactions while you talk (on someone's camera or screen, or just to the channel) ---------- */
+export const VOICE_REACTIONS = ["❤️", "😂", "🔥", "👏", "😮", "😢", "💯", "🎉", "👀", "🤯"];
+// Who a reaction is for: the stream you're looking at, or the only one that's on
+function reactTarget() {
+  if (!room) return null;
+  const f = room.focus?.split(":")[0];
+  if (f && f !== state.me.username) return f;
+  const live = [...(room.tileEls?.keys() || [])].map((k) => k.split(":")[0]).filter((u) => u !== state.me.username);
+  return new Set(live).size === 1 ? live[0] : null;
+}
+function sendReaction(emoji, to) {
+  if (!room) return;
+  const ev = { chatId: room.chat.id, channelId: room.channel.id, by: state.me.name, username: state.me.username, emoji, to: to || null, mine: true };
+  showReaction(ev);
+  post({ kind: "react", emoji, to: to || null }).catch((err) => toast(err.error || "Couldn’t react."));
+}
+let reactBar = null;
+function openReactBar(anchor, to) {
+  if (reactBar) { reactBar.remove(); const same = reactBar._anchor === anchor; reactBar = null; if (same) return; }
+  reactBar = h("div", { class: "vr-react-bar", role: "toolbar", "aria-label": "Reactions" },
+    to ? h("span", { class: "vr-react-to", text: "to @" + to }) : null,
+    ...VOICE_REACTIONS.map((e) => { const b = h("button", { type: "button", text: e, "aria-label": "React " + e }); b.addEventListener("click", (ev) => { ev.stopPropagation(); sendReaction(e, to ?? reactTarget()); }); return b; }));
+  reactBar._anchor = anchor;
+  document.body.append(reactBar);
+  const r = anchor.getBoundingClientRect(), w = reactBar.offsetWidth;
+  reactBar.style.left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8)) + "px";
+  reactBar.style.top = Math.max(8, r.top - reactBar.offsetHeight - 8) + "px";
+  setTimeout(() => {
+    const away = (e) => { if (reactBar && !reactBar.contains(e.target) && !anchor.contains(e.target)) { reactBar.remove(); reactBar = null; document.removeEventListener("pointerdown", away); } };
+    document.addEventListener("pointerdown", away);
+  });
+}
+// An emoji floats up (with who sent it) over the stream it's for, the voice panel and the channel list
+function floatIn(box, ev, big) {
+  if (!box) return;
+  const el = h("span", { class: "vr-float" + (big ? " big" : "") }, h("span", { class: "vr-float-emoji", text: ev.emoji }), h("small", { text: ev.mine ? "You" : ev.by.split(" ")[0] }));
+  el.style.left = 12 + Math.random() * 70 + "%";
+  box.append(el);
+  setTimeout(() => el.remove(), 2600);
+}
+function showReaction(ev) {
+  const here = room && ev.chatId === room.chat.id && ev.channelId === room.channel.id;
+  if (here) {
+    const tile = ev.to && (room.tileEls?.get(ev.to + ":screen") || room.tileEls?.get(ev.to));
+    if (tile) floatIn(tile, ev, true);
+    floatIn(room.dock, ev);
+    if (!tile && room.stage) floatIn(room.stage, ev, true);
+  }
+  document.querySelectorAll(`.vc-person[data-voice-user="${CSS.escape(ev.username)}"]`).forEach((row) => floatIn(row, ev));
+}
+on("voice:react", (ev) => { if (ev.username !== state.me.username) showReaction(ev); });
+
 // Soundboard sounds play in an <audio> on the page, like people's voices
 // (browsers keep that playing during a call; the Web Audio engine they sometimes put to sleep).
 const builtinFiles = new Map(); // builtin id -> blob URL of a WAV made once in the browser
@@ -566,6 +619,7 @@ function paintDock() {
       room.video?.kind === "camera" && matchMedia("(pointer: coarse)").matches ? btn("flip", "Switch camera", false, () => setVideo("camera", room.video.facing === "user" ? "environment" : "user")) : null,
       btn("screen", room.video?.kind === "screen" ? "Stop sharing" : canShareScreen() ? "Share your screen" : "Share (camera)", room.video?.kind === "screen", () => setVideo(room.video?.kind === "screen" ? null : "screen")),
       (() => { const b = btn("sound", "Soundboard", false, () => openSoundboard(b)); return b; })(),
+      (() => { const b = h("button", { type: "button", class: "vd-btn vd-react", title: "React", "aria-label": "React", text: "😊" }); b.addEventListener("click", () => openReactBar(b, null)); return b; })(),
       btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker })),
       btn("note", "Music", Boolean(musicState()?.now), () => openMusicPanel(), "vd-music"),
       btn("leave", "Leave voice", false, () => leaveVoice(), "danger")));
@@ -629,6 +683,12 @@ function paintStage() {
     if (!el) {
       const v = h("video", { autoplay: true, playsInline: true, muted: true });
       el = h("div", { class: "vs-tile", dataset: { voiceUser: t.u } }, v, h("span", { class: "vs-name" }));
+      // React to their stream
+      if (!t.mine) {
+        const rb = h("button", { type: "button", class: "vs-react", title: `React to ${t.name}`, "aria-label": `React to ${t.name}`, text: "😊" });
+        rb.addEventListener("click", (e) => { e.stopPropagation(); openReactBar(rb, t.u); });
+        el.append(rb);
+      }
       el.addEventListener("click", () => { room.focus = room.focus === key ? null : key; if (room.stageMode === "small") room.stageMode = "big"; paintStage(); });
       els.set(key, el);
     }

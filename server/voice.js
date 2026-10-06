@@ -6,6 +6,7 @@
 const { db, save, findUser, findByUsername } = require("./db");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { sendTo } = require("./realtime");
+const VOICE_REACTIONS = ["❤️", "😂", "🔥", "👏", "😮", "😢", "💯", "🎉", "👀", "🤯"];
 const { can, rank } = require("./groups");
 const BUILTIN_SOUNDS = ["airhorn", "tada", "drum", "boing", "ding", "sad"];
 
@@ -145,6 +146,18 @@ async function handleVoice(req, res, me, chat, chats) {
     const builtin = BUILTIN_SOUNDS.includes(body.builtin) ? body.builtin : null;
     if (!snd && !builtin) throw httpError(404, "That sound is gone.");
     sendTo(Object.keys(room), { type: "voice:sound", chatId: chat.id, channelId: channel.id, by: me.name, username: me.username, url: snd?.url || null, builtin, name: snd?.name || builtin, emoji: snd?.emoji || null });
+    sendJSON(res, 200, { ok: true });
+    return true;
+  }
+  // A reaction while you talk: { kind: "react", emoji, to } — to someone's camera or screen (to = their username), or to the channel.
+  // Everyone in the group sees it fly up (on the video, in the voice panel and in the channel list).
+  if (body.kind === "react") {
+    rateLimit("vreact:" + me.id, 30, 10 * 1000, "Easy on the reactions!");
+    const emoji = String(body.emoji || "");
+    if (!VOICE_REACTIONS.includes(emoji)) throw httpError(400, "Pick one of the reactions.");
+    const target = body.to ? findByUsername(String(body.to)) : null;
+    const to = target && room[target.id] ? target : null;
+    sendTo(chat.members, { type: "voice:react", chatId: chat.id, channelId: channel.id, by: me.name, username: me.username, emoji, to: to?.username || null });
     sendJSON(res, 200, { ok: true });
     return true;
   }

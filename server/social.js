@@ -192,7 +192,7 @@ const NOTE_MS = 24 * 60 * 60 * 1000;
 function activeNote(u) {
   if (!u.note) return null;
   if (Date.now() - new Date(u.note.createdAt).getTime() > NOTE_MS) return null;
-  return { text: u.note.text || "", media: u.note.media || null, createdAt: u.note.createdAt, expiresAt: new Date(new Date(u.note.createdAt).getTime() + NOTE_MS).toISOString() };
+  return { text: u.note.text || "", media: u.note.media || null, color: u.note.color || null, deco: u.note.deco || null, createdAt: u.note.createdAt, expiresAt: new Date(new Date(u.note.createdAt).getTime() + NOTE_MS).toISOString() };
 }
 
 /* ---------- Polls ---------- */
@@ -1562,7 +1562,11 @@ async function handleSocial(req, res, url, me) {
       if (old && !old.gif && old.url !== media?.url) deleteMedia(old.url);
       if (media && !media.gif && media.url !== old?.url) markUsed(media.url, "note:" + me.id);
       if (media && media.url !== old?.url) me.noteMediaCount = (me.noteMediaCount || 0) + 1;
-      me.note = { text, media, createdAt: new Date().toISOString() };
+      // How the bubble looks: a colour and an emoji on its corner
+      const NOTE_COLORS = ["pink", "berry", "purple", "ocean", "mint", "sunset", "gold", "night", "galaxy"];
+      const color = NOTE_COLORS.includes(body.color) ? body.color : null;
+      const deco = typeof body.deco === "string" && body.deco.length <= 16 && /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u.test(body.deco) ? body.deco : null;
+      me.note = { text, media, ...(color ? { color } : {}), ...(deco ? { deco } : {}), createdAt: new Date().toISOString() };
       me.noteCount = (me.noteCount || 0) + 1;
     } else if (m === "DELETE") {
       if (me.note?.media && !me.note.media.gif) deleteMedia(me.note.media.url);

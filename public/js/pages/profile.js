@@ -318,6 +318,7 @@ export async function profilePage(view, m, params) {
       profile.note.media ? h("img", { class: "nb-media", src: profile.note.media.url, alt: "" }) : null,
       profile.note.text ? h("span", { class: "nb-text", text: profile.note.text }) : null,
       profile.isMe ? h("span", { class: "nb-left", text: `${left}h left` }) : null);
+    import("../components/notes.js").then(({ styleNote }) => styleNote(bubble, profile.note));
     bubble.addEventListener("click", (e) => {
       e.stopPropagation();
       // Someone else's note: reply to it (you need to follow them to see notes in Messages, same here)

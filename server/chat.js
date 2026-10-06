@@ -86,6 +86,7 @@ function unread(chat, me) {
 function preview(msg) {
   if (!msg) return "";
   if (msg.game) return `${gameDef(msg.game.type)?.emoji || "🎮"} Started a game of ${gameDef(msg.game.type)?.name || "something"}`;
+  if (msg.viewOnce) return msg.viewOnce.gone || (msg.media ? msg.media.kind : "text") === "text" ? "👁 View-once message" : msg.media?.kind === "video" ? "👁 View-once video" : "👁 View-once photo";
   if (msg.text) return msg.text.slice(0, 120);
   if (msg.media?.sticker) return "Sent a sticker";
   if (msg.media?.gif) return "Sent a GIF";
@@ -207,7 +208,7 @@ function replyPreview(msg) {
     author: author ? author.name : "Deleted account",
     username: author ? author.username : "",
     text: preview(orig),
-    thumb: orig.media ? (orig.media.kind === "image" ? orig.media.url : orig.media.poster || null) : null,
+    thumb: orig.media && !orig.viewOnce ? (orig.media.kind === "image" ? orig.media.url : orig.media.poster || null) : null,
   };
 }
 
@@ -239,7 +240,22 @@ function sharedCommentView(id, me) {
   };
 }
 
+// A view-once message as one person sees it: closed (tap to open), opened (gone for them) or, for the sender, who opened it
+function viewOnceView(msg, me, out) {
+  const chat = findChat(msg.chatId);
+  const others = (chat?.members || []).filter((id) => id !== msg.userId);
+  const opened = msg.viewOnce.openedBy || [];
+  const kind = msg.viewOnce.gone ? msg.viewOnce.kind : msg.media ? msg.media.kind : "text";
+  out.viewOnce = { kind, opened: opened.includes(me.id), openedCount: opened.length, everyone: others.length > 0 && others.every((id) => opened.includes(id)) };
+  // Nobody sees the content in the chat itself: the others open it once, and the sender only sees that it was sent
+  out.text = ""; out.media = null; out.mentions = [];
+  return out;
+}
 function messageView(msg, me) {
+  if (msg.viewOnce) return viewOnceView(msg, me, messageViewFull(msg, me));
+  return messageViewFull(msg, me);
+}
+function messageViewFull(msg, me) {
   let post = null;
   const chat = findChat(msg.chatId);
   if (msg.postId) {
@@ -364,6 +380,11 @@ function deliver(chat, msg) {
 const VANISH = { 0: "off", 3600: "1 hour", 86400: "24 hours", 604800: "7 days" };
 const expired = (x) => x.expiresAt && x.expiresAt <= new Date().toISOString();
 function sweepVanished() {
+  // View-once photos and videos everyone has opened: the file goes a minute later
+  for (const x of db.messages) {
+    const pg = x.viewOnce?.purge;
+    if (pg && pg.at <= Date.now()) { deleteMedia(pg.url); if (pg.poster) deleteMedia(pg.poster); delete x.viewOnce.purge; save("messages"); }
+  }
   const gone = db.messages.filter(expired);
   if (!gone.length) return;
   const ids = new Set(gone.map((x) => x.id));
@@ -432,7 +453,7 @@ async function handleChat(req, res, url, me) {
       const msg = db.messages.find((x) => x.id === body.messageId);
       const ch = msg && findChat(msg.chatId);
       if (!msg || !ch || !canRead(ch, me)) throw httpError(404, "That message doesn’t exist.");
-      text = msg.text || "";
+      text = msg.viewOnce ? "" : msg.text || "";
     }
     text = text.slice(0, 2000);
     if (!text.trim()) throw httpError(400, "There’s nothing to translate.");
@@ -579,7 +600,7 @@ async function handleChat(req, res, url, me) {
       const URL_RE = /\bhttps?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]}]/gi;
       const items = [];
       for (const x of db.messages) {
-        if (x.chatId !== chat.id || x.system) continue;
+        if (x.chatId !== chat.id || x.system || x.viewOnce) continue;
         const base = { id: x.id, channelId: x.channelId || null, createdAt: x.createdAt, author: authorView(findUser(x.userId)) };
         if (kind === "photos" && x.media?.kind === "image" && !x.media.sticker) items.push({ ...base, url: x.media.url, gif: Boolean(x.media.gif) });
         else if (kind === "videos" && x.media?.kind === "video") items.push({ ...base, url: x.media.url, poster: x.media.poster || null, duration: x.media.duration || null });
@@ -595,7 +616,7 @@ async function handleChat(req, res, url, me) {
       const tz = Number(url.searchParams.get("tz")) || 0; // the browser's getTimezoneOffset()
       if (!q && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw httpError(400, "Type something or pick a day.");
       const dayOf = (iso) => new Date(new Date(iso).getTime() - tz * 60000).toISOString().slice(0, 10);
-      const found = db.messages.filter((x) => x.chatId === chat.id && !x.system
+      const found = db.messages.filter((x) => x.chatId === chat.id && !x.system && !x.viewOnce
         && (!q || String(x.text || "").toLowerCase().includes(q) || (x.media?.name || "").toLowerCase().includes(q))
         && (!date || dayOf(x.createdAt) === date)).slice(-200).reverse();
       sendJSON(res, 200, { messages: found.map((x) => messageView(x, me)) });
@@ -661,6 +682,11 @@ async function handleChat(req, res, url, me) {
         replyTo = orig.id;
       }
       const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media, postId: post ? post.id : null, commentId: commentRef, songId: songRef, replyTo, mentions: findMentions(text), createdAt: new Date().toISOString() };
+      // View once: the others can open it one time, then it's gone (like Instagram)
+      if (body.viewOnce) {
+        if (post || commentRef || songRef || media?.sticker || media?.gif || media?.kind === "audio" || media?.shared) throw httpError(400, "View once works for text, photos and videos.");
+        msg.viewOnce = { openedBy: [] };
+      }
       if (chat.kind === "group") {
         const ch = chat.channels.find((x) => x.id === body.channelId && x.kind === "text") || firstText(chat);
         msg.channelId = ch.id;
@@ -677,6 +703,34 @@ async function handleChat(req, res, url, me) {
       if (chat.kind === "group" && /(^|\s)@(everyone|here)\b/i.test(text) && can(chat, me, "mention_everyone")) { chat.members.forEach((id) => id !== me.id && pinged.add(id)); msg.everyone = true; save("messages"); }
       for (const id of pinged) notify(id, "chat-mention", me, { chatId: chat.id, group: chat.kind === "group" ? chat.name : null, text: text || "mentioned you" });
       sendJSON(res, 201, { message: messageView(msg, me) });
+      return true;
+    }
+
+    // Open a view-once message: POST /api/chats/:id/messages/:messageId/open → its text or photo, one time only.
+    // When everyone it was for has opened it, the content is deleted for good.
+    if (m === "POST" && c === "messages" && d && parts[4] === "open" && parts.length === 5) {
+      if (!isMember(chat, me)) throw httpError(403, "You’re not in this conversation.");
+      const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
+      if (!msg?.viewOnce) throw httpError(404, "That message is gone.");
+      if (msg.userId === me.id) throw httpError(400, "It’s for the others: you can’t open your own view-once message.");
+      if (msg.viewOnce.gone || msg.viewOnce.openedBy.includes(me.id)) throw httpError(410, "You’ve already opened it.");
+      const content = { text: msg.text, media: msg.media ? { kind: msg.media.kind, url: msg.media.url, poster: msg.media.poster || null, width: msg.media.width || null, height: msg.media.height || null } : null };
+      msg.viewOnce.openedBy.push(me.id);
+      const others = chat.members.filter((id) => id !== msg.userId);
+      if (others.every((id) => msg.viewOnce.openedBy.includes(id))) {
+        // Everyone saw it: delete it (a short moment later, so the photo can still load for the last person)
+        msg.viewOnce.kind = msg.media ? msg.media.kind : "text";
+        msg.viewOnce.gone = true;
+        const media = msg.media;
+        msg.text = ""; msg.media = null;
+        if (media) msg.viewOnce.purge = { url: media.url, poster: media.poster || null, at: Date.now() + 60 * 1000 };
+      }
+      save("messages");
+      for (const id of chat.members) {
+        const u = findUser(id);
+        if (u) sendTo([id], { type: "message:viewonce", chatId: chat.id, messageId: msg.id, message: messageView(msg, u) });
+      }
+      sendJSON(res, 200, content);
       return true;
     }
 
