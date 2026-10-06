@@ -6,6 +6,16 @@ import { api, upload } from "../api.js";
 import { on } from "../state.js";
 
 const PHONE = "(pointer: coarse) and (max-width: 900px)";
+// Looktures you've already seen never come back (remembered on this device too, not only by the server)
+const SEEN_KEY = "lb-lt-seen";
+const seenHere = () => { try { const o = JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"); return o && typeof o === "object" ? o : {}; } catch { return {}; } };
+function markSeenHere(id) {
+  const o = seenHere(), now = Date.now();
+  o[id] = now;
+  for (const k of Object.keys(o)) if (now - o[k] > 26 * 3600 * 1000) delete o[k]; // gone after a day anyway
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify(o)); } catch {}
+}
+const pending = new Set(); // "seen" requests still on their way
 export const instantsAvailable = () => matchMedia(PHONE).matches && Boolean(navigator.mediaDevices?.getUserMedia);
 
 // The pile in the corner of Messages
@@ -26,9 +36,16 @@ export function instantsPile() {
     el.classList.toggle("has-new", n > 0);
   }
   async function load() {
-    try { data = await api("/api/instants"); paint(); } catch {}
+    try {
+      await Promise.allSettled([...pending]); // the server knows what I just saw before I ask again
+      data = await api("/api/instants");
+      const seen = seenHere();
+      data.pile = data.pile.filter((x) => !seen[x.id]);
+      paint();
+    } catch {}
   }
-  el.addEventListener("click", () => openInstants(data, load));
+  // After looking: the ones I saw leave the pile right away (then it's checked with the server)
+  el.addEventListener("click", () => openInstants(data, () => { const seen = seenHere(); data.pile = data.pile.filter((x) => !seen[x.id]); paint(); load(); }));
   paint();
   load();
   const off = on("instant:new", () => { if (!el.isConnected) return off(); load(); });
@@ -56,7 +73,8 @@ function openInstants(data, reload) {
     reload();
   };
   const closeBtn = () => h("button", { type: "button", class: "inst-x", "aria-label": "Close", onclick: close }, icon("close"));
-  const queue = data.pile.slice();
+  const seenNow = seenHere();
+  const queue = data.pile.filter((x) => !seenNow[x.id]);
   queue.length ? showNext() : camera();
 
   /* ---------- Seeing friends' instants, one at a time ---------- */
@@ -64,7 +82,10 @@ function openInstants(data, reload) {
   function showNext() {
     const x = queue[0];
     if (!x) return camera();
-    api(`/api/instants/${x.id}/seen`, { method: "POST" }).catch(() => {});
+    markSeenHere(x.id);
+    const req = api(`/api/instants/${x.id}/seen`, { method: "POST" }).catch(() => {});
+    pending.add(req);
+    req.finally(() => pending.delete(req));
     const reactRow = h("div", { class: "inst-reacts" }, ...(data.reactions || []).map((e) => {
       const b = h("button", { type: "button", text: e, "aria-label": "React " + e });
       b.addEventListener("click", async (ev) => {
