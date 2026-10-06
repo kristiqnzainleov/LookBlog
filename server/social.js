@@ -1925,6 +1925,63 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
 
+  // My own DJ effects from the effect maker, and my saved mixer settings (presets). Both live on my account.
+  // GET|POST /api/me/dj-fx · PATCH|DELETE /api/me/dj-fx/:id · same for /api/me/dj-presets
+  if (a === "me" && (b === "dj-fx" || b === "dj-presets")) {
+    const field = b === "dj-fx" ? "djFx" : "djPresets", max = b === "dj-fx" ? 24 : 16;
+    me[field] = me[field] || [];
+    const list = me[field];
+    const num = (x, lo, hi, d) => (Number.isFinite(Number(x)) && x !== null && x !== "" ? Math.max(lo, Math.min(hi, Number(x))) : d);
+    const pick = (x, opts, d) => (opts.includes(x) ? x : d);
+    const COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "white"];
+    const synth = (q = {}) => ({
+      wave: pick(q.wave, ["sine", "square", "sawtooth", "triangle", "noise"], "sine"),
+      f0: num(q.f0, 20, 8000, 440), f1: num(q.f1, 20, 8000, 440), dur: num(q.dur, 0.03, 4, 0.4), attack: num(q.attack, 0.001, 1, 0.01),
+      vol: num(q.vol, 0, 1, 0.5), voices: Math.round(num(q.voices, 1, 4, 1)), detune: num(q.detune, 0, 50, 8), noise: num(q.noise, 0, 1, 0),
+      filter: pick(q.filter, ["none", "lowpass", "highpass", "bandpass"], "none"), cut: num(q.cut, 50, 15000, 2000), cut1: num(q.cut1, 50, 15000, 2000), q: num(q.q, 0.1, 20, 1),
+      repeat: Math.round(num(q.repeat, 1, 16, 1)), gap: num(q.gap, 0.02, 1, 0.15), speedUp: num(q.speedUp, 0.5, 1.5, 1), pitchStep: num(q.pitchStep, -12, 12, 0),
+      vibRate: num(q.vibRate, 0, 30, 0), vibDepth: num(q.vibDepth, 0, 1000, 0),
+    });
+    const preset = (q = {}) => {
+      const mix = q.mix || {};
+      const beat = q.beat && Number(q.beat.bpm) ? { bpm: Math.round(num(q.beat.bpm, 60, 200, 124)), pattern: String(q.beat.pattern || "house").slice(0, 20), swing: num(q.beat.swing, 0, 0.5, 0),
+        steps: q.beat.steps ? Object.fromEntries(["kick", "snare", "clap", "hat", "open", "perc"].map((r) => [r, String(q.beat.steps[r] || "").replace(/[^x.]/g, ".").slice(0, 16)])) : null } : null;
+      return { mix: { gain: num(mix.gain, 0, 1.5, 1), low: num(mix.low, -24, 12, 0), mid: num(mix.mid, -24, 12, 0), high: num(mix.high, -24, 12, 0), filter: num(mix.filter, -1, 1, 0),
+        echo: num(mix.echo, 0, 1, 0), verb: num(mix.verb, 0, 1, 0), crush: num(mix.crush, 0, 1, 0), pan: num(mix.pan, -1, 1, 0) }, bass: num(q.bass, 0, 1, 0), beat };
+    };
+    const shape = (body, item) => {
+      if (body.name !== undefined) item.name = clean(body.name).replace(/\s+/g, " ").slice(0, 24) || item.name || "Mine";
+      if (typeof body.emoji === "string" && body.emoji.length <= 16 && /\p{Extended_Pictographic}/u.test(body.emoji)) item.emoji = body.emoji;
+      if (COLORS.includes(body.color)) item.color = body.color;
+      if (b === "dj-fx" && body.p) item.p = synth(body.p);
+      if (b === "dj-presets" && body.set) item.set = preset(body.set);
+      return item;
+    };
+    if (m === "GET" && parts.length === 2) { sendJSON(res, 200, { items: list }); return true; }
+    if (m === "POST" && parts.length === 2) {
+      const body = await readJSON(req);
+      if (list.length >= max) throw httpError(400, `You can keep up to ${max}. Remove one first.`);
+      const item = shape({ name: "Mine", ...body }, { id: crypto.randomUUID().slice(0, 8), emoji: b === "dj-fx" ? "✨" : "🎚️", color: COLORS[list.length % COLORS.length], ...(b === "dj-fx" ? { p: synth() } : { set: preset() }) });
+      list.push(item);
+      save("users");
+      sendJSON(res, 201, { items: list, item });
+      return true;
+    }
+    const item = parts[2] && list.find((x) => x.id === parts[2]);
+    if (m === "PATCH" && parts[2]) {
+      if (!item) throw httpError(404, "That one is gone.");
+      shape(await readJSON(req), item);
+      save("users");
+      sendJSON(res, 200, { items: list });
+      return true;
+    }
+    if (m === "DELETE" && parts[2]) {
+      if (item) { me[field] = list.filter((x) => x !== item); save("users"); }
+      sendJSON(res, 200, { items: me[field] });
+      return true;
+    }
+  }
+
   // My own DJ sounds (kept on my account, mine only): GET /api/me/dj-pads · POST { url, name, emoji, color, vol }
   // · PATCH /api/me/dj-pads/:id { name, emoji, color, vol, key } · DELETE /api/me/dj-pads/:id · POST /api/me/dj-pads/order { ids }
   if (a === "me" && b === "dj-pads") {

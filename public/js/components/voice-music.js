@@ -3,7 +3,7 @@
 // The server keeps what's playing, since when, and the volume — anyone in the channel can change any of it.
 import { h, toast, spinner, empty } from "../ui.js";
 import { api } from "../api.js";
-import { djConsole, djVolume } from "./dj.js";
+import { djConsole, djVolume, audioEngine, setBassBoost, beatOn } from "./dj.js";
 
 const VOL_KEY = "lb_vc_music_vol";
 let volume = 60;
@@ -17,7 +17,7 @@ let onChange = () => {};
 export function setupMusic({ send, changed }) { post = send; onChange = changed || (() => {}); }
 // Who's the DJ right now (the voice room keeps this up to date)
 let djNow = null;
-export function setDj(d) { djNow = d || null; onChange(); }
+export function setDj(d) { djNow = d || null; onChange(); paintBass(); }
 export const currentDj = () => djNow;
 export const musicState = () => current;
 export const musicVolume = () => volume;
@@ -44,6 +44,42 @@ const level = () => (deaf ? 0 : Math.round((current?.volume ?? volume) * fadeMul
 // Deck B: the next song, while the DJ crossfades into it (x: 0 = only deck A, 1 = only deck B)
 let deckB = null; // { id, yt, box, audio }
 const mixX = () => current?.mix?.x || 0;
+// Bass boost: LookBlog songs (MP3s) go through a low-end boost in the browser. YouTube doesn't let a page touch
+// its sound, so there the beat channel's kicks get a sub-bass instead. Either way the screen shakes with it.
+const bassChains = new WeakMap();
+function bassOn(el, amt) {
+  if (!el) return;
+  let ch = bassChains.get(el);
+  if (!ch) {
+    if (amt <= 0) return;
+    const c = audioEngine(); if (!c) return; // (not until the page's sound has started, or the song would go quiet)
+    try {
+      const src = c.createMediaElementSource(el), shelf = c.createBiquadFilter(), sub = c.createBiquadFilter(), drive = c.createWaveShaper(), lim = c.createDynamicsCompressor();
+      shelf.type = "lowshelf"; shelf.frequency.value = 110; sub.type = "peaking"; sub.frequency.value = 55; sub.Q.value = 1.1;
+      lim.threshold.value = -6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.15;
+      src.connect(shelf); shelf.connect(sub); sub.connect(drive); drive.connect(lim); lim.connect(c.destination);
+      ch = { shelf, sub, drive }; bassChains.set(el, ch);
+    } catch { return; }
+  }
+  const c = ch.shelf.context, t = c.currentTime;
+  ch.shelf.gain.setTargetAtTime(amt * 16, t, 0.05); ch.sub.gain.setTargetAtTime(amt * 8, t, 0.05);
+  ch.drive.curve = amt > 0.5 ? (() => { const k = (amt - 0.5) * 6, cv = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = (i / 511) * 2 - 1; cv[i] = Math.tanh(x * (1 + k)) / Math.tanh(1 + k); } return cv; })() : null;
+}
+let bassStyle = null;
+function paintBass() {
+  const amt = current?.now && current.pausedAt == null && !deaf ? current.bass || 0 : 0;
+  setBassBoost(amt);
+  bassOn(audio, amt); bassOn(deckB?.audio, amt);
+  const on = amt > 0.02;
+  document.body.classList.toggle("bass-boost", on);
+  document.body.style.setProperty("--bass", String(amt));
+  document.body.style.setProperty("--beat", (60 / (beatOn()?.bpm || 120)).toFixed(3) + "s");
+  // Whoever is playing it (the DJ, or whoever put the song on): their name shakes
+  const who = on ? djNow?.username || current.now.byUsername || "" : "";
+  if (!bassStyle) { bassStyle = document.createElement("style"); bassStyle.id = "bass-style"; document.head.append(bassStyle); }
+  const u = who.replace(/["\\]/g, "");
+  bassStyle.textContent = u ? `body.bass-boost .vc-person[data-voice-user="${u}"] .vc-name, body.bass-boost .msg[data-author="${u}"] .bubble-name, body.bass-boost [data-bass-name="${u}"] { display: inline-block; animation: bass-vibe 0.08s linear infinite; color: var(--pink); text-shadow: 0 0 calc(var(--bass) * 12px) var(--pink); }` : "";
+}
 function applyVols() {
   // The DJ's mixer: crossfader between the decks, and each deck's channel fader
   const lv = current?.levels || { a: 1, b: 1 };
@@ -52,6 +88,7 @@ function applyVols() {
   try { yt?.setVolume(Math.round(a)); } catch {}
   if (deckB?.audio) deckB.audio.volume = Math.max(0, Math.min(1, b / 100));
   try { deckB?.yt?.setVolume(Math.round(b)); } catch {}
+  paintBass();
 }
 function dropDeckB() {
   if (!deckB) return;
@@ -68,7 +105,7 @@ async function syncDeckB(m) {
   if (!deckB) {
     deckB = { id: item.id };
     if (item.kind === "song") {
-      deckB.audio = new Audio(item.url);
+      deckB.audio = new Audio(); deckB.audio.crossOrigin = "anonymous"; deckB.audio.src = item.url;
       deckB.audio.dataset.voiceMusic = "1";
       deckB.audio.addEventListener("loadedmetadata", () => { if (deckB?.audio) deckB.audio.currentTime = pos(); });
       deckB.audio.play().catch(() => {});
@@ -154,6 +191,7 @@ export function resumeMusic() { const f = tapFn; tapFn = null; f?.(); onChange()
 
 function stopAll() {
   clearTap();
+  queueMicrotask(paintBass);
   if (audio) { audio.pause(); audio.src = ""; audio = null; }
   if (yt) { try { yt.destroy(); } catch {} yt = null; }
   ytBox?.remove(); ytBox = null;
@@ -164,6 +202,7 @@ export async function applyMusic(m) {
   if (m) m.skew = m.serverNow ? Date.now() - m.serverNow : 0;
   current = m;
   onChange();
+  paintBass();
   if (!m?.now) { dropDeckB(); return stopAll(); }
   const item = m.now, paused = m.pausedAt != null;
   if (item.id !== prevId) {
@@ -180,7 +219,7 @@ export async function applyMusic(m) {
   syncDeckB(m);
   if (item.kind === "song") {
     if (!audio) {
-      audio = new Audio(item.url);
+      audio = new Audio(); audio.crossOrigin = "anonymous"; audio.src = item.url;
       audio.dataset.voiceMusic = "1"; // the page's "one thing plays" rule leaves this alone
       audio.addEventListener("ended", () => post?.({ kind: "music", action: "ended", itemId: item.id }).catch(() => {}));
       audio.addEventListener("loadedmetadata", () => { if (current?.now?.id === item.id) audio.currentTime = Math.min(position(current), Math.max(0, audio.duration - 0.5)); });

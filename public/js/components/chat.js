@@ -608,7 +608,7 @@ function messageEl(msg, chat, onRemoved) {
 
   if (msg.pinned) bubble.prepend(h("span", { class: "pin-mark", title: "Pinned", text: "📌" }));
   if (msg.expiresAt) bubble.append(h("span", { class: "vanish-mark", title: "Disappears " + new Date(msg.expiresAt).toLocaleString(), text: "⏳" }));
-  const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : ""), dataset: { id: msg.id } },
+  const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : ""), dataset: { id: msg.id, author: msg.author.username || "" } },
     msg.mine ? null : h("a", { href: profileHref(msg.author.username), class: "msg-avatar", tabindex: "-1" }, avatar(msg.author, 34)),
     h("div", { class: "msg-stack" }, bubble, reactionsEl(msg, chat), notesEl(msg, chat)),
     tools.children.length ? tools : null

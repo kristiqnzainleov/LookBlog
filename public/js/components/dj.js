@@ -34,6 +34,12 @@ function engine() {
   return ctx;
 }
 addEventListener("pointerdown", () => engine(), { once: true });
+// The sound engine, if it's running (for the music's bass boost)
+export const audioEngine = () => (ctx && ctx.state === "running" ? ctx : null);
+// Bass boost (0–1): the beat channel's kicks get a sub-bass under them, and its low end goes up
+let bassNow = 0;
+export function setBassBoost(x) { bassNow = Math.max(0, Math.min(1, Number(x) || 0)); setBeatMix({}); }
+export const bassBoost = () => bassNow;
 let djVol = 0.8;
 export const djVolume = (v) => { djVol = Math.max(0, Math.min(1.2, v)); if (master) master.gain.value = djVol; };
 // The DJ's own effects (MP3s): played as they are, as loud as the music
@@ -47,6 +53,52 @@ export async function playCustom(url, vol = 1) {
     src.buffer = buf; g.gain.value = vol; src.connect(g); g.connect(bus()); src.start();
   } catch { sampleCache.delete(url); try { const a = new Audio(url); a.volume = Math.min(1, djVol * vol); a.play().catch(() => {}); } catch {} }
 }
+// An effect from the effect maker: oscillators (or noise) sliding from one pitch to another, through a filter, repeated
+export function playSynth(p) {
+  const c = engine(); if (!c || !p) return;
+  let t = c.currentTime + 0.02, gap = p.gap || 0.15;
+  const reps = Math.max(1, Math.min(16, p.repeat || 1));
+  for (let r = 0; r < reps; r++) {
+    const step = Math.pow(2, ((p.pitchStep || 0) * r) / 12), dur = p.dur || 0.4, a = Math.min(p.attack || 0.01, dur * 0.9);
+    const out = c.createGain(); out.gain.setValueAtTime(0.0001, t); out.gain.exponentialRampToValueAtTime(Math.max(0.001, (p.vol ?? 0.5) * 0.6), t + a); out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    let into = out;
+    if (p.filter && p.filter !== "none") {
+      const f = c.createBiquadFilter(); f.type = p.filter; f.Q.value = p.q || 1;
+      f.frequency.setValueAtTime(p.cut || 2000, t); f.frequency.exponentialRampToValueAtTime(Math.max(50, p.cut1 || p.cut || 2000), t + dur);
+      f.connect(out); into = f;
+    }
+    out.connect(bus());
+    const srcs = [];
+    if (p.wave === "noise" || p.noise > 0) {
+      const n = noise(c, dur + 0.05), g = c.createGain(); g.gain.value = p.wave === "noise" ? 1 : p.noise; n.connect(g); g.connect(into); srcs.push(n);
+    }
+    if (p.wave !== "noise") {
+      const voices = Math.max(1, Math.min(4, p.voices || 1));
+      for (let v = 0; v < voices; v++) {
+        const o = c.createOscillator(), g = c.createGain(), det = voices > 1 ? ((v / (voices - 1)) * 2 - 1) * (p.detune || 0) : 0;
+        o.type = p.wave || "sine"; o.detune.value = det; g.gain.value = 1 / voices;
+        o.frequency.setValueAtTime((p.f0 || 440) * step, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, (p.f1 || p.f0 || 440) * step), t + dur);
+        if (p.vibRate > 0 && p.vibDepth > 0) { const l = c.createOscillator(), d = c.createGain(); l.frequency.value = p.vibRate; d.gain.value = p.vibDepth; l.connect(d); d.connect(o.frequency); l.start(t); l.stop(t + dur + 0.05); }
+        o.connect(g); g.connect(into); srcs.push(o);
+      }
+    }
+    for (const sNode of srcs) { sNode.start(t); sNode.stop(t + dur + 0.05); }
+    t += gap; gap = Math.max(0.02, gap * (p.speedUp || 1));
+  }
+}
+// Starting points for the effect maker
+export const SYNTH_STARTS = {
+  laser: { wave: "square", f0: 2400, f1: 120, dur: 0.15, repeat: 3, gap: 0.16, vol: 0.4 },
+  riser: { wave: "sawtooth", f0: 200, f1: 2000, dur: 3, attack: 1.5, noise: 0.4, filter: "bandpass", cut: 300, cut1: 8000, q: 2, vol: 0.4 },
+  kick: { wave: "sine", f0: 160, f1: 40, dur: 0.35, attack: 0.002, vol: 0.9 },
+  siren: { wave: "square", f0: 900, f1: 900, dur: 2, vibRate: 3, vibDepth: 350, vol: 0.3 },
+  zap: { wave: "sawtooth", f0: 3200, f1: 200, dur: 0.08, repeat: 2, gap: 0.09, vol: 0.4 },
+  coin: { wave: "square", f0: 988, f1: 988, dur: 0.1, repeat: 2, gap: 0.08, pitchStep: 5, vol: 0.3 },
+  whoosh: { wave: "noise", dur: 1.2, attack: 0.6, filter: "bandpass", cut: 400, cut1: 5000, q: 3, vol: 0.6 },
+  wobble: { wave: "sawtooth", f0: 55, f1: 55, dur: 1.6, voices: 3, detune: 14, filter: "lowpass", cut: 300, cut1: 300, q: 8, vibRate: 6, vibDepth: 20, vol: 0.6 },
+  roll: { wave: "noise", dur: 0.06, filter: "highpass", cut: 1800, cut1: 1800, repeat: 16, gap: 0.16, speedUp: 0.88, vol: 0.5 },
+  ufo: { wave: "sine", f0: 600, f1: 1200, dur: 1.5, vibRate: 12, vibDepth: 200, vol: 0.4 },
+};
 // The keys: 808 bass, synth, pluck, bell, organ, lead. note 0–24 (two octaves from C)
 export function playNote(note, inst = "synth") {
   const c = engine(); if (!c) return;
@@ -76,7 +128,7 @@ export function setBeatMix(mix) {
   if (!beatBus) { pendingMix = beatMixNow; return; }
   const t = ctx.currentTime, b = beatBus, m = beatMixNow;
   b.gain.gain.setTargetAtTime(m.gain, t, 0.03);
-  b.low.gain.setTargetAtTime(m.low, t, 0.03); b.mid.gain.setTargetAtTime(m.mid, t, 0.03); b.high.gain.setTargetAtTime(m.high, t, 0.03);
+  b.low.gain.setTargetAtTime(Math.min(18, m.low + bassNow * 10), t, 0.03); b.mid.gain.setTargetAtTime(m.mid, t, 0.03); b.high.gain.setTargetAtTime(m.high, t, 0.03);
   if (Math.abs(m.filter) < 0.04) b.filter.type = "allpass";
   else if (m.filter < 0) { b.filter.type = "lowpass"; b.filter.frequency.setTargetAtTime(20000 * Math.pow(0.012, -m.filter), t, 0.03); }
   else { b.filter.type = "highpass"; b.filter.frequency.setTargetAtTime(20 * Math.pow(200, m.filter), t, 0.03); }
@@ -222,6 +274,7 @@ export function setBeat(b, skew = 0) {
     while (nextAt < c.currentTime + 0.12) {
       const i = n % 16, at = nextAt + (i % 2 ? swing : 0);
       for (const row of DRUM_ROWS) if (pat[row]?.[i] === "x") drum(c, row, at, bus());
+      if (bassNow > 0.02 && pat.kick?.[i] === "x") { osc(c, "sine", 70, 38, at, 0.45 + bassNow * 0.4, 0.5 + bassNow * 0.5, 0.004, bus()); }
       beat.step = i;
       n++; nextAt += step;
     }
@@ -282,7 +335,7 @@ export function djConsole(api) {
   const box = h("div", { class: "dj" });
   const cues = JSON.parse(sessionStorage.getItem("lb-dj-cues") || "{}");
   let setMode = false, taps = [], autoMix = false, mixing = false, tab = sessionStorage.getItem("lb-dj-tab") || "fx", holding = false, myPads = [], padsLoaded = false;
-  let inst = "synth", octave = 0, muted = {}, killed = {};
+  let inst = "synth", octave = 0, muted = {}, killed = {}, myFx = [], myPresets = [];
   let seq = (() => { try { return JSON.parse(localStorage.getItem("lb-dj-seq")) || null; } catch { return null; } })() || { kick: "x...x...x...x...", snare: "....x.......x...", clap: "", hat: "..x...x...x...x.", open: "", perc: "", swing: 0 };
   const saveSeq = () => { try { localStorage.setItem("lb-dj-seq", JSON.stringify(seq)); } catch {} };
   const send = (b) => api.post({ kind: "dj", ...b }).catch((err) => toast(err.error || "Couldn’t do that."));
@@ -291,6 +344,7 @@ export function djConsole(api) {
   const sendBeatMix = throttle((mx) => { setBeatMix(mx); send({ action: "beatmix", ...mx }); });
   const sendMaster = throttle((v) => api.post({ kind: "music", action: "volume", volume: Math.round(v * 100) }));
   const sendX = throttle((x) => send({ action: "mix", x }));
+  const sendBass = throttle((amount) => send({ action: "bass", amount }), 200);
 
   // Not while a knob or fader is in the DJ's hand (it would be swapped for a new one mid-turn)
   let turning = false, owed = false;
@@ -309,7 +363,7 @@ export function djConsole(api) {
     // ---- top bar ----
     const top = h("div", { class: "djc-top" },
       h("b", { class: "djc-brand", text: "LookBlog DDJ-2" }),
-      dj ? h("span", { class: "dj-who" + (me ? " me" : ""), text: me ? "🎧 You’re the DJ" : `🎧 @${dj.username} is DJing` }) : h("span", { class: "muted", text: "Nobody is DJing" }),
+      dj ? h("span", { class: "dj-who" + (me ? " me" : ""), "data-bass-name": dj.username, text: me ? "🎧 You’re the DJ" : `🎧 @${dj.username} is DJing` }) : h("span", { class: "muted", text: "Nobody is DJing" }),
       me ? pad(autoMix ? "🤖 Auto-mix ON" : "🤖 Auto-mix", "dj-small" + (autoMix ? " on" : ""), () => { autoMix = !autoMix; paint(); toast(autoMix ? "Auto-mix is on: songs blend into each other." : "Auto-mix is off."); }) : null,
       me ? h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Step down", onclick: () => send({ action: "release" }) })
         : h("button", { type: "button", class: "btn btn-xs btn-primary", text: dj ? "Taken" : "🎧 Take the decks", disabled: Boolean(dj), onclick: () => send({ action: "claim" }) }));
@@ -385,6 +439,19 @@ export function djConsole(api) {
         pad("RESET", "dj-small", () => sendBeatMix({ echo: 0, verb: 0, crush: 0, pan: 0, filter: 0, low: 0, mid: 0, high: 0 }), "Everything on the FX channel back to normal")),
       h("div", { class: "djc-master" }, knob("MASTER", { min: 0, max: 1, value: (m?.volume ?? 70) / 100, def: 0.7, disabled: lock, fmtv: (v) => Math.round(v * 100) + "%", accent: "master", onChange: (v) => sendMaster(v) }),
         knob("BPM", { min: 70, max: 180, value: beatOn()?.bpm || 124, def: 124, step: 1, disabled: lock, fmtv: (v) => String(v), onChange: throttle((v) => { if (beatOn()) send({ action: "beat", bpm: v, pattern: beatOn().pattern }); }, 300) })),
+      // Bass boost on the song itself
+      (() => {
+        const amt = m?.bass || 0;
+        const lvlTag = amt > 0.85 ? "💥 MAX" : amt > 0.02 ? "🔊 ON" : "OFF";
+        return h("div", { class: "djc-bass" + (amt > 0.02 ? " on" : "") },
+          knob("BASS", { min: 0, max: 1, value: amt, def: 0, disabled: lock || !m?.now, accent: "bass", fmtv: (v) => (v < 0.02 ? "OFF" : Math.round(v * 100) + "%"), onChange: (v) => sendBass(v) }),
+          h("div", { class: "djc-bass-btns" },
+            h("b", { class: "djc-bass-title" }, "BASS BOOST ", h("span", { class: "djc-bass-tag", text: lvlTag })),
+            h("div", { class: "djc-bass-row" },
+              pad("OFF", "dj-small" + (amt < 0.02 ? " on" : ""), () => send({ action: "bass", amount: 0 })),
+              pad("🔊 BOOST", "dj-small" + (amt >= 0.02 && amt <= 0.85 ? " on" : ""), () => send({ action: "bass", amount: 0.6 })),
+              pad("💥 MAX", "dj-small" + (amt > 0.85 ? " on" : ""), () => send({ action: "bass", amount: 1 })))));
+      })(),
       (() => {
         const xf = h("input", { type: "range", min: 0, max: 100, value: Math.round((m?.mix?.x || 0) * 100), class: "dj-xfader", disabled: lock || !m?.now || (!m?.queue?.length && !m?.mix), "aria-label": "Crossfader" });
         xf.addEventListener("input", () => sendX(Number(xf.value) / 100));
@@ -392,7 +459,7 @@ export function djConsole(api) {
       })());
 
     // ---- performance pads ----
-    const TABS = [["fx", "FX"], ["moves", "MOVES"], ["keys", "KEYS"], ["mine", "MY SOUNDS"], ["beats", "BEATS"], ["seq", "SEQUENCER"]];
+    const TABS = [["fx", "FX"], ["moves", "MOVES"], ["keys", "KEYS"], ["mine", "MY SOUNDS"], ["myfx", "MY FX"], ["beats", "BEATS"], ["seq", "SEQUENCER"], ["presets", "MY PRESETS"]];
     const tabs = h("div", { class: "djc-tabs" }, ...TABS.map(([k, l]) => {
       const b = h("button", { type: "button", class: "djc-tab" + (tab === k ? " on" : ""), text: l });
       b.addEventListener("click", () => { tab = k; sessionStorage.setItem("lb-dj-tab", k); paint(); });
@@ -434,6 +501,26 @@ export function djConsole(api) {
         return b;
       }), ...(myPads.length < 24 ? addPadButtons() : [])];
       if (padsLoaded && !myPads.length) grid.unshift(h("p", { class: "djc-note wide", text: "Your own sounds live on your account: upload an MP3 or record one with your mic. Only you can use them, in any voice channel." }));
+    } else if (tab === "myfx") {
+      grid = [...myFx.map((f) => {
+        const b = h("button", { type: "button", class: "dj-pad dj-perf dj-mine pc-" + (f.color || "purple"), title: lock ? "Preview (only you hear it)" : f.name, text: `${f.emoji}\n${f.name}` });
+        b.addEventListener("click", () => { if (lock) playSynth(f.p); else send({ action: "fx", fx: "synth", padId: f.id }); });
+        const edit = h("span", { class: "dj-edit", title: "Edit", text: "✎" });
+        edit.addEventListener("click", (e) => { e.stopPropagation(); fxMaker(f); });
+        b.append(edit);
+        return b;
+      }), ...(myFx.length < 24 ? [h("button", { type: "button", class: "dj-pad dj-perf dj-add", text: "＋\nMake an effect", onclick: () => fxMaker(null) })] : [])];
+      if (!myFx.length) grid.unshift(h("p", { class: "djc-note wide", text: "Make your own effects: pick a sound, slide its pitch, add a filter, repeat it. They’re saved on your account." }));
+    } else if (tab === "presets") {
+      grid = [...myPresets.map((pr) => {
+        const b = h("button", { type: "button", class: "dj-pad dj-perf dj-mine pc-" + (pr.color || "blue"), disabled: lock, title: "Load these settings", text: `${pr.emoji}\n${pr.name}` });
+        b.addEventListener("click", () => loadPreset(pr));
+        const del = h("span", { class: "dj-edit", title: "Delete", text: "✕" });
+        del.addEventListener("click", async (e) => { e.stopPropagation(); if (!del.dataset.sure) { del.dataset.sure = "1"; del.textContent = "Delete?"; del.classList.add("sure"); setTimeout(() => { if (del.isConnected) { delete del.dataset.sure; del.textContent = "✕"; del.classList.remove("sure"); } }, 2500); return; } try { myPresets = (await apiCall(`/api/me/dj-presets/${pr.id}`, { method: "DELETE" })).items; paint(); } catch {} });
+        b.append(del);
+        return b;
+      }), ...(myPresets.length < 16 ? [h("button", { type: "button", class: "dj-pad dj-perf dj-add", text: "💾\nSave current", onclick: () => savePreset() })] : [])];
+      grid.unshift(h("p", { class: "djc-note wide", text: "A preset keeps the FX · beat knobs (EQ, filter, echo, reverb, crush, pan), the bass boost and the beat. Tap one to load it all at once." }));
     } else if (tab === "beats") {
       const NAMES = { hiphop: "Hip-hop", dnb: "D&B", lofi: "Lo-fi" };
       const b = beatOn();
@@ -560,6 +647,102 @@ export function djConsole(api) {
       try { myPads = (await apiCall(`/api/me/dj-pads/${p.id}`, { method: "DELETE" })).pads; md.close(); paint(); } catch {}
     });
   }
+  // Presets: the mixer's settings saved on my account
+  function savePreset() {
+    const name = h("input", { class: "text-input", value: "My set " + (myPresets.length + 1), maxlength: 24 });
+    const EMOJI = ["🎚️", "🔥", "🌙", "⚡", "🎉", "💎", "🌊", "🚀"];
+    let emoji = EMOJI[0];
+    const emojis = h("div", { class: "dj-emoji-pick" }, ...EMOJI.map((e) => { const b = h("button", { type: "button", class: e === emoji ? "on" : "", text: e }); b.addEventListener("click", () => { emoji = e; [...emojis.children].forEach((x) => x.classList.toggle("on", x === b)); }); return b; }));
+    const go = h("button", { type: "button", class: "btn btn-primary btn-full", text: "💾 Save preset" });
+    const md = modal({ title: "Save the mixer’s settings", body: h("div", { class: "create-form" }, h("label", { class: "field-label", text: "Name" }), name, h("label", { class: "field-label", text: "Emoji" }), emojis, go) });
+    go.addEventListener("click", async () => {
+      const b = beatOn(), m = api.music();
+      const set = { mix: beatMix(), bass: m?.bass || 0, beat: b ? { bpm: b.bpm, pattern: b.pattern, swing: b.swing || 0, steps: b.steps || null } : null };
+      try { myPresets = (await apiCall("/api/me/dj-presets", { method: "POST", body: { name: name.value, emoji, set } })).items; md.close(); toast("💾 Preset saved."); paint(); }
+      catch (err) { toast(err.error || "Couldn’t save it."); }
+    });
+    setTimeout(() => name.select(), 60);
+  }
+  function loadPreset(pr) {
+    const st = pr.set || {};
+    setBeatMix(st.mix); send({ action: "beatmix", ...st.mix });
+    if (api.music()?.now) send({ action: "bass", amount: st.bass || 0 });
+    if (st.beat) send({ action: "beat", ...st.beat, ...(st.beat.steps ? {} : { steps: undefined }) });
+    else send({ action: "beat", bpm: 0 });
+    toast(`🎚️ ${pr.name} loaded.`);
+    setTimeout(paint, 400);
+  }
+  // The effect maker: build a sound from scratch, hear it, save it to my account
+  function fxMaker(f) {
+    let p = { ...SYNTH_STARTS.laser, ...(f?.p || {}) };
+    let look = { emoji: f?.emoji || "✨", color: f?.color || "purple" };
+    const name = h("input", { class: "text-input", value: f?.name || "My effect", maxlength: 24, placeholder: "Name" });
+    const ctrls = h("div", { class: "fxm-ctrls" });
+    const WAVES = [["sine", "∿ Sine"], ["triangle", "△ Triangle"], ["square", "⊓ Square"], ["sawtooth", "⩘ Saw"], ["noise", "▒ Noise"]];
+    const FILTERS = [["none", "No filter"], ["lowpass", "Low-pass"], ["highpass", "High-pass"], ["bandpass", "Band-pass"]];
+    const slider = (key, label, min, max, step, fmtv = (v) => v) => {
+      const out = h("small", { class: "fxm-val", text: fmtv(p[key] ?? min) });
+      const r = h("input", { type: "range", min, max, step, value: p[key] ?? min, class: "fxm-range" });
+      r.addEventListener("input", () => { p[key] = Number(r.value); out.textContent = fmtv(p[key]); });
+      r.addEventListener("change", () => playSynth(p));
+      return h("label", { class: "fxm-slider" }, h("span", { text: label }), r, out);
+    };
+    const chips = (key, opts) => h("div", { class: "fxm-chips" }, ...opts.map(([v, l]) => {
+      const b = h("button", { type: "button", class: "fxm-chip" + ((p[key] ?? opts[0][0]) === v ? " on" : ""), text: l });
+      b.addEventListener("click", () => { p[key] = v; b.parentElement.querySelectorAll(".fxm-chip").forEach((x) => x.classList.toggle("on", x === b)); playSynth(p); });
+      return b;
+    }));
+    const hz = (v) => (v >= 1000 ? (v / 1000).toFixed(1) + "k" : Math.round(v)) + " Hz", sec = (v) => Number(v).toFixed(2) + " s", pct = (v) => Math.round(v * 100) + "%";
+    function paintCtrls() {
+      ctrls.replaceChildren(
+        h("b", { class: "fxm-h", text: "Sound" }), chips("wave", WAVES),
+        slider("f0", "Start pitch", 20, 4000, 1, hz), slider("f1", "End pitch", 20, 4000, 1, hz),
+        slider("voices", "Voices", 1, 4, 1), slider("detune", "Detune", 0, 50, 1, (v) => v + "¢"), slider("noise", "Add noise", 0, 1, 0.05, pct),
+        h("b", { class: "fxm-h", text: "Shape" }), slider("dur", "Length", 0.03, 4, 0.01, sec), slider("attack", "Fade in", 0.001, 1, 0.001, sec), slider("vol", "Volume", 0.05, 1, 0.05, pct),
+        h("b", { class: "fxm-h", text: "Filter" }), chips("filter", FILTERS), slider("cut", "Filter start", 50, 15000, 10, hz), slider("cut1", "Filter end", 50, 15000, 10, hz), slider("q", "Resonance", 0.1, 20, 0.1, (v) => Number(v).toFixed(1)),
+        h("b", { class: "fxm-h", text: "Wobble" }), slider("vibRate", "Speed", 0, 30, 0.5, (v) => v + "/s"), slider("vibDepth", "Depth", 0, 1000, 5, (v) => v + " Hz"),
+        h("b", { class: "fxm-h", text: "Repeat" }), slider("repeat", "Times", 1, 16, 1, (v) => v + "×"), slider("gap", "Gap", 0.02, 1, 0.01, sec), slider("speedUp", "Speed up", 0.5, 1.5, 0.01, (v) => (v < 1 ? "faster " : v > 1 ? "slower " : "") + Number(v).toFixed(2)), slider("pitchStep", "Pitch per repeat", -12, 12, 1, (v) => (v > 0 ? "+" : "") + v + " st"));
+    }
+    paintCtrls();
+    const starts = h("div", { class: "fxm-chips" }, ...Object.keys(SYNTH_STARTS).map((k) => {
+      const b = h("button", { type: "button", class: "fxm-chip", text: k[0].toUpperCase() + k.slice(1) });
+      b.addEventListener("click", () => { p = { voices: 1, detune: 8, noise: 0, filter: "none", cut: 2000, cut1: 2000, q: 1, repeat: 1, gap: 0.15, speedUp: 1, pitchStep: 0, vibRate: 0, vibDepth: 0, attack: 0.01, f0: 440, f1: 440, ...SYNTH_STARTS[k] }; paintCtrls(); playSynth(p); });
+      return b;
+    }));
+    const EMOJI = ["✨", "⚡", "💥", "🚀", "👾", "🛸", "🔥", "🌀", "💫", "🎇", "🧨", "🤖", "🐉", "🔮", "🎯", "🌊"];
+    const COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "white"];
+    const emojis = h("div", { class: "dj-emoji-pick" }, ...EMOJI.map((e) => { const b = h("button", { type: "button", class: e === look.emoji ? "on" : "", text: e }); b.addEventListener("click", () => { look.emoji = e; [...emojis.children].forEach((x) => x.classList.toggle("on", x === b)); }); return b; }));
+    const colors = h("div", { class: "dj-color-pick" }, ...COLORS.map((c) => { const b = h("button", { type: "button", class: "pc-" + c + (c === look.color ? " on" : ""), "aria-label": c }); b.addEventListener("click", () => { look.color = c; [...colors.children].forEach((x) => x.classList.toggle("on", x === b)); }); return b; }));
+    const tryB = h("button", { type: "button", class: "btn btn-outline-light", text: "▶ Try it", onclick: () => playSynth(p) });
+    const rnd = h("button", { type: "button", class: "btn btn-outline-light", text: "🎲 Surprise me" });
+    rnd.addEventListener("click", () => {
+      const R = (a, b) => a + Math.random() * (b - a), pickOne = (a) => a[Math.floor(Math.random() * a.length)];
+      p = { wave: pickOne(["sine", "triangle", "square", "sawtooth", "noise"]), f0: Math.round(R(60, 3000)), f1: Math.round(R(40, 3000)), voices: Math.ceil(R(0, 3)), detune: Math.round(R(0, 25)), noise: Math.random() < 0.3 ? R(0, 0.6) : 0,
+        dur: R(0.05, 1.2), attack: R(0.001, 0.1), vol: 0.5, filter: pickOne(["none", "lowpass", "highpass", "bandpass"]), cut: Math.round(R(200, 8000)), cut1: Math.round(R(200, 8000)), q: R(0.5, 10),
+        vibRate: Math.random() < 0.4 ? R(1, 20) : 0, vibDepth: R(0, 300), repeat: Math.ceil(R(0, 6)), gap: R(0.05, 0.3), speedUp: R(0.8, 1.1), pitchStep: Math.round(R(-5, 5)) };
+      paintCtrls(); playSynth(p);
+    });
+    const saveB = h("button", { type: "button", class: "btn btn-primary", text: f ? "Save" : "Save to my FX" });
+    const del = f ? h("button", { type: "button", class: "btn btn-danger-outline", text: "🗑 Delete" }) : null;
+    const md = modal({ title: f ? "Edit your effect" : "Make an effect", wide: true, body: h("div", { class: "create-form fxm" },
+      h("label", { class: "field-label", text: "Start from" }), starts,
+      ctrls,
+      h("label", { class: "field-label", text: "Name" }), name,
+      h("label", { class: "field-label", text: "Emoji" }), emojis,
+      h("label", { class: "field-label", text: "Pad colour" }), colors,
+      h("div", { class: "dj-edit-actions" }, tryB, rnd, del, saveB)) });
+    saveB.addEventListener("click", async () => {
+      const body = { name: name.value, ...look, p };
+      try {
+        myFx = (await apiCall(f ? `/api/me/dj-fx/${f.id}` : "/api/me/dj-fx", { method: f ? "PATCH" : "POST", body })).items;
+        md.close(); toast(f ? "Saved." : "✨ Saved to MY FX."); paint();
+      } catch (err) { toast(err.error || "Couldn’t save it."); }
+    });
+    del?.addEventListener("click", async () => {
+      if (!del.dataset.sure) { del.dataset.sure = "1"; del.textContent = "Sure? Delete"; return; }
+      try { myFx = (await apiCall(`/api/me/dj-fx/${f.id}`, { method: "DELETE" })).items; md.close(); paint(); } catch {}
+    });
+  }
   // Keyboard: my sounds' keys and the piano keys
   const PIANO = "awsedftgyhujk";
   const onKey = (e) => {
@@ -630,6 +813,8 @@ export function djConsole(api) {
     return deck;
   }
   apiCall("/api/me/dj-pads").then((d) => { myPads = d.pads || []; padsLoaded = true; if (tab === "mine") paint(); }).catch(() => {});
+  apiCall("/api/me/dj-fx").then((d) => { myFx = d.items || []; if (tab === "myfx") paint(); }).catch(() => {});
+  apiCall("/api/me/dj-presets").then((d) => { myPresets = d.items || []; if (tab === "presets") paint(); }).catch(() => {});
   // Clocks, and auto-mix 12 seconds before the end
   const clock = setInterval(() => {
     if (!box.isConnected) return clearInterval(clock);

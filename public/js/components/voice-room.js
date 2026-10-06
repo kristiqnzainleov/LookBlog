@@ -874,7 +874,7 @@ function paintDock() {
     (() => {
       const dj = currentDj();
       const b = h("button", { type: "button", class: "vd-music-btn" + (musicState()?.now ? " on" : "") },
-        h("span", { class: "vmb-ic", text: "🎧" }), h("span", { class: "vmb-text" }, h("b", { text: "Music & DJ" }), h("small", { text: dj ? `🎛 @${dj.username} is DJing` : musicState()?.now ? musicState().now.title : "Play music for everyone" })));
+        h("span", { class: "vmb-ic", text: "🎧" }), h("span", { class: "vmb-text" }, h("b", { text: "Music & DJ" }), h("small", dj ? { "data-bass-name": dj.username, text: `🎛 @${dj.username} is DJing` } : { "data-bass-name": musicState()?.now?.byUsername || "", text: musicState()?.now ? musicState().now.title : "Play music for everyone" })));
       b.addEventListener("click", () => openMusicPanel());
       return b;
     })());

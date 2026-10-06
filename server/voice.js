@@ -41,7 +41,7 @@ async function youtubeInfo(url) {
 function musicView(key) {
   const m = music.get(key);
   if (!m || !m.now) return null;
-  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, mix: m.mix || null, levels: m.levels || null, changedBy: m.changedBy || null, serverNow: Date.now() };
+  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, mix: m.mix || null, levels: m.levels || null, bass: m.bass || 0, changedBy: m.changedBy || null, serverNow: Date.now() };
 }
 function sendMusic(chat, channelId) {
   const key = chat.id + ":" + channelId;
@@ -267,7 +267,7 @@ async function handleVoice(req, res, me, chat, chats) {
         const note = Math.round(Number(body.note));
         if (!(note >= 0 && note <= 24)) throw httpError(400, "Pick a key.");
         extra = { fx: "note", note, inst: INSTRUMENTS.includes(body.inst) ? body.inst : "synth" };
-      } else if (a === "fx") {
+      } else if (a === "fx" && body.fx !== "synth") {
         if (!FX.includes(body.fx)) throw httpError(400, "Unknown effect.");
         extra = { fx: body.fx };
         if (body.fx === "brake" && m?.now && m.pausedAt == null) { m.pausedAt = (Date.now() - m.startedAt) * (m.rate || 1); music.set(key, m); sendMusic(chat, channel.id); }
@@ -311,6 +311,18 @@ async function handleVoice(req, res, me, chat, chats) {
         } else if (m.mix && x <= 0) m.mix = null;
         music.set(key, m);
         sendMusic(chat, channel.id);
+      } else if (a === "bass") {
+        // Bass boost on the song (0–1): everyone's player boosts the low end, and the screen shakes with it
+        if (!m?.now) throw httpError(409, "Nothing is playing.");
+        m.bass = Math.max(0, Math.min(1, Number(body.amount) || 0));
+        music.set(key, m);
+        sendMusic(chat, channel.id);
+        extra = { bass: m.bass };
+      } else if (a === "fx" && body.fx === "synth") {
+        // One of the DJ's own effects, made in the effect maker: everyone's browser builds the same sound
+        const fx = (me.djFx || []).find((x) => x.id === body.padId);
+        if (!fx) throw httpError(404, "That effect is gone.");
+        extra = { fx: "synth", p: fx.p, name: fx.name, emoji: fx.emoji };
       } else if (a === "levels") {
         // The mixer's channel faders for deck A and deck B (0–1, everyone hears it)
         if (!m?.now) throw httpError(409, "Nothing is playing.");
@@ -379,7 +391,7 @@ async function handleVoice(req, res, me, chat, chats) {
       } else throw httpError(400, "Pick a song or paste a YouTube link.");
       item.id = Math.random().toString(36).slice(2, 10);
       me.voiceDJ = (me.voiceDJ || 0) + 1; require("./db").save("users");
-      item.by = me.name;
+      item.by = me.name; item.byUsername = me.username;
       if (a === "play" || !m.now) { m.now = item; m.startedAt = Date.now(); m.pausedAt = null; m.rate = 1; m.loop = null; }
       else { if (m.queue.length >= 30) throw httpError(400, "The queue is full."); m.queue.push(item); }
       music.set(key, m);
