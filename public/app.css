@@ -4664,7 +4664,7 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .inst-cam svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2; }
 .inst-stack { position: relative; width: 56px; height: 64px; }
 .inst-card { position: absolute; inset: 0; padding: 3px 3px 9px; border-radius: 8px; background: #fff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5); transform: rotate(var(--r)); z-index: var(--i); }
-.inst-card img { width: 100%; height: 100%; object-fit: cover; border-radius: 5px; filter: blur(5px) saturate(1.2); }
+.inst-card img { width: 100%; height: 100%; object-fit: cover; border-radius: 5px; filter: blur(1.5px) saturate(1.15); }
 .inst-count { position: absolute; top: -6px; right: -6px; z-index: 5; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--pink); color: #000; font: 900 0.75rem/22px var(--body); text-align: center; box-shadow: 0 0 0 2px var(--ink); }
 .messenger.has-open .inst-pile { display: none; }
 
@@ -4929,3 +4929,6 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .swipe-reply.armed { background: var(--pink); color: #000; }
 .msg .msg-stack { position: relative; z-index: 1; will-change: transform; }
 .msg .msg-avatar { position: relative; z-index: 1; }
+/* Looktures pile: a bit bigger when there are new ones */
+.inst-pile.has-new { width: 74px; height: 80px; }
+.inst-pile.has-new .inst-stack { width: 64px; height: 74px; }

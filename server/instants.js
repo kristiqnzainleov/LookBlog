@@ -1,5 +1,5 @@
-// Instants (like Instagram): a quick photo taken with the phone's camera, sent to your friends
-// (people you follow and who follow you back). Each friend sees it once, then it's gone for them.
+// Instants / Looktures (like Instagram): a quick photo taken with the phone's camera, for the people who follow you
+// (like stories). Each of them sees it once, then it's gone for them.
 // Unseen ones disappear after 24 hours; you can see your own (and who saw them) for those 24 hours too.
 const crypto = require("crypto");
 const { db, save, findUser } = require("./db");
@@ -13,9 +13,10 @@ const DAY = 24 * 60 * 60 * 1000;
 const REACTIONS = ["😂", "😍", "🔥", "😮", "👏", "❤️"];
 const live = (x) => Date.now() - new Date(x.createdAt).getTime() < DAY;
 const blocked = (a, b) => (a.blocked || []).includes(b.id) || (b.blocked || []).includes(a.id);
-const friendsOf = (me) => me.following.map(findUser).filter((u) => u && u.following.includes(me.id) && !blocked(me, u));
-// Is this instant for me? (sent by a friend while we were friends, still up, not seen yet)
-const forMe = (x, me) => x.to.includes(me.id) && live(x) && !x.seenBy.includes(me.id);
+// Who gets my looktures: everyone who follows me
+const friendsOf = (me) => db.users.filter((u) => u.id !== me.id && u.following.includes(me.id) && !blocked(me, u));
+// Is this one for me? (I follow the sender, or did when it was sent; still up; not seen yet)
+const forMe = (x, me) => x.userId !== me.id && live(x) && !x.seenBy.includes(me.id) && (x.to.includes(me.id) || me.following.includes(x.userId));
 
 function view(x, me) {
   const out = { id: x.id, url: x.url, caption: x.caption || "", createdAt: x.createdAt, expiresAt: new Date(new Date(x.createdAt).getTime() + DAY).toISOString(), user: authorView(findUser(x.userId)) };
@@ -78,7 +79,7 @@ async function handleInstants(req, res, url, me) {
     const caption = clean(body.caption).replace(/\s+/g, " ");
     if (chars(caption) > 80) throw httpError(400, "Keep it under 80 characters.");
     const friends = friendsOf(me);
-    if (!friends.length) throw httpError(400, "Looktures go to friends: people you follow who follow you back. You don’t have any yet.");
+    if (!friends.length) throw httpError(400, "Looktures go to the people who follow you. Nobody follows you yet.");
     const x = { id: crypto.randomUUID(), userId: me.id, url: img.url, caption, to: friends.map((u) => u.id), seenBy: [], reactions: {}, createdAt: new Date().toISOString() };
     db.instants.push(x);
     markUsed(img.url, "instant:" + x.id);

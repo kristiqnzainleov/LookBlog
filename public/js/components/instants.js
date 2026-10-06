@@ -1,6 +1,6 @@
 // Instants (like Instagram), phones only: the little pile at the bottom of Messages.
-// Tap it to see what your friends sent (each one once), then snap your own with the camera.
-// No gallery and no editing: just a quick photo for your friends, gone after they see it.
+// Tap it to see what the people you follow sent (each one once), then snap your own with the camera.
+// No gallery and no editing: just a quick photo for your followers, gone after they see it.
 import { h, icon, avatar, toast, timeAgo, modal, tick } from "../ui.js";
 import { api, upload } from "../api.js";
 import { on } from "../state.js";
@@ -21,7 +21,7 @@ export function instantsPile() {
       n ? h("span", { class: "inst-stack" }, ...cards) : h("span", { class: "inst-cam" }, icon("camera")),
       n ? h("span", { class: "inst-count", text: String(n) }) : null,
       n ? h("span", { class: "inst-senders" }, ...senders.slice(0, 3).map((u) => avatar(u, 22))) : null);
-    el.title = n ? `${senders.map((u) => u.name.split(" ")[0]).slice(0, 3).join(", ")} sent ${n} lookture${n === 1 ? "" : "s"}` : "Looktures: snap a photo for your friends";
+    el.title = n ? `${senders.map((u) => u.name.split(" ")[0]).slice(0, 3).join(", ")} sent ${n} lookture${n === 1 ? "" : "s"}` : "Looktures: snap a photo for your followers";
     el.setAttribute("aria-label", el.title);
     el.classList.toggle("has-new", n > 0);
   }
@@ -49,7 +49,7 @@ function openInstants(data, reload) {
   const close = () => {
     if (closed) return;
     closed = true;
-    if (sentCount) toast(`⚡ ${sentCount} lookture${sentCount === 1 ? "" : "s"} sent to your friends.`);
+    if (sentCount) toast(`⚡ ${sentCount} lookture${sentCount === 1 ? "" : "s"} sent to your followers.`);
     stream?.getTracks().forEach((t) => t.stop());
     box.remove();
     document.body.classList.remove("no-scroll");
@@ -140,7 +140,7 @@ function openInstants(data, reload) {
       h("header", { class: "inst-head" }, closeBtn(), h("b", { class: "inst-title", text: "Looktures" }), mineBtn),
       h("div", { class: "inst-frame" }, video, h("span", { class: "inst-zoom", hidden: true }), h("span", { class: "inst-sent", hidden: true })),
       h("input", { type: "text", class: "inst-caption", placeholder: "Caption (optional)…", maxlength: 80, enterkeyhint: "done" }),
-      h("p", { class: "inst-once", text: data.friends ? `Goes to your ${data.friends} friend${data.friends === 1 ? "" : "s"} · they see it once` : "Looktures go to friends: people you follow who follow you back" }),
+      h("p", { class: "inst-once", text: data.friends ? `Goes to your ${data.friends} follower${data.friends === 1 ? "" : "s"} · they see it once` : "Looktures go to the people who follow you" }),
       h("div", { class: "inst-controls" }, h("span"), shutter, flip));
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1920 } }, audio: false });
