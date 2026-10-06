@@ -17,6 +17,7 @@ import { linkBlock } from "./links.js";
 import { upload } from "../api.js";
 import { attachMentions } from "./mentions.js";
 import { openSoundPicker, soundChip, playSound } from "./sounds.js";
+import { sfx } from "./sfx.js";
 import { applyWallpaper, applyTheme, onHold, openChatOptions, openVanishPicker, vanishLabel } from "./wallpaper.js";
 
 export function chatPic(c, size = 44) {
@@ -113,7 +114,19 @@ function reactionsEl(msg, chat) {
   for (const r of msg.reactions || []) {
     const chip = h("button", { type: "button", class: "reaction" + (r.mine ? " mine" : ""), title: r.names.join(", ") + " · tap to see who reacted" },
       h("span", { class: "reaction-emoji", text: r.emoji }), r.count > 1 ? h("span", { class: "reaction-count", text: String(r.count) }) : null);
-    chip.addEventListener("click", () => openReactions(msg, chat));
+    // Tap: who reacted. Double tap: react with the same emoji yourself (e.g. a ❤️ on top of theirs)
+    let tapTimer = null;
+    chip.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (tapTimer) {
+        clearTimeout(tapTimer); tapTimer = null;
+        if (!r.mine) { likeBurst(chip.closest(".msg")?.querySelector(".bubble"), r.emoji); react(msg, chat, r.emoji); }
+        else likeBurst(chip.closest(".msg")?.querySelector(".bubble"), r.emoji, true);
+        return;
+      }
+      tapTimer = setTimeout(() => { tapTimer = null; openReactions(msg, chat); }, 280);
+    });
+    chip.addEventListener("dblclick", (e) => e.stopPropagation());
     row.append(chip);
   }
   row.hidden = !(msg.reactions || []).length;
@@ -158,6 +171,14 @@ async function openReactions(msg, chat) {
   paint();
 }
 
+// A big emoji pops over the message (and a little sound)
+function likeBurst(bubble, emoji = "❤️", quiet = false) {
+  if (!quiet) sfx("like");
+  if (!bubble) return;
+  const pop = h("span", { class: "like-burst", text: emoji });
+  bubble.append(pop);
+  setTimeout(() => pop.remove(), 750);
+}
 async function react(msg, chat, emoji) {
   try {
     const { reactions } = await api(`/api/chats/${chat.id}/messages/${msg.id}/react`, { method: "POST", body: { emoji } });
@@ -486,7 +507,19 @@ function messageEl(msg, chat, onRemoved) {
     if (!open) row.classList.add("show-tools");
   });
   // Double-click a message to send a heart
-  bubble.addEventListener("dblclick", (e) => { if (!e.target.closest("a, video, .lb-player")) react(msg, chat, "❤️"); });
+  // Double tap (or double click) a message: ❤️ (like Instagram: it only adds, it never takes it away)
+  const heart = () => {
+    const mine = (msg.reactions || []).find((x) => x.mine);
+    likeBurst(bubble, "❤️", mine?.emoji === "❤️");
+    if (mine?.emoji !== "❤️") react(msg, chat, "❤️");
+  };
+  bubble.addEventListener("dblclick", (e) => { if (!e.target.closest("a, video, .lb-player, .reaction")) heart(); });
+  let lastTap = 0;
+  bubble.addEventListener("touchend", (e) => {
+    if (e.target.closest("a, video, .lb-player, .reaction, button")) return;
+    const now = Date.now();
+    if (now - lastTap < 300) { e.preventDefault(); heart(); lastTap = 0; } else lastTap = now;
+  });
   return row;
 }
 
@@ -655,14 +688,35 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   // "… is typing" just above the box
   const typingBar = h("div", { class: "typing-bar", hidden: true });
   const typers = new Map(); // username -> { name, until }
+  // Also like Instagram: a bubble with bouncing dots at the end of the chat, and "typing…" under the name at the top
+  const typingBubble = h("div", { class: "msg typing-msg" });
   function paintTyping() {
     const now = Date.now();
     for (const [u, t] of typers) if (t.until < now) typers.delete(u);
     const names = [...typers.values()].map((t) => t.name);
     typingBar.hidden = !names.length;
-    if (!names.length) return;
+    const sub = head.querySelector(".convo-who .muted");
+    if (sub) {
+      if (names.length && !sub.classList.contains("is-typing")) { sub._was = [...sub.childNodes]; sub.classList.add("is-typing"); }
+      if (names.length) sub.replaceChildren(chat?.kind === "group" ? `${names[0]}${names.length > 1 ? ` +${names.length - 1}` : ""} is typing…` : "typing…");
+      else if (sub.classList.contains("is-typing")) { sub.classList.remove("is-typing"); sub.replaceChildren(...(sub._was || [])); }
+    }
+    if (!names.length) { typingBubble.remove(); return; }
     const who = names.length === 1 ? `${names[0]} is typing` : names.length === 2 ? `${names[0]} and ${names[1]} are typing` : `${names[0]}, ${names[1]} and ${names.length - 2} more are typing`;
     typingBar.replaceChildren(h("span", { class: "typing-dots" }, h("i"), h("i"), h("i")), h("span", { text: who }));
+    const first = [...typers.keys()][0];
+    const person = chat?.kind === "dm" ? chat.other : (chat?.members || []).find((u) => u.username === first);
+    const key = [...typers.keys()].join(",");
+    if (typingBubble.dataset.who !== key) {
+      typingBubble.dataset.who = key;
+      typingBubble.replaceChildren(person ? h("span", { class: "msg-avatar" }, avatar(person, 34)) : h("span", { class: "msg-avatar" }),
+        h("div", { class: "bubble typing-bubble", "aria-label": who }, h("span", { class: "typing-dots big" }, h("i"), h("i"), h("i"))));
+    }
+    if (list.lastElementChild !== typingBubble) {
+      const stick = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+      list.append(typingBubble);
+      if (stick) list.scrollTop = list.scrollHeight;
+    }
   }
   const typingTick = setInterval(paintTyping, 1000);
   const el = h("section", { class: "convo" }, head, pinBar, list, typingBar, footer);
@@ -900,7 +954,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
         recTime.textContent = "Sending…";
         const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "weba";
         const { url } = await upload(new File([blob], "voice." + ext, { type: blob.type }));
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  media: { url, duration, peaks }, replyTo: replying?.id || null } });
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  media: { url, duration, peaks }, replyTo: replying?.id || null } }); sfx("send");
         setReply(null);
         add(message);
         toBottom();
@@ -914,7 +968,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const stickerBtn = h("button", { type: "button", class: "tool-btn", "aria-label": "Stickers", title: "Stickers" }, icon("sticker"));
     const sendExtra = async (body, what) => {
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } });
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } }); sfx("send");
         setReply(null); add(message); toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
       } catch (ex) { showErr(ex.error || `Couldn’t send the ${what}.`); }
@@ -924,7 +978,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     soundBtn.addEventListener("click", () => openSoundPicker(soundBtn, { group: chat.kind === "group" ? chat : null, builtin: chat.kind === "group", onPick: (b) => sendExtra(b, "sound") }));
     stickerBtn.addEventListener("click", () => openStickers(stickerBtn, async (st, kind) => {
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...(kind === "group" ? { groupSticker: st.id } : { sticker: st.id }), replyTo: replying?.id || null } });
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...(kind === "group" ? { groupSticker: st.id } : { sticker: st.id }), replyTo: replying?.id || null } }); sfx("send");
         setReply(null);
         add(message);
         toBottom();
@@ -937,7 +991,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const songBtn = h("button", { type: "button", class: "tool-btn", "aria-label": "Send a song", title: "Send a song" }, icon("note", "note-ic"));
     songBtn.addEventListener("click", () => openSongPicker(async (sg) => {
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, songId: sg.id, replyTo: replying?.id || null } });
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, songId: sg.id, replyTo: replying?.id || null } }); sfx("send");
         setReply(null); add(message); toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
       } catch (ex) { showErr(ex.error || "Couldn’t send the song."); throw ex; }
@@ -945,7 +999,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     inputRow.insertBefore(songBtn, text);
     const sendGif = async (g, to = replying) => {
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  ...gifBody(g), replyTo: to?.id || null } });
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  ...gifBody(g), replyTo: to?.id || null } }); sfx("send");
         setReply(null); add(message); toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
       } catch (ex) { showErr(ex.error || "Couldn’t send the GIF."); }
@@ -975,7 +1029,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       const f = camInput.files[0];
       camInput.value = "";
       if (f) openDisappearing(f, async (body) => {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } });
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } }); sfx("send");
         setReply(null);
         add(message);
         toBottom();
@@ -990,7 +1044,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       send.disabled = true;
       closeEmojiPicker();
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}) } });
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}) } }); sfx("send");
         setReply(null);
         add(message);
         toBottom();

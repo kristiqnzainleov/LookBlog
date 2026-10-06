@@ -4719,3 +4719,12 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .inst-sent[hidden] { display: none; }
 .inst-fly { position: absolute; left: 50%; top: 50%; width: 46%; aspect-ratio: 1; margin: -23% 0 0 -23%; border: 4px solid #fff; border-radius: 8px; object-fit: cover; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); pointer-events: none; animation: instFly 0.7s cubic-bezier(.5, 0, .7, .4) forwards; }
 @keyframes instFly { 0% { transform: scale(1) rotate(0); opacity: 1; } 100% { transform: translate(60%, -160%) scale(0.25) rotate(18deg); opacity: 0; } }
+
+/* ---------- Hearts, typing bubble ---------- */
+.bubble { position: relative; }
+.like-burst { position: absolute; left: 50%; top: 50%; z-index: 3; font-size: 2.6rem; line-height: 1; pointer-events: none; transform: translate(-50%, -50%) scale(0); filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45)); animation: likeBurst 0.75s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+@keyframes likeBurst { 0% { transform: translate(-50%, -50%) scale(0); opacity: 1; } 35% { transform: translate(-50%, -50%) scale(1.25); } 60% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -90%) scale(0.9); opacity: 0; } }
+.typing-msg { animation: popIn 0.18s ease-out; }
+.typing-bubble { display: inline-flex; align-items: center; min-height: 38px; padding: 10px 16px; }
+.typing-dots.big i { width: 8px; height: 8px; }
+.convo-who .muted.is-typing { color: var(--pink); font-weight: 700; }
