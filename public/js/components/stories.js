@@ -54,8 +54,9 @@ export async function addStory() {
         const check = import("./nsfw.js").then((m) => m.checkImage(isVideo ? info.posterBlob : file)).catch(() => ({ nsfw: false }));
         const body = { media: { url: (await upload(file)).url }, text: text.value, tags: tagsOf() };
         const found = (isVideo ? info.posterBlob : true) ? await check : {};
+        // Weapons, violence… aren't allowed on LookBlog
+        if (found.sensitive) throw { error: "This isn’t allowed on LookBlog. Violence, blood, weapons, self-harm and other disturbing content go against the LookBlog rules." };
         if (found.nsfw) body.media.nsfw = true; // 18+: blurred for others
-        if (found.sensitive) body.media.sensitive = true; // weapons, violence: a warning first
         if (isVideo) {
           Object.assign(body.media, { duration: info.duration, width: info.width, height: info.height });
           if (info.posterBlob) body.media.poster = (await upload(new File([info.posterBlob], "cover.jpg", { type: "image/jpeg" }))).url;

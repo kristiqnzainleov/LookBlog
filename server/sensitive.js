@@ -1,6 +1,6 @@
 // "Sensitive content" (not sexual, that's NSFW): violence, blood, weapons, self-harm, death and other disturbing things.
-// Found from the words in a post (English and Bulgarian), from the photo check when it was picked (weapons),
-// from the author marking it, or from people reporting it. Sensitive posts are covered with a warning and not recommended.
+// It isn't allowed on LookBlog: found from the words (English and Bulgarian) or the photo check when it's picked (weapons),
+// it's refused right away; posted anyway and reported by people, it's taken down.
 
 // One of these is enough
 const STRONG = [
@@ -23,4 +23,11 @@ function sensitiveText(...parts) {
   return MEDIUM.filter((w) => has(t, w)).length >= 2;
 }
 
-module.exports = { sensitiveText };
+const NOT_ALLOWED = "This isn’t allowed on LookBlog. Violence, blood, weapons, self-harm and other disturbing content go against the LookBlog rules (see Terms).";
+const { httpError } = require("./http");
+// Throws the "not allowed" error when the words (or a photo the check flagged) are sensitive
+function refuseSensitive(texts, media = []) {
+  if ((media || []).some((m) => m?.sensitive) || sensitiveText(...texts)) throw httpError(400, NOT_ALLOWED);
+}
+
+module.exports = { sensitiveText, refuseSensitive, NOT_ALLOWED };

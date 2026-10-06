@@ -653,6 +653,7 @@ async function handleChat(req, res, url, me) {
       const body = await readJSON(req);
       const text = clean(body.text);
       let media = body.media ? buildMedia(body.media, me) : null;
+      if (media?.sensitive) require("./sensitive").refuseSensitive([], [media]); // a photo of weapons, violence… isn't allowed
       const gifMedia = resolveGif(body, me);
       if (gifMedia) media = gifMedia;
       const extra = resolveExtras(body, me, chat); // a sticker or a sound (mine, the group's, or built-in)

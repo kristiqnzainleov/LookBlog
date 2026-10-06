@@ -682,6 +682,8 @@ async function handleSocial(req, res, url, me) {
       if (series.videoIds.length >= 200) throw httpError(400, "This series is full.");
     }
     const data = validatePost(body, me);
+    // Sensitive content (violence, blood, weapons…) isn't allowed: refused right away
+    require("./sensitive").refuseSensitive([data.title, data.text, data.poll?.question, ...(data.poll?.options || []).map((o) => o.text || o)], data.media);
     const post = {
       id: crypto.randomUUID(),
       userId: me.id,
@@ -698,8 +700,7 @@ async function handleSocial(req, res, url, me) {
     post.tags = []; // people are tagged with @ in the text (post.mentions)
     // Sensitive (18+): found by the automatic check, or marked by the author
     if (body.nsfw === true || post.media.some((x) => x.nsfw)) post.nsfw = true;
-    // Sensitive (violence, blood, weapons…): the words, the photo check, or the author
-    if (body.sensitive === true || post.media.some((x) => x.sensitive) || require("./sensitive").sensitiveText(post.title, post.text)) post.sensitive = true;
+
     db.posts.unshift(post);
     claim(post.media, "post:" + post.id);
     if (post.film?.backdrop) markUsed(post.film.backdrop, "post:" + post.id);
@@ -891,6 +892,7 @@ async function handleSocial(req, res, url, me) {
       sendJSON(res, 200, { post: postView(post, me) });
       return true;
     }
+    require("./sensitive").refuseSensitive([title, text]); // edited into something not allowed: refused
     const before = new Set(post.mentions);
     post.text = text;
     post.title = post.type === "video" ? title : "";
@@ -955,10 +957,18 @@ async function handleSocial(req, res, url, me) {
       save("reports");
       require("./admin").pingAdmins();
       console.log(`[report] ${reason} on post ${post.id} by @${me.username}`);
-      // Reported as violent/disturbing by a couple of people: it gets the warning right away (the team still checks it)
-      if (!post.sensitive && ["violence", "self-harm", "sensitive"].includes(reason)) {
+      // Reported as violent/disturbing by 3 different people: taken down right away (it isn't allowed), and the author is told
+      if (["violence", "self-harm", "sensitive"].includes(reason)) {
         const n = new Set(db.reports.filter((r) => r.postId === post.id && ["violence", "self-harm", "sensitive"].includes(r.reason)).map((r) => r.reporterId)).size;
-        if (n >= 2) { post.sensitive = true; save("posts"); }
+        if (n >= 3) {
+          const author = findUser(post.userId);
+          removePost(post);
+          save("posts"); save("comments");
+          if (author) notify(author.id, "team", { id: "team", name: "LookBlog Team" }, { text: "We removed one of your posts: violence, blood, weapons, self-harm and other disturbing content aren’t allowed on LookBlog (see Terms).", link: "/terms" });
+          broadcast({ type: "post:deleted", id: post.id });
+          sendJSON(res, 200, { ok: true, removed: true });
+          return true;
+        }
       }
       if (!post.nsfw && reason === "nudity") {
         const n = new Set(db.reports.filter((r) => r.postId === post.id && r.reason === "nudity").map((r) => r.reporterId)).size;
@@ -1225,6 +1235,7 @@ async function handleSocial(req, res, url, me) {
     const text = clean(body.text);
     let media = body.media ? buildMedia(body.media, me) : null;
     if (media?.kind === "audio") throw httpError(400, "Voice messages are for chats.");
+    require("./sensitive").refuseSensitive([text], media ? [media] : []);
     const gifMedia = resolveGif(body, me) || resolveExtras(body, me);
     if (gifMedia) media = gifMedia;
     if (!text && !media) throw httpError(400, "Write a reply or add a photo or video.");

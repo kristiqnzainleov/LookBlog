@@ -214,6 +214,7 @@ async function handleStories(req, res, url, me) {
     if (media.kind === "video" && media.duration && media.duration > 60.5) throw httpError(400, "Story videos can be up to 60 seconds.");
     const text = clean(body.text);
     if (chars(text) > 120) throw httpError(400, "Keep the text under 120 characters.");
+    require("./sensitive").refuseSensitive([text], [media]); // violence, weapons… aren't allowed
     // Tag people (up to 10): @usernames
     const { findByUsername } = require("./db");
     const tagged = [...new Set((Array.isArray(body.tags) ? body.tags : []).slice(0, 20).map((x) => String(x).replace(/^@/, "").trim().toLowerCase()).filter(Boolean))]

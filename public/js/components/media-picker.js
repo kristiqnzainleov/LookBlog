@@ -1,6 +1,8 @@
 // Picking, uploading and previewing photos and videos.
 import { h, icon, duration as fmtDuration } from "../ui.js";
 import { upload } from "../api.js";
+// Violence, blood, weapons… aren't allowed: a photo the check flags is taken out right away
+const NOT_ALLOWED = "This isn’t allowed on LookBlog. Violence, blood, weapons, self-harm and other disturbing content go against the LookBlog rules.";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
@@ -117,13 +119,16 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
         if (maxVideoSeconds && (!info || !Number.isFinite(info.duration))) throw { error: "We couldn’t read this video. Try an MP4 file." };
         if (maxVideoSeconds && info.duration > maxVideoSeconds + 0.5) throw { error: `Shorts can be up to ${maxVideoSeconds} seconds. This one is ${fmtDuration(info.duration)}.` };
         if (info?.posterBlob) {
-          item.check = import("./nsfw.js").then((m) => m.checkImage(info.posterBlob)); // the NSFW check on the first frame
+          item.check = import("./nsfw.js").then((m) => m.checkImage(info.posterBlob)); // the checks on the first frame
+          item.check.then((r) => { if (r.sensitive && items.includes(item)) { item.status = "error"; remove(item); onError(NOT_ALLOWED); } });
           const poster = await upload(new File([info.posterBlob], "cover.jpg", { type: "image/jpeg" }));
           item.poster = poster.url;
         }
         paintMeta(item);
       } else {
-        item.check = import("./nsfw.js").then((m) => m.checkImage(item.file)); // the NSFW check, while it uploads
+        item.check = import("./nsfw.js").then((m) => m.checkImage(item.file)); // the checks, while it uploads
+        // Not allowed (weapons, violence…): out of the post the moment it's found
+        item.check.then((r) => { if (r.sensitive && items.includes(item)) { item.status = "error"; remove(item); onError(NOT_ALLOWED); } });
         Object.assign(item, await imageSize(item.file));
       }
       const res = await upload(item.file, (p) => { item.progress = p; paintProgress(item); });
@@ -131,9 +136,8 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
       // Sensitive (18+)? Marked, so others see it blurred
       if (item.check) {
         const r = await item.check;
+        if (r.sensitive || !items.includes(item)) return; // already taken out
         item.nsfw = r.nsfw;
-        item.sensitive = r.sensitive;
-        if (r.sensitive && !r.nsfw) { item.el?.append(h("span", { class: "preview-nsfw", title: "Marked as sensitive: others see a warning first", text: "⚠️" })); onError("This looks sensitive (weapons or violence). People will see a warning before it."); }
         if (r.nsfw) { item.el?.classList.add("is-nsfw"); item.el?.append(h("span", { class: "preview-nsfw", title: "Marked as sensitive (18+): others see it blurred", text: "🔞" })); onError("This looks sensitive (18+). It will be posted blurred, and people tap to see it."); }
       }
       item.status = "done";
@@ -188,7 +192,7 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
     items: () => items,
     busy: () => items.some((i) => i.status === "uploading"),
     media: () => items.filter((i) => i.status === "done").map((i) => ({
-      url: i.url, poster: i.poster, duration: i.duration, width: i.width, height: i.height, ...(i.nsfw ? { nsfw: true } : {}), ...(i.sensitive ? { sensitive: true } : {}),
+      url: i.url, poster: i.poster, duration: i.duration, width: i.width, height: i.height, ...(i.nsfw ? { nsfw: true } : {}),
     })),
     clear: () => [...items].forEach(remove),
   };

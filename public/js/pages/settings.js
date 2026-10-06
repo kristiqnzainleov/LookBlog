@@ -101,24 +101,12 @@ export function settingsPage(view) {
     catch (err) { toast(err.error || "Couldn’t change it."); }
   });
   paintNsfw();
-  // Sensitive content (violence, blood, weapons…): a warning first, unless you turn it off
-  const sensState = h("span", { class: "set-state" });
-  const sensBtn = h("button", { type: "button", class: "btn btn-sm btn-outline-light" });
-  const paintSens = () => {
-    sensState.textContent = state.me.showSensitive ? "Shown without a warning (and can be recommended to you)" : "Behind a warning — tap to see it. Not recommended to you.";
-    sensBtn.textContent = state.me.showSensitive ? "Show the warning again" : "Show without a warning";
-  };
-  sensBtn.addEventListener("click", async () => {
-    try { const r = await api("/api/me/sensitive", { method: "POST", body: { show: !state.me.showSensitive } }); state.me.showSensitive = r.showSensitive; paintSens(); toast(r.showSensitive ? "Sensitive content is shown without a warning." : "Sensitive content has a warning again."); }
-    catch (err) { toast(err.error || "Couldn’t change it."); }
-  });
-  paintSens();
 
   view.append(
     section("Email", "You log in with it and get password reset links there.", emailNow, h("div", { class: "set-row" }, emailIn, emailBtn)),
     section("Two-step verification (2FA)", "When it’s on, LookBlog asks for your code after your password — so knowing your password (or email) isn’t enough to get into your account. LookBlog can make the code for you, or you can pick your own.", twoBox),
     section("Preferences", null, h("div", { class: "set-row" }, lang, priv)),
-    section("⚠️ Sensitive content", "Posts with violence, blood, weapons, self-harm or other disturbing things (found from their words and photos, marked by the author, or reported) get a warning first and aren’t recommended to you.", h("div", { class: "set-row" }, sensState, sensBtn)),
+    section("⚠️ Sensitive content isn’t allowed", "Violence, blood, weapons, self-harm and other disturbing content go against the LookBlog rules. LookBlog checks posts, stories, comments and photos when they’re uploaded and refuses it; if something gets through and people report it, it’s taken down."),
     section("🔞 Sensitive content (NSFW)", "LookBlog checks photos and videos when they’re posted. Sensitive ones (nudity and other 18+ things) are blurred and aren’t recommended to people who didn’t ask for them.", h("div", { class: "set-row" }, nsfwState, nsfwBtn)),
     section("Delete account", "This removes your profile, posts, videos, songs, messages and everything else you made. It can’t be undone.", del));
 }
