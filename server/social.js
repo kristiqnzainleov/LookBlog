@@ -189,7 +189,10 @@ function authorView(u) {
 // How someone's name looks (colour, font, effect) and their profile's accent colour
 const NAME_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "lilac", "white",
   "sunset", "ocean", "aurora", "candy", "fire", "galaxy", "rainbow", "peach", "neon", "ice"];
-const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide"];
+const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide",
+  "tall", "retro", "marker", "pixel", "scifi", "hand", "groovy", "blocky", "comic", "classic", "neon", "fancy", "spooky", "techno"];
+// A custom gradient: 2–4 colours and a direction, e.g. "grad:#ff0000,#00ff88@90"
+const GRAD = /^grad:#[0-9a-f]{6}(,#[0-9a-f]{6}){1,3}@\d{1,3}$/i;
 const NAME_EFFECTS = ["glow", "shine", "shadow"];
 const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white"];
 const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora"];
@@ -199,7 +202,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 function cleanLook(b) {
   if (!b || typeof b !== "object") return null;
   const out = {};
-  if (NAME_COLORS.includes(b.color) || HEX.test(b.color || "")) out.color = String(b.color).toLowerCase();
+  if (NAME_COLORS.includes(b.color) || HEX.test(b.color || "") || (GRAD.test(b.color || "") && Number(b.color.split("@")[1]) <= 360)) out.color = String(b.color).toLowerCase();
   if (NAME_FONTS.includes(b.font)) out.font = b.font;
   if (NAME_EFFECTS.includes(b.effect)) out.effect = b.effect;
   if (HEX.test(b.accent || "")) out.accent = String(b.accent).toLowerCase();

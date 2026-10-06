@@ -12,7 +12,9 @@ export const NAME_COLORS = [
   ["rainbow", "linear-gradient(90deg,#ff4757,#ff8a3d,#ffd23f,#2ee6a6,#4cc9ff,#9b5cff)"], ["peach", "linear-gradient(90deg,#ffb199,#ff7eb3)"],
   ["neon", "linear-gradient(90deg,#39ff14,#00f0ff)"], ["ice", "linear-gradient(90deg,#e0f7ff,#8fd3ff,#ffffff)"],
 ];
-export const NAME_FONTS = [["", "Default"], ["display", "Bold"], ["serif", "Elegant"], ["mono", "Mono"], ["script", "Script"], ["rounded", "Rounded"], ["wide", "Wide"]];
+export const NAME_FONTS = [["", "Default"], ["display", "Bold"], ["serif", "Elegant"], ["mono", "Mono"], ["script", "Script"], ["rounded", "Rounded"], ["wide", "Wide"],
+  ["tall", "Tall"], ["retro", "Retro"], ["marker", "Marker"], ["pixel", "Pixel"], ["scifi", "Sci-fi"], ["hand", "Handwritten"], ["groovy", "Groovy"],
+  ["blocky", "Blocky"], ["comic", "Comic"], ["classic", "Classic"], ["neon", "Neon"], ["fancy", "Fancy"], ["spooky", "Spooky"], ["techno", "Techno"]];
 export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"], ["shadow", "3D"]];
 export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"]];
 export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradient"], ["aurora", "Aurora"], ["stars", "Stars"], ["grid", "Grid"], ["dots", "Dots"], ["waves", "Waves"]];
@@ -25,9 +27,13 @@ let fontsLoaded = false;
 function loadFonts() {
   if (fontsLoaded) return;
   fontsLoaded = true;
-  document.head.append(h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Space+Mono:wght@700&family=Pacifico&family=Fredoka:wght@600&display=swap" }));
+  document.head.append(h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Space+Mono:wght@700&family=Pacifico&family=Fredoka:wght@600&display=swap" }),
+    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lobster&family=Permanent+Marker&family=Press+Start+2P&family=Orbitron:wght@800&family=Caveat:wght@700&family=Righteous&family=Bungee&family=Bangers&family=Cinzel:wght@700&family=Monoton&family=Great+Vibes&family=Creepster&family=Audiowide&display=swap" }));
 }
-const colorValue = (c) => (c?.startsWith("#") ? c : NAME_COLORS.find(([k]) => k === c)?.[1] || null);
+// A custom gradient is saved as "grad:#aaaaaa,#bbbbbb@90" (colours, then the direction in degrees)
+const parseGrad = (c) => { const [cols, deg] = c.slice(5).split("@"); return { cols: cols.split(","), deg: Number(deg) || 90 }; };
+const gradCss = (g) => `linear-gradient(${g.deg}deg,${g.cols.join(",")})`;
+const colorValue = (c) => (c?.startsWith("#") ? c : c?.startsWith("grad:") ? gradCss(parseGrad(c)) : NAME_COLORS.find(([k]) => k === c)?.[1] || null);
 
 // Put a look on the element that holds a name
 export function applyLook(el, look) {
@@ -86,6 +92,7 @@ export function openLookEditor(onSaved) {
     for (const [box, key] of [[emojis, "emoji"], [rings, "ring"], [bgs, "bg"], [banners, "banner"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
     for (const b of colors.querySelectorAll(".look-sw")) b.classList.toggle("on", (b.dataset.v || "") === (cur.color || ""));
     custom.value = cur.color?.startsWith("#") ? cur.color : "#ff4fa3";
+    gradBox?.classList.toggle("on", Boolean(cur.color?.startsWith("grad:")));
     customWrap.classList.toggle("on", Boolean(cur.color?.startsWith("#")));
     for (const b of fonts.children) b.classList.toggle("on", b.dataset.v === (cur.font || ""));
     for (const b of effects.children) b.classList.toggle("on", b.dataset.v === (cur.effect || ""));
@@ -100,6 +107,30 @@ export function openLookEditor(onSaved) {
   custom.addEventListener("input", () => { cur.color = custom.value; paint(); });
   const customWrap = h("label", { class: "look-sw look-custom-wrap", title: "Any colour" }, h("span", { text: "＋" }), custom);
   const colors = h("div", { class: "look-grid" }, sw("", "", "Default"), ...NAME_COLORS.map(([k, v]) => sw(k, v, k[0].toUpperCase() + k.slice(1))), customWrap);
+  // My own gradient: 2–4 colours and a direction
+  const grad = cur.color?.startsWith("grad:") ? parseGrad(cur.color) : { cols: ["#ff4fa3", "#4cc9ff"], deg: 90 };
+  const gradStops = h("div", { class: "grad-stops" });
+  const gradBar = h("div", { class: "grad-bar" });
+  const angle = h("input", { type: "range", min: 0, max: 360, step: 5, value: grad.deg, class: "grad-angle", "aria-label": "Direction" });
+  const angleLabel = h("span", { class: "muted grad-deg" });
+  const addStop = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "＋ Colour" });
+  const useGrad = () => { cur.color = `grad:${grad.cols.join(",")}@${grad.deg}`; paint(); paintGrad(); };
+  function paintGrad() {
+    gradBar.style.background = gradCss(grad);
+    angleLabel.textContent = grad.deg + "°";
+    addStop.hidden = grad.cols.length >= 4;
+    gradStops.replaceChildren(...grad.cols.map((c, i) => {
+      const input = h("input", { type: "color", value: c, "aria-label": `Colour ${i + 1}` });
+      input.addEventListener("input", () => { grad.cols[i] = input.value; useGrad(); });
+      const del = grad.cols.length > 2 ? h("button", { type: "button", class: "grad-del", "aria-label": "Remove this colour", text: "✕", onclick: () => { grad.cols.splice(i, 1); useGrad(); } }) : null;
+      return h("label", { class: "grad-stop", style: `background:${c}` }, input, del);
+    }));
+    gradBox.classList.toggle("on", Boolean(cur.color?.startsWith("grad:")));
+  }
+  angle.addEventListener("input", () => { grad.deg = Number(angle.value); useGrad(); });
+  addStop.addEventListener("click", () => { grad.cols.push(grad.cols[grad.cols.length - 1]); useGrad(); });
+  gradBar.addEventListener("click", useGrad);
+  const gradBox = h("div", { class: "grad-box" }, gradBar, h("div", { class: "grad-row" }, gradStops, addStop), h("div", { class: "grad-row" }, h("span", { text: "Direction" }), angle, angleLabel));
   const chip = (list, key) => h("div", { class: "look-chips" }, ...list.map(([v, label]) => {
     const b = h("button", { type: "button", class: "look-chip", dataset: { v, nf: key === "font" ? v : null }, text: label });
     if (key === "font" && v) loadFonts();
@@ -134,6 +165,7 @@ export function openLookEditor(onSaved) {
   const m = modal({ title: "Customize your profile", body: h("div", { class: "create-form look-editor" },
     previewWrap,
     h("p", { class: "look-label", text: "Name colour" }), colors,
+    h("p", { class: "look-label", text: "Your own gradient" }), h("p", { class: "create-hint", text: "Pick 2 to 4 colours and turn the direction. Tap the bar to use it." }), gradBox,
     h("p", { class: "look-label", text: "Name font" }), fonts,
     h("p", { class: "look-label", text: "Name effect" }), effects,
     h("p", { class: "look-label", text: "Emoji next to your name" }), emojis,
@@ -157,4 +189,5 @@ export function openLookEditor(onSaved) {
     ring: cur.ring || null, bg: cur.bg || null, banner: cur.banner || null, emoji: cur.emoji || null }));
   reset.addEventListener("click", () => store({}));
   paint();
+  paintGrad();
 }
