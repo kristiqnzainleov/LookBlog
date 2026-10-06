@@ -137,7 +137,7 @@ export async function openWallpaperEditor(image, start = {}) {
     requestAnimationFrame(paint);
   });
 }
-// Another tab (or the picker) changed it
+// Someone in the chat (or the picker) changed it
 on("chat:wallpaper", (ev) => {
   document.querySelectorAll(`.convo[data-wall-chat="${CSS.escape(ev.chatId)}"]`).forEach((el) => applyWallpaper(el, ev.wallpaper));
 });
@@ -192,7 +192,7 @@ export function openWallpaperPicker(chat, onDone) {
   });
   const current = chat.wallpaper;
   const m = modal({ title: `Wallpaper${name ? " · " + name : ""}`, body: h("div", { class: "create-form wall-picker" },
-    h("p", { class: "create-hint", text: "Only you see it. Each chat can have its own." }),
+    h("p", { class: "create-hint", text: "Everyone in the chat sees it." }),
     h("div", { class: "wall-grid" },
       photo, file,
       ...Object.entries(WALLS).map(([id, [label, css]]) => {
@@ -261,6 +261,7 @@ export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto } = {}) {
     h("span", { class: "co-ic", text: emoji }), h("span", { class: "co-text" }, h("b", { text: title }), h("small", { class: "muted", text: sub })));
   const m = modal({ title: name || "Chat", body: h("div", { class: "co-list" },
     canTheme ? item("🎨", "Theme", "Bubble colours, for everyone in the chat", () => openThemePicker(chat, onTheme)) : null,
-    item("🖼️", "Wallpaper", "Your own background (only you see it)", () => openWallpaperPicker(chat, onWallpaper)),
-    canGroup ? item("📷", "Group photo", "Change the group’s picture", () => pickGroupPhoto(chat, onPhoto)) : null) });
+    canTheme ? item("🖼️", "Wallpaper", "The chat’s background, for everyone in it", () => openWallpaperPicker(chat, onWallpaper)) : null,
+    canGroup ? item("📷", "Group photo", "Change the group’s picture", () => pickGroupPhoto(chat, onPhoto)) : null,
+    canTheme ? null : h("p", { class: "muted", text: "Only people who can change the group can change its theme and wallpaper." })) });
 }

@@ -140,6 +140,18 @@ function groupStreakOf(chat) {
 function readersOf(chat, me) {
   return chat.members.filter((id) => id !== me.id && chat.reads?.[id]).map((id) => { const u = findUser(id); return u && { ...authorView(u), at: chat.reads[id] }; }).filter(Boolean);
 }
+// The chat's wallpaper, the same for everyone in it. (It used to be personal: the first one a member
+// had picked becomes the chat's.)
+function chatWallpaper(chat) {
+  if (chat.wallpaper === undefined) {
+    const had = chat.members.map((id) => findUser(id)?.wallpapers?.[chat.id]).find(Boolean) || null;
+    chat.wallpaper = had;
+    if (had?.image) markUsed(had.image, `wallpaper:${chat.id}`);
+    save("chats");
+  }
+  return chat.wallpaper || null;
+}
+
 function chatView(chat, me, { full = false } = {}) {
   const last = lastMessage(chat);
   const out = {
@@ -150,7 +162,7 @@ function chatView(chat, me, { full = false } = {}) {
     unread: unread(chat, me),
     member: isMember(chat, me),
     pinnedCount: (chat.pins || []).length,
-    wallpaper: me.wallpapers?.[chat.id] || null, // only mine: everyone picks their own
+    wallpaper: chatWallpaper(chat), // the background everyone in the chat sees
     theme: chat.theme || null, // the bubble colours everyone in the chat sees
   };
   if (chat.kind === "dm") {
@@ -857,29 +869,32 @@ async function handleChat(req, res, url, me) {
       return true;
     }
 
-    // My wallpaper for this chat (only I see it): POST /api/chats/:id/wallpaper { preset } | { image } | { clear: true }
+    // The chat's wallpaper, for everyone in it: POST /api/chats/:id/wallpaper { preset } | { image, x, y, zoom, dim } | { clear: true }
+    // (groups: people who can change the group)
     if (m === "POST" && c === "wallpaper" && parts.length === 3) {
       if (!chat.members.includes(me.id)) throw httpError(403, "Join to change the wallpaper.");
+      if (chat.kind === "group" && !require("./groups").can(chat, me, "manage_group")) throw httpError(403, "Only people who can change the group can change its wallpaper.");
       const body = await readJSON(req);
       const WALLS = ["pink-night", "sunset", "ocean", "aurora", "hearts", "dots", "grid", "mono"];
-      me.wallpapers = me.wallpapers || {};
-      const old = me.wallpapers[chat.id];
+      const old = chatWallpaper(chat);
       let next = null;
       if (body.image) {
-        // A new photo, or the one already here (just moved, zoomed or darkened)
+        // A new photo, or the one already here (just moved, zoomed or darkened, maybe by someone else)
         const img = old?.image && old.image === body.image ? { url: old.image } : ownedMedia(body.image, me.id, "image");
         if (!img) throw httpError(400, "That photo couldn’t be found. Add it again.");
-        if (img.url !== old?.image) markUsed(img.url, `wallpaper:${me.id}:${chat.id}`);
+        if (img.url !== old?.image) markUsed(img.url, `wallpaper:${chat.id}`);
         // Where it was moved to, how far zoomed in, how dark
         const num = (v, lo, hi, d) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Number(v))) : d);
         next = { image: img.url, x: num(body.x, 0, 100, 50), y: num(body.y, 0, 100, 50), zoom: num(body.zoom, 1, 4, 1), dim: num(body.dim, 0, 0.8, 0.38) };
       } else if (WALLS.includes(body.preset)) next = { preset: body.preset };
       else if (!body.clear) throw httpError(400, "Pick a wallpaper.");
       if (old?.image && old.image !== next?.image) deleteMedia(old.image);
-      if (next) me.wallpapers[chat.id] = next;
-      else delete me.wallpapers[chat.id];
-      save("users");
-      sendTo([me.id], { type: "chat:wallpaper", chatId: chat.id, wallpaper: next });
+      const changed = (old?.image || old?.preset || null) !== (next?.image || next?.preset || null);
+      chat.wallpaper = next;
+      save("chats");
+      sendTo(chat.members, { type: "chat:wallpaper", chatId: chat.id, wallpaper: next });
+      // Only say so when it's a different background (not when it was just moved or zoomed)
+      if (changed) systemMessage(chat, me, next ? `🖼️ ${me.name} changed the chat wallpaper` : `🖼️ ${me.name} removed the chat wallpaper`);
       sendJSON(res, 200, { wallpaper: next });
       return true;
     }
