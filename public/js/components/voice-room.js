@@ -4,8 +4,8 @@
 import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
-import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake } from "./voice-music.js";
-import { playFx, setBeat, playCustom, setBeatMix } from "./dj.js";
+import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake, musicTransform, musicStutter, musicDip } from "./voice-music.js";
+import { playFx, setBeat, playCustom, setBeatMix, playNote } from "./dj.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings, hdDescription, hdSenders } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
 import * as wt from "./watch-together.js";
@@ -358,19 +358,23 @@ on("message", (ev) => {
 on("voice:dj", (ev) => {
   if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
   room.skew = ev.now - Date.now();
-  setDj(ev.dj);
   if (ev.action === "claim" && ev.by !== state.me.username) toast(`🎧 @${ev.by} is the DJ now.`);
   if (ev.action === "fx") {
-    if (ev.fx === "custom") playCustom(ev.url); else playFx(ev.fx);
+    if (ev.fx === "custom") playCustom(ev.url, ev.vol ?? 1); else if (ev.fx === "note") playNote(ev.note, ev.inst); else playFx(ev.fx);
     if (ev.fx === "fade") musicFadeOut(2500);
     if (ev.fx === "fadein") musicFadeIn(2500);
     if (ev.fx === "cut") musicCut(600);
     if (ev.fx === "echo") musicEcho();
     if (ev.fx === "brake") musicBrake();
+    if (ev.fx === "transform") musicTransform();
+    if (ev.fx === "stutter") musicStutter();
+    if (ev.fx === "dip") musicDip();
+    return; // (a sound: nothing on screen changes)
   }
   if (ev.action === "beat") setBeat(ev.beat, room.skew);
   if (ev.action === "beatmix" && ev.beatMix) setBeatMix(ev.beatMix);
   if (ev.action === "release") setBeat(null);
+  setDj(ev.dj);
   paintDock();
 });
 

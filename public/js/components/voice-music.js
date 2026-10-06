@@ -111,6 +111,21 @@ export function musicEcho() {
   [0.55, 1, 0.35, 0.7, 0.18, 0.4, 0.06, 0.15, 0].forEach((v, i) => setTimeout(() => { fadeMul = v; applyVols(); }, i * 170));
   setTimeout(() => fadeTo(1, 1500), 4000);
 }
+// Transform: the music chops on and off in time (like flicking the channel fader)
+export function musicTransform() {
+  cancelAnimationFrame(fadeAnim);
+  for (let i = 0; i < 16; i++) setTimeout(() => { fadeMul = i % 2 ? 0.05 : 1; applyVols(); }, i * 125);
+  setTimeout(() => { fadeMul = 1; applyVols(); }, 2000);
+}
+// Stutter: short stabs of sound that speed up, then back in
+export function musicStutter() {
+  cancelAnimationFrame(fadeAnim);
+  let at = 0, gap = 220, k = 0;
+  while (at < 1800) { const on = k++ % 2 === 0; setTimeout(() => { fadeMul = on ? 1 : 0; applyVols(); }, at); at += gap; gap = Math.max(50, gap * 0.85); }
+  setTimeout(() => { fadeMul = 1; applyVols(); }, at + 40);
+}
+// Dip: the music drops low for a moment (for a shout-out or an effect), then comes back
+export function musicDip() { fadeTo(0.25, 250); setTimeout(() => fadeTo(1, 900), 2200); }
 // How long the song is (for auto-mix)
 export function musicDuration() { try { return yt?.getDuration?.() || audio?.duration || current?.now?.duration || 0; } catch { return 0; } }
 export const musicPosition = () => (current?.now ? position(current) : 0);

@@ -298,6 +298,7 @@ export function actions(p, { onDeleted, big = false } = {}) {
     };
     bar.append(opt("timedComments", "🕒 Timed comments on", "🕒 Timed comments off"), opt("momentReactions", "⚡ Reactions on", "⚡ Reactions off"));
   }
+  if (p.mine && !p.repostedBy && !p.publishAt) bar.append(pinButton(p));
   if (p.mine) {
     const del = h("button", { class: "act act-delete", "aria-label": "Delete" }, icon("trash"));
     confirmClick(del, "Delete?", async () => {
@@ -378,7 +379,23 @@ export function nsfwCover(box, { what = "post", kind = "nsfw", onReveal = null }
 import { taggedSlot } from "./tags.js";
 import { linkBlock } from "./links.js";
 
-export function postCard(p, { onDeleted } = {}) {
+// Pin my post / short / video to the top of my profile (up to 3 of each)
+export function pinButton(p, { cls = "act act-pin", onChange } = {}) {
+  const b = h("button", { type: "button", class: cls + (p.pinned ? " on" : ""), title: p.pinned ? "Unpin from your profile" : "Pin to your profile", "aria-label": p.pinned ? "Unpin" : "Pin to profile" }, h("span", { text: "📌" }), cls.includes("act") ? h("span", { class: "act-label", text: p.pinned ? "Pinned" : "Pin" }) : null);
+  b.addEventListener("click", async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    try {
+      const r = await api(`/api/posts/${p.id}/pin`, { method: "POST", body: { pin: !p.pinned } });
+      p.pinned = r.pinned;
+      b.classList.toggle("on", p.pinned); b.title = p.pinned ? "Unpin from your profile" : "Pin to your profile";
+      const l = b.querySelector(".act-label"); if (l) l.textContent = p.pinned ? "Pinned" : "Pin";
+      toast(p.pinned ? "📌 Pinned to the top of your profile." : "Unpinned.");
+      onChange?.(p.pinned);
+    } catch (err) { toast(err.error || "Couldn’t pin it."); }
+  });
+  return b;
+}
+export function postCard(p, { onDeleted, onProfile = false } = {}) {
   const href = profileHref(p.author.username);
   const typeBadge = p.type === "short" ? h("span", { class: "badge", text: "Short" }) : p.stream ? h("span", { class: "badge badge-live", text: "🔴 Past live" }) : p.type === "video" ? h("span", { class: "badge", text: "Video" }) : null;
 
@@ -408,8 +425,9 @@ export function postCard(p, { onDeleted } = {}) {
         icon("repost"), p.repostedBy.isMe ? "You reposted" : `${p.repostedBy.name} reposted`)
     : null;
 
-  const card = h("article", { class: "post" + (p.repostedBy ? " is-repost" : ""), dataset: { id: p.id } },
-    repostLine,
+  const pinLine = onProfile && p.pinned && !p.repostedBy ? h("div", { class: "repost-line pin-line" }, h("span", { text: "📌" }), "Pinned") : null;
+  const card = h("article", { class: "post" + (p.repostedBy ? " is-repost" : "") + (pinLine ? " is-pinned" : ""), dataset: { id: p.id } },
+    repostLine, pinLine,
     h("a", { href, class: "post-avatar", tabindex: "-1" }, avatar(p.author, 42)),
     h("div", { class: "post-body" },
       h("div", { class: "post-head" },

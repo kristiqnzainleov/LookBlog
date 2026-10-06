@@ -5,7 +5,7 @@ import { openPrivacy } from "../components/privacy.js";
 import { openReportUser } from "../components/report.js";
 import { api, upload } from "../api.js";
 import { state, on, emit } from "../state.js";
-import { postCard, pagedList } from "../components/post.js";
+import { postCard, pagedList, pinButton } from "../components/post.js";
 import { openConnections } from "../components/connections.js";
 import { playlistCard, openPlaylistForm, openSaveToPlaylist } from "../components/playlists.js";
 import { createCard } from "../components/composer.js";
@@ -77,6 +77,12 @@ function deleteTileButton(p, tile) {
   });
   return del;
 }
+// Pinned tiles: a 📌 on top, and for my own a button to pin / unpin
+function pinMarks(p, tile) {
+  const mark = h("span", { class: "tile-pin", text: "📌", title: "Pinned", hidden: !p.pinned });
+  tile.append(mark);
+  if (p.mine) tile.append(pinButton(p, { cls: "tile-pin-btn", onChange: (on) => { mark.hidden = !on; } }));
+}
 function shortTile(p, { inPlace = false } = {}) {
   const m = p.media[0];
   const tile = h("a", { class: "short-tile", href: `/shorts?id=${encodeURIComponent(p.id)}` },
@@ -85,12 +91,13 @@ function shortTile(p, { inPlace = false } = {}) {
   );
   trackImpression(tile, p.id);
   if (p.mine) tile.append(deleteTileButton(p, tile));
+  pinMarks(p, tile);
   const badge = visibilityBadge(p);
   if (badge) tile.append(badge);
   if (inPlace) tile.addEventListener("click", (e) => { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); e.stopPropagation(); openVideoModal(p); });
   return tile;
 }
-export function videoTile(p, { inPlace = false } = {}) {
+export function videoTile(p, { inPlace = false, pins = false } = {}) {
   const m = p.media[0];
   const tile = h("a", { class: "video-tile", href: watchHref(p.id) },
     h("div", { class: "thumb" },
@@ -110,6 +117,7 @@ export function videoTile(p, { inPlace = false } = {}) {
   );
   trackImpression(tile, p.id);
   if (p.mine) tile.querySelector(".thumb").append(deleteTileButton(p, tile));
+  if (pins && !p.film) pinMarks(p, tile.querySelector(".thumb"));
   if (p.stream) tile.querySelector(".thumb").append(h("span", { class: "past-live", text: "🔴 PAST LIVE" }));
   const badge = visibilityBadge(p);
   if (badge) tile.querySelector(".thumb").append(badge);
@@ -864,7 +872,7 @@ export async function profilePage(view, m, params) {
     pager = pagedList({
       container,
       load: (before) => api(`/api/users/${encodeURIComponent(profile.username)}/posts?type=${type}${category && !["repost", "tagged", "movie"].includes(type) ? "&category=" + encodeURIComponent(category) : ""}${before ? "&before=" + encodeURIComponent(before) : ""}`),
-      render: (p) => (type === "short" ? shortTile(p, { inPlace: true }) : type === "video" || type === "movie" ? videoTile(p, { inPlace: true }) : postCard(p, { onDeleted: () => (postsCount.textContent = count(Math.max(0, --tabCount.post))) })),
+      render: (p) => (type === "short" ? shortTile(p, { inPlace: true }) : type === "video" || type === "movie" ? videoTile(p, { inPlace: true, pins: type === "video" }) : postCard(p, { onProfile: type === "post", onDeleted: () => (postsCount.textContent = count(Math.max(0, --tabCount.post))) })),
       emptyEl: () => (category && type !== "repost" ? empty("Nothing in this category here.", "Try another tab or category.") : empty(nothing[0], nothing[1])),
     });
   }

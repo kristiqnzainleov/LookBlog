@@ -278,6 +278,7 @@ function messageViewFull(msg, me) {
     mentions: usernamesOf(msg.mentions),
     pingsMe: msg.userId !== me.id && (msg.mentions.includes(me.id) || Boolean(msg.everyone)),
     reactions: reactionsView(msg, me),
+    notes: notesView(msg, me),
     replyTo: replyPreview(msg),
     storyReply: msg.storyReply ? { ...require("./stories").storyPreview(msg.storyReply.storyId, me), reaction: msg.storyReply.reaction, toMe: msg.storyReply.owner === me.id } : null,
     instantReply: msg.instantReply ? { reaction: msg.instantReply.reaction || null, toMe: msg.instantReply.owner === me.id } : null,
@@ -290,6 +291,20 @@ function messageViewFull(msg, me) {
     event: msg.event && chat?.events ? (chat.events.find((e) => e.id === msg.event) ? msg.event : null) : null,
     createdAt: msg.createdAt,
   };
+}
+
+/* ---------- Notes on a message: little sticky notes the chat's members leave on it ---------- */
+const MSG_NOTE_COLORS = ["yellow", "pink", "mint", "sky", "lilac", "peach"];
+function notesView(msg, me) {
+  const chat = findChat(msg.chatId);
+  return (msg.notes || []).map((n) => {
+    const u = findUser(n.userId);
+    return u ? { id: n.id, text: n.text, color: n.color, at: n.at, mine: n.userId === me.id, canDelete: n.userId === me.id || Boolean(chat && chat.kind === "group" && can(chat, me, "delete_messages")),
+      author: { name: nicknameOf(chat, u.id) || u.name, username: u.username, avatar: u.avatar } } : null;
+  }).filter(Boolean);
+}
+function sendNotes(chat, msg) {
+  for (const id of chat.members) { const u = findUser(id); if (u) sendTo([id], { type: "message:notes", chatId: chat.id, messageId: msg.id, notes: notesView(msg, u) }); }
 }
 
 /* ---------- Reactions: one emoji per person per message ---------- */
@@ -947,6 +962,37 @@ async function handleChat(req, res, url, me) {
       }
       sendJSON(res, 200, { game: gameView(g, me) });
       return true;
+    }
+
+    /* ---------- Notes on messages ---------- */
+    // POST /api/chats/:id/messages/:messageId/notes { text, color } · DELETE …/notes/:noteId
+    if (c === "messages" && d && parts[4] === "notes") {
+      if (!isMember(chat, me)) throw httpError(403, "Join to leave notes.");
+      const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
+      if (!msg || msg.system) throw httpError(404, "That message doesn’t exist.");
+      if (m === "POST" && parts.length === 5) {
+        rateLimit("msgnote:" + me.id, 30, 60 * 1000, "Easy on the notes!");
+        const body = await readJSON(req);
+        const text = String(body.text || "").replace(/\s+/g, " ").trim().slice(0, 140);
+        if (!text) throw httpError(400, "Write something on the note.");
+        msg.notes = msg.notes || [];
+        if (msg.notes.length >= 20) throw httpError(400, "This message is full of notes already.");
+        msg.notes.push({ id: crypto.randomUUID().slice(0, 8), userId: me.id, text, color: MSG_NOTE_COLORS.includes(body.color) ? body.color : "yellow", at: new Date().toISOString() });
+        save("messages");
+        sendNotes(chat, msg);
+        sendJSON(res, 201, { notes: notesView(msg, me) });
+        return true;
+      }
+      if (m === "DELETE" && parts.length === 6) {
+        const n = (msg.notes || []).find((x) => x.id === parts[5]);
+        if (!n) throw httpError(404, "That note is gone.");
+        if (n.userId !== me.id && !(chat.kind === "group" && can(chat, me, "delete_messages"))) throw httpError(403, "You can only remove your own notes.");
+        msg.notes = msg.notes.filter((x) => x !== n);
+        save("messages");
+        sendNotes(chat, msg);
+        sendJSON(res, 200, { notes: notesView(msg, me) });
+        return true;
+      }
     }
 
     /* ---------- Pinned messages ---------- */

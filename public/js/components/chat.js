@@ -196,6 +196,52 @@ function paintReactions(messageId, reactions, chat) {
   row.querySelector(".reactions").replaceWith(reactionsEl(msg, chat));
 }
 
+// Notes on a message: sticky notes from the chat's members, under the bubble
+const MSG_NOTE_COLORS = ["yellow", "pink", "mint", "sky", "lilac", "peach"];
+function notesEl(msg, chat) {
+  const box = h("div", { class: "msg-notes" });
+  for (const n of msg.notes || []) {
+    const del = n.canDelete ? h("button", { type: "button", class: "mn-del", title: "Remove note", "aria-label": "Remove note", text: "✕" }) : null;
+    del?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try { const r = await api(`/api/chats/${chat.id}/messages/${msg.id}/notes/${n.id}`, { method: "DELETE" }); paintNotes(msg.id, r.notes, chat); } catch (err) { toast(err.error || "Couldn’t remove it."); }
+    });
+    box.append(h("div", { class: "msg-note mn-" + n.color, title: new Date(n.at).toLocaleString() },
+      h("b", { class: "mn-who", text: n.mine ? "You" : n.author.name }), h("span", { class: "mn-text", text: n.text }), del));
+  }
+  return box;
+}
+function paintNotes(messageId, notes, chat) {
+  const row = document.querySelector(`.msg[data-id="${CSS.escape(messageId)}"]`);
+  if (!row) return;
+  row._msg.notes = notes;
+  row.querySelector(".msg-notes")?.replaceWith(notesEl(row._msg, chat));
+}
+function addNote(msg, chat) {
+  let color = "yellow";
+  const text = h("textarea", { class: "text-input mn-input", maxlength: 140, rows: 3, placeholder: "Leave a note on this message…" });
+  const left = h("small", { class: "muted", text: "140" });
+  text.addEventListener("input", () => { left.textContent = String(140 - text.value.length); });
+  const colors = h("div", { class: "mn-colors" }, ...MSG_NOTE_COLORS.map((c) => {
+    const b = h("button", { type: "button", class: "mn-sw mn-" + c + (c === color ? " on" : ""), "aria-label": c });
+    b.addEventListener("click", () => { color = c; [...colors.children].forEach((x) => x.classList.toggle("on", x === b)); });
+    return b;
+  }));
+  const go = h("button", { type: "button", class: "btn btn-primary btn-full", text: "🗒 Stick the note" });
+  const quote = msg.text ? h("p", { class: "mn-quote", text: msg.text.length > 120 ? msg.text.slice(0, 120) + "…" : msg.text }) : null;
+  const md = modal({ title: "Note on a message", body: h("div", { class: "create-form" }, quote, text, h("div", { class: "mn-row" }, colors, left), go,
+    h("p", { class: "create-hint", text: "Everyone in this chat sees your note under the message." })) });
+  const send = async () => {
+    if (!text.value.trim()) return text.focus();
+    go.disabled = true;
+    try { const r = await api(`/api/chats/${chat.id}/messages/${msg.id}/notes`, { method: "POST", body: { text: text.value, color } }); paintNotes(msg.id, r.notes, chat); md.close(); }
+    catch (err) { toast(err.error || "Couldn’t add the note."); go.disabled = false; }
+  };
+  go.addEventListener("click", send);
+  text.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+  setTimeout(() => text.focus(), 60);
+}
+
 function replyQuote(r) {
   if (r.deleted) return h("div", { class: "reply-quote gone", text: "Original message was deleted" });
   const q = h("button", { type: "button", class: "reply-quote", title: "Show the original message" },
@@ -529,6 +575,12 @@ function messageEl(msg, chat, onRemoved) {
     });
     tools.append(pin);
   }
+  // Leave a note on it
+  if (chat.member !== false && !msg.system) {
+    const nb = h("button", { type: "button", class: "tool-icon", "aria-label": "Add a note", title: "Add a note" }, h("span", { text: "🗒" }));
+    nb.addEventListener("click", () => addNote(msg, chat));
+    tools.append(nb);
+  }
   if (!msg.mine && msg.author.username) {
     const flag = h("button", { type: "button", class: "tool-icon", "aria-label": "Report", title: `Report ${msg.author.name}` }, icon("flag"));
     flag.addEventListener("click", () => openReportUser(msg.author, { message: msg }));
@@ -558,7 +610,7 @@ function messageEl(msg, chat, onRemoved) {
   if (msg.expiresAt) bubble.append(h("span", { class: "vanish-mark", title: "Disappears " + new Date(msg.expiresAt).toLocaleString(), text: "⏳" }));
   const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : ""), dataset: { id: msg.id } },
     msg.mine ? null : h("a", { href: profileHref(msg.author.username), class: "msg-avatar", tabindex: "-1" }, avatar(msg.author, 34)),
-    h("div", { class: "msg-stack" }, bubble, reactionsEl(msg, chat)),
+    h("div", { class: "msg-stack" }, bubble, reactionsEl(msg, chat), notesEl(msg, chat)),
     tools.children.length ? tools : null
   );
   row._msg = msg;
@@ -1272,6 +1324,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     navigate("/messages");
   });
   const offReact = on("message:reactions", (ev) => { if (ev.chatId === chatId && chat) paintReactions(ev.messageId, ev.reactions, chat); });
+  const offNotes = on("message:notes", (ev) => { if (ev.chatId === chatId && chat) paintNotes(ev.messageId, ev.notes, chat); });
   const offMembers = on("group:members", (ev) => { if (ev.chatId === chatId && chat) { chat.memberCount = ev.memberCount; paintHead(); } });
   const offPins = on("message:pinned", (ev) => {
     if (ev.chatId !== chatId) return;
@@ -1293,6 +1346,6 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     list.querySelectorAll(".msg").forEach((row) => { if (row._msg?.expiresAt && row._msg.expiresAt <= now) { ids.delete(row._msg.id); row.remove(); } });
   }, 5000);
 
-  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
+  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offNotes(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
 }
 

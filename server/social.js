@@ -315,6 +315,7 @@ function postView(p, me) {
     tagged: taggedIds(p).map(findUser).filter((u) => u && !blockedBetween(u, me)).map((u) => ({ name: u.name, username: u.username, avatar: u.avatar })),
     subtitles: (p.subtitles || []).map((x) => ({ id: x.id, lang: x.lang, label: x.label, url: `/api/posts/${p.id}/subtitles/${x.id}.vtt` })),
     createdAt: p.createdAt,
+    pinned: (findUser(p.userId)?.pins || []).includes(p.id),
     author: authorView(findUser(p.userId)),
     ...stats(p),
     reaction: p.likes.includes(me.id) ? "like" : p.dislikes.includes(me.id) ? "dislike" : null,
@@ -1192,6 +1193,21 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
   // The creator changes the extras later: POST /api/posts/:id/options { timedComments, momentReactions }
+  // Pin to my profile (up to 3 of each kind, at the top of that tab): POST /api/posts/:id/pin { pin }
+  if (m === "POST" && a === "posts" && c === "pin" && parts.length === 3) {
+    const post = findPost(b);
+    if (!post || post.userId !== me.id) throw httpError(404, "You can only pin your own posts.");
+    const want = Boolean((await readJSON(req)).pin);
+    me.pins = (me.pins || []).filter((id) => findPost(id));
+    if (want && !me.pins.includes(post.id)) {
+      if (me.pins.filter((id) => findPost(id)?.type === post.type).length >= 3) throw httpError(400, `You can pin up to 3 ${post.type === "short" ? "shorts" : post.type === "video" ? "videos" : "posts"}. Unpin one first.`);
+      me.pins.unshift(post.id);
+    }
+    if (!want) me.pins = me.pins.filter((id) => id !== post.id);
+    save("users");
+    sendJSON(res, 200, { pinned: me.pins.includes(post.id) });
+    return true;
+  }
   if (m === "POST" && a === "posts" && c === "options" && parts.length === 3) {
     const post = findPost(b);
     if (!post || post.userId !== me.id) throw httpError(404, "This post doesn’t exist anymore.");
@@ -1411,10 +1427,16 @@ async function handleSocial(req, res, url, me) {
     }
     const only = new Set([user.id]);
     // type=repost: what they shared (any kind). Otherwise: their own posts of that kind.
-    const items = type === "repost"
+    let items = type === "repost"
       ? timeline({ authors: new Set(), reposters: only })
       : timeline({ authors: only, type, all: user.id === me.id, category: url.searchParams.get("category") || null });
-    sendJSON(res, 200, page(items, url, me));
+    // What they pinned comes first (in the order they pinned it), then the rest
+    const pins = type !== "repost" && !url.searchParams.get("category") ? user.pins || [] : [];
+    const pinned = pins.map((id) => items.find((i) => !i.by && i.post.id === id)).filter(Boolean);
+    if (pinned.length) items = items.filter((i) => !pinned.includes(i));
+    const out = page(items, url, me);
+    if (pinned.length && !Number(url.searchParams.get("before"))) out.posts.unshift(...page(pinned, new URL("http://x/"), me).posts);
+    sendJSON(res, 200, out);
     return true;
   }
 
@@ -1903,21 +1925,45 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
 
-  // My own DJ effects (short sounds): GET /api/me/dj-pads · POST { url, name, emoji } · DELETE /api/me/dj-pads/:id
+  // My own DJ sounds (kept on my account, mine only): GET /api/me/dj-pads · POST { url, name, emoji, color, vol }
+  // · PATCH /api/me/dj-pads/:id { name, emoji, color, vol, key } · DELETE /api/me/dj-pads/:id · POST /api/me/dj-pads/order { ids }
   if (a === "me" && b === "dj-pads") {
     me.djPads = me.djPads || [];
+    const PAD_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "white"];
+    const padLook = (body, pad) => {
+      if (body.name !== undefined) pad.name = clean(body.name).replace(/\s+/g, " ").slice(0, 20) || pad.name || "My sound";
+      if (typeof body.emoji === "string" && body.emoji.length <= 16 && /\p{Extended_Pictographic}/u.test(body.emoji)) pad.emoji = body.emoji;
+      if (PAD_COLORS.includes(body.color)) pad.color = body.color;
+      if (Number.isFinite(Number(body.vol)) && body.vol !== null && body.vol !== "") pad.vol = Math.max(0.1, Math.min(1.5, Number(body.vol)));
+      if (body.key !== undefined) { const k = String(body.key || "").toLowerCase().slice(0, 1); pad.key = /^[a-z0-9]$/.test(k) ? k : ""; if (pad.key) for (const o of me.djPads) if (o !== pad && o.key === pad.key) o.key = ""; }
+      return pad;
+    };
     if (m === "GET" && parts.length === 2) { sendJSON(res, 200, { pads: me.djPads }); return true; }
+    if (m === "POST" && parts[2] === "order") {
+      const ids = (await readJSON(req)).ids || [];
+      me.djPads.sort((x, y) => (ids.indexOf(x.id) + 1 || 999) - (ids.indexOf(y.id) + 1 || 999));
+      save("users");
+      sendJSON(res, 200, { pads: me.djPads });
+      return true;
+    }
     if (m === "POST" && parts.length === 2) {
       const body = await readJSON(req);
-      if (me.djPads.length >= 12) throw httpError(400, "You can have up to 12 of your own effects. Remove one first.");
+      if (me.djPads.length >= 24) throw httpError(400, "You can have up to 24 of your own sounds. Remove one first.");
       const snd = ownedMedia(body.url, me.id, "audio");
       if (!snd) throw httpError(400, "Upload an MP3 (or another sound file) first.");
       markUsed(snd.url, "djpad:" + me.id);
-      const name = clean(body.name).replace(/\s+/g, " ").slice(0, 20) || "My effect";
-      const emoji = typeof body.emoji === "string" && body.emoji.length <= 16 && /\p{Extended_Pictographic}/u.test(body.emoji) ? body.emoji : "🎵";
-      me.djPads.push({ id: crypto.randomUUID().slice(0, 8), url: snd.url, name, emoji });
+      const pad = padLook({ ...body, name: body.name || "My sound" }, { id: crypto.randomUUID().slice(0, 8), url: snd.url, name: "My sound", emoji: "🎵", color: PAD_COLORS[me.djPads.length % PAD_COLORS.length], vol: 1 });
+      me.djPads.push(pad);
       save("users");
-      sendJSON(res, 201, { pads: me.djPads });
+      sendJSON(res, 201, { pads: me.djPads, pad });
+      return true;
+    }
+    if (m === "PATCH" && parts[2]) {
+      const pad = me.djPads.find((x) => x.id === parts[2]);
+      if (!pad) throw httpError(404, "That sound is gone.");
+      padLook(await readJSON(req), pad);
+      save("users");
+      sendJSON(res, 200, { pads: me.djPads });
       return true;
     }
     if (m === "DELETE" && parts[2]) {

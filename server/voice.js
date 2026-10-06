@@ -254,12 +254,19 @@ async function handleVoice(req, res, me, chat, chats) {
       if (!isDj) throw httpError(403, "Only the DJ can do that. Take the decks first.");
       const m = music.get(key);
       const FX = ["airhorn", "siren", "scratch", "laser", "riser", "drop", "rewind", "clap", "brake", "fade", "fadein", "horn", "boom",
-        "cheer", "whistle", "roll", "zap", "cymbal", "bassdrop", "backspin", "cut", "echo", "gong", "vinyl"];
+        "cheer", "whistle", "roll", "zap", "cymbal", "bassdrop", "backspin", "cut", "echo", "gong", "vinyl",
+        "transform", "stutter", "dip", "build", "snare", "kick", "hat", "cowbell", "tom", "perc", "stab", "chord", "uplift", "downlift", "impact", "glitch", "dog", "bell", "phone", "reverse"];
+      const INSTRUMENTS = ["808", "synth", "pluck", "bell", "organ", "lead"];
       if (a === "fx" && body.fx === "custom") {
         // One of the DJ's own effects (an MP3 they uploaded)
         const pad = (me.djPads || []).find((x) => x.id === body.padId);
         if (!pad) throw httpError(404, "That effect is gone.");
-        extra = { fx: "custom", url: pad.url, name: pad.name, emoji: pad.emoji };
+        extra = { fx: "custom", url: pad.url, name: pad.name, emoji: pad.emoji, vol: pad.vol ?? 1 };
+      } else if (a === "fx" && body.fx === "note") {
+        // A note on the DJ's keys (808 bass, synth, pluck…): everyone's browser plays the same note
+        const note = Math.round(Number(body.note));
+        if (!(note >= 0 && note <= 24)) throw httpError(400, "Pick a key.");
+        extra = { fx: "note", note, inst: INSTRUMENTS.includes(body.inst) ? body.inst : "synth" };
       } else if (a === "fx") {
         if (!FX.includes(body.fx)) throw httpError(400, "Unknown effect.");
         extra = { fx: body.fx };
@@ -316,11 +323,21 @@ async function handleVoice(req, res, me, chat, chats) {
         const num = (x, lo, hi, d) => (Number.isFinite(Number(x)) ? Math.max(lo, Math.min(hi, Number(x))) : d);
         const prev = v.beatMix || {};
         v.beatMix = { gain: num(body.gain, 0, 1.5, prev.gain ?? 1), low: num(body.low, -24, 12, prev.low ?? 0), mid: num(body.mid, -24, 12, prev.mid ?? 0),
-          high: num(body.high, -24, 12, prev.high ?? 0), filter: num(body.filter, -1, 1, prev.filter ?? 0) };
+          high: num(body.high, -24, 12, prev.high ?? 0), filter: num(body.filter, -1, 1, prev.filter ?? 0),
+          echo: num(body.echo, 0, 1, prev.echo ?? 0), verb: num(body.verb, 0, 1, prev.verb ?? 0), crush: num(body.crush, 0, 1, prev.crush ?? 0), pan: num(body.pan, -1, 1, prev.pan ?? 0) };
         extra = { beatMix: v.beatMix };
       } else if (a === "beat") {
         const bpm = Number(body.bpm) || 0;
-        v.beat = bpm >= 60 && bpm <= 200 ? { bpm: Math.round(bpm), pattern: ["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco"].includes(body.pattern) ? body.pattern : "house", at: Date.now() } : null;
+        const PATTERNS = ["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco", "afro", "garage", "funk", "jersey", "drill", "lofi", "custom"];
+        // My own pattern from the step sequencer: 16 steps per drum, "x" = hit
+        const ROWS = ["kick", "snare", "hat", "clap", "open", "perc"];
+        let steps = null;
+        if (body.pattern === "custom") {
+          steps = {};
+          for (const r of ROWS) steps[r] = String(body.steps?.[r] || "").replace(/[^x.]/g, ".").padEnd(16, ".").slice(0, 16);
+        }
+        const swing = Math.max(0, Math.min(0.5, Number(body.swing) || 0));
+        v.beat = bpm >= 60 && bpm <= 200 ? { bpm: Math.round(bpm), pattern: PATTERNS.includes(body.pattern) ? body.pattern : "house", steps, swing, at: Date.now() } : null;
         if (!v.beat) delete v.beat;
         extra = { beat: v.beat || null };
       } else throw httpError(400, "Unknown DJ action.");
