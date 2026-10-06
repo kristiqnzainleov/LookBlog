@@ -4,6 +4,7 @@ import { api, upload } from "../api.js";
 import { on, state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
 import { inspectVideo } from "./media-picker.js";
+import { openGifs, gifBody, closeGifs } from "./gifs.js";
 
 const IMAGE_SECONDS = 5;
 const REACTIONS = ["😂", "😮", "😍", "😢", "👏", "🔥", "❤️", "💯"];
@@ -195,7 +196,19 @@ export function openStories(groups, startGroup = 0, onClosed) {
       };
       input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") sendReply(); });
       send.addEventListener("click", sendReply);
-      foot.replaceChildren(reacts, h("div", { class: "sv-reply-row" }, input, send));
+      // Reply with a GIF (the story waits while you pick)
+      const gifBtn = h("button", { type: "button", class: "sv-gif", "aria-label": "Reply with a GIF", title: "GIF" }, h("span", { text: "GIF" }));
+      gifBtn.addEventListener("click", () => {
+        pause(true);
+        openGifs(gifBtn, async (g) => {
+          try {
+            const r = await api(`/api/stories/${s.id}/reply`, { method: "POST", body: { text: input.value, ...gifBody(g) } });
+            input.value = ""; send.disabled = true;
+            toast(r.sent === "message" ? "GIF sent in Messages." : `Sent. ${group().user.name.split(" ")[0]} gets it as a notification.`);
+          } catch (err) { toast(err.error || "Couldn’t send it."); }
+        }, { onClose: () => pause(false) });
+      });
+      foot.replaceChildren(reacts, h("div", { class: "sv-reply-row" }, input, gifBtn, send));
     }
   }
   // A reaction floats up over the story
@@ -225,6 +238,7 @@ export function openStories(groups, startGroup = 0, onClosed) {
   function close() {
     if (closed) return;
     closed = true;
+    closeGifs();
     offViewed();
     cancelAnimationFrame(timer);
     video?.pause();

@@ -8,7 +8,7 @@ const { db, save, findUser, findByUsername } = require("./db");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { sendTo, broadcast } = require("./realtime");
 const { notify } = require("./notifications");
-const { authorView, clean, chars, blockedBetween, buildMedia, claim, postView } = require("./social");
+const { authorView, clean, chars, blockedBetween, buildMedia, claim, postView, resolveGif } = require("./social");
 const { ownedMedia, markUsed, deleteMedia } = require("./media");
 const { every } = require("./ticker");
 const REACTIONS = ["❤️", "🔥", "😂", "😮", "👏", "💯", "🎉", "😢"];
@@ -491,6 +491,8 @@ async function handleStreams(req, res, url, me) {
       if (!s) throw httpError(404, "That sticker isn’t in your collection.");
       sticker = s.url;
     }
+    // A GIF shows in the chat like a sticker
+    if (!sticker && (body.gif || body.gifUrl)) sticker = resolveGif(body, me).url;
     let mySound = null;
     if (body.mySound) {
       mySound = (me.sounds || []).find((x) => x.id === body.mySound);

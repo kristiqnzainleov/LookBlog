@@ -102,7 +102,34 @@ function viewablePost(id, me) {
 /* ---------- GIFs: LookBlog's own pack, GIFs people uploaded, and your collection ---------- */
 let GIF_PACK = [];
 try { GIF_PACK = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "public", "gifs", "pack.json"), "utf8")); } catch {}
-const knownGif = (u) => GIF_PACK.some((g) => g.url === u) || (u.startsWith("/media/") && db.users.some((x) => x.gifs.some((g) => g.url === u)));
+// GIPHY (the library Instagram uses): only links to GIPHY's own media servers
+const GIPHY_RE = /^https:\/\/(media\d?|i)\.giphy\.com\/media\/[\w./-]{1,160}$/;
+const knownGif = (u) => GIF_PACK.some((g) => g.url === u) || GIPHY_RE.test(u) || (u.startsWith("/media/") && db.users.some((x) => x.gifs.some((g) => g.url === u)));
+// GIPHY search and trending, 30 at a time, remembered for 10 minutes so we stay well inside the API limits
+const GIPHY_KEY = process.env.GIPHY_API_KEY || "";
+const giphyCache = new Map();
+async function giphy(q, offset) {
+  if (!GIPHY_KEY) return null;
+  const key = q + "|" + offset, hit = giphyCache.get(key);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.data;
+  const u = new URL("https://api.giphy.com/v1/gifs/" + (q ? "search" : "trending"));
+  u.search = new URLSearchParams({ api_key: GIPHY_KEY, limit: "30", offset: String(offset), rating: "pg-13", bundle: "messaging_non_clips", ...(q ? { q, lang: "en" } : {}) });
+  try {
+    const r = await fetch(u, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) throw new Error("GIPHY " + r.status);
+    const j = await r.json();
+    const strip = (x) => String(x || "").split("?")[0];
+    const results = (j.data || []).map((g) => {
+      const full = g.images?.downsized_medium || g.images?.original, small = g.images?.fixed_width || full;
+      return { url: strip(full?.url), preview: strip(small?.webp || small?.url), w: Number(small?.width) || 200, h: Number(small?.height) || 150, title: g.title || "GIF", source: "giphy" };
+    }).filter((g) => GIPHY_RE.test(g.url) && GIPHY_RE.test(g.preview));
+    const total = j.pagination?.total_count ?? 0, next = offset + (j.pagination?.count || results.length);
+    const data = { results, next: results.length && next < Math.min(total, 4999) ? next : null };
+    if (giphyCache.size > 500) giphyCache.clear();
+    giphyCache.set(key, { at: Date.now(), data });
+    return data;
+  } catch (err) { console.error("[giphy]", err.message); return null; }
+}
 // Stickers and sounds you can send anywhere: yours, the group's (only inside that group), or a built-in sound
 const BUILTIN_SOUND_IDS = ["airhorn", "tada", "drum", "boing", "ding", "sad"];
 function resolveExtras(body, me, chat = null) {
@@ -1563,26 +1590,34 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
 
-  // Search GIFs: GET /api/gifs/search?q=  (LookBlog's pack first, then GIFs people added)
+  // Search GIFs: GET /api/gifs/search?q=&offset=  (GIPHY like on Instagram, plus LookBlog's pack and GIFs people added;
+  // with no words: what's trending)
   if (m === "GET" && a === "gifs" && b === "search" && parts.length === 2) {
     const q = clean(url.searchParams.get("q")).toLowerCase().slice(0, 50);
+    const offset = Math.max(0, Math.min(4900, Number(url.searchParams.get("offset")) || 0));
     const words = q.split(/[^\p{L}\p{N}']+/u).filter(Boolean);
     const matches = (text) => words.every((w) => text.split(" ").some((t) => t.startsWith(w)));
-    const results = [];
-    const seen = new Set();
-    for (const g of GIF_PACK) {
-      if (words.length && !matches(`${g.title.toLowerCase()} ${g.tags.join(" ")}`)) continue;
-      seen.add(g.url);
-      results.push({ url: g.url, title: g.title, source: "lookblog" });
+    const ours = [];
+    if (!offset) {
+      const seen = new Set();
+      for (const g of GIF_PACK) {
+        if (words.length && !matches(`${g.title.toLowerCase()} ${g.tags.join(" ")}`)) continue;
+        seen.add(g.url);
+        ours.push({ url: g.url, title: g.title, source: "lookblog" });
+      }
+      for (const u of db.users) for (const g of u.gifs) {
+        if (seen.has(g.url) || !g.url.startsWith("/media/")) continue;
+        if (words.length && !matches((g.tags || []).join(" "))) continue;
+        seen.add(g.url);
+        ours.push({ url: g.url, title: (g.tags || []).join(" "), source: "people" });
+        if (ours.length >= 120) break;
+      }
     }
-    for (const u of db.users) for (const g of u.gifs) {
-      if (seen.has(g.url) || !g.url.startsWith("/media/")) continue;
-      if (words.length && !matches((g.tags || []).join(" "))) continue;
-      seen.add(g.url);
-      results.push({ url: g.url, title: (g.tags || []).join(" "), source: "people" });
-      if (results.length >= 120) break;
-    }
-    sendJSON(res, 200, { results });
+    const g = await giphy(q, offset);
+    if (!g) { sendJSON(res, 200, { results: ours, next: null, giphy: false }); return true; }
+    // GIPHY first (that's the big library); ours after, or first when you searched and they match
+    const results = words.length && ours.length ? [...ours.slice(0, 12), ...g.results, ...ours.slice(12)] : [...g.results, ...(offset ? [] : ours.slice(0, 24))];
+    sendJSON(res, 200, { results, next: g.next, giphy: true });
     return true;
   }
 
@@ -1591,13 +1626,17 @@ async function handleSocial(req, res, url, me) {
     if (m === "GET" && parts.length === 2) { sendJSON(res, 200, { gifs: me.gifs }); return true; }
     if (m === "POST" && parts.length === 2) {
       const body = await readJSON(req);
-      if (me.gifs.length >= 100) throw httpError(400, "You can keep up to 100 GIFs. Remove some first.");
+      if (me.gifs.length >= 300) throw httpError(400, "You can keep up to 300 GIFs. Remove some first.");
       if (body.saveUrl) {
         // Keep a GIF from the LookBlog pack (or one someone added) in "Yours"
         const u = String(body.saveUrl);
         if (!knownGif(u)) throw httpError(400, "That GIF can’t be saved.");
         let g = me.gifs.find((x) => x.url === u);
-        if (!g) { g = { id: crypto.randomUUID().slice(0, 8), url: u, tags: (GIF_PACK.find((p) => p.url === u)?.tags || []).slice(0, 10) }; me.gifs.unshift(g); save("users"); }
+        if (!g) {
+          g = { id: crypto.randomUUID().slice(0, 8), url: u, tags: (GIF_PACK.find((p) => p.url === u)?.tags || clean(body.title).toLowerCase().split(/\s+/).filter(Boolean)).slice(0, 10) };
+          if (GIPHY_RE.test(String(body.preview || ""))) g.preview = String(body.preview);
+          me.gifs.unshift(g); save("users");
+        }
         sendJSON(res, 201, { gif: g, gifs: me.gifs });
         return true;
       }

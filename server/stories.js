@@ -73,7 +73,7 @@ function storyState(user, me) {
 }
 
 // A reply or reaction: a message if the two follow each other (with the story shown), otherwise a notification
-function deliverToOwner(story, me, { text, reaction }) {
+function deliverToOwner(story, me, { text, reaction, gif = null }) {
   const owner = findUser(story.userId);
   const chatMod = require("./chat");
   const mutual = me.following.includes(owner.id) && owner.following.includes(me.id);
@@ -83,10 +83,10 @@ function deliverToOwner(story, me, { text, reaction }) {
     db.chats.push(chat);
   }
   if (!chat) {
-    notify(owner.id, reaction ? "story-reaction" : "story-reply", me, reaction ? { emoji: reaction } : { text });
+    notify(owner.id, reaction ? "story-reaction" : "story-reply", me, reaction ? { emoji: reaction } : { text: text || "sent a GIF" });
     return { sent: "notification" };
   }
-  const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text: reaction || text, media: null, postId: null, replyTo: null, mentions: [],
+  const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text: reaction || text, media: gif ? { url: gif.url, kind: "image", gif: true } : null, postId: null, replyTo: null, mentions: [],
     storyReply: { storyId: story.id, owner: owner.id, reaction: reaction || null }, createdAt: new Date().toISOString() };
   db.messages.push(msg);
   chat.lastAt = msg.createdAt;
@@ -253,10 +253,12 @@ async function handleStories(req, res, url, me) {
   if (m === "POST" && parts[2] === "reply") {
     if (story.userId === me.id) throw httpError(400, "You can’t reply to your own story.");
     rateLimit("story-reply:" + me.id, 60, 10 * 60 * 1000, "You’ve sent a lot of replies. Take a short break.");
-    const text = clean((await readJSON(req)).text);
-    if (!text) throw httpError(400, "Write a reply.");
+    const body = await readJSON(req);
+    const text = clean(body.text);
+    const gif = body.gif || body.gifUrl ? require("./social").resolveGif(body, me) : null;
+    if (!text && !gif) throw httpError(400, "Write a reply.");
     if (chars(text) > 1000) throw httpError(400, "Keep it under 1000 characters.");
-    sendJSON(res, 201, deliverToOwner(story, me, { text }));
+    sendJSON(res, 201, deliverToOwner(story, me, { text, gif }));
     return true;
   }
 

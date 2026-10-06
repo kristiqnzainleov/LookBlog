@@ -13,6 +13,7 @@ import { attachMentions } from "../components/mentions.js";
 import { openEmojiPicker, insertAtCursor } from "../components/emoji.js";
 import { openStickers } from "../components/stickers.js";
 import { openSoundPicker } from "../components/sounds.js";
+import { openGifs, gifBody } from "../components/gifs.js";
 import { openReportLive } from "../components/report.js";
 import { iceServers, micConstraints } from "../components/audio-devices.js";
 
@@ -674,7 +675,7 @@ export function livePage(view, mm) {
       const c = capNow();
       if (!c || st.settings.overlay === "off") return;
       let sticker = null;
-      if (msg.sticker) { sticker = new Image(); sticker.src = msg.sticker; }
+      if (msg.sticker) { sticker = new Image(); sticker.crossOrigin = "anonymous"; sticker.src = msg.sticker; }
       const sound = msg.sound ? "🔊 " + (BUILTIN_SOUNDS.find((x) => x.builtin === msg.sound)?.name || "") : msg.soundUrl ? `${msg.soundEmoji || "🔊"} ${msg.soundName || ""}` : "";
       c.layout.chat.msgs.push({ name: msg.author.name, text: [msg.text, sound].filter(Boolean).join(" "), sticker, at: Date.now() });
       if (c.layout.chat.msgs.length > 30) c.layout.chat.msgs.shift();
@@ -695,8 +696,10 @@ export function livePage(view, mm) {
     const soundBtn = h("button", { type: "button", class: "lv-chat-tool", title: "Sounds", text: "🔊" });
     // Only your own sounds here (the built-in ones are for group soundboards)
     soundBtn.addEventListener("click", () => openSoundPicker(soundBtn, { builtin: false, onPick: (b) => post(st.id, "chat", { mySound: b.mySound }).catch((err) => toast(err.error || "Couldn’t play it.")) }));
+    const gifBtn = h("button", { type: "button", class: "lv-chat-tool lv-gif", title: "GIFs", text: "GIF" });
+    gifBtn.addEventListener("click", () => openGifs(gifBtn, (g) => post(st.id, "chat", gifBody(g)).catch((err) => toast(err.error || "Couldn’t send."))));
     const sendChat = h("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Send" });
-    const chatForm = h("form", { class: "lv-chat-form" }, h("div", { class: "lv-chat-tools" }, emojiBtn, stickerBtn, soundBtn), chatIn, sendChat);
+    const chatForm = h("form", { class: "lv-chat-form" }, h("div", { class: "lv-chat-tools" }, emojiBtn, gifBtn, stickerBtn, soundBtn), chatIn, sendChat);
     const chatOffNote = h("p", { class: "lv-chat-off", hidden: true, text: "💤 The chat is off right now." });
     const paintChatState = () => {
       const off = !st.settings.chat;
@@ -1273,7 +1276,7 @@ export function livePage(view, mm) {
       if (ev.streamId !== st.id || !gcap) return;
       const msg = ev.message;
       let sticker = null;
-      if (msg.sticker) { sticker = new Image(); sticker.src = msg.sticker; }
+      if (msg.sticker) { sticker = new Image(); sticker.crossOrigin = "anonymous"; sticker.src = msg.sticker; }
       gcap.layout.chat.msgs.push({ name: msg.author.name, text: [msg.text, msg.soundName ? `${msg.soundEmoji || "🔊"} ${msg.soundName}` : ""].filter(Boolean).join(" "), sticker, at: Date.now() });
       if (gcap.layout.chat.msgs.length > 30) gcap.layout.chat.msgs.shift();
     }));
