@@ -2715,7 +2715,7 @@ button.grole:not(.on):not(:disabled):hover { color: var(--paper); border-style: 
   .convo-input .tool-btn svg { width: 19px; height: 19px; }
   .convo-input textarea { min-width: 80px; }
 }
-.voice-dock.in-slot { position: relative; width: auto; margin: 0 8px 8px; box-shadow: none; border-radius: 16px; background: #1b1919; }
+.voice-dock.in-slot { position: relative; inset: auto; width: auto; margin: 0 8px 8px; box-shadow: none; border-radius: 16px; background: #1b1919; }
 .gv-dock-slot:empty { display: none; }
 /* Chess: taken pieces and the "took" pop-up */
 .seat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }

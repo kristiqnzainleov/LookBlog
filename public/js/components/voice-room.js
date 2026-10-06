@@ -593,9 +593,16 @@ function buildDock() {
 }
 export function placeDock() {
   if (!room?.dock) return;
-  const slot = document.querySelector(".gv-dock-slot");
+  // (a slot that's hidden — e.g. the channel list on a phone while a channel is open — doesn't count)
+  const slot = [...document.querySelectorAll(".gv-dock-slot")].find((x) => x.parentElement?.getClientRects().length);
   if (slot && room.dock.parentElement !== slot) { slot.append(room.dock); room.dock.classList.add("in-slot"); }
   else if (!slot && room.dock.parentElement !== document.body) { document.body.append(room.dock); room.dock.classList.remove("in-slot"); }
+  // Floating over a chat: sit just above the message box, never on top of it
+  if (!slot) {
+    const foot = [...document.querySelectorAll(".convo-foot")].find((x) => x.getClientRects().length);
+    const top = foot?.getBoundingClientRect().top;
+    room.dock.style.bottom = top && top < innerHeight ? Math.round(innerHeight - top + 8) + "px" : "";
+  } else room.dock.style.bottom = "";
 }
 function paintDock() {
   if (!room?.dock) return;

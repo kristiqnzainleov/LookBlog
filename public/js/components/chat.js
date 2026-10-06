@@ -957,7 +957,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
         recTime.textContent = "Sending…";
         const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "weba";
         const { url } = await upload(new File([blob], "voice." + ext, { type: blob.type }));
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  media: { url, duration, peaks }, replyTo: replying?.id || null } }); sfx("send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  media: { url, duration, peaks }, replyTo: replying?.id || null } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         setReply(null);
         add(message);
         toBottom();
@@ -971,7 +971,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const stickerBtn = h("button", { type: "button", class: "tool-btn", "aria-label": "Stickers", title: "Stickers" }, icon("sticker"));
     const sendExtra = async (body, what) => {
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } }); sfx("send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         setReply(null); add(message); toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
       } catch (ex) { showErr(ex.error || `Couldn’t send the ${what}.`); }
@@ -981,7 +981,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     soundBtn.addEventListener("click", () => openSoundPicker(soundBtn, { group: chat.kind === "group" ? chat : null, builtin: chat.kind === "group", onPick: (b) => sendExtra(b, "sound") }));
     stickerBtn.addEventListener("click", () => openStickers(stickerBtn, async (st, kind) => {
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...(kind === "group" ? { groupSticker: st.id } : { sticker: st.id }), replyTo: replying?.id || null } }); sfx("send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...(kind === "group" ? { groupSticker: st.id } : { sticker: st.id }), replyTo: replying?.id || null } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         setReply(null);
         add(message);
         toBottom();
@@ -994,7 +994,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const songBtn = h("button", { type: "button", class: "tool-btn", "aria-label": "Send a song", title: "Send a song" }, icon("note", "note-ic"));
     songBtn.addEventListener("click", () => openSongPicker(async (sg) => {
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, songId: sg.id, replyTo: replying?.id || null } }); sfx("send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, songId: sg.id, replyTo: replying?.id || null } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         setReply(null); add(message); toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
       } catch (ex) { showErr(ex.error || "Couldn’t send the song."); throw ex; }
@@ -1002,7 +1002,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     inputRow.insertBefore(songBtn, text);
     const sendGif = async (g, to = replying) => {
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  ...gifBody(g), replyTo: to?.id || null } }); sfx("send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  ...gifBody(g), replyTo: to?.id || null } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         setReply(null); add(message); toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
       } catch (ex) { showErr(ex.error || "Couldn’t send the GIF."); }
@@ -1032,7 +1032,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       const f = camInput.files[0];
       camInput.value = "";
       if (f) openDisappearing(f, async (body) => {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } }); sfx("send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...body, replyTo: replying?.id || null } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         setReply(null);
         add(message);
         toBottom();
@@ -1047,7 +1047,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       send.disabled = true;
       closeEmojiPicker();
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}) } }); sfx("send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}) } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         setReply(null);
         add(message);
         toBottom();

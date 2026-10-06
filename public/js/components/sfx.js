@@ -32,6 +32,12 @@ export function sfx(kind) {
     else if (kind === "notify") { tone(c, { from: 784, to: 784, dur: 0.14, vol: 0.06, type: "triangle" }); tone(c, { from: 988, to: 988, at: 0.1, dur: 0.14, vol: 0.06, type: "triangle" }); tone(c, { from: 1319, to: 1319, at: 0.2, dur: 0.26, vol: 0.06, type: "triangle" }); }
     // A new message: a soft "ding-dong"
     else if (kind === "message") { tone(c, { from: 1046, to: 1046, dur: 0.16, vol: 0.06 }); tone(c, { from: 784, to: 784, at: 0.12, dur: 0.24, vol: 0.055 }); }
+    // A disappearing message or photo: a magic "poof" (a sparkle that rises, then fades away downwards)
+    else if (kind === "vanish") {
+      tone(c, { from: 520, to: 1560, dur: 0.18, vol: 0.05, type: "sine" });
+      [1760, 2093, 2637].forEach((f, i) => tone(c, { from: f, to: f * 1.02, at: 0.12 + i * 0.05, dur: 0.12, vol: 0.03, type: "triangle" }));
+      tone(c, { from: 1200, to: 300, at: 0.3, dur: 0.28, vol: 0.035, type: "sine" });
+    }
     // Taking a reaction back: a short soft note going down
     else if (kind === "unlike") { tone(c, { from: 700, to: 380, dur: 0.13, vol: 0.05, type: "triangle" }); }
     else if (kind === "like") { tone(c, { from: 660, to: 990, dur: 0.09, vol: 0.07, type: "triangle" }); tone(c, { from: 990, to: 1480, at: 0.08, dur: 0.12, vol: 0.06, type: "triangle" }); }
