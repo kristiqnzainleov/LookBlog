@@ -10,7 +10,7 @@ export const instantsAvailable = () => matchMedia(PHONE).matches && Boolean(navi
 
 // The pile in the corner of Messages
 export function instantsPile() {
-  const el = h("button", { type: "button", class: "inst-pile", "aria-label": "Instants" });
+  const el = h("button", { type: "button", class: "inst-pile", "aria-label": "Looktures" });
   let data = { pile: [], mine: [], friends: 0, reactions: [] };
   function paint() {
     const n = data.pile.length;
@@ -18,7 +18,7 @@ export function instantsPile() {
     el.replaceChildren(
       n ? h("span", { class: "inst-stack" }, ...cards) : h("span", { class: "inst-cam" }, icon("camera")),
       n ? h("span", { class: "inst-count", text: String(n) }) : null);
-    el.title = n ? `${n} new instant${n === 1 ? "" : "s"}` : "Instants: snap a photo for your friends";
+    el.title = n ? `${n} new lookture${n === 1 ? "" : "s"}` : "Looktures: snap a photo for your friends";
     el.classList.toggle("has-new", n > 0);
   }
   async function load() {
@@ -38,7 +38,7 @@ export function instantsPile() {
 
 // Full screen: the friends' instants first, then the camera
 function openInstants(data, reload) {
-  const box = h("div", { class: "inst-screen", role: "dialog", "aria-modal": "true", "aria-label": "Instants" });
+  const box = h("div", { class: "inst-screen", role: "dialog", "aria-modal": "true", "aria-label": "Looktures" });
   document.body.append(box);
   document.body.classList.add("no-scroll");
   let stream = null, closed = false;
@@ -92,26 +92,49 @@ function openInstants(data, reload) {
     const video = h("video", { class: "inst-video" + (facing === "user" ? " mirror" : ""), autoplay: true, playsInline: true, muted: true });
     const shutter = h("button", { type: "button", class: "inst-shutter", "aria-label": "Take the photo" });
     const flip = h("button", { type: "button", class: "inst-flip", "aria-label": "Switch camera" }, icon("flip"));
-    const mineBtn = h("button", { type: "button", class: "inst-mine", text: data.mine.length ? `Your instants (${data.mine.length})` : "Your instants" });
+    const mineBtn = h("button", { type: "button", class: "inst-mine", text: data.mine.length ? `Your looktures (${data.mine.length})` : "Your looktures" });
     mineBtn.addEventListener("click", () => openMine(data.mine));
     box.replaceChildren(
-      h("header", { class: "inst-head" }, closeBtn(), h("b", { class: "inst-title", text: "Instants" }), mineBtn),
-      h("div", { class: "inst-frame" }, video),
-      h("p", { class: "inst-once", text: data.friends ? `Goes to your ${data.friends} friend${data.friends === 1 ? "" : "s"} · they see it once` : "Instants go to friends: people you follow who follow you back" }),
+      h("header", { class: "inst-head" }, closeBtn(), h("b", { class: "inst-title", text: "Looktures" }), mineBtn),
+      h("div", { class: "inst-frame" }, video, h("span", { class: "inst-zoom", hidden: true })),
+      h("p", { class: "inst-once", text: data.friends ? `Goes to your ${data.friends} friend${data.friends === 1 ? "" : "s"} · they see it once` : "Looktures go to friends: people you follow who follow you back" }),
       h("div", { class: "inst-controls" }, h("span"), shutter, flip));
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1920 } }, audio: false });
       if (closed) return stream.getTracks().forEach((t) => t.stop());
       video.srcObject = stream;
     } catch {
-      box.querySelector(".inst-frame").replaceChildren(h("p", { class: "inst-nocam", text: "LookBlog needs your camera for instants. Allow it in your browser settings." }));
+      box.querySelector(".inst-frame").replaceChildren(h("p", { class: "inst-nocam", text: "LookBlog needs your camera for looktures. Allow it in your browser settings." }));
       return;
     }
     flip.addEventListener("click", () => camera(facing === "user" ? "environment" : "user"));
+    // Zoom with two fingers (pinch). The camera's own zoom when the phone offers it, otherwise the picture is enlarged.
+    const frame = box.querySelector(".inst-frame"), badge = box.querySelector(".inst-zoom");
+    const track = stream.getVideoTracks()[0];
+    const caps = track.getCapabilities?.().zoom;
+    const lens = caps && caps.max > caps.min ? caps : null;
+    const MAX = lens ? lens.max : 5, MIN = lens ? lens.min : 1;
+    let zoom = lens ? track.getSettings?.().zoom || MIN : 1, pinch = null, hideBadge;
+    const setZoom = (z) => {
+      zoom = Math.min(MAX, Math.max(MIN, z));
+      if (lens) track.applyConstraints({ advanced: [{ zoom }] }).catch(() => {});
+      else video.style.transform = `${facing === "user" ? "scaleX(-1) " : ""}scale(${zoom})`;
+      badge.textContent = (lens ? zoom / (MIN || 1) : zoom).toFixed(1).replace(/\.0$/, "") + "×";
+      badge.hidden = false;
+      clearTimeout(hideBadge);
+      hideBadge = setTimeout(() => { badge.hidden = true; }, 1200);
+    };
+    const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    frame.addEventListener("touchstart", (e) => { if (e.touches.length === 2) { pinch = { d: dist(e.touches), z: zoom }; e.preventDefault(); } }, { passive: false });
+    frame.addEventListener("touchmove", (e) => { if (pinch && e.touches.length === 2) { e.preventDefault(); setZoom(pinch.z * (dist(e.touches) / pinch.d)); } }, { passive: false });
+    frame.addEventListener("touchend", (e) => { if (e.touches.length < 2) pinch = null; });
+    // Double tap: back to no zoom
+    let lastTap = 0;
+    frame.addEventListener("touchend", (e) => { if (e.touches.length || e.changedTouches.length !== 1) return; const now = Date.now(); if (now - lastTap < 300) setZoom(MIN); lastTap = now; });
     shutter.addEventListener("click", () => {
       if (!video.videoWidth) return;
-      // A square photo from the middle of the camera (mirrored like you saw it, for the front camera)
-      const side = Math.min(video.videoWidth, video.videoHeight), out = Math.min(side, 1080);
+      // A square photo from the middle of the camera (mirrored like you saw it, for the front camera), zoomed like on screen
+      const side = Math.min(video.videoWidth, video.videoHeight) / (lens ? 1 : zoom), out = Math.min(Math.round(side), 1080);
       const c = h("canvas", { width: out, height: out }), g = c.getContext("2d");
       if (facing === "user") { g.translate(out, 0); g.scale(-1, 1); }
       g.drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, out, out);
@@ -136,7 +159,7 @@ function openInstants(data, reload) {
         const { url } = await upload(new File([blob], "instant.jpg", { type: "image/jpeg" }));
         const r = await api("/api/instants", { method: "POST", body: { image: url, caption: caption.value } });
         URL.revokeObjectURL(src);
-        toast(`⚡ Instant sent to ${r.sentTo} friend${r.sentTo === 1 ? "" : "s"}.`);
+        toast(`⚡ Lookture sent to ${r.sentTo} friend${r.sentTo === 1 ? "" : "s"}.`);
         close();
       } catch (err) {
         toast(err.error || "Couldn’t send it.");
@@ -145,7 +168,7 @@ function openInstants(data, reload) {
       }
     });
     box.replaceChildren(
-      h("header", { class: "inst-head" }, closeBtn(), h("b", { class: "inst-title", text: "Instants" }), h("span")),
+      h("header", { class: "inst-head" }, closeBtn(), h("b", { class: "inst-title", text: "Looktures" }), h("span")),
       h("figure", { class: "inst-photo" }, h("img", { src, alt: "" })),
       caption,
       h("div", { class: "inst-foot" }, retake, sendBtn));
@@ -160,14 +183,14 @@ function openMine(list) {
     const row = h("div", { class: "inst-mine-row" },
       h("img", { src: x.url, alt: "" }),
       h("div", { class: "inst-mine-info" },
-        h("b", { text: x.caption || "Instant" }),
+        h("b", { text: x.caption || "Lookture" }),
         h("small", { class: "muted", text: `${timeAgo(x.createdAt)} · seen by ${x.seen.length} of ${x.sentTo}` }),
         x.seen.length ? h("div", { class: "inst-seen" }, ...x.seen.slice(0, 8).map((u) => h("span", { class: "inst-seen-av", title: u.name + (u.reaction ? " " + u.reaction : "") }, avatar(u, 26), u.reaction ? h("i", { text: u.reaction }) : null))) : null),
       del);
     del.addEventListener("click", async () => {
-      try { await api(`/api/instants/${x.id}`, { method: "DELETE" }); row.remove(); list.splice(list.indexOf(x), 1); toast("Instant deleted."); } catch (err) { toast(err.error || "Couldn’t delete it."); }
+      try { await api(`/api/instants/${x.id}`, { method: "DELETE" }); row.remove(); list.splice(list.indexOf(x), 1); toast("Lookture deleted."); } catch (err) { toast(err.error || "Couldn’t delete it."); }
     });
     return row;
-  })) : h("p", { class: "muted", text: "You haven’t sent any instants in the last 24 hours." });
-  modal({ title: "Your instants", body });
+  })) : h("p", { class: "muted", text: "You haven’t sent any looktures in the last 24 hours." });
+  modal({ title: "Your looktures", body });
 }

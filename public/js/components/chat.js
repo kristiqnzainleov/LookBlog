@@ -393,8 +393,8 @@ function messageEl(msg, chat, onRemoved) {
       msg.storyReply.gone ? h("span", { class: "nq-body muted", text: "Story no longer available" })
         : h("span", { class: "nq-body" }, msg.storyReply.thumb ? h("img", { class: "sq-thumb", src: msg.storyReply.thumb, alt: "" }) : null)) : null,
     msg.instantReply ? h("div", { class: "note-quote instant-quote" },
-      h("small", { text: msg.instantReply.reaction ? (msg.mine ? "You reacted to their instant" : "Reacted to your instant") : (msg.mine ? "You replied to their instant" : "Replied to your instant") }),
-      h("span", { class: "nq-body muted", text: "⚡ Instant · seen once" })) : null,
+      h("small", { text: msg.instantReply.reaction ? (msg.mine ? "You reacted to their lookture" : "Reacted to your lookture") : (msg.mine ? "You replied to their lookture" : "Replied to your lookture") }),
+      h("span", { class: "nq-body muted", text: "⚡ Lookture · seen once" })) : null,
     msg.noteReply ? h("div", { class: "note-quote" },
       h("small", { text: msg.mine ? (msg.noteReply.toMe ? "Replied to your note" : "You replied to their note") : msg.noteReply.toMe ? "Replied to your note" : "Replied to a note" }),
       h("span", { class: "nq-body" }, msg.noteReply.media ? h("img", { src: msg.noteReply.media.url, alt: "" }) : null, msg.noteReply.text ? h("span", { text: msg.noteReply.text }) : null)) : null,

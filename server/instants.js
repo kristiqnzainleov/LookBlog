@@ -70,14 +70,14 @@ async function handleInstants(req, res, url, me) {
 
   // Send one: POST /api/instants { image, caption }  (the photo was just taken with the camera)
   if (m === "POST" && parts.length === 1) {
-    rateLimit("instant:" + me.id, 60, 60 * 60 * 1000, "You’ve sent a lot of instants. Try again later.");
+    rateLimit("instant:" + me.id, 60, 60 * 60 * 1000, "You’ve sent a lot of looktures. Try again later.");
     const body = await readJSON(req);
     const img = ownedMedia(body.image, me.id, "image");
     if (!img) throw httpError(400, "Take a photo first.");
     const caption = clean(body.caption).replace(/\s+/g, " ");
     if (chars(caption) > 80) throw httpError(400, "Keep it under 80 characters.");
     const friends = friendsOf(me);
-    if (!friends.length) throw httpError(400, "Instants go to friends: people you follow who follow you back. You don’t have any yet.");
+    if (!friends.length) throw httpError(400, "Looktures go to friends: people you follow who follow you back. You don’t have any yet.");
     const x = { id: crypto.randomUUID(), userId: me.id, url: img.url, caption, to: friends.map((u) => u.id), seenBy: [], reactions: {}, createdAt: new Date().toISOString() };
     db.instants.push(x);
     markUsed(img.url, "instant:" + x.id);
@@ -88,7 +88,7 @@ async function handleInstants(req, res, url, me) {
   }
 
   const x = parts[1] && db.instants.find((i) => i.id === parts[1]);
-  if (!x || !live(x) || !(x.userId === me.id || x.to.includes(me.id))) throw httpError(404, "This instant is gone.");
+  if (!x || !live(x) || !(x.userId === me.id || x.to.includes(me.id))) throw httpError(404, "This lookture is gone.");
 
   // Seen: POST /api/instants/:id/seen  (gone from my pile)
   if (m === "POST" && parts[2] === "seen") {
@@ -102,7 +102,7 @@ async function handleInstants(req, res, url, me) {
   }
   // React or reply: POST /api/instants/:id/react { emoji } · /reply { text }  (a message to the sender)
   if (m === "POST" && (parts[2] === "react" || parts[2] === "reply")) {
-    if (x.userId === me.id) throw httpError(400, "That’s your own instant.");
+    if (x.userId === me.id) throw httpError(400, "That’s your own lookture.");
     rateLimit("instant-react:" + me.id, 60, 10 * 60 * 1000, "Slow down a little.");
     const body = await readJSON(req);
     if (parts[2] === "react") {
@@ -122,7 +122,7 @@ async function handleInstants(req, res, url, me) {
   }
   // Take mine back: DELETE /api/instants/:id
   if (m === "DELETE" && parts.length === 2) {
-    if (x.userId !== me.id) throw httpError(403, "You can only delete your own instants.");
+    if (x.userId !== me.id) throw httpError(403, "You can only delete your own looktures.");
     deleteMedia(x.url);
     db.instants = db.instants.filter((i) => i !== x);
     save("instants");
