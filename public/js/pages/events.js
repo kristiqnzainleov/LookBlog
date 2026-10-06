@@ -83,6 +83,43 @@ export function openEventForm(current = null, onSaved) {
   const when = h("input", { type: "datetime-local", class: "text-input", value: localValue(start) });
   const until = h("input", { type: "datetime-local", class: "text-input", value: current?.endsAt ? localValue(new Date(current.endsAt)) : "" });
   const where = h("input", { type: "text", class: "text-input", maxlength: 120, placeholder: "Where? A place, an address or “Online”", value: current?.location || "" });
+  // The spot on the map: find a place, or use where I am now
+  let geo = current?.geo || null;
+  const mapBox = h("div", { class: "pe-map-pick" });
+  const found = h("div", { class: "pe-found" });
+  const findBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "🔎 Find on map" });
+  const hereBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "📍 Use my location" });
+  const paintMap = () => {
+    mapBox.replaceChildren(...(geo ? [mapFrame(geo, 170), h("button", { type: "button", class: "btn btn-xs btn-outline-light pe-unpin", text: "✕ Remove the pin", onclick: () => { geo = null; paintMap(); } })] : []));
+  };
+  findBtn.addEventListener("click", async () => {
+    const q = where.value.trim();
+    if (!q) return toast("Type the place or address first.");
+    found.replaceChildren(h("p", { class: "muted", text: "Looking…" }));
+    try {
+      const list = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(q)}`, { headers: { "Accept-Language": navigator.language || "en" } })).json();
+      found.replaceChildren(...(list.length ? list.map((r) => {
+        const b = h("button", { type: "button", class: "pe-found-row" }, h("span", { text: "📍" }), h("span", { text: r.display_name }));
+        b.addEventListener("click", () => { geo = { lat: Number(r.lat), lng: Number(r.lon) }; found.replaceChildren(); paintMap(); });
+        return b;
+      }) : [h("p", { class: "muted", text: "Couldn’t find that place. Try a different name or address." })]));
+    } catch { found.replaceChildren(h("p", { class: "muted", text: "The map search isn’t answering. Try again." })); }
+  });
+  hereBtn.addEventListener("click", () => {
+    if (!navigator.geolocation) return toast("Your browser can’t share your location.");
+    hereBtn.disabled = true; hereBtn.textContent = "📍 Finding you…";
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      geo = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      paintMap();
+      hereBtn.disabled = false; hereBtn.textContent = "📍 Use my location";
+      if (!where.value.trim()) {
+        try {
+          const r = await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&lat=${geo.lat}&lon=${geo.lng}`, { headers: { "Accept-Language": navigator.language || "en" } })).json();
+          if (r?.display_name) where.value = r.display_name.split(",").slice(0, 3).join(",").trim().slice(0, 120);
+        } catch {}
+      }
+    }, () => { hereBtn.disabled = false; hereBtn.textContent = "📍 Use my location"; toast("Allow location to use where you are."); }, { enableHighAccuracy: true, timeout: 12000 });
+  });
   const desc = h("textarea", { class: "text-input", rows: 5, maxlength: 3000, placeholder: "What’s happening? Tell people what to expect." });
   desc.value = current?.description || "";
   const err = h("p", { class: "form-error", role: "alert", hidden: true });
@@ -90,14 +127,15 @@ export function openEventForm(current = null, onSaved) {
   const m = modal({ title: current ? "Edit event" : "New public event", body: h("div", { class: "create-form" },
     h("div", { class: "gc-wrap" }, coverEl, photoEl, coverIn, photoIn),
     title, h("div", { class: "pe-row" }, h("label", { class: "pe-field" }, h("span", { class: "vis-label", text: "Starts" }), when), h("label", { class: "pe-field" }, h("span", { class: "vis-label", text: "Ends (optional)" }), until)),
-    where, desc, err, save) });
+    where, h("div", { class: "pe-loc-btns" }, findBtn, hereBtn), found, mapBox, desc, err, save) });
   paint();
+  paintMap();
   save.addEventListener("click", async () => {
     if (uploading) return;
     err.hidden = true;
     save.disabled = true;
     try {
-      const body = { title: title.value, description: desc.value, location: where.value, cover, photo, startsAt: new Date(when.value).toISOString(), endsAt: until.value ? new Date(until.value).toISOString() : null };
+      const body = { title: title.value, description: desc.value, location: where.value, geo, cover, photo, startsAt: new Date(when.value).toISOString(), endsAt: until.value ? new Date(until.value).toISOString() : null };
       const { event } = await api(current ? `/api/public-events/${current.id}` : "/api/public-events", { method: "POST", body });
       m.close();
       toast(current ? "Event saved." : "Your event is live!");
@@ -232,6 +270,12 @@ export function eventPage(view, m) {
           ev.description ? h("section", { class: "pe-card-box" }, h("h3", { text: "About" }), h("p", { class: "pe-desc", text: ev.description })) : null,
           h("section", { class: "pe-card-box" }, h("h3", { text: "Discussion" }), h("div", { class: "pe-compose" }, avatar(state.me, 38), text, send), discussion)),
         h("aside", { class: "pe-side" },
+          ev.geo || ev.location ? h("section", { class: "pe-card-box pe-where-box" }, h("h3", { text: "📍 Where" }),
+            ev.location ? h("p", { class: "pe-where-name", text: ev.location }) : null,
+            ev.geo ? mapFrame(ev.geo, 200) : null,
+            h("div", { class: "pe-map-links" },
+              h("a", { class: "btn btn-sm btn-primary", target: "_blank", rel: "noopener", href: ev.geo ? `https://www.google.com/maps/dir/?api=1&destination=${ev.geo.lat},${ev.geo.lng}` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ev.location)}`, text: "🧭 Directions" }),
+              h("a", { class: "btn btn-sm btn-outline-light", target: "_blank", rel: "noopener", href: ev.geo ? `https://www.google.com/maps/search/?api=1&query=${ev.geo.lat},${ev.geo.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location)}`, text: "Open in Maps" }))) : null,
           h("section", { class: "pe-card-box" }, h("h3", { text: `${plural(ev.going, "person", "people")} going` }),
             h("div", { class: "pe-people" }, ...ev.attendees.map((u) => h("a", { href: profileHref(u.username), class: "pe-person", title: u.name }, avatar(u, 40), h("span", { text: u.name }))))),
           h("section", { class: "pe-card-box" }, h("h3", { text: "Invite friends" }), h("p", { class: "muted", text: ev.shares ? `Shared ${plural(ev.shares, "time", "times")} so far. Send it to a group or a chat so more people can join.` : "Send it to a group or a chat so more people can join." }), (() => { const b = h("button", { type: "button", class: "btn btn-sm btn-primary btn-full" }, icon("share"), h("span", { text: "Share to a group" })); b.addEventListener("click", () => openShareEvent(ev)); return b; })()))));
@@ -253,3 +297,23 @@ export function eventPage(view, m) {
 }
 eventPage.navName = () => "events";
 eventPage.layout = "wide";
+
+// A small map with a pin: OpenStreetMap tiles put together (works everywhere, no WebGL needed). Tap it to open it in Maps.
+function mapFrame(geo, height) {
+  const z = 16, n = 2 ** z;
+  const xt = ((geo.lng + 180) / 360) * n;
+  const lat = (geo.lat * Math.PI) / 180;
+  const yt = ((1 - Math.log(Math.tan(lat) + 1 / Math.cos(lat)) / Math.PI) / 2) * n;
+  const tx = Math.floor(xt), ty = Math.floor(yt);
+  // Where the spot is inside its tile, in pixels
+  const px = (xt - tx) * 256, py = (yt - ty) * 256;
+  const tiles = [];
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) {
+    const x = ((tx + dx) % n + n) % n, y = ty + dy;
+    if (y < 0 || y >= n) continue;
+    tiles.push(h("img", { class: "pe-tile", alt: "", loading: "lazy", draggable: "false", src: `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+      style: `left:calc(50% + ${dx * 256 - px}px);top:calc(50% + ${dy * 256 - py}px)` }));
+  }
+  return h("a", { class: "pe-map", style: `height:${height}px`, href: `https://www.google.com/maps/search/?api=1&query=${geo.lat},${geo.lng}`, target: "_blank", rel: "noopener", title: "Open in Maps" },
+    ...tiles, h("span", { class: "pe-pin", "aria-hidden": "true" }, "📍"), h("span", { class: "pe-osm", text: "© OpenStreetMap" }));
+}

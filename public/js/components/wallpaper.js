@@ -252,6 +252,29 @@ export function openVanishPicker(chat, onDone) {
     }))) });
 }
 
+// The group's colour (its accent everywhere in the group)
+const GROUP_COLORS = ["#ff4fa3", "#ff3b4f", "#ff8a3b", "#ffcc33", "#b6f23a", "#1fc77a", "#19d3c5", "#66d1ff", "#3b6bff", "#a66bff", "#d6a4ff", "#ff7eb3", "#f5f0eb"];
+function openGroupColor(chat) {
+  let pick = chat.color || "#ff4fa3";
+  const preview = h("div", { class: "gcol-preview" }, h("span", { class: "gcol-dot" }), h("b", { text: chat.name }), h("span", { class: "gcol-bubble", text: "Hi everyone! 👋" }));
+  const grid = h("div", { class: "look-grid" });
+  const custom = h("input", { type: "color", class: "look-custom", value: pick, "aria-label": "Any colour" });
+  const paint = () => {
+    preview.style.setProperty("--c", pick);
+    grid.replaceChildren(...GROUP_COLORS.map((c) => { const b = h("button", { type: "button", class: "look-sw" + (c === pick ? " on" : ""), style: `background:${c}`, "aria-label": c }); b.addEventListener("click", () => { pick = c; paint(); }); return b; }),
+      h("label", { class: "look-sw look-custom-wrap" + (GROUP_COLORS.includes(pick) ? "" : " on"), title: "Any colour" }, h("span", { text: "＋" }), custom));
+  };
+  custom.addEventListener("input", () => { pick = custom.value; paint(); });
+  const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save colour" });
+  save.addEventListener("click", async () => {
+    save.disabled = true;
+    try { const r = await api(`/api/groups/${chat.id}/color`, { method: "POST", body: { color: pick } }); chat.color = r.color; m.close(); toast("Group colour changed for everyone."); }
+    catch (err) { toast(err.error || "Couldn’t change it."); save.disabled = false; }
+  });
+  const m = modal({ title: "Group colour", body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "Buttons, highlights and messages in the group take this colour, for everyone." }), preview, grid, save) });
+  paint();
+}
+
 // A new photo for a group
 function pickGroupPhoto(chat, onDone) {
   const file = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif", hidden: true });
@@ -287,5 +310,6 @@ export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto, onVanish 
     canTheme ? item("🖼️", "Wallpaper", "The chat’s background, for everyone in it", () => openWallpaperPicker(chat, onWallpaper)) : null,
     canTheme ? item("⏳", "Disappearing messages", chat.vanish ? `On: ${vanishLabel(chat.vanish)}` : "Off", () => openVanishPicker(chat, onVanish)) : null,
     canGroup ? item("📷", "Group photo", "Change the group’s picture", () => pickGroupPhoto(chat, onPhoto)) : null,
+    canGroup ? item("🌈", "Group colour", "The group’s accent colour, for everyone", () => openGroupColor(chat)) : null,
     canTheme ? null : h("p", { class: "muted", text: "Only people who can change the group can change its theme, wallpaper and disappearing messages." })) });
 }

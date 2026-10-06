@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { postCard } from "../components/post.js";
 import { profileHref } from "../router.js";
 import { followButton } from "./profile.js";
+import { attachVoiceSearch } from "../components/voice-search.js";
 
 export function personRow(u) {
   const href = profileHref(u.username);
@@ -23,6 +24,7 @@ export function searchPage(view, _m, params) {
   view.classList.add("page-search");
   const input = h("input", { type: "search", placeholder: "Search people and posts", value: params.get("q") || "", autocomplete: "off", "aria-label": "Search" });
   const form = h("form", { class: "search-box", role: "search" }, icon("search"), input);
+  attachVoiceSearch(form, input); // say it instead of typing
   const results = h("div", { class: "search-results" });
   view.append(h("header", { class: "column-head" }, h("div", { class: "head-row" }, form)), results);
 

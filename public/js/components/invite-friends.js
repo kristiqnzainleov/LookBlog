@@ -23,12 +23,22 @@ export async function openInviteFriends() {
   };
   const enc = encodeURIComponent;
   // Instagram: the link goes in a direct message (it shows the logo and "Join LookBlog").
-  // Phones: the share menu (pick Instagram). Otherwise: the link is copied and Instagram's "new message" opens to paste it.
+  // Phones: the share menu with just the link (Instagram mixes up a link sent together with text), then pick Instagram.
+  // If there's no share menu: the link is copied and the Instagram app opens on its messages.
   const toInstagram = async () => {
-    if (isPhone() && navigator.share) { try { await navigator.share({ title: "Join LookBlog", text, url: d.url }); return; } catch (e) { if (e.name === "AbortError") return; } }
+    if (isPhone()) {
+      if (navigator.share) {
+        try { await navigator.share({ url: d.url }); return; }
+        catch (e) { if (e.name === "AbortError") return; }
+      }
+      await copy();
+      location.href = "instagram://direct-inbox";
+      return;
+    }
     await copy();
     open("https://www.instagram.com/direct/new/", "_blank", "noopener");
   };
+
   const btn = (cls, label, fn, ic) => { const b = h("button", { type: "button", class: "inv-btn " + cls }, h("span", { class: "inv-ic", text: ic }), h("span", { text: label })); b.addEventListener("click", fn); return b; };
   const link = (cls, label, href, ic) => h("a", { class: "inv-btn " + cls, href, target: "_blank", rel: "noopener" }, h("span", { class: "inv-ic", text: ic }), h("span", { text: label }));
 

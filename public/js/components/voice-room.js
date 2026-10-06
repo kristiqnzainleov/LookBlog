@@ -259,6 +259,75 @@ on("voice:sound", (ev) => {
   if (ev.username !== state.me.username) playSoundHere(ev);
   showSoundToast(ev);
 });
+/* ---------- Invite people from the group who aren't in the channel ---------- */
+let inviteList = null;
+async function openVoiceInvite() {
+  if (!room) return;
+  const list = h("div", { class: "vi-list" });
+  const sent = new Set();
+  let members = [];
+  const inviteAll = h("button", { type: "button", class: "btn btn-sm btn-primary", text: "Invite everyone online" });
+  const paint = () => {
+    if (!room) return list.replaceChildren(h("p", { class: "muted", text: "You left the voice channel." }));
+    const here = new Set(room.people.map((p) => p.username).concat(state.me.username));
+    // Not in the channel (people who join drop off this list by themselves)
+    const out = members.filter((u) => !here.has(u.username)).sort((a, b) => Number(Boolean(b.online)) - Number(Boolean(a.online)) || a.name.localeCompare(b.name));
+    inviteAll.hidden = !out.some((u) => u.online && !sent.has(u.username));
+    list.replaceChildren(...(out.length ? out.map((u) => {
+      const b = h("button", { type: "button", class: "btn btn-xs " + (sent.has(u.username) ? "btn-outline-light" : "btn-primary"), text: sent.has(u.username) ? "Invited ✓" : "Invite", disabled: sent.has(u.username) });
+      b.addEventListener("click", () => send([u.username]));
+      return h("div", { class: "conn-row vi-row" }, avatar(u, 38),
+        h("div", { class: "who" }, h("b", {}, u.nickname || u.name, tick(u, 13)), h("span", { class: "muted" }, u.online ? h("span", { class: "vi-on", text: "● Online" }) : "Offline", " · @" + u.username)), b);
+    }) : [h("p", { class: "muted", text: "Everyone from the group is already here 🎉" })]));
+  };
+  const send = async (names) => {
+    try {
+      const { invited } = await post({ kind: "invite", usernames: names });
+      invited.forEach((n) => sent.add(n));
+      toast(invited.length === 1 ? `Invited @${invited[0]}.` : `Invited ${invited.length} people.`);
+    } catch (err) { toast(err.error || "Couldn’t invite them."); }
+    paint();
+  };
+  inviteAll.addEventListener("click", () => send(members.filter((u) => u.online && !sent.has(u.username) && !room.people.some((p) => p.username === u.username)).map((u) => u.username)));
+  const m = modal({ title: `Invite to 🔊 ${room.channel.name}`, onClose: () => { inviteList = null; }, body: h("div", { class: "create-form vi" },
+    h("p", { class: "create-hint", text: "They get a pop-up to join you right away (and a notification if they’re away)." }), inviteAll, list) });
+  list.append(h("p", { class: "muted", text: "Loading…" }));
+  try {
+    const d = await api(`/api/chats/${room.chat.id}`);
+    members = ((d.chat || d).members || []).filter((u) => !u.isMe);
+  } catch { members = (room.chat.members || []).filter((u) => !u.isMe); }
+  inviteList = paint;
+  paint();
+  return m;
+}
+
+// Someone invites me into their voice channel: a pop-up to join right away
+on("voice:invite", (ev) => {
+  if (room && room.chat.id === ev.chatId && room.channel.id === ev.channelId) return;
+  document.querySelector(".vi-pop")?.remove();
+  import("./sfx.js").then((x) => x.sfx("notify")).catch(() => {});
+  const join = h("button", { type: "button", class: "btn btn-primary btn-sm", text: "Join" });
+  const no = h("button", { type: "button", class: "btn btn-outline-light btn-sm", text: "Not now" });
+  const pop = h("div", { class: "vi-pop", role: "alertdialog", "aria-label": "Voice channel invite", style: ev.color ? `--group:${ev.color}` : "" },
+    avatar(ev.by, 46),
+    h("div", { class: "vi-pop-text" }, h("b", { text: `${ev.by.name} invites you` }), h("span", { text: `🔊 ${ev.channel} · ${ev.group}` }), ev.inside ? h("small", { class: "muted", text: `${ev.inside} ${ev.inside === 1 ? "person is" : "people are"} talking` }) : null),
+    h("div", { class: "vi-pop-btns" }, no, join));
+  const close = () => { pop.classList.add("out"); setTimeout(() => pop.remove(), 250); };
+  no.addEventListener("click", close);
+  join.addEventListener("click", async () => {
+    close();
+    try {
+      const d = await api(`/api/chats/${ev.chatId}`);
+      const chat = d.chat || d;
+      const ch = chat.channels?.find((c) => c.id === ev.channelId);
+      if (location.pathname !== `/messages/${ev.chatId}`) import("../router.js").then((r) => r.navigate(`/messages/${ev.chatId}`));
+      if (ch) joinVoice(chat, ch);
+    } catch (err) { toast(err.error || "Couldn’t join."); }
+  });
+  document.body.append(pop);
+  setTimeout(() => pop.isConnected && close(), 30000);
+});
+
 /* ---------- Reactions while you talk (on someone's camera or screen, or just to the channel) ---------- */
 export const VOICE_REACTIONS = ["❤️", "😂", "🔥", "👏", "😮", "😢", "💯", "🎉", "👀", "🤯"];
 // Who a reaction is for: the stream you're looking at, or the only one that's on
@@ -358,6 +427,7 @@ function syncPeople(list) {
   if (!room || !Array.isArray(list)) return;
   const before = room.people.length;
   room.people = list;
+  inviteList?.(); // the invite list drops whoever just came in
   const here = new Set(list.map((p) => p.username));
   for (const u of here) if (u !== state.me.username && !room.peers.has(u)) peer(u);
   for (const [u, p] of [...room.peers]) if (!here.has(u)) closePeer(p);
@@ -368,6 +438,7 @@ function syncPeople(list) {
 on("voice:state", (ev) => {
   if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
   syncPeople(ev.participants);
+  inviteList?.();
 });
 
 /* ---------- Mute, deafen, camera, screen ---------- */
@@ -627,6 +698,7 @@ function paintDock() {
       btn("screen", room.video?.kind === "screen" ? "Stop sharing" : canShareScreen() ? "Share your screen" : "Share (camera)", room.video?.kind === "screen", () => setVideo(room.video?.kind === "screen" ? null : "screen")),
       (() => { const b = btn("sound", "Soundboard", false, () => openSoundboard(b)); return b; })(),
       (() => { const b = h("button", { type: "button", class: "vd-btn vd-react", title: "React", "aria-label": "React", text: "😊" }); b.addEventListener("click", () => openReactBar(b, null)); return b; })(),
+      btn("userPlus", "Invite people to this channel", false, () => openVoiceInvite()),
       btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker })),
       btn("note", "Music", Boolean(musicState()?.now), () => openMusicPanel(), "vd-music"),
       btn("leave", "Leave voice", false, () => leaveVoice(), "danger")));

@@ -8,7 +8,7 @@ import { conversation, chatPic, groupVisibilityPicker } from "./chat.js";
 import { openReportUser } from "./report.js";
 import { joinVoice, leaveVoice, currentVoice, voicePerson, speakingNow, placeDock, BUILTIN_SOUNDS, previewSound } from "./voice-room.js";
 
-const COLORS = ["#ff4fa3", "#ff3b4f", "#ff8a3b", "#ffcc33", "#1fc77a", "#66d1ff", "#3b6bff", "#a66bff", "#f5f0eb"];
+const COLORS = ["#ff4fa3", "#ff3b4f", "#ff8a3b", "#ffcc33", "#b6f23a", "#1fc77a", "#19d3c5", "#66d1ff", "#3b6bff", "#a66bff", "#d6a4ff", "#ff7eb3", "#f5f0eb"];
 const has = (chat, p) => chat.perms?.includes(p);
 const anyAdmin = (chat) => ["manage_group", "manage_channels", "manage_roles", "kick", "manage_nicknames"].some((p) => has(chat, p));
 
@@ -77,9 +77,15 @@ export function groupView(chatId, { onBack } = {}) {
   let chat = null, convo = null, active = null;
   const unread = new Set();
 
+  // The group's colour is the accent of the whole group page (buttons, my bubbles, highlights)
+  function paintColor(c) {
+    el.style.setProperty("--group", c || "#ff4fa3");
+    if (c && c !== "#ff4fa3") el.style.setProperty("--pink", c); else el.style.removeProperty("--pink");
+  }
+  const offColor = on("group:color", (ev) => { if (ev.chatId === chatId) { if (chat) chat.color = ev.color; paintColor(ev.color); } });
   async function load() {
     chat = (await api(`/api/chats/${chatId}`)).chat;
-    el.style.setProperty("--group", chat.color || "#ff4fa3");
+    paintColor(chat.color);
     const want = new URLSearchParams(location.search).get("c");
     const texts = chat.channels.filter((c) => c.kind === "text");
     if (!active || !texts.some((c) => c.id === active)) open(texts.some((c) => c.id === want) ? want : texts[0].id);
@@ -527,5 +533,5 @@ export function groupView(chatId, { onBack } = {}) {
       if (changed) paintSide();
     } catch {}
   }, 15000);
-  return { el, stop: () => { clearInterval(voiceCheck); convo?.stop(); offs.forEach((f) => f()); } };
+  return { el, stop: () => { clearInterval(voiceCheck); convo?.stop(); offs.forEach((f) => f()); offColor(); } };
 }

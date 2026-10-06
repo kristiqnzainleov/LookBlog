@@ -16,6 +16,7 @@ function sentence(n) {
     case "story-reply": return "replied to your story";
     case "story-mention": return "mentioned you in their story";
     case "referral": return "joined LookBlog with your invite 🎉";
+    case "voice-invite": return `invited you to a voice channel in ${n.group || "a group"}`;
     case "story-repost": return "added your story to theirs";
     case "story-reaction": return `reacted ${n.emoji || ""} to your story`;
     case "security": return "· security";
@@ -59,7 +60,7 @@ function target(n) {
   if (n.streamId) return `/live/${encodeURIComponent(n.streamId)}`;
   if (n.eventId) return `/event/${encodeURIComponent(n.eventId)}`;
   if (n.type === "invite" && n.code) return `/invite/${encodeURIComponent(n.code)}`;
-  if (n.type === "chat-mention" && n.chatId) return `/messages/${encodeURIComponent(n.chatId)}`;
+  if ((n.type === "chat-mention" || n.type === "voice-invite") && n.chatId) return `/messages/${encodeURIComponent(n.chatId)}`;
   if ((n.type === "event" || n.type === "event-start" || n.type === "event-now") && n.chatId) return `/messages/${encodeURIComponent(n.chatId)}`;
   if (!n.postId) return profileHref(n.actor.username);
   if (n.postType === "video") return `/watch/${encodeURIComponent(n.postId)}`;
@@ -67,7 +68,7 @@ function target(n) {
   const hash = ["comment", "answer", "reaction"].includes(n.type) ? "#replies" : "";
   return postHref(n.postId) + hash;
 }
-const ICON = { referral: "🎉", team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
+const ICON = { "voice-invite": "🔊", referral: "🎉", team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
 
 function itemEl(n, close) {
   const quote = n.type === "badge" ? null : n.text || n.postText;

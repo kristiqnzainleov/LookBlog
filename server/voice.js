@@ -149,6 +149,24 @@ async function handleVoice(req, res, me, chat, chats) {
     sendJSON(res, 200, { ok: true });
     return true;
   }
+  // Invite people from the group who aren't here: { kind: "invite", usernames: [...] }
+  // They get a pop-up to join right away (and a notification, in case they're away).
+  if (body.kind === "invite") {
+    rateLimit("vinvite:" + me.id, 40, 10 * 60 * 1000, "You’ve sent a lot of invites. Wait a little.");
+    const names = (Array.isArray(body.usernames) ? body.usernames : []).slice(0, 50).map(String);
+    const invited = [];
+    for (const n of names) {
+      const u = findByUsername(n);
+      if (!u || u.id === me.id || !chat.members.includes(u.id) || room[u.id]) continue;
+      if ((u.blocked || []).includes(me.id) || (me.blocked || []).includes(u.id)) continue;
+      sendTo([u.id], { type: "voice:invite", chatId: chat.id, channelId: channel.id, channel: channel.name, group: chat.name, color: chat.color || null,
+        by: { name: me.name, username: me.username, avatar: me.avatar }, inside: Object.keys(room).length });
+      require("./notifications").notify(u.id, "voice-invite", me, { chatId: chat.id, group: chat.name, text: `🔊 ${channel.name}` });
+      invited.push(u.username);
+    }
+    sendJSON(res, 200, { invited });
+    return true;
+  }
   // A reaction while you talk: { kind: "react", emoji, to } — to someone's camera or screen (to = their username), or to the channel.
   // Everyone in the group sees it fly up (on the video, in the voice panel and in the channel list).
   if (body.kind === "react") {

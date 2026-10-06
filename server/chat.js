@@ -1125,6 +1125,20 @@ async function handleChat(req, res, url, me) {
         return true;
       }
 
+      // Just the colour: POST /api/groups/:id/color { color }  (people who can change the group)
+      if (m === "POST" && parts[2] === "color" && parts.length === 3) {
+        if (!can(chat, me, "manage_group")) throw httpError(403, "Only people who can change the group can change its colour.");
+        const color = String((await readJSON(req)).color || "");
+        if (!COLOR_RE.test(color)) throw httpError(400, "Pick a colour.");
+        chat.color = color.toLowerCase();
+        save("chats");
+        sendTo(chat.members, { type: "group:color", chatId: chat.id, color: chat.color });
+        sendTo(chat.members, { type: "group:changed", chatId: chat.id, what: "group" });
+        systemMessage(chat, me, `🎨 ${me.name} changed the group colour`);
+        sendJSON(res, 200, { color: chat.color });
+        return true;
+      }
+
       // Edit (owner only): POST /api/groups/:id { name, description, cover }
       if (m === "POST" && parts.length === 2) {
         if (!can(chat, me, "manage_group")) throw httpError(403, "You don’t have permission to change the group.");

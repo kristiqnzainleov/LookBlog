@@ -16,7 +16,7 @@ function eventView(ev, me, { full = false } = {}) {
   const host = findUser(ev.hostId);
   const out = {
     id: ev.id, title: ev.title, description: ev.description, cover: ev.cover, photo: ev.photo,
-    startsAt: ev.startsAt, endsAt: ev.endsAt || null, location: ev.location || "",
+    startsAt: ev.startsAt, endsAt: ev.endsAt || null, location: ev.location || "", geo: ev.geo || null,
     host: authorView(host), isHost: ev.hostId === me.id,
     going: ev.going.length, mine: ev.going.includes(me.id),
     goingPeople: ev.going.slice(-8).reverse().map(findUser).filter(Boolean).map(authorView),
@@ -57,7 +57,10 @@ function readEvent(body, me, current = null) {
     if (!ok) throw httpError(400, "That picture couldn’t be found. Try uploading it again.");
     return ok.url;
   };
-  return { title, description, location, startsAt: when.toISOString(), endsAt, cover: pic(body.cover, current?.cover), photo: pic(body.photo, current?.photo) };
+  // The spot on the map (picked from a search or "use my location"), if any
+  const lat = Number(body.geo?.lat), lng = Number(body.geo?.lng);
+  const geo = body.geo && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 } : null;
+  return { title, description, location, geo, startsAt: when.toISOString(), endsAt, cover: pic(body.cover, current?.cover), photo: pic(body.photo, current?.photo) };
 }
 
 async function handleEvents(req, res, url, me) {

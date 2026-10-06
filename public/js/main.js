@@ -199,6 +199,7 @@ function setupMenu() {
   });
 
   import("./components/search-suggest.js").then((m) => m.attachSuggestions($("topSearch"), $("topSearchInput")));
+  import("./components/voice-search.js").then((m) => m.attachVoiceSearch($("topSearch"), $("topSearchInput")));
   $("topSearch").addEventListener("submit", (e) => {
     e.preventDefault();
     const q = $("topSearchInput").value.trim();
