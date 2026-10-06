@@ -41,7 +41,7 @@ async function youtubeInfo(url) {
 function musicView(key) {
   const m = music.get(key);
   if (!m || !m.now) return null;
-  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, changedBy: m.changedBy || null, serverNow: Date.now() };
+  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, changedBy: m.changedBy || null, serverNow: Date.now() };
 }
 function sendMusic(chat, channelId) {
   const key = chat.id + ":" + channelId;
@@ -52,7 +52,7 @@ function playNext(key) {
   const m = music.get(key);
   if (!m) return;
   m.now = m.queue.shift() || null;
-  m.startedAt = Date.now(); m.pausedAt = null;
+  m.startedAt = Date.now(); m.pausedAt = null; m.rate = 1; m.loop = null;
   if (!m.now) music.delete(key);
   else save("voice");
 }
@@ -94,18 +94,20 @@ function participants(chatId, channelId) {
   if (!room) return [];
   return Object.entries(room).map(([id, s]) => {
     const u = findUser(id);
-    return u && { name: u.name, username: u.username, avatar: u.avatar, verified: Boolean(u.verified), verifiedType: u.verifiedType || null, muted: s.muted, deaf: s.deaf, video: s.video, screen: s.screen };
+    return u && { name: u.name, username: u.username, avatar: u.avatar, verified: Boolean(u.verified), verifiedType: u.verifiedType || null, muted: s.muted, deaf: s.deaf, video: s.video, screen: s.screen,
+      ...(db.voice[chatId + ":" + channelId]?.dj?.username === u.username ? { dj: true } : {}) };
   }).filter(Boolean);
 }
 
 function announce(chat, channelId) {
-  sendTo(chat.members, { type: "voice:state", chatId: chat.id, channelId, participants: participants(chat.id, channelId) });
+  sendTo(chat.members, { type: "voice:state", chatId: chat.id, channelId, participants: participants(chat.id, channelId), status: db.voice[chat.id + ":" + channelId]?.status || null });
 }
 
 function leave(userId, chats) {
   const key = whereIs(userId);
   if (!key) return;
   delete db.voice[key].members[userId];
+  if (db.voice[key].dj && findUser(userId)?.username === db.voice[key].dj.username) delete db.voice[key].dj;
   const left = roomIds(key);
   if (!left.length) delete db.voice[key];
   save("voice");
@@ -138,7 +140,7 @@ async function handleVoice(req, res, me, chat, chats) {
     announce(chat, channel.id);
     // A secret topic for the fallback voice relay (when two people can't connect directly)
     const relayTopic = require("./store").enabled ? "vr-" + require("crypto").createHmac("sha256", process.env.SUPABASE_SERVICE_KEY || "lb").update("voice:" + key).digest("base64url").slice(0, 24) : null;
-    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic, watch: watchView(key), now: Date.now() });
+    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic, watch: watchView(key), dj: db.voice[key].dj || null, beat: db.voice[key].beat || null, status: db.voice[key].status || null, now: Date.now() });
     return true;
   }
   if (body.kind === "leave") {
@@ -225,6 +227,68 @@ async function handleVoice(req, res, me, chat, chats) {
     sendJSON(res, 200, { watch: watchView(key), now: Date.now() });
     return true;
   }
+  // The channel's status (like Discord): { kind: "status", text }  — anyone in the channel; empty clears it
+  if (body.kind === "status") {
+    rateLimit("vstatus:" + me.id, 20, 60 * 1000, "Slow down a little.");
+    const text = String(body.text || "").trim().replace(/\s+/g, " ").slice(0, 60);
+    if (text) db.voice[key].status = { text, by: me.username }; else delete db.voice[key].status;
+    save("voice");
+    announce(chat, channel.id);
+    sendJSON(res, 200, { status: db.voice[key].status || null });
+    return true;
+  }
+  // DJ mode: one DJ at a time; everyone hears what the DJ does.
+  // { kind: "dj", action: "claim" | "release" | "fx" (fx) | "rate" (rate) | "cue" (at) | "loop" (seconds or 0) | "beat" (bpm or 0) }
+  if (body.kind === "dj") {
+    rateLimit("vdj:" + me.id, 240, 60 * 1000, "Easy, DJ!");
+    const v = db.voice[key], a = body.action;
+    const isDj = v.dj?.username === me.username;
+    let extra = {};
+    if (a === "claim") {
+      if (v.dj && v.dj.username !== me.username && room[findByUsername(v.dj.username)?.id]) throw httpError(409, `@${v.dj.username} is the DJ right now.`);
+      v.dj = { username: me.username, name: me.name };
+    } else if (a === "release") {
+      if (!isDj && !can(chat, me, "manage_group")) throw httpError(403, "Only the DJ can step down.");
+      delete v.dj;
+    } else {
+      if (!isDj) throw httpError(403, "Only the DJ can do that. Take the decks first.");
+      const m = music.get(key);
+      const FX = ["airhorn", "siren", "scratch", "laser", "riser", "drop", "rewind", "clap", "brake", "fade", "horn", "boom"];
+      if (a === "fx") {
+        if (!FX.includes(body.fx)) throw httpError(400, "Unknown effect.");
+        extra = { fx: body.fx };
+        if (body.fx === "brake" && m?.now && m.pausedAt == null) { m.pausedAt = (Date.now() - m.startedAt) * (m.rate || 1); music.set(key, m); sendMusic(chat, channel.id); }
+      } else if (a === "rate" || a === "cue" || a === "loop") {
+        if (!m?.now) throw httpError(409, "Nothing is playing.");
+        const rate = m.rate || 1;
+        const pos = m.pausedAt != null ? m.pausedAt : (Date.now() - m.startedAt) * rate; // ms into the track now
+        if (a === "rate") {
+          const r = [0.5, 0.75, 1, 1.25, 1.5, 2].includes(Number(body.rate)) ? Number(body.rate) : 1;
+          m.rate = r;
+          if (m.pausedAt == null) m.startedAt = Date.now() - pos / r;
+        } else if (a === "cue") {
+          const at = Math.max(0, Number(body.at) || 0) * 1000;
+          if (m.pausedAt != null) m.pausedAt = at; else m.startedAt = Date.now() - at / rate;
+          m.loop = null;
+        } else {
+          const len = [0, 1, 2, 4, 8, 16].includes(Number(body.seconds)) ? Number(body.seconds) : 0;
+          m.loop = len ? { start: pos / 1000, len } : null;
+        }
+        music.set(key, m);
+        sendMusic(chat, channel.id);
+      } else if (a === "beat") {
+        const bpm = Number(body.bpm) || 0;
+        v.beat = bpm >= 60 && bpm <= 200 ? { bpm: Math.round(bpm), pattern: ["house", "hiphop", "techno"].includes(body.pattern) ? body.pattern : "house", at: Date.now() } : null;
+        if (!v.beat) delete v.beat;
+        extra = { beat: v.beat || null };
+      } else throw httpError(400, "Unknown DJ action.");
+    }
+    save("voice");
+    sendTo(Object.keys(room), { type: "voice:dj", chatId: chat.id, channelId: channel.id, action: a, dj: v.dj || null, by: me.username, now: Date.now(), ...extra });
+    if (a === "claim" || a === "release") announce(chat, channel.id);
+    sendJSON(res, 200, { dj: v.dj || null, beat: v.beat || null, now: Date.now() });
+    return true;
+  }
   // A reaction while you talk: { kind: "react", emoji, to } — to someone's camera or screen (to = their username), or to the channel.
   // Everyone in the group sees it fly up (on the video, in the voice panel and in the channel list).
   if (body.kind === "react") {
@@ -240,7 +304,7 @@ async function handleVoice(req, res, me, chat, chats) {
   // Music: { kind: "music", action: play|queue|pause|resume|skip|stop|ended|seek, songId | url, itemId, at }
   if (body.kind === "music") {
     rateLimit("vmusic:" + me.id, 40, 60 * 1000, "Slow down a little.");
-    const m = music.get(key) || { now: null, startedAt: 0, pausedAt: null, queue: [], volume: 70 };
+    const m = music.get(key) || { now: null, startedAt: 0, pausedAt: null, queue: [], volume: db.voice[key]?.lastVolume ?? 70 };
     const a = body.action;
     m.changedBy = me.name;
     if (a === "play" || a === "queue") {
@@ -257,17 +321,18 @@ async function handleVoice(req, res, me, chat, chats) {
       item.id = Math.random().toString(36).slice(2, 10);
       me.voiceDJ = (me.voiceDJ || 0) + 1; require("./db").save("users");
       item.by = me.name;
-      if (a === "play" || !m.now) { m.now = item; m.startedAt = Date.now(); m.pausedAt = null; }
+      if (a === "play" || !m.now) { m.now = item; m.startedAt = Date.now(); m.pausedAt = null; m.rate = 1; m.loop = null; }
       else { if (m.queue.length >= 30) throw httpError(400, "The queue is full."); m.queue.push(item); }
       music.set(key, m);
     } else if (!m.now) throw httpError(409, "Nothing is playing.");
-    else if (a === "pause") { if (m.pausedAt == null) m.pausedAt = Date.now() - m.startedAt; }
-    else if (a === "resume") { if (m.pausedAt != null) { m.startedAt = Date.now() - m.pausedAt; m.pausedAt = null; } }
-    else if (a === "seek") { const at = Math.max(0, Number(body.at) || 0) * 1000; if (m.pausedAt != null) m.pausedAt = at; else m.startedAt = Date.now() - at; }
+    // (times are in the track: with the DJ's speed, the clock moves "rate" times faster)
+    else if (a === "pause") { if (m.pausedAt == null) m.pausedAt = (Date.now() - m.startedAt) * (m.rate || 1); }
+    else if (a === "resume") { if (m.pausedAt != null) { m.startedAt = Date.now() - m.pausedAt / (m.rate || 1); m.pausedAt = null; } }
+    else if (a === "seek") { const at = Math.max(0, Number(body.at) || 0) * 1000; if (m.pausedAt != null) m.pausedAt = at; else m.startedAt = Date.now() - at / (m.rate || 1); m.loop = null; }
     else if (a === "skip") playNext(key);
     else if (a === "ended") { if (m.now.id === body.itemId) playNext(key); else { sendJSON(res, 200, { music: musicView(key) }); return true; } }
     else if (a === "stop") music.delete(key);
-    else if (a === "volume") m.volume = Math.max(0, Math.min(100, Math.round(Number(body.volume) || 0)));
+    else if (a === "volume") { m.volume = Math.max(0, Math.min(100, Math.round(Number(body.volume) || 0))); db.voice[key].lastVolume = m.volume; }
     else if (a === "unqueue") m.queue = m.queue.filter((x) => x.id !== body.itemId);
     else throw httpError(400, "Unknown music action.");
     save("voice");

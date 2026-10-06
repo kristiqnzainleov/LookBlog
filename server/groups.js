@@ -101,7 +101,11 @@ function groupExtras(chat, me, voiceRooms) {
   return {
     color: chat.color,
     colorGrad: chat.colorGrad || null,
-    channels: chat.channels.map((c) => ({ ...c, voice: c.kind === "voice" ? voiceRooms(chat.id, c.id) : undefined })),
+    channels: chat.channels.map((c) => ({ ...c, voice: c.kind === "voice" ? voiceRooms(chat.id, c.id) : undefined,
+      // A voice channel's status (like Discord: "🎮 Playing Valorant"), set by the people in it
+      voiceStatus: c.kind === "voice" ? db.voice?.[chat.id + ":" + c.id]?.status || null : undefined })),
+    pinnedChannels: (me.channelPins?.[chat.id] || []).filter((id) => chat.channels.some((c) => c.id === id)), // channels I pinned to the top
+    myStatus: chat.memberStatus?.[me.id] || null,
     roles: chat.roles.map(roleView),
     perms: permsOf(chat, me),
     allPerms: PERMS,
@@ -113,7 +117,7 @@ function groupExtras(chat, me, voiceRooms) {
   };
 }
 function memberExtras(chat, u) {
-  return { roles: (chat.memberRoles?.[u.id] || []), nickname: nicknameOf(chat, u.id), rank: rank(chat, u.id) };
+  return { roles: (chat.memberRoles?.[u.id] || []), nickname: nicknameOf(chat, u.id), rank: rank(chat, u.id), groupStatus: chat.memberStatus?.[u.id] || null };
 }
 
 const tell = (chat, what) => sendTo(chat.members, { type: "group:changed", chatId: chat.id, what });
@@ -209,6 +213,32 @@ async function handleGroupRoutes(req, res, me, chat, parts, helpers) {
   const [, , c, d, e] = parts;
   const m = req.method;
   const need = (perm, msg) => { if (!can(chat, me, perm)) throw httpError(403, msg || "You don’t have permission to do that."); };
+
+  // My status in this group (each group its own): POST /api/groups/:id/my-status { emoji, text }  (empty = cleared)
+  if (m === "POST" && c === "my-status" && parts.length === 3) {
+    if (!chat.members.includes(me.id)) throw httpError(403, "Join the group first.");
+    const body = await readJSON(req);
+    const text = String(body.text || "").trim().replace(/\s+/g, " ").slice(0, 60);
+    const emoji = typeof body.emoji === "string" && body.emoji.length <= 16 && /\p{Extended_Pictographic}/u.test(body.emoji) ? body.emoji : "";
+    chat.memberStatus = chat.memberStatus || {};
+    if (text || emoji) chat.memberStatus[me.id] = { emoji, text }; else delete chat.memberStatus[me.id];
+    save("chats");
+    tell(chat, "members");
+    sendJSON(res, 200, { status: chat.memberStatus[me.id] || null });
+    return true;
+  }
+  // Pin a channel to the top of my list (or unpin it): POST /api/groups/:id/pin-channel { channelId }
+  if (m === "POST" && c === "pin-channel" && parts.length === 3) {
+    const id = String((await readJSON(req)).channelId || "");
+    if (!chat.channels.some((x) => x.id === id)) throw httpError(404, "That channel doesn’t exist.");
+    me.channelPins = me.channelPins || {};
+    const list = (me.channelPins[chat.id] || []).filter((x) => chat.channels.some((ch) => ch.id === x));
+    me.channelPins[chat.id] = list.includes(id) ? list.filter((x) => x !== id) : [id, ...list].slice(0, 10);
+    if (!me.channelPins[chat.id].length) delete me.channelPins[chat.id];
+    save("users");
+    sendJSON(res, 200, { pinned: me.channelPins[chat.id] || [] });
+    return true;
+  }
 
   // Nicknames: POST /api/chats/:id/nickname { username, nickname }  (DMs and groups)
   if (m === "POST" && c === "nickname" && parts.length === 3) {

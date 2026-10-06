@@ -4,7 +4,8 @@
 import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
-import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic } from "./voice-music.js";
+import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicBrake } from "./voice-music.js";
+import { playFx, setBeat } from "./dj.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings, hdDescription, hdSenders } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
 import * as wt from "./watch-together.js";
@@ -57,6 +58,10 @@ export async function joinVoice(chat, channel) {
   room.skew = joined.now ? joined.now - Date.now() : 0;
   room.watch = joined.watch || null;
   if (room.watch) showWatch(room.watch, false);
+  // DJ: who's on the decks, and their drum machine
+  setDj(joined.dj || null);
+  setBeat(joined.beat || null, room.skew);
+  room.status = joined.status || null;
   room.ping = setInterval(() => post({ kind: "ping" }).then((r) => { syncPeople(r.participants); syncWatch(r); }).catch((err) => { if (/not in that voice/i.test(err.error || "")) leaveVoice(true); }), 15000);
   playTone(true);
   emit("voice:local", currentVoice());
@@ -68,6 +73,8 @@ export async function leaveVoice(silent) {
   room = null;
   reactBar?.remove(); reactBar = null;
   wt.closeWatch();
+  setBeat(null); setDj(null);
+  vchat?.close();
   r.ended = true;
   clearInterval(r.ping);
   clearInterval(r.place);
@@ -129,7 +136,7 @@ function peer(username) {
   watch();
   pc.ontrack = (e) => {
     const s = e.streams[0] || new MediaStream([e.track]);
-    if (e.track.kind === "audio") { p.audio.srcObject = s; playAudio(p.audio); }
+    if (e.track.kind === "audio") { p.audio.srcObject = s; playAudio(p.audio); applyUserVolume(p); }
     else { p.videoStream = new MediaStream([e.track]); e.track.onunmute = paintStage; e.track.onended = paintStage; paintStage(); }
   };
   // A dropped connection tries again on its own
@@ -265,6 +272,103 @@ on("voice:sound", (ev) => {
   if (ev.username !== state.me.username) playSoundHere(ev);
   showSoundToast(ev);
 });
+/* ---------- How loud each person is, just for me (tap their name in the channel) ---------- */
+const UVOL = "lb-uvol";
+const userVols = () => { try { return JSON.parse(localStorage.getItem(UVOL) || "{}") || {}; } catch { return {}; } };
+const userVolume = (u) => userVols()[u] ?? 1;
+function applyUserVolume(p) {
+  const v = userVolume(p.username);
+  p.audio.volume = Math.min(1, v);
+  // Above 100%: an extra copy of their voice through the sound engine (on top of the normal one, so nothing can go silent)
+  const extra = room?.deaf ? 0 : Math.max(0, v - 1);
+  if (extra > 0 && p.audio.srcObject && (!p.boost || p.boost.stream !== p.audio.srcObject)) {
+    try {
+      p.boost?.src.disconnect();
+      const c = audioEngine(), src = c.createMediaStreamSource(p.audio.srcObject), g = c.createGain();
+      src.connect(g); g.connect(c.destination);
+      p.boost = { src, g, stream: p.audio.srcObject };
+    } catch {}
+  }
+  if (p.boost) p.boost.g.gain.value = extra;
+  relay.setRelayUserVolume(p.username, v);
+}
+function setUserVolume(username, v) {
+  const all = userVols();
+  if (Math.abs(v - 1) < 0.01) delete all[username]; else all[username] = Math.round(v * 100) / 100;
+  try { localStorage.setItem(UVOL, JSON.stringify(all)); } catch {}
+  const p = room?.peers.get(username);
+  if (p) applyUserVolume(p);
+}
+let volPop = null;
+function openUserVolume(person, anchor) {
+  volPop?.remove();
+  const v0 = userVolume(person.username);
+  const muted = v0 === 0;
+  const slider = h("input", { type: "range", min: 0, max: 200, step: 5, value: Math.round(v0 * 100), class: "uv-slider", "aria-label": `Volume for ${person.name}` });
+  const val = h("b", { class: "uv-val", text: Math.round(v0 * 100) + "%" });
+  const mute = h("button", { type: "button", class: "btn btn-xs " + (muted ? "btn-primary" : "btn-outline-light"), text: muted ? "🔇 Muted for you" : "🔇 Mute for me" });
+  const reset = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "100%" });
+  const set = (pct) => { slider.value = pct; val.textContent = pct + "%"; setUserVolume(person.username, pct / 100); mute.textContent = pct === 0 ? "🔇 Muted for you" : "🔇 Mute for me"; mute.className = "btn btn-xs " + (pct === 0 ? "btn-primary" : "btn-outline-light"); };
+  slider.addEventListener("input", () => set(Number(slider.value)));
+  mute.addEventListener("click", () => set(Number(slider.value) === 0 ? 100 : 0));
+  reset.addEventListener("click", () => set(100));
+  volPop = h("div", { class: "uv-pop", role: "dialog", "aria-label": `Volume for ${person.name}` },
+    h("div", { class: "uv-head" }, avatar(person, 32), h("div", {}, h("b", { text: person.name }), h("small", { class: "muted", text: "Only for you" }))),
+    h("div", { class: "uv-row" }, h("span", { text: "🔈" }), slider, val), h("div", { class: "uv-btns" }, mute, reset));
+  document.body.append(volPop);
+  const r = anchor.getBoundingClientRect();
+  volPop.style.left = Math.max(8, Math.min(r.left, innerWidth - volPop.offsetWidth - 8)) + "px";
+  volPop.style.top = Math.min(r.bottom + 6, innerHeight - volPop.offsetHeight - 8) + "px";
+  setTimeout(() => {
+    const away = (e) => { if (volPop && !volPop.contains(e.target) && !anchor.contains(e.target)) { volPop.remove(); volPop = null; document.removeEventListener("pointerdown", away); } };
+    document.addEventListener("pointerdown", away);
+  });
+}
+
+/* ---------- The voice channel's own chat (like Discord's "text in voice") ---------- */
+let vchat = null;
+async function openVoiceChat() {
+  if (!room) return;
+  if (vchat) { vchat.el.classList.remove("mini"); return; }
+  const { conversation } = await import("./chat.js");
+  if (!room) return;
+  const c = conversation(room.chat.id, { channelId: room.channel.id, embedded: true });
+  const close = () => { c.stop?.(); el.remove(); vchat = null; };
+  const head = h("div", { class: "wt-head vchat-head" }, h("span", { class: "wt-live", text: `💬 ${room.channel.name}` }), h("span", { class: "wt-who", text: "Chat for the people in this voice channel" }),
+    h("div", { class: "wt-tools" }, h("button", { type: "button", class: "wt-btn", title: "Smaller", text: "▁", onclick: () => el.classList.toggle("mini") }), h("button", { type: "button", class: "wt-btn", title: "Close", "aria-label": "Close" }, icon("close"))));
+  head.querySelector('[aria-label="Close"]').addEventListener("click", close);
+  const el = h("div", { class: "vchat-win", role: "dialog", "aria-label": "Voice channel chat" }, head, h("div", { class: "vchat-body" }, c.el));
+  document.body.append(el);
+  vchat = { el, close };
+  room.chatUnread = false; paintDock();
+  // Drag by the top bar
+  let drag = null;
+  head.addEventListener("pointerdown", (e) => { if (e.target.closest("button")) return; const r = el.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; head.setPointerCapture(e.pointerId); });
+  head.addEventListener("pointermove", (e) => { if (!drag) return; Object.assign(el.style, { left: Math.max(4, Math.min(innerWidth - el.offsetWidth - 4, e.clientX - drag.dx)) + "px", top: Math.max(4, Math.min(innerHeight - 60, e.clientY - drag.dy)) + "px", right: "auto", bottom: "auto" }); });
+  head.addEventListener("pointerup", () => { drag = null; });
+}
+// A new message in the voice chat while it's closed: a dot on 💬
+on("message", (ev) => {
+  if (!room || ev.chatId !== room.chat.id || ev.message?.channelId !== room.channel.id || ev.message?.mine || vchat) return;
+  room.chatUnread = true; paintDock();
+});
+
+/* ---------- DJ mode: everyone hears what the DJ does ---------- */
+on("voice:dj", (ev) => {
+  if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
+  room.skew = ev.now - Date.now();
+  setDj(ev.dj);
+  if (ev.action === "claim" && ev.by !== state.me.username) toast(`🎧 @${ev.by} is the DJ now.`);
+  if (ev.action === "fx") {
+    playFx(ev.fx);
+    if (ev.fx === "fade") musicFadeOut(2500);
+    if (ev.fx === "brake") musicBrake();
+  }
+  if (ev.action === "beat") setBeat(ev.beat, room.skew);
+  if (ev.action === "release") setBeat(null);
+  paintDock();
+});
+
 /* ---------- Watch together (YouTube, Shorts, TikTok) ---------- */
 function showWatch(w, gesture) {
   if (!room) return;
@@ -506,7 +610,7 @@ function setMuted(v) {
 function setDeaf(v) {
   room.deaf = v;
   setMusicDeaf(v);
-  for (const p of room.peers.values()) p.audio.muted = v;
+  for (const p of room.peers.values()) { p.audio.muted = v; applyUserVolume(p); }
   relay.setRelayDeaf(v);
   setMicOpen();
   post({ kind: "state", deaf: v }).catch(() => {});
@@ -748,6 +852,7 @@ function paintDock() {
       (() => { const b = btn("sound", "Soundboard", false, () => openSoundboard(b)); return b; })(),
       (() => { const b = h("button", { type: "button", class: "vd-btn vd-react", title: "React", "aria-label": "React", text: "😊" }); b.addEventListener("click", () => openReactBar(b, null)); return b; })(),
       btn("userPlus", "Invite people to this channel", false, () => openVoiceInvite()),
+      (() => { const b = h("button", { type: "button", class: "vd-btn vd-chat" + (room.chatUnread ? " unread" : ""), title: "Chat of this voice channel", "aria-label": "Voice channel chat", text: "💬" }); b.addEventListener("click", () => openVoiceChat()); return b; })(),
       (() => { const b = h("button", { type: "button", class: "vd-btn vd-watch" + (room.watch ? " on" : ""), title: room.watch ? (wt.watchOpen() ? "Watching together" : "Open what everyone is watching") : "Watch a video together", "aria-label": "Watch together", text: "📺" });
         b.addEventListener("click", () => (room.watch && !wt.watchOpen() ? showWatch(room.watch, true) : room.watch ? null : startWatch()));
         return b; })(),
@@ -855,9 +960,20 @@ function paintStage() {
 export function voicePerson(p, onKick) {
   const kick = onKick && p.username !== state.me.username ? h("button", { type: "button", class: "vc-kick", title: `Disconnect ${p.name}`, "aria-label": `Disconnect ${p.name}` }, icon("close")) : null;
   kick?.addEventListener("click", (e) => { e.stopPropagation(); onKick(p); });
-  return h("div", { class: "vc-person" + (speakingNow.has(p.username) ? " speaking" : ""), dataset: { voiceUser: p.username } }, kick,
+  const vol = userVolume(p.username);
+  const row = h("div", { class: "vc-person" + (speakingNow.has(p.username) ? " speaking" : ""), dataset: { voiceUser: p.username }, title: p.username !== state.me.username ? "Tap to change how loud they are for you" : "" }, kick,
     avatar(p, 24), h("span", { class: "vc-name", text: p.name }), tick(p, 13),
+    p.groupStatus ? h("span", { class: "vc-gstatus", title: p.groupStatus.text, text: p.groupStatus.emoji || "💬" }) : null,
+    vol !== 1 && p.username !== state.me.username ? h("span", { class: "vc-flag vol", title: `${Math.round(vol * 100)}% for you`, text: vol === 0 ? "🔇" : `${Math.round(vol * 100)}%` }) : null,
+    p.dj ? h("span", { class: "vc-flag dj", title: "DJ", text: "🎧 DJ" }) : null,
     p.screen ? h("span", { class: "vc-flag live", text: "LIVE" }) : null,
     p.video ? h("span", { class: "vc-flag", title: "Camera on" }, icon("video")) : null,
-    p.deaf ? h("span", { class: "vc-flag", title: "Deafened" }, icon("headphones")) : p.muted ? h("span", { class: "vc-flag", title: "Muted" }, icon("mute")) : null);
+    p.muted || p.deaf ? h("span", { class: "vc-flag off", title: "Muted" }, icon("mute")) : null,
+    p.deaf ? h("span", { class: "vc-flag off", title: "Deafened" }, icon("headphones")) : null);
+  row.addEventListener("click", (e) => {
+    if (e.target.closest(".vc-kick") || p.username === state.me.username) return;
+    e.stopPropagation();
+    openUserVolume(p, row);
+  });
+  return row;
 }

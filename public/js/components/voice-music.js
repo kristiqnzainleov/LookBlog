@@ -3,6 +3,7 @@
 // The server keeps what's playing, since when, and the volume — anyone in the channel can change any of it.
 import { h, toast, spinner, empty } from "../ui.js";
 import { api } from "../api.js";
+import { djConsole, djVolume } from "./dj.js";
 
 const VOL_KEY = "lb_vc_music_vol";
 let volume = 60;
@@ -14,6 +15,10 @@ let post = null;         // (body) => Promise, set by the voice room
 let onChange = () => {};
 
 export function setupMusic({ send, changed }) { post = send; onChange = changed || (() => {}); }
+// Who's the DJ right now (the voice room keeps this up to date)
+let djNow = null;
+export function setDj(d) { djNow = d || null; onChange(); }
+export const currentDj = () => djNow;
 export const musicState = () => current;
 export const musicVolume = () => volume;
 
@@ -27,8 +32,44 @@ function loadYT() {
   });
   return ytReady;
 }
-const position = (m) => Math.max(0, ((m.pausedAt ?? (Date.now() - m.startedAt - (m.skew || 0))) / 1000));
-const level = () => (deaf ? 0 : current?.volume ?? volume);
+// Where the track is now (with the DJ's speed, and inside the DJ's loop if there is one)
+const position = (m) => {
+  let p = (m.pausedAt ?? (Date.now() - m.startedAt - (m.skew || 0)) * (m.rate || 1)) / 1000;
+  if (m.loop && p > m.loop.start) p = m.loop.start + ((p - m.loop.start) % m.loop.len);
+  return Math.max(0, p);
+};
+// The DJ's fades: 1 = full, 0 = silent (on top of the volume, which stays the same from song to song)
+let fadeMul = 1, fadeAnim = null;
+const level = () => (deaf ? 0 : Math.round((current?.volume ?? volume) * fadeMul));
+function fadeTo(target, ms) {
+  cancelAnimationFrame(fadeAnim);
+  const from = fadeMul, t0 = performance.now();
+  const step = () => {
+    const k = Math.min(1, (performance.now() - t0) / ms);
+    fadeMul = from + (target - from) * k;
+    if (audio) audio.volume = level() / 100;
+    try { yt?.setVolume(level()); } catch {}
+    if (k < 1) fadeAnim = requestAnimationFrame(step);
+  };
+  step();
+}
+export const musicFadeOut = (ms = 2500) => fadeTo(0, ms);
+export const musicPosition = () => (current?.now ? position(current) : 0);
+// The DJ's brake: the record slows down and stops
+export function musicBrake() {
+  try { if (yt) { [0.75, 0.5, 0.25].forEach((r, i) => setTimeout(() => { try { yt.setPlaybackRate(r); } catch {} }, i * 220)); setTimeout(() => { try { yt.pauseVideo(); yt.setPlaybackRate(current?.rate || 1); } catch {} }, 700); } } catch {}
+  if (audio) { let r = 1; const iv = setInterval(() => { r -= 0.15; if (r <= 0.25) { clearInterval(iv); audio.pause(); audio.playbackRate = 1; } else audio.playbackRate = r; }, 90); }
+}
+// Keeping in time with the DJ's loop (the players don't loop on their own)
+setInterval(() => {
+  const m = current;
+  if (!m?.now || !m.loop || m.pausedAt != null) return;
+  const want = position(m);
+  try {
+    if (yt && Math.abs((yt.getCurrentTime?.() || 0) - want) > 0.35) yt.seekTo(want, true);
+    if (audio && Math.abs(audio.currentTime - want) > 0.35) audio.currentTime = want;
+  } catch {}
+}, 200);
 // Browsers sometimes block sound until you tap: then "Music in voice" (and the voice bar) show a play button.
 // No extra windows.
 let tapFn = null;
@@ -51,7 +92,7 @@ export async function applyMusic(m) {
   onChange();
   if (!m?.now) return stopAll();
   const item = m.now, paused = m.pausedAt != null;
-  if (item.id !== prevId) stopAll();
+  if (item.id !== prevId) { stopAll(); if (fadeMul < 1) setTimeout(() => fadeTo(1, 2000), 300); } // a new song after the DJ's fade comes back in
   if (item.kind === "song") {
     if (!audio) {
       audio = new Audio(item.url);
@@ -60,6 +101,7 @@ export async function applyMusic(m) {
       audio.addEventListener("loadedmetadata", () => { if (current?.now?.id === item.id) audio.currentTime = Math.min(position(current), Math.max(0, audio.duration - 0.5)); });
     }
     audio.volume = level() / 100;
+    audio.playbackRate = m.rate || 1;
     if (Math.abs(audio.currentTime - position(m)) > 1.5 && audio.readyState > 0) audio.currentTime = position(m);
     if (paused) audio.pause(); else audio.play().then(clearTap).catch(() => needTap(() => audio?.play().catch(() => {})));
     return;
@@ -77,7 +119,7 @@ export async function applyMusic(m) {
         playerVars: { autoplay: 1, controls: 0, disablekb: 1, playsinline: 1, start: Math.floor(position(m)), rel: 0 },
         events: {
           onReady: (e) => {
-            e.target.unMute(); e.target.setVolume(level()); e.target.seekTo(position(current || m), true);
+            e.target.unMute(); e.target.setVolume(level()); e.target.setPlaybackRate?.(current?.rate || 1); e.target.seekTo(position(current || m), true);
             if (current?.pausedAt == null) e.target.playVideo(); else e.target.pauseVideo();
             // Still not playing a few seconds later = the browser blocked it
             setTimeout(() => { try { if (yt && current?.now?.id === item.id && current.pausedAt == null && ![1, 3].includes(yt.getPlayerState())) needTap(() => { yt.unMute(); yt.playVideo(); }); } catch {} }, 3500);
@@ -92,7 +134,8 @@ export async function applyMusic(m) {
   }
   try {
     yt.setVolume(level());
-    if (Math.abs((yt.getCurrentTime?.() || 0) - position(m)) > 2) yt.seekTo(position(m), true);
+    if ((yt.getPlaybackRate?.() || 1) !== (m.rate || 1)) yt.setPlaybackRate(m.rate || 1);
+    if (Math.abs((yt.getCurrentTime?.() || 0) - position(m)) > (m.loop ? 0.4 : 2)) yt.seekTo(position(m), true);
     if (paused) yt.pauseVideo(); else yt.playVideo();
   } catch {}
 }
@@ -102,6 +145,7 @@ export function setMusicVolume(v) {
   try { localStorage.setItem(VOL_KEY, String(volume)); } catch {}
   if (audio) audio.volume = level() / 100;
   try { yt?.setVolume(level()); } catch {}
+  djVolume(deaf ? 0 : (current?.volume ?? volume) / 100); // the DJ's effects follow the music volume
 }
 export function setMusicDeaf(d) { deaf = d; setMusicVolume(volume); }
 export function leaveMusic() { current = null; stopAll(); }
@@ -170,7 +214,14 @@ export function openMusicPanel() {
   tick = setInterval(() => { if (!body.isConnected) return clearInterval(tick); const p = body.querySelector(".vm-pos"); if (p && current?.now) p.textContent = fmt(position(current)) + (current.now.duration ? " / " + fmt(current.now.duration) : ""); }, 1000);
   const prevChange = onChange;
   onChange = () => { prevChange(); if (body.isConnected) paint(); };
-  body.append(now,
+  // 🎛 DJ Mode: a window in the music window
+  const dj = djConsole({ post: (b) => post(b), music: () => current, position: () => (current?.now ? position(current) : 0), dj: () => djNow });
+  const djWrap = h("div", { class: "dj-wrap", hidden: !djNow }, dj.el);
+  const djBtn = h("button", { type: "button", class: "btn btn-sm dj-toggle" + (djNow ? " on" : ""), text: djNow ? `🎛 DJ Mode · 🎧 @${djNow.username}` : "🎛 DJ Mode" });
+  djBtn.addEventListener("click", () => { djWrap.hidden = !djWrap.hidden; djBtn.classList.toggle("open", !djWrap.hidden); if (!djWrap.hidden) dj.paint(); });
+  const prevChange2 = onChange;
+  onChange = () => { prevChange2(); if (!body.isConnected) return; dj.paint(); djBtn.textContent = djNow ? `🎛 DJ Mode · 🎧 @${djNow.username}` : "🎛 DJ Mode"; djBtn.classList.toggle("on", Boolean(djNow)); };
+  body.append(djBtn, djWrap, now,
     h("label", { class: "vm-vol-row" }, h("span", { text: "🔊 Volume for everyone" }), vol, volLabel),
     h("p", { class: "create-hint", text: "Everyone in this voice channel hears the music and anyone can change the song, pause, skip or turn it up." }),
     h("b", { class: "vis-label", text: "YouTube" }), h("div", { class: "invite-row" }, link, playLink, queueLink),

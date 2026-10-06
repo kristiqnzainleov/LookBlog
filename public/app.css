@@ -5103,3 +5103,80 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .pw-meter[data-score="4"] i { background: #2ee6a6; }
 .pw-meter-text { font-size: 0.78rem; min-width: 70px; }
 .set-pass .btn { align-self: flex-start; margin-top: 2px; }
+
+/* ---------- Voice: per-person volume, clear mute/deafen marks, DJ, chat, statuses, pins ---------- */
+.vc-person { cursor: pointer; }
+.vc-flag.off { color: #ff4757; }
+.vc-flag.off svg { stroke: #ff4757; }
+.vc-flag.dj { padding: 1px 6px; border-radius: 999px; background: linear-gradient(135deg, #9b5cff, var(--pink)); color: #fff; font: 800 0.62rem var(--body); }
+.vc-flag.vol { padding: 0 5px; border-radius: 999px; background: var(--card-2); color: var(--muted); font: 700 0.62rem var(--body); }
+.vc-gstatus { font-size: 0.8rem; }
+.uv-pop { position: fixed; z-index: 760; width: 260px; padding: 14px; border-radius: 16px; background: #1b1919; border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6); display: flex; flex-direction: column; gap: 10px; animation: popIn 0.15s ease-out; }
+.uv-head { display: flex; align-items: center; gap: 10px; }
+.uv-head div { display: flex; flex-direction: column; }
+.uv-row { display: flex; align-items: center; gap: 8px; }
+.uv-slider { flex: 1; accent-color: var(--pink); }
+.uv-val { min-width: 44px; text-align: right; }
+.uv-btns { display: flex; gap: 6px; }
+.vd-chat.unread { position: relative; }
+.vd-chat.unread::after { content: ""; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--pink); box-shadow: 0 0 0 2px #121111; }
+.vchat-win { position: fixed; left: 300px; bottom: 20px; z-index: 688; width: min(400px, calc(100vw - 20px)); height: min(520px, 70vh); display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; background: var(--card); border: 1.5px solid var(--line); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7); animation: popIn 0.2s ease-out; }
+.vchat-win.mini { height: auto; }
+.vchat-win.mini .vchat-body { display: none; }
+.vchat-body { flex: 1; min-height: 0; display: flex; }
+.vchat-body > .convo { flex: 1; min-width: 0; min-height: 0; }
+.vchat-body .convo-head { display: none; }
+@media (max-width: 640px) { .vchat-win { left: 8px; right: 8px; width: auto; top: 70px; bottom: auto; height: 60vh; } }
+.gv-ch { position: relative; cursor: pointer; }
+.gv-pin { margin-left: auto; padding: 0 4px; border: none; background: none; font-size: 0.75rem; cursor: pointer; opacity: 0; filter: grayscale(1); transition: opacity 0.15s; }
+.gv-ch:hover .gv-pin, .gv-pin:focus-visible { opacity: 0.7; }
+.gv-pin.on { opacity: 1 !important; filter: none; }
+@media (hover: none) { .gv-pin { opacity: 0.45; } }
+.gv-ch .gv-count + .gv-pin { margin-left: 6px; }
+.gv-vstatus { display: block; width: calc(100% - 24px); margin: -2px 0 4px 34px; padding: 3px 8px; border: none; border-radius: 8px; background: color-mix(in srgb, var(--group, var(--pink)) 12%, transparent); color: var(--paper); font: 600 0.75rem var(--body); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.gv-vstatus.empty { background: none; color: var(--muted); font-weight: 500; }
+.gv-vstatus:disabled { cursor: default; }
+.gv-mystatus { display: block; max-width: 100%; padding: 0; border: none; background: none; color: var(--muted); font: 600 0.75rem var(--body); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.gv-mystatus:hover { color: var(--pink); }
+.member-gstatus { display: inline-block; margin-top: 2px; font-size: 0.8rem; color: var(--paper); }
+/* DJ console */
+.dj-toggle { width: 100%; margin-bottom: 10px; background: linear-gradient(135deg, #2a1a40, #3a1630); color: #fff; border: 1px solid #5a2f7a; }
+.dj-toggle.on { background: linear-gradient(135deg, #9b5cff, var(--pink)); border-color: transparent; color: #000; }
+.dj-wrap { margin-bottom: 12px; border-radius: 16px; border: 1.5px solid #5a2f7a; background: radial-gradient(120% 80% at 50% 0%, rgba(155, 92, 255, 0.18), transparent), #120f15; padding: 12px; }
+.dj-wrap[hidden] { display: none; }
+.dj-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.dj-who { font-weight: 700; font-size: 0.85rem; color: #c9a7ff; }
+.dj-who.me { color: var(--pink); }
+.dj-head .btn { margin-left: auto; }
+.dj-deck { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.dj-disc { width: 58px; height: 58px; flex: none; border-radius: 50%; background: radial-gradient(circle, #111 0 18%, #333 19% 21%, #111 22% 100%) center / cover; box-shadow: 0 0 0 3px #222, 0 6px 16px rgba(0, 0, 0, 0.6); position: relative; }
+.dj-disc::after { content: ""; position: absolute; inset: 40%; border-radius: 50%; background: var(--pink); }
+.dj-disc.spin { animation: storySpin 1.8s linear infinite; }
+.dj-track { display: flex; flex-direction: column; min-width: 0; }
+.dj-track b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dj-console { display: flex; flex-direction: column; gap: 8px; }
+.dj-console.locked { opacity: 0.55; }
+.dj-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dj-lbl { width: 48px; font: 800 0.7rem var(--body); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.dj-sec { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.dj-pad { padding: 7px 10px; border-radius: 10px; border: 1px solid #3a2a4a; background: #1d1724; color: #fff; font: 700 0.78rem var(--body); cursor: pointer; transition: transform 0.06s, background 0.15s; }
+.dj-pad:hover:not(:disabled) { background: #2a1f36; border-color: #9b5cff; }
+.dj-pad:active:not(:disabled) { transform: scale(0.94); background: #9b5cff; }
+.dj-pad.on { background: var(--pink); border-color: var(--pink); color: #000; }
+.dj-pad:disabled { cursor: not-allowed; }
+.dj-pad.dj-cue { min-width: 48px; background: #241430; border-color: #6a2f8a; }
+.dj-pad.dj-cue.setting { outline: 2px dashed var(--pink); }
+.dj-pad.dj-wide { flex: 1; }
+.dj-pads { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.dj-pad.dj-fx { padding: 10px 6px; }
+.dj-bpm { flex: 1; accent-color: #9b5cff; }
+.dj-bpm-n { min-width: 64px; font-weight: 700; font-size: 0.8rem; }
+.vchat-win > * { min-width: 0; }
+.vchat-head { flex: none; }
+.vchat-body { min-width: 0; overflow: hidden; }
+.vchat-body > .convo { width: 100%; max-width: 100%; display: flex; flex-direction: column; border: none; border-radius: 0; }
+.vchat-body .convo-list { flex: 1; min-height: 0; overflow-y: auto; }
+.vchat-body .convo-foot { padding: 8px; }
+.vchat-body .convo-input { flex-wrap: wrap; gap: 4px; }
+.vchat-body .convo-input textarea { flex: 1 1 100%; order: -1; min-width: 0; }
+.vchat-body .tool-btn { width: 34px; height: 34px; }

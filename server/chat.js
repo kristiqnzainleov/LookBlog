@@ -635,7 +635,8 @@ async function handleChat(req, res, url, me) {
     // GET /api/chats/:id/messages?before=<createdAt>
     if (m === "GET" && c === "messages" && parts.length === 3) {
       const before = url.searchParams.get("before");
-      const channel = chat.kind === "group" ? (chat.channels.find((x) => x.id === url.searchParams.get("channel") && x.kind === "text") || firstText(chat)).id : null;
+      // (a voice channel has its own chat too, for the people talking in it)
+      const channel = chat.kind === "group" ? (chat.channels.find((x) => x.id === url.searchParams.get("channel") && (x.kind === "text" || x.kind === "voice")) || firstText(chat)).id : null;
       const all = db.messages.filter((x) => x.chatId === chat.id && !expired(x) && (!before || x.createdAt < before) && (!channel || channelOf(chat, x) === channel));
       const slice = all.slice(-PAGE);
       sendJSON(res, 200, { messages: slice.map((x) => messageView(x, me)), more: all.length > PAGE ? slice[0].createdAt : null });
@@ -694,7 +695,7 @@ async function handleChat(req, res, url, me) {
         msg.viewOnce = { openedBy: [], ...(body.viewOnce === "replay" ? { max: 2, opens: {} } : {}) };
       }
       if (chat.kind === "group") {
-        const ch = chat.channels.find((x) => x.id === body.channelId && x.kind === "text") || firstText(chat);
+        const ch = chat.channels.find((x) => x.id === body.channelId && (x.kind === "text" || x.kind === "voice")) || firstText(chat);
         msg.channelId = ch.id;
       }
       db.messages.push(msg);

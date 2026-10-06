@@ -634,6 +634,7 @@ function openMembers(chat, refresh) {
         h("a", { href: profileHref(u.username), onclick: m.close }, avatarWithPresence(u, 42)),
         h("div", { class: "who" }, h("a", { href: profileHref(u.username), class: "name", onclick: m.close, style: roleColor(c, u.username) }, shownName(u), tick(u)),
           h("span", { class: "muted" }, (u.nickname ? u.name + " · " : "") + "@" + u.username + (u.isOwner ? " · owner · " : " · "), presenceText(u)),
+          u.groupStatus ? h("span", { class: "member-gstatus", text: `${u.groupStatus.emoji ? u.groupStatus.emoji + " " : ""}${u.groupStatus.text}` }) : null,
           (u.roles || []).length ? h("div", { class: "role-chips" }, ...u.roles.map((id) => c.roles?.find((r) => r.id === id)).filter(Boolean).map((r) => h("span", { class: "grole", style: `--rc:${r.color}`, text: r.name }))) : null)
       );
       if (!u.isMe) {

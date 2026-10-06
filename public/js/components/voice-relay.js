@@ -125,6 +125,7 @@ function play(user, b64) {
     r.box?.append(audio);
     audio.play().catch(() => {});
     pl = { node, dest, audio };
+    if (relayVols.has(user)) audio.volume = Math.min(1, relayVols.get(user));
     r.players.set(user, pl);
   }
   const f = decode(fromB64(b64));
@@ -160,6 +161,9 @@ export function setMic(stream) {
   r.src.connect(r.cap);
 }
 export function setRelayMuted(v) { if (relay) relay.muted = v; }
+// How loud each person is for me (0–1 here; a boost above 100% only works over a direct connection)
+const relayVols = new Map();
+export function setRelayUserVolume(user, v) { relayVols.set(user, v); const pl = relay?.players.get(user); if (pl) pl.audio.volume = Math.min(1, v); }
 export function setRelayDeaf(v) { if (relay) { relay.deaf = v; for (const pl of relay.players.values()) pl.audio.muted = v; } }
 export function setRelaySpeaker(id) { if (relay) { relay.speakerId = id; for (const pl of relay.players.values()) pl.audio.setSinkId?.(id || "").catch(() => {}); } }
 export function wakeRelay() { if (relay) for (const pl of relay.players.values()) if (pl.audio.paused) pl.audio.play().catch(() => {}); }

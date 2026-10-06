@@ -134,28 +134,47 @@ export function groupView(chatId, { onBack } = {}) {
       add?.addEventListener("click", () => newChannel(kind));
       return h("div", { class: "gv-sec" }, h("span", { text: title }), add);
     };
-    const texts = chat.channels.filter((c) => c.kind === "text").map((c) => {
-      const b = h("button", { type: "button", class: "gv-ch" + (c.id === active ? " on" : "") + (unread.has(c.id) ? " unread" : "") }, icon("hash"), h("span", { text: c.name }));
-      b.addEventListener("click", () => open(c.id));
+    // 📌 Pin a channel to the top of my list (hover → 📌, or hold it on a phone)
+    const pinned = chat.pinnedChannels || [];
+    const pinBtn = (c) => {
+      const b = h("button", { type: "button", class: "gv-pin" + (pinned.includes(c.id) ? " on" : ""), title: pinned.includes(c.id) ? "Unpin" : "Pin to the top", "aria-label": pinned.includes(c.id) ? `Unpin ${c.name}` : `Pin ${c.name}`, text: "📌" });
+      b.addEventListener("click", (e) => { e.stopPropagation(); togglePin(c); });
       return b;
-    });
+    };
+    const textRow = (c) => {
+      const b = h("div", { class: "gv-ch" + (c.id === active ? " on" : "") + (unread.has(c.id) ? " unread" : ""), role: "button", tabindex: 0 }, icon("hash"), h("span", { text: c.name }), pinBtn(c));
+      b.addEventListener("click", () => open(c.id));
+      b.addEventListener("keydown", (e) => { if (e.key === "Enter") open(c.id); });
+      return b;
+    };
+    const texts = chat.channels.filter((c) => c.kind === "text" && !pinned.includes(c.id)).map(textRow);
     const mine = currentVoice();
-    const voices = chat.channels.filter((c) => c.kind === "voice").map((c) => {
+    const voiceRow = (c) => {
       const here = mine && mine.chatId === chat.id && mine.channelId === c.id;
-      const b = h("button", { type: "button", class: "gv-ch voice" + (here ? " on" : ""), title: here ? "You’re here" : "Join voice" }, icon("speaker"), h("span", { text: c.name }),
-        c.voice?.length ? h("small", { class: "gv-count", text: String(c.voice.length) }) : null);
-      b.addEventListener("click", () => {
+      const b = h("div", { class: "gv-ch voice" + (here ? " on" : ""), role: "button", tabindex: 0, title: here ? "You’re here" : "Join voice" }, icon("speaker"), h("span", { text: c.name }),
+        c.voice?.length ? h("small", { class: "gv-count", text: String(c.voice.length) }) : null, pinBtn(c));
+      const go = () => {
         if (!chat.member) return toast("Join the group to use voice channels.");
         joinVoice(chat, c);
-      });
+      };
+      b.addEventListener("click", go);
+      b.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+      // The channel's status (like Discord): anyone in it can set it
+      const status = c.voiceStatus?.text || here ? h("button", { type: "button", class: "gv-vstatus" + (c.voiceStatus?.text ? "" : " empty"), disabled: !here, title: here ? "Set the channel status" : c.voiceStatus?.by ? `Set by @${c.voiceStatus.by}` : "",
+        text: c.voiceStatus?.text || "✏️ Set a channel status…" }) : null;
+      status?.addEventListener("click", (e) => { e.stopPropagation(); editVoiceStatus(c); });
       const kick = has(chat, "kick") ? async (p) => {
         const target = chat.members?.find((m) => m.username === p.username);
         if (target && ((target.rank ?? 0) >= (chat.myRank ?? 0) || target.isOwner)) return toast("You can’t disconnect them.");
         try { await api(`/api/groups/${chat.id}/voice`, { method: "POST", body: { kind: "kick", channelId: c.id, username: p.username } }); toast(`${p.name} was disconnected.`); }
         catch (err) { toast(err.error || "Couldn’t disconnect them."); }
       } : null;
-      return h("div", { class: "gv-voice" }, b, h("div", { class: "gv-people" }, ...(c.voice || []).map((p) => voicePerson(p, kick))));
-    });
+      // Everyone's status in this group shows next to their name in voice too
+      const statusOf = (u) => chat.members?.find((m) => m.username === u)?.groupStatus || null;
+      return h("div", { class: "gv-voice" }, b, status, h("div", { class: "gv-people" }, ...(c.voice || []).map((p) => voicePerson({ ...p, groupStatus: statusOf(p.username) }, kick))));
+    };
+    const voices = chat.channels.filter((c) => c.kind === "voice" && !pinned.includes(c.id)).map(voiceRow);
+    const pinnedRows = pinned.map((id) => chat.channels.find((c) => c.id === id)).filter(Boolean).map((c) => (c.kind === "voice" ? voiceRow(c) : textRow(c)));
 
     const meRow = chat.member ? (() => {
       const meInfo = chat.members?.find((m) => m.isMe);
@@ -169,15 +188,61 @@ export function groupView(chatId, { onBack } = {}) {
         emit("chats:changed");
         navigate("/groups");
       });
-      return h("div", { class: "gv-me" }, avatar(state.me, 32), h("div", { class: "gv-me-name" }, h("b", { text: meInfo?.nickname || state.me.name }), h("span", { class: "muted", text: "@" + state.me.username })), nick, leave);
+      // My status in this group (each group can have its own)
+      const st = chat.myStatus;
+      const stBtn = h("button", { type: "button", class: "gv-mystatus" + (st ? "" : " empty"), title: "Your status in this group", text: st ? `${st.emoji ? st.emoji + " " : ""}${st.text}` : "＋ Set a status" });
+      stBtn.addEventListener("click", () => editMyStatus());
+      return h("div", { class: "gv-me" }, avatar(state.me, 32), h("div", { class: "gv-me-name" }, h("b", { text: meInfo?.nickname || state.me.name }), stBtn), nick, leave);
     })() : null;
 
     const top = h("div", { class: "gv-top" + (chat.banner ? " has-banner" : "") }, back, head);
     if (chat.banner) top.style.backgroundImage = `linear-gradient(180deg, rgba(10,10,10,0.25), rgba(21,20,20,0.95)), url("${chat.banner}")`;
     side.replaceChildren(top, h("div", { class: "gv-quick" }, invite, rolesBtn), events,
-      h("nav", { class: "gv-list" }, section("Text channels", "text"), ...texts, section("Voice channels", "voice"), ...voices), h("div", { class: "gv-dock-slot" }), meRow);
+      h("nav", { class: "gv-list" }, ...(pinnedRows.length ? [h("div", { class: "gv-sec" }, h("span", { text: "📌 Pinned" })), ...pinnedRows] : []),
+        section("Text channels", "text"), ...texts, section("Voice channels", "voice"), ...voices), h("div", { class: "gv-dock-slot" }), meRow);
     placeDock();
     side.querySelectorAll("[data-voice-user]").forEach((x) => x.classList.toggle("speaking", speakingNow.has(x.dataset.voiceUser)));
+  }
+
+  async function togglePin(c) {
+    try {
+      const { pinned } = await api(`/api/groups/${chat.id}/pin-channel`, { method: "POST", body: { channelId: c.id } });
+      chat.pinnedChannels = pinned;
+      paintSide();
+      toast(pinned.includes(c.id) ? `📌 ${c.name} is pinned to the top.` : `${c.name} unpinned.`);
+    } catch (err) { toast(err.error || "Couldn’t pin it."); }
+  }
+  function editVoiceStatus(c) {
+    const input = h("input", { type: "text", class: "text-input", maxlength: 60, placeholder: "e.g. 🎮 Playing Valorant · 📚 Studying · 🎵 Chill music", value: c.voiceStatus?.text || "" });
+    const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Set status" });
+    const clear = h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Clear" });
+    const go = async (text) => {
+      try { await api(`/api/groups/${chat.id}/voice`, { method: "POST", body: { kind: "status", channelId: c.id, text } }); m.close(); }
+      catch (err) { toast(err.error || "Couldn’t set it."); }
+    };
+    save.addEventListener("click", () => go(input.value));
+    clear.addEventListener("click", () => go(""));
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(input.value); });
+    const m = modal({ title: `🔊 ${c.name} status`, body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "What’s happening in this voice channel? Everyone in the group sees it under the channel." }), input, save, clear) });
+    setTimeout(() => input.focus(), 50);
+  }
+  function editMyStatus() {
+    const st = chat.myStatus || {};
+    const emojiBtn = h("button", { type: "button", class: "look-emo", text: st.emoji || "🙂" });
+    let emoji = st.emoji || "";
+    emojiBtn.addEventListener("click", () => import("./emoji.js").then(({ openEmojiPicker }) => openEmojiPicker(emojiBtn, (e) => { emoji = e; emojiBtn.textContent = e; })));
+    const input = h("input", { type: "text", class: "text-input", maxlength: 60, placeholder: "Your status in this group", value: st.text || "" });
+    const quick = h("div", { class: "look-chips" }, ...[["🎮", "Gaming"], ["📚", "Studying"], ["💼", "Working"], ["😴", "Sleeping"], ["🎧", "Listening to music"], ["🚫", "Busy"]].map(([e, t]) =>
+      h("button", { type: "button", class: "look-chip", text: `${e} ${t}`, onclick: () => { emoji = e; emojiBtn.textContent = e; input.value = t; } })));
+    const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save" });
+    const clear = h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Clear status" });
+    const go = async (body) => {
+      try { const r = await api(`/api/groups/${chat.id}/my-status`, { method: "POST", body }); chat.myStatus = r.status; m.close(); paintSide(); toast(r.status ? "Status set for this group." : "Status cleared."); }
+      catch (err) { toast(err.error || "Couldn’t save it."); }
+    };
+    save.addEventListener("click", () => go({ emoji, text: input.value }));
+    clear.addEventListener("click", () => go({}));
+    const m = modal({ title: `Your status in ${chat.name}`, body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "Only in this group — every group can have its own." }), h("div", { class: "st-row" }, emojiBtn, input), quick, save, clear) });
   }
 
   /* ---------- Channels ---------- */
@@ -518,7 +583,7 @@ export function groupView(chatId, { onBack } = {}) {
     on("voice:state", (ev) => {
       if (ev.chatId !== chatId || !chat) return;
       const c = chat.channels.find((x) => x.id === ev.channelId);
-      if (c) { c.voice = ev.participants; paintSide(); }
+      if (c) { c.voice = ev.participants; if ("status" in ev) c.voiceStatus = ev.status; paintSide(); }
     }),
     on("voice:local", () => paintSide()),
     on("presence", () => {}),
