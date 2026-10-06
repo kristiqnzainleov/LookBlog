@@ -54,6 +54,8 @@ function closeModals() {
 
 $("openLogin").addEventListener("click", () => openModal("login"));
 $("openSignup").addEventListener("click", () => openModal("signup"));
+// Came from an invite link ("Join LookBlog"): go straight to signing up
+if (new URLSearchParams(location.search).has("join")) setTimeout(() => openModal("signup"), 300);
 document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeModals));
 document.querySelectorAll("[data-switch]").forEach((a) =>
   a.addEventListener("click", (e) => {

@@ -15,6 +15,7 @@ function sentence(n) {
     case "note-reply": return "replied to your note";
     case "story-reply": return "replied to your story";
     case "story-mention": return "mentioned you in their story";
+    case "referral": return "joined LookBlog with your invite 🎉";
     case "story-repost": return "added your story to theirs";
     case "story-reaction": return `reacted ${n.emoji || ""} to your story`;
     case "security": return "· security";
@@ -66,7 +67,7 @@ function target(n) {
   const hash = ["comment", "answer", "reaction"].includes(n.type) ? "#replies" : "";
   return postHref(n.postId) + hash;
 }
-const ICON = { team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
+const ICON = { referral: "🎉", team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
 
 function itemEl(n, close) {
   const quote = n.type === "badge" ? null : n.text || n.postText;

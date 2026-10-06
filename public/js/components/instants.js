@@ -15,10 +15,14 @@ export function instantsPile() {
   function paint() {
     const n = data.pile.length;
     const cards = data.pile.slice(-3).map((x, i, a) => h("span", { class: "inst-card", style: `--r:${(i - (a.length - 1) / 2) * 9}deg;--i:${i}` }, h("img", { src: x.url, alt: "" })));
+    // Who sent them: their photos in a little row on the pile
+    const senders = [...new Map(data.pile.slice().reverse().map((x) => [x.user.username, x.user])).values()];
     el.replaceChildren(
       n ? h("span", { class: "inst-stack" }, ...cards) : h("span", { class: "inst-cam" }, icon("camera")),
-      n ? h("span", { class: "inst-count", text: String(n) }) : null);
-    el.title = n ? `${n} new lookture${n === 1 ? "" : "s"}` : "Looktures: snap a photo for your friends";
+      n ? h("span", { class: "inst-count", text: String(n) }) : null,
+      n ? h("span", { class: "inst-senders" }, ...senders.slice(0, 3).map((u) => avatar(u, 22))) : null);
+    el.title = n ? `${senders.map((u) => u.name.split(" ")[0]).slice(0, 3).join(", ")} sent ${n} lookture${n === 1 ? "" : "s"}` : "Looktures: snap a photo for your friends";
+    el.setAttribute("aria-label", el.title);
     el.classList.toggle("has-new", n > 0);
   }
   async function load() {
@@ -56,8 +60,9 @@ function openInstants(data, reload) {
   queue.length ? showNext() : camera();
 
   /* ---------- Seeing friends' instants, one at a time ---------- */
+  // Like Instagram: the looktures are a pile of cards. Swipe the top one away (or tap it) to see the next.
   function showNext() {
-    const x = queue.shift();
+    const x = queue[0];
     if (!x) return camera();
     api(`/api/instants/${x.id}/seen`, { method: "POST" }).catch(() => {});
     const reactRow = h("div", { class: "inst-reacts" }, ...(data.reactions || []).map((e) => {
@@ -76,15 +81,51 @@ function openInstants(data, reload) {
       catch (err) { toast(err.error || "Couldn’t send it."); }
     };
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
-    const nextBtn = h("button", { type: "button", class: "inst-next", text: queue.length ? `Next (${queue.length})` : "📸 Your turn" });
-    nextBtn.addEventListener("click", showNext);
+    const left = queue.length - 1;
+    const nextBtn = h("button", { type: "button", class: "inst-next", text: left ? `Next (${left})` : "📸 Your turn" });
+    nextBtn.addEventListener("click", () => fling(top, 1, -0.2));
+    // The deck: this one on top, the next two peeking out underneath
+    const card = (it, depth) => h("figure", { class: "inst-photo inst-deck-card", style: `--d:${depth};--rot:${[0, 4, -5][depth]}deg` },
+      h("img", { src: it.url, alt: "", draggable: "false" }), it.caption ? h("figcaption", { text: it.caption }) : null);
+    const under = queue.slice(1, 3).map((it, i) => card(it, i + 1)).reverse();
+    const top = card(x, 0);
+    const deck = h("div", { class: "inst-deck" }, ...under, top);
     box.replaceChildren(
-      h("header", { class: "inst-head" }, closeBtn(), h("div", { class: "inst-who" }, avatar(x.user, 32), h("b", {}, x.user.name, tick(x.user, 13)), h("span", { class: "muted", text: timeAgo(x.createdAt) }))),
-      h("figure", { class: "inst-photo", onclick: (e) => { if (!e.target.closest("button, input")) showNext(); } },
-        h("img", { src: x.url, alt: "" }), x.caption ? h("figcaption", { text: x.caption }) : null),
-      h("p", { class: "inst-once", text: "Seen once · tap the photo for the next one" }),
+      h("header", { class: "inst-head" }, closeBtn(), h("div", { class: "inst-who" }, avatar(x.user, 32), h("b", {}, x.user.name, tick(x.user, 13)), h("span", { class: "muted", text: timeAgo(x.createdAt) })), left ? h("span", { class: "inst-left", text: `+${left}` }) : null),
+      deck,
+      h("p", { class: "inst-once", text: "Seen once · swipe it away for the next one" }),
       reactRow,
       h("div", { class: "inst-foot" }, input, nextBtn));
+    // Drag the top card; let go far enough (or flick it) and it flies off
+    let start = null, dx = 0, dy = 0, t0 = 0;
+    top.addEventListener("pointerdown", (e) => { start = { x: e.clientX, y: e.clientY }; dx = dy = 0; t0 = performance.now(); top.setPointerCapture(e.pointerId); top.classList.add("dragging"); });
+    top.addEventListener("pointermove", (e) => {
+      if (!start) return;
+      dx = e.clientX - start.x; dy = e.clientY - start.y;
+      top.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx / 14}deg)`;
+      deck.style.setProperty("--lift", Math.min(1, Math.hypot(dx, dy) / 160));
+    });
+    const release = () => {
+      if (!start) return;
+      start = null;
+      top.classList.remove("dragging");
+      const dist = Math.hypot(dx, dy), fast = dist / Math.max(1, performance.now() - t0) > 0.6;
+      if (dist < 8) return fling(top, Math.random() < 0.5 ? -1 : 1, -0.3); // a tap
+      if (dist > 110 || fast) return fling(top, dx / (dist || 1), dy / (dist || 1));
+      top.style.transform = ""; deck.style.setProperty("--lift", 0);
+    };
+    top.addEventListener("pointerup", release);
+    top.addEventListener("pointercancel", release);
+  }
+  function fling(el, ux, uy) {
+    if (el.classList.contains("gone")) return;
+    el.classList.add("gone");
+    const d = Math.max(innerWidth, innerHeight) * 1.2;
+    el.style.transform = `translate(${ux * d}px, ${uy * d}px) rotate(${ux * 40}deg)`;
+    el.style.opacity = "0";
+    el.parentElement?.style.setProperty("--lift", 1);
+    queue.shift();
+    setTimeout(() => { if (!closed) showNext(); }, 280);
   }
 
   /* ---------- The camera ---------- */

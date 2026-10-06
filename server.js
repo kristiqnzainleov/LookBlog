@@ -22,6 +22,7 @@ const { handleChat } = require("./server/chat");
 const { handleNotifications } = require("./server/notifications");
 const { handleStories } = require("./server/stories");
 const { handleInstants } = require("./server/instants");
+const { handleReferrals, serveJoinPage } = require("./server/referrals");
 const { handleAnalytics } = require("./server/analytics");
 const { handleEvents: handlePublicEvents } = require("./server/events");
 const { handleMusic } = require("./server/music");
@@ -51,6 +52,7 @@ const TYPES = {
   ".js": "text/javascript; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
   ".ico": "image/x-icon",
   ".gif": "image/gif",
   ".json": "application/json; charset=utf-8",
@@ -225,6 +227,7 @@ async function handleApi(req, res, url) {
   if (await handleAnalytics(req, res, url, me)) return;
   if (await handleStories(req, res, url, me)) return;
   if (await handleInstants(req, res, url, me)) return;
+  if (handleReferrals(req, res, url, me)) return;
   if (await handleNotifications(req, res, url, me)) return;
   if (await handlePlaylists(req, res, url, me)) return;
   if (await handleChat(req, res, url, me)) return;
@@ -305,6 +308,8 @@ async function handle(req, res) {
     // About, Help and the policies: open to everyone
     const info = { "/about": "about", "/help": "help", "/terms": "terms", "/privacy": "privacy", "/cookies": "cookies" }[p];
     if (info) return servePublic(res, `info/${info}.html`);
+    // An invite link: "Join LookBlog" (with the logo when it's shared)
+    if (/^\/join\/[a-z0-9]{4,12}$/i.test(p)) return serveJoinPage(req, res, p.slice(6));
     if (APP_PAGES.some((re) => re.test(p))) {
       if (!loggedIn) return redirect(res, "/");
       return servePublic(res, "app.html");

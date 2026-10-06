@@ -136,6 +136,7 @@ function setupMenu() {
       const off = on("post:created", (p) => { off(); m.close(); navigate(p.type === "video" ? `/watch/${p.id}` : p.type === "short" ? `/shorts?id=${p.id}` : `/post/${p.id}`); });
     });
   }
+  $("menuInvite").addEventListener("click", () => { $("mePop").hidden = true; import("./components/invite-friends.js").then((m) => m.openInviteFriends()); });
   $("menuBug").addEventListener("click", () => { $("mePop").hidden = true; import("./components/bug-report.js").then((m) => m.openBugReport()); });
   $("menuHelp").addEventListener("click", () => { $("mePop").hidden = true; import("./components/help.js").then((m) => m.openHelp()); });
   $("menuLanguage").addEventListener("click", () => { $("mePop").hidden = true; import("./i18n.js").then((m) => m.openLanguage()); });

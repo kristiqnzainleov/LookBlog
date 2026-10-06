@@ -190,7 +190,8 @@ function authorView(u) {
 const NAME_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "lilac", "white",
   "sunset", "ocean", "aurora", "candy", "fire", "galaxy", "rainbow", "peach", "neon", "ice"];
 const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide",
-  "tall", "retro", "marker", "pixel", "scifi", "hand", "groovy", "blocky", "comic", "classic", "neon", "fancy", "spooky", "techno"];
+  "tall", "retro", "marker", "pixel", "scifi", "hand", "groovy", "blocky", "comic", "classic", "neon", "fancy", "spooky", "techno",
+  "minecraft", "fortnite", "valorant", "cod", "arcade", "glitch", "esports", "terminal"]; // the last ones: gamer fonts
 // A custom gradient: 2–4 colours and a direction, e.g. "grad:#ff0000,#00ff88@90"
 const GRAD = /^grad:#[0-9a-f]{6}(,#[0-9a-f]{6}){1,3}@\d{1,3}$/i;
 const NAME_EFFECTS = ["glow", "shine", "shadow"];

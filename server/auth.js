@@ -222,7 +222,8 @@ async function handleAuth(req, res, url, { port }) {
     };
     db.users.push(user);
     save("users");
-    sendJSON(res, 201, { user: meView(user) }, { "Set-Cookie": [startSession(user, true), ...keepPrevious(req, user)] });
+    const refCookies = require("./referrals").creditReferral(req, user); // signed up through someone's invite
+    sendJSON(res, 201, { user: meView(user) }, { "Set-Cookie": [startSession(user, true), ...keepPrevious(req, user), ...refCookies] });
     return true;
   }
 
@@ -424,6 +425,7 @@ async function handleAuth(req, res, url, { port }) {
       db.users.push(user);
       save("users");
       isNew = true;
+      require("./referrals").creditReferral(req, user); // signed up through someone's invite
       console.log(`[google] new account @${username}`);
     }
     if (twoFA(user)) {

@@ -4868,3 +4868,56 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .grad-angle { flex: 1; min-width: 120px; accent-color: var(--pink); }
 .grad-deg { min-width: 38px; text-align: right; }
 .nl[data-ncol="1"], .nl[data-ne="shine"] { width: fit-content; max-width: 100%; }
+
+/* ---------- Invite friends ---------- */
+.me-invite { position: relative; }
+.me-invite-tag { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: var(--pink); color: #000; font: 800 0.65rem var(--body); }
+.inv-preview { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--card-2); }
+.inv-img { display: block; width: 100%; aspect-ratio: 1200 / 630; object-fit: cover; }
+.inv-meta { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; }
+.inv-link { display: flex; gap: 8px; margin: 14px 0 12px; }
+.inv-link input { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--ink); color: var(--paper); font: inherit; font-size: 0.9rem; }
+.inv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.inv-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--paper); font: 700 0.8rem var(--body); text-decoration: none; cursor: pointer; }
+.inv-btn:hover { border-color: var(--pink); }
+.inv-ic { font-size: 1.4rem; }
+.inv-btn.insta { background: linear-gradient(135deg, rgba(255, 138, 61, 0.25), rgba(255, 79, 163, 0.25), rgba(155, 92, 255, 0.25)); }
+.inv-joined { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.inv-count { margin: 0 0 4px; }
+.inv-count b { color: var(--pink); font-size: 1.3rem; }
+.inv-none { margin-top: 14px; }
+
+/* ---------- Gamer fonts ---------- */
+.nl[data-nf="minecraft"] { font-family: "Pixelify Sans", monospace; font-weight: 700; letter-spacing: 0.03em; }
+.look-chip[data-nf="minecraft"] { font-family: "Pixelify Sans", monospace; }
+.nl[data-nf="fortnite"] { font-family: "Luckiest Guy", cursive; font-weight: 400; letter-spacing: 0.03em; font-size: 1.08em; }
+.look-chip[data-nf="fortnite"] { font-family: "Luckiest Guy", cursive; }
+.nl[data-nf="valorant"] { font-family: "Teko", sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 1.22em; line-height: 0.95; }
+.look-chip[data-nf="valorant"] { font-family: "Teko", sans-serif; }
+.nl[data-nf="cod"] { font-family: "Black Ops One", sans-serif; font-weight: 400; letter-spacing: 0.03em; }
+.look-chip[data-nf="cod"] { font-family: "Black Ops One", sans-serif; }
+.nl[data-nf="arcade"] { font-family: "Silkscreen", monospace; font-weight: 700; font-size: 0.92em; }
+.look-chip[data-nf="arcade"] { font-family: "Silkscreen", monospace; }
+.nl[data-nf="glitch"] { font-family: "Rubik Glitch", sans-serif; font-weight: 400; }
+.look-chip[data-nf="glitch"] { font-family: "Rubik Glitch", sans-serif; }
+.nl[data-nf="esports"] { font-family: "Russo One", sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.02em; font-style: italic; }
+.look-chip[data-nf="esports"] { font-family: "Russo One", sans-serif; }
+.nl[data-nf="terminal"] { font-family: "VT323", monospace; font-weight: 400; font-size: 1.3em; color: #39ff14; }
+.look-chip[data-nf="terminal"] { font-family: "VT323", monospace; }
+
+/* ---------- Looktures: who sent them on the pile, and a deck you swipe ---------- */
+.inst-senders { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); z-index: 6; display: flex; }
+.inst-senders .avatar { margin-left: -7px; box-shadow: 0 0 0 2px var(--ink); }
+.inst-senders .avatar:first-child { margin-left: 0; }
+.inst-pile.has-new { animation: instPulse 2.2s ease-in-out infinite; }
+@keyframes instPulse { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 79, 163, 0)); } 50% { filter: drop-shadow(0 0 14px rgba(255, 79, 163, 0.75)); } }
+.inst-left { margin-left: auto; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); font: 800 0.8rem var(--body); }
+.inst-deck { position: relative; width: min(100%, 460px); aspect-ratio: 1 / 1.12; flex: none; touch-action: none; --lift: 0; }
+.inst-deck-card { position: absolute; inset: 0; margin: 0; width: auto; animation: none; cursor: grab; user-select: none; -webkit-user-select: none;
+  transform: translateY(calc(var(--d) * (14px - var(--lift) * 10px))) scale(calc(1 - var(--d) * (0.05 - var(--lift) * 0.04))) rotate(calc(var(--rot) * (1 - var(--lift) * 0.6)));
+  transition: transform 0.28s cubic-bezier(.2, .8, .3, 1), opacity 0.28s; }
+.inst-deck-card[style*="--d:0"] { z-index: 3; }
+.inst-deck-card.dragging { transition: none; cursor: grabbing; }
+.inst-deck-card.gone { transition: transform 0.32s ease-in, opacity 0.32s ease-in; pointer-events: none; }
+.inst-deck-card img { pointer-events: none; }
+.inv-grid { align-items: start; grid-auto-rows: auto; } .invite-friends .inv-btn { height: auto; min-height: 0; flex: none; }

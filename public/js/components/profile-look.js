@@ -15,6 +15,8 @@ export const NAME_COLORS = [
 export const NAME_FONTS = [["", "Default"], ["display", "Bold"], ["serif", "Elegant"], ["mono", "Mono"], ["script", "Script"], ["rounded", "Rounded"], ["wide", "Wide"],
   ["tall", "Tall"], ["retro", "Retro"], ["marker", "Marker"], ["pixel", "Pixel"], ["scifi", "Sci-fi"], ["hand", "Handwritten"], ["groovy", "Groovy"],
   ["blocky", "Blocky"], ["comic", "Comic"], ["classic", "Classic"], ["neon", "Neon"], ["fancy", "Fancy"], ["spooky", "Spooky"], ["techno", "Techno"]];
+// 🎮 Gamer fonts (lookalikes of game lettering)
+export const GAMER_FONTS = [["minecraft", "Minecraft"], ["fortnite", "Fortnite"], ["valorant", "Valorant"], ["cod", "Call of Duty"], ["arcade", "Arcade"], ["glitch", "Glitch"], ["esports", "Esports"], ["terminal", "Terminal"]];
 export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"], ["shadow", "3D"]];
 export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"]];
 export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradient"], ["aurora", "Aurora"], ["stars", "Stars"], ["grid", "Grid"], ["dots", "Dots"], ["waves", "Waves"]];
@@ -28,7 +30,8 @@ function loadFonts() {
   if (fontsLoaded) return;
   fontsLoaded = true;
   document.head.append(h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Space+Mono:wght@700&family=Pacifico&family=Fredoka:wght@600&display=swap" }),
-    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lobster&family=Permanent+Marker&family=Press+Start+2P&family=Orbitron:wght@800&family=Caveat:wght@700&family=Righteous&family=Bungee&family=Bangers&family=Cinzel:wght@700&family=Monoton&family=Great+Vibes&family=Creepster&family=Audiowide&display=swap" }));
+    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lobster&family=Permanent+Marker&family=Press+Start+2P&family=Orbitron:wght@800&family=Caveat:wght@700&family=Righteous&family=Bungee&family=Bangers&family=Cinzel:wght@700&family=Monoton&family=Great+Vibes&family=Creepster&family=Audiowide&display=swap" }),
+    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@700&family=Luckiest+Guy&family=Teko:wght@600&family=Black+Ops+One&family=Silkscreen:wght@700&family=Rubik+Glitch&family=Russo+One&family=VT323&display=swap" }));
 }
 // A custom gradient is saved as "grad:#aaaaaa,#bbbbbb@90" (colours, then the direction in degrees)
 const parseGrad = (c) => { const [cols, deg] = c.slice(5).split("@"); return { cols: cols.split(","), deg: Number(deg) || 90 }; };
@@ -94,7 +97,7 @@ export function openLookEditor(onSaved) {
     custom.value = cur.color?.startsWith("#") ? cur.color : "#ff4fa3";
     gradBox?.classList.toggle("on", Boolean(cur.color?.startsWith("grad:")));
     customWrap.classList.toggle("on", Boolean(cur.color?.startsWith("#")));
-    for (const b of fonts.children) b.classList.toggle("on", b.dataset.v === (cur.font || ""));
+    for (const b of [...fonts.children, ...gamerFonts.children]) b.classList.toggle("on", b.dataset.v === (cur.font || ""));
     for (const b of effects.children) b.classList.toggle("on", b.dataset.v === (cur.effect || ""));
     for (const b of accents.querySelectorAll(".look-acc")) b.classList.toggle("on", (b.dataset.v || "") === (cur.accent || ""));
   };
@@ -138,6 +141,7 @@ export function openLookEditor(onSaved) {
     return b;
   }));
   const fonts = chip(NAME_FONTS, "font");
+  const gamerFonts = chip(GAMER_FONTS, "font");
   const effects = chip(NAME_EFFECTS, "effect");
   const accentCustom = h("input", { type: "color", class: "look-custom", "aria-label": "Any accent colour" });
   accentCustom.addEventListener("input", () => { cur.accent = accentCustom.value; paint(); });
@@ -167,6 +171,7 @@ export function openLookEditor(onSaved) {
     h("p", { class: "look-label", text: "Name colour" }), colors,
     h("p", { class: "look-label", text: "Your own gradient" }), h("p", { class: "create-hint", text: "Pick 2 to 4 colours and turn the direction. Tap the bar to use it." }), gradBox,
     h("p", { class: "look-label", text: "Name font" }), fonts,
+    h("p", { class: "look-label", text: "🎮 Gamer fonts" }), gamerFonts,
     h("p", { class: "look-label", text: "Name effect" }), effects,
     h("p", { class: "look-label", text: "Emoji next to your name" }), emojis,
     h("p", { class: "look-label", text: "Profile accent colour" }), h("p", { class: "create-hint", text: "Buttons, tabs and highlights on your profile." }), accents,
