@@ -5,7 +5,7 @@ import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicBrake } from "./voice-music.js";
-import { playFx, setBeat } from "./dj.js";
+import { playFx, setBeat, playCustom } from "./dj.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings, hdDescription, hdSenders } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
 import * as wt from "./watch-together.js";
@@ -360,7 +360,7 @@ on("voice:dj", (ev) => {
   setDj(ev.dj);
   if (ev.action === "claim" && ev.by !== state.me.username) toast(`🎧 @${ev.by} is the DJ now.`);
   if (ev.action === "fx") {
-    playFx(ev.fx);
+    if (ev.fx === "custom") playCustom(ev.url); else playFx(ev.fx);
     if (ev.fx === "fade") musicFadeOut(2500);
     if (ev.fx === "brake") musicBrake();
   }
@@ -843,12 +843,16 @@ function paintDock() {
       musicState()?.now ? (musicNeedsTap()
         ? h("button", { type: "button", class: "vd-now vd-tap", title: "Your browser paused the sound — tap to hear it", onclick: () => resumeMusic() }, "🔊 Tap to hear: " + musicState().now.title)
         : h("button", { type: "button", class: "vd-now", title: "Music", onclick: () => openMusicPanel() }, (musicState().pausedAt != null ? "⏸ " : "🎧 ") + musicState().now.title)) : null),
-    h("div", { class: "vd-btns" },
+    // Row 1: the main controls (round buttons, a ring when they're on)
+    h("div", { class: "vd-btns vd-main" },
       btn(room.muted ? "mute" : "mic", room.muted ? "Unmute" : "Mute", room.muted, () => setMuted(!room.muted)),
       btn("headphones", room.deaf ? "Undeafen" : "Deafen", room.deaf, () => setDeaf(!room.deaf)),
       btn("video", room.video?.kind === "camera" ? "Turn camera off" : "Turn camera on", room.video?.kind === "camera", () => setVideo(room.video?.kind === "camera" ? null : "camera")),
       room.video?.kind === "camera" && matchMedia("(pointer: coarse)").matches ? btn("flip", "Switch camera", false, () => setVideo("camera", room.video.facing === "user" ? "environment" : "user")) : null,
       btn("screen", room.video?.kind === "screen" ? "Stop sharing" : canShareScreen() ? "Share your screen" : "Share (camera)", room.video?.kind === "screen", () => setVideo(room.video?.kind === "screen" ? null : "screen")),
+      btn("leave", "Leave voice", false, () => leaveVoice(), "danger")),
+    // Row 2: the extras
+    h("div", { class: "vd-btns vd-extra" },
       (() => { const b = btn("sound", "Soundboard", false, () => openSoundboard(b)); return b; })(),
       (() => { const b = h("button", { type: "button", class: "vd-btn vd-react", title: "React", "aria-label": "React", text: "😊" }); b.addEventListener("click", () => openReactBar(b, null)); return b; })(),
       btn("userPlus", "Invite people to this channel", false, () => openVoiceInvite()),
@@ -856,9 +860,15 @@ function paintDock() {
       (() => { const b = h("button", { type: "button", class: "vd-btn vd-watch" + (room.watch ? " on" : ""), title: room.watch ? (wt.watchOpen() ? "Watching together" : "Open what everyone is watching") : "Watch a video together", "aria-label": "Watch together", text: "📺" });
         b.addEventListener("click", () => (room.watch && !wt.watchOpen() ? showWatch(room.watch, true) : room.watch ? null : startWatch()));
         return b; })(),
-      btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker })),
-      btn("note", "Music", Boolean(musicState()?.now), () => openMusicPanel(), "vd-music"),
-      btn("leave", "Leave voice", false, () => leaveVoice(), "danger")));
+      btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker }))),
+    // Music and the DJ: a big button of their own, always in sight
+    (() => {
+      const dj = currentDj();
+      const b = h("button", { type: "button", class: "vd-music-btn" + (musicState()?.now ? " on" : "") },
+        h("span", { class: "vmb-ic", text: "🎧" }), h("span", { class: "vmb-text" }, h("b", { text: "Music & DJ" }), h("small", { text: dj ? `🎛 @${dj.username} is DJing` : musicState()?.now ? musicState().now.title : "Play music for everyone" })));
+      b.addEventListener("click", () => openMusicPanel());
+      return b;
+    })());
 }
 
 // Camera or screen from someone we can only reach through the relay: pictures drawn into a canvas,

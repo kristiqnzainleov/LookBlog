@@ -41,14 +41,60 @@ const position = (m) => {
 // The DJ's fades: 1 = full, 0 = silent (on top of the volume, which stays the same from song to song)
 let fadeMul = 1, fadeAnim = null;
 const level = () => (deaf ? 0 : Math.round((current?.volume ?? volume) * fadeMul));
+// Deck B: the next song, while the DJ crossfades into it (x: 0 = only deck A, 1 = only deck B)
+let deckB = null; // { id, yt, box, audio }
+const mixX = () => current?.mix?.x || 0;
+function applyVols() {
+  const a = level() * (1 - mixX()), b = level() * mixX();
+  if (audio) audio.volume = Math.max(0, Math.min(1, a / 100));
+  try { yt?.setVolume(Math.round(a)); } catch {}
+  if (deckB?.audio) deckB.audio.volume = Math.max(0, Math.min(1, b / 100));
+  try { deckB?.yt?.setVolume(Math.round(b)); } catch {}
+}
+function dropDeckB() {
+  if (!deckB) return;
+  try { deckB.yt?.destroy(); } catch {}
+  deckB.box?.remove();
+  if (deckB.audio) { deckB.audio.pause(); deckB.audio.src = ""; }
+  deckB = null;
+}
+async function syncDeckB(m) {
+  const mix = m?.mix;
+  if (!mix) return dropDeckB();
+  const item = mix.item, pos = () => Math.max(0, (Date.now() - mix.startedAt - (m.skew || 0)) / 1000);
+  if (deckB && deckB.id !== item.id) dropDeckB();
+  if (!deckB) {
+    deckB = { id: item.id };
+    if (item.kind === "song") {
+      deckB.audio = new Audio(item.url);
+      deckB.audio.dataset.voiceMusic = "1";
+      deckB.audio.addEventListener("loadedmetadata", () => { if (deckB?.audio) deckB.audio.currentTime = pos(); });
+      deckB.audio.play().catch(() => {});
+    } else {
+      const YT = await loadYT();
+      if (!deckB || deckB.id !== item.id) return;
+      deckB.box = h("div", { class: "vm-yt deck-b" }, h("div", { class: "vm-yt-head" }, h("span", { text: "🎚 Deck B · " + item.title })), h("div", { id: "vm-ytb-" + item.id }));
+      document.body.append(deckB.box);
+      const me = deckB;
+      me.yt = new YT.Player("vm-ytb-" + item.id, { width: 200, height: 112, videoId: item.ref,
+        playerVars: { autoplay: 1, controls: 0, disablekb: 1, playsinline: 1, start: Math.floor(pos()), rel: 0 },
+        events: {
+          onReady: (e) => { e.target.unMute(); e.target.setVolume(Math.round(level() * mixX())); e.target.seekTo(pos(), true); e.target.playVideo(); },
+          // Once it's the main deck, its end moves the queue on
+          onStateChange: (e) => { if (e.data === 0 && yt === e.target && current?.now) post?.({ kind: "music", action: "ended", itemId: current.now.id }).catch(() => {}); },
+        } });
+    }
+  }
+  applyVols();
+}
+
 function fadeTo(target, ms) {
   cancelAnimationFrame(fadeAnim);
   const from = fadeMul, t0 = performance.now();
   const step = () => {
     const k = Math.min(1, (performance.now() - t0) / ms);
     fadeMul = from + (target - from) * k;
-    if (audio) audio.volume = level() / 100;
-    try { yt?.setVolume(level()); } catch {}
+    applyVols();
     if (k < 1) fadeAnim = requestAnimationFrame(step);
   };
   step();
@@ -90,9 +136,20 @@ export async function applyMusic(m) {
   if (m) m.skew = m.serverNow ? Date.now() - m.serverNow : 0;
   current = m;
   onChange();
-  if (!m?.now) return stopAll();
+  if (!m?.now) { dropDeckB(); return stopAll(); }
   const item = m.now, paused = m.pausedAt != null;
-  if (item.id !== prevId) { stopAll(); if (fadeMul < 1) setTimeout(() => fadeTo(1, 2000), 300); } // a new song after the DJ's fade comes back in
+  if (item.id !== prevId) {
+    if (deckB && deckB.id === item.id && (deckB.yt || deckB.audio)) {
+      // The DJ mixed all the way into deck B: it simply carries on as the main deck
+      stopAll();
+      yt = deckB.yt || null; ytBox = deckB.box || null; audio = deckB.audio || null;
+      ytBox?.classList.remove("deck-b");
+      if (audio) audio.addEventListener("ended", () => post?.({ kind: "music", action: "ended", itemId: item.id }).catch(() => {}));
+      deckB = null;
+    } else stopAll();
+    if (fadeMul < 1) setTimeout(() => fadeTo(1, 2000), 300); // a new song after the DJ's fade comes back in
+  }
+  syncDeckB(m);
   if (item.kind === "song") {
     if (!audio) {
       audio = new Audio(item.url);
@@ -100,7 +157,7 @@ export async function applyMusic(m) {
       audio.addEventListener("ended", () => post?.({ kind: "music", action: "ended", itemId: item.id }).catch(() => {}));
       audio.addEventListener("loadedmetadata", () => { if (current?.now?.id === item.id) audio.currentTime = Math.min(position(current), Math.max(0, audio.duration - 0.5)); });
     }
-    audio.volume = level() / 100;
+    applyVols();
     audio.playbackRate = m.rate || 1;
     if (Math.abs(audio.currentTime - position(m)) > 1.5 && audio.readyState > 0) audio.currentTime = position(m);
     if (paused) audio.pause(); else audio.play().then(clearTap).catch(() => needTap(() => audio?.play().catch(() => {})));
@@ -119,7 +176,7 @@ export async function applyMusic(m) {
         playerVars: { autoplay: 1, controls: 0, disablekb: 1, playsinline: 1, start: Math.floor(position(m)), rel: 0 },
         events: {
           onReady: (e) => {
-            e.target.unMute(); e.target.setVolume(level()); e.target.setPlaybackRate?.(current?.rate || 1); e.target.seekTo(position(current || m), true);
+            e.target.unMute(); e.target.setVolume(Math.round(level() * (1 - mixX()))); e.target.setPlaybackRate?.(current?.rate || 1); e.target.seekTo(position(current || m), true);
             if (current?.pausedAt == null) e.target.playVideo(); else e.target.pauseVideo();
             // Still not playing a few seconds later = the browser blocked it
             setTimeout(() => { try { if (yt && current?.now?.id === item.id && current.pausedAt == null && ![1, 3].includes(yt.getPlayerState())) needTap(() => { yt.unMute(); yt.playVideo(); }); } catch {} }, 3500);
@@ -133,7 +190,7 @@ export async function applyMusic(m) {
     return;
   }
   try {
-    yt.setVolume(level());
+    applyVols();
     if ((yt.getPlaybackRate?.() || 1) !== (m.rate || 1)) yt.setPlaybackRate(m.rate || 1);
     if (Math.abs((yt.getCurrentTime?.() || 0) - position(m)) > (m.loop ? 0.4 : 2)) yt.seekTo(position(m), true);
     if (paused) yt.pauseVideo(); else yt.playVideo();
@@ -143,12 +200,11 @@ export async function applyMusic(m) {
 export function setMusicVolume(v) {
   volume = Math.max(0, Math.min(100, Math.round(v)));
   try { localStorage.setItem(VOL_KEY, String(volume)); } catch {}
-  if (audio) audio.volume = level() / 100;
-  try { yt?.setVolume(level()); } catch {}
+  applyVols();
   djVolume(deaf ? 0 : (current?.volume ?? volume) / 100); // the DJ's effects follow the music volume
 }
 export function setMusicDeaf(d) { deaf = d; setMusicVolume(volume); }
-export function leaveMusic() { current = null; stopAll(); }
+export function leaveMusic() { current = null; stopAll(); dropDeckB(); }
 
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 

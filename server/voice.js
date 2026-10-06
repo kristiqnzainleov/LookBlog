@@ -41,7 +41,7 @@ async function youtubeInfo(url) {
 function musicView(key) {
   const m = music.get(key);
   if (!m || !m.now) return null;
-  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, changedBy: m.changedBy || null, serverNow: Date.now() };
+  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, mix: m.mix || null, changedBy: m.changedBy || null, serverNow: Date.now() };
 }
 function sendMusic(chat, channelId) {
   const key = chat.id + ":" + channelId;
@@ -52,7 +52,7 @@ function playNext(key) {
   const m = music.get(key);
   if (!m) return;
   m.now = m.queue.shift() || null;
-  m.startedAt = Date.now(); m.pausedAt = null; m.rate = 1; m.loop = null;
+  m.startedAt = Date.now(); m.pausedAt = null; m.rate = 1; m.loop = null; m.mix = null;
   if (!m.now) music.delete(key);
   else save("voice");
 }
@@ -254,7 +254,12 @@ async function handleVoice(req, res, me, chat, chats) {
       if (!isDj) throw httpError(403, "Only the DJ can do that. Take the decks first.");
       const m = music.get(key);
       const FX = ["airhorn", "siren", "scratch", "laser", "riser", "drop", "rewind", "clap", "brake", "fade", "horn", "boom"];
-      if (a === "fx") {
+      if (a === "fx" && body.fx === "custom") {
+        // One of the DJ's own effects (an MP3 they uploaded)
+        const pad = (me.djPads || []).find((x) => x.id === body.padId);
+        if (!pad) throw httpError(404, "That effect is gone.");
+        extra = { fx: "custom", url: pad.url, name: pad.name, emoji: pad.emoji };
+      } else if (a === "fx") {
         if (!FX.includes(body.fx)) throw httpError(400, "Unknown effect.");
         extra = { fx: body.fx };
         if (body.fx === "brake" && m?.now && m.pausedAt == null) { m.pausedAt = (Date.now() - m.startedAt) * (m.rate || 1); music.set(key, m); sendMusic(chat, channel.id); }
@@ -274,6 +279,22 @@ async function handleVoice(req, res, me, chat, chats) {
           const len = [0, 1, 2, 4, 8, 16].includes(Number(body.seconds)) ? Number(body.seconds) : 0;
           m.loop = len ? { start: pos / 1000, len } : null;
         }
+        music.set(key, m);
+        sendMusic(chat, channel.id);
+      } else if (a === "mix") {
+        // The crossfader between what's playing (deck A) and the next song in the queue (deck B): 0 = A, 1 = B
+        if (!m?.now) throw httpError(409, "Nothing is playing.");
+        const x = Math.max(0, Math.min(1, Number(body.x) || 0));
+        if (!m.mix && x > 0) {
+          if (!m.queue.length) throw httpError(400, "Queue a song first, then mix into it.");
+          m.mix = { item: m.queue[0], startedAt: Date.now(), x };
+        } else if (m.mix) m.mix.x = x;
+        if (m.mix && x >= 1) {
+          // All the way over: deck B is what's playing now
+          m.now = m.mix.item; m.startedAt = m.mix.startedAt; m.pausedAt = null; m.rate = 1; m.loop = null;
+          m.queue = m.queue.filter((q) => q.id !== m.now.id);
+          m.mix = null;
+        } else if (m.mix && x <= 0) m.mix = null;
         music.set(key, m);
         sendMusic(chat, channel.id);
       } else if (a === "beat") {

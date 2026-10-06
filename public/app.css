@@ -5180,3 +5180,47 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .vchat-body .convo-input { flex-wrap: wrap; gap: 4px; }
 .vchat-body .convo-input textarea { flex: 1 1 100%; order: -1; min-width: 0; }
 .vchat-body .tool-btn { width: 34px; height: 34px; }
+
+/* ---------- Voice panel: round buttons in two rows, and Music & DJ in sight ---------- */
+.vd-btns { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
+.vd-btn { flex: none; width: 40px; height: 40px; border-radius: 50%; padding: 0; font-size: 1rem; transition: background 0.15s, box-shadow 0.15s; }
+.vd-extra .vd-btn { width: 36px; height: 36px; background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.vd-extra .vd-btn:hover { background: var(--card-2); }
+.vd-btn.on { background: var(--group, var(--pink)); color: #000; box-shadow: 0 0 0 3px color-mix(in srgb, var(--group, var(--pink)) 35%, transparent); }
+.vd-main .vd-btn.on:nth-child(-n+2) { background: #ff3b4f; color: #fff; box-shadow: 0 0 0 3px rgba(255, 59, 79, 0.3); }
+.vd-btn.danger { margin-left: auto; }
+.vd-music-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 1px solid #5a2f7a; border-radius: 14px; background: linear-gradient(135deg, #2a1a40, #3a1630); color: #fff; font: inherit; text-align: left; cursor: pointer; }
+.vd-music-btn:hover { border-color: var(--pink); }
+.vd-music-btn.on { background: linear-gradient(135deg, #9b5cff, var(--pink)); border-color: transparent; color: #000; }
+.vmb-ic { font-size: 1.3rem; }
+.vmb-text { display: flex; flex-direction: column; min-width: 0; }
+.vmb-text b { font-size: 0.9rem; }
+.vmb-text small { font-size: 0.72rem; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vd-extra { gap: 3px; }
+.vd-extra .vd-btn { width: 32px; height: 32px; font-size: 0.9rem; }
+.vd-extra .vd-btn svg { width: 16px; height: 16px; }
+.voice-dock { overflow: hidden; }
+.vd-main { gap: 4px; }
+.vd-main .vd-btn { width: 38px; height: 38px; }
+/* DJ: the tape, the crossfader, my effects */
+.dj-tape { --spin: 1.6s; position: relative; width: 132px; height: 84px; flex: none; padding: 8px 9px 6px; border-radius: 10px; background: linear-gradient(160deg, #2b2234, #17121d); border: 1px solid #4b3a5c; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55), inset 0 0 0 3px rgba(255, 255, 255, 0.03); display: flex; flex-direction: column; gap: 4px; user-select: none; touch-action: none; }
+.dj-tape.grab { cursor: grab; }
+.dj-tape.dragging { cursor: grabbing; transform: scale(1.03); }
+.dj-tape-label { height: 16px; padding: 0 6px; border-radius: 4px; background: linear-gradient(90deg, var(--pink), #9b5cff); color: #000; font: 800 0.6rem/16px var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dj-reels { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; height: 34px; border-radius: 6px; background: #0d0a10; }
+.dj-reel { width: 26px; height: 26px; border-radius: 50%; background: repeating-conic-gradient(#e8e0f0 0 20deg, #3b3048 20deg 60deg); box-shadow: inset 0 0 0 7px #0d0a10, 0 0 0 2px #6b5a7c; transform: rotate(var(--turn, 0deg)); }
+.dj-tape.spin:not(.dragging) .dj-reel { animation: storySpin var(--spin) linear infinite; }
+.dj-window { flex: 1; height: 12px; margin: 0 6px; border-radius: 3px; background: linear-gradient(90deg, #3a2a1a, #5a3a20 50%, #3a2a1a); }
+.dj-tape-time { font: 700 0.7rem var(--body); color: #c9a7ff; text-align: center; }
+.dj-hint { color: var(--pink); font-weight: 700; }
+.dj-mix { display: flex; align-items: center; gap: 8px; }
+.dj-deck-lbl { flex: 1; min-width: 0; font: 700 0.72rem var(--body); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dj-deck-lbl.b { text-align: right; }
+.dj-xfader { flex: 1.4; accent-color: var(--pink); }
+.dj-pads.mine .dj-mine { position: relative; background: #2a1430; border-color: #7a2f6a; }
+.dj-del { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: #000; color: #fff; font-size: 0.6rem; line-height: 18px; text-align: center; opacity: 0; transition: opacity 0.15s; }
+.dj-mine:hover .dj-del { opacity: 1; }
+@media (hover: none) { .dj-del { opacity: 0.8; } }
+.dj-add { border-style: dashed; background: transparent; color: var(--pink); }
+.dj-add-wrap { display: contents; }
+.vm-yt.deck-b { left: 250px; }

@@ -1893,6 +1893,31 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
 
+  // My own DJ effects (short sounds): GET /api/me/dj-pads · POST { url, name, emoji } · DELETE /api/me/dj-pads/:id
+  if (a === "me" && b === "dj-pads") {
+    me.djPads = me.djPads || [];
+    if (m === "GET" && parts.length === 2) { sendJSON(res, 200, { pads: me.djPads }); return true; }
+    if (m === "POST" && parts.length === 2) {
+      const body = await readJSON(req);
+      if (me.djPads.length >= 12) throw httpError(400, "You can have up to 12 of your own effects. Remove one first.");
+      const snd = ownedMedia(body.url, me.id, "audio");
+      if (!snd) throw httpError(400, "Upload an MP3 (or another sound file) first.");
+      markUsed(snd.url, "djpad:" + me.id);
+      const name = clean(body.name).replace(/\s+/g, " ").slice(0, 20) || "My effect";
+      const emoji = typeof body.emoji === "string" && body.emoji.length <= 16 && /\p{Extended_Pictographic}/u.test(body.emoji) ? body.emoji : "🎵";
+      me.djPads.push({ id: crypto.randomUUID().slice(0, 8), url: snd.url, name, emoji });
+      save("users");
+      sendJSON(res, 201, { pads: me.djPads });
+      return true;
+    }
+    if (m === "DELETE" && parts[2]) {
+      const pad = me.djPads.find((x) => x.id === parts[2]);
+      if (pad) { deleteMedia(pad.url); me.djPads = me.djPads.filter((x) => x !== pad); save("users"); }
+      sendJSON(res, 200, { pads: me.djPads });
+      return true;
+    }
+  }
+
   // My look: POST /api/me/look { color, font, effect, accent }  (any of them; null = default)
   if (m === "POST" && a === "me" && b === "look" && parts.length === 2) {
     rateLimit("look:" + me.id, 60, 10 * 60 * 1000, "Slow down a little.");

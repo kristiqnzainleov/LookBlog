@@ -3,6 +3,7 @@
 // effect pads (airhorn, siren, scratch…) and a drum machine on top. The effects are made right in each
 // person's browser at the same moment, so they sound the same for everyone.
 import { h, toast } from "../ui.js";
+import { api as apiCall, upload } from "../api.js";
 import { state } from "../state.js";
 
 let ctx = null, master = null;
@@ -14,7 +15,10 @@ function engine() {
   return ctx;
 }
 addEventListener("pointerdown", () => engine(), { once: true });
-export const djVolume = (v) => { if (master) master.gain.value = Math.max(0, Math.min(1.2, v)); };
+let djVol = 0.8;
+export const djVolume = (v) => { djVol = Math.max(0, Math.min(1.2, v)); if (master) master.gain.value = djVol; };
+// The DJ's own effects (MP3s): played as they are, as loud as the music
+export function playCustom(url) { try { const a = new Audio(url); a.volume = Math.min(1, djVol); a.play().catch(() => {}); } catch {} }
 
 const noise = (c, secs) => {
   const b = c.createBuffer(1, Math.ceil(c.sampleRate * secs), c.sampleRate), d = b.getChannelData(0);
@@ -102,11 +106,19 @@ export function djConsole(api) {
       dj ? h("span", { class: "dj-who" + (me ? " me" : ""), text: me ? "🎧 You’re the DJ" : `🎧 @${dj.username} is DJing` }) : h("span", { class: "muted", text: "Nobody is DJing" }),
       me ? h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Step down", onclick: () => send({ action: "release" }) })
         : h("button", { type: "button", class: "btn btn-xs btn-primary", text: dj ? "Take over" : "🎧 Take the decks", disabled: Boolean(dj), onclick: () => send({ action: "claim" }) }));
-    const track = m?.now ? h("div", { class: "dj-deck" },
-      h("div", { class: "dj-disc" + (m.pausedAt == null ? " spin" : ""), style: m.now.thumb ? `background-image:url("${m.now.thumb}")` : "" }),
+    const track = m?.now ? h("div", { class: "dj-deck" }, cassette(m, me),
       h("div", { class: "dj-track" }, h("b", { text: m.now.title }), h("small", { class: "muted", text: `${(m.rate || 1)}× speed${m.loop ? ` · 🔁 loop ${m.loop.len}s` : ""}` }),
-        m.queue?.length ? h("small", { class: "muted", text: `Next: ${m.queue[0].title}` }) : h("small", { class: "muted", text: "Nothing queued next" })))
+        m.queue?.length ? h("small", { class: "muted", text: `Next: ${m.queue[0].title}` }) : h("small", { class: "muted", text: "Nothing queued next" }),
+        me ? h("small", { class: "dj-hint", text: "↔ Drag the tape to scrub" }) : null))
       : h("p", { class: "muted", text: "Play a song first (YouTube or LookBlog), then mix it here." });
+    // Crossfader: from what's playing (A) into the next song in the queue (B)
+    const xf = h("input", { type: "range", min: 0, max: 100, value: Math.round((m?.mix?.x || 0) * 100), class: "dj-xfader", disabled: lock || !m?.now || (!m?.queue?.length && !m?.mix), "aria-label": "Crossfader" });
+    let xfTimer;
+    xf.addEventListener("input", () => { clearTimeout(xfTimer); xfTimer = setTimeout(() => send({ action: "mix", x: Number(xf.value) / 100 }), 120); });
+    const mixRow = h("div", { class: "dj-mix" },
+      h("span", { class: "dj-deck-lbl", title: m?.now?.title || "", text: "A · " + (m?.now?.title || "—") }),
+      xf,
+      h("span", { class: "dj-deck-lbl b", title: (m?.mix?.item || m?.queue?.[0])?.title || "", text: "B · " + ((m?.mix?.item || m?.queue?.[0])?.title || "queue a song") }));
     // Speed
     const speeds = h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "Tempo" }),
       ...[0.75, 1, 1.25, 1.5].map((r) => pad(r + "×", "dj-small" + ((m?.rate || 1) === r ? " on" : ""), () => send({ action: "rate", rate: r }))));
@@ -145,10 +157,72 @@ export function djConsole(api) {
     const beats = h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "Beat" }),
       ...["house", "hiphop", "techno"].map((p) => pad(p === "hiphop" ? "Hip-hop" : p[0].toUpperCase() + p.slice(1), "dj-small" + (b?.pattern === p ? " on" : ""), () => send({ action: "beat", bpm: Number(bpm.value), pattern: p }))),
       pad("Off", "dj-small", () => send({ action: "beat", bpm: 0 })));
+    // My own effects (MP3s): tap to play for everyone, ＋ to add one
+    const mine = h("div", { class: "dj-pads mine" },
+      ...myPads.map((p) => {
+        const b = pad(`${p.emoji} ${p.name}`, "dj-fx dj-mine", () => send({ action: "fx", fx: "custom", padId: p.id }));
+        const del = h("span", { class: "dj-del", title: "Remove", text: "✕" });
+        del.addEventListener("click", async (e) => { e.stopPropagation(); try { myPads = (await apiCall(`/api/me/dj-pads/${p.id}`, { method: "DELETE" })).pads; paint(); } catch {} });
+        b.append(del);
+        return b;
+      }),
+      (() => {
+        const file = h("input", { type: "file", accept: "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/x-m4a,.mp3,.wav,.ogg,.m4a", hidden: true });
+        const add = h("button", { type: "button", class: "dj-pad dj-fx dj-add", text: "＋ MP3", title: "Add your own effect (an MP3 up to 2 MB)" });
+        add.addEventListener("click", () => file.click());
+        file.addEventListener("change", async () => {
+          const f = file.files[0]; file.value = "";
+          if (!f) return;
+          if (f.size > 2 * 1024 * 1024) return toast("Keep effects short (up to 2 MB).");
+          add.disabled = true; add.textContent = "Uploading…";
+          try {
+            const { url } = await upload(f);
+            myPads = (await apiCall("/api/me/dj-pads", { method: "POST", body: { url, name: f.name.replace(/\.[^.]+$/, "").slice(0, 20) } })).pads;
+            toast("Your effect is on the decks.");
+          } catch (err) { toast(err.error || "Couldn’t add it."); }
+          paint();
+        });
+        return h("span", { class: "dj-add-wrap" }, add, file);
+      })());
     box.replaceChildren(head, track,
-      h("div", { class: "dj-console" + (lock ? " locked" : "") }, speeds, cueRow, loops, transport, h("b", { class: "dj-sec", text: "Effects" }), fx, beats, h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "" }), bpm, bpmN)),
+      h("div", { class: "dj-console" + (lock ? " locked" : "") }, speeds, cueRow, loops, transport, h("b", { class: "dj-sec", text: "Mix (crossfader)" }), mixRow,
+        h("b", { class: "dj-sec", text: "Effects" }), fx, h("b", { class: "dj-sec", text: "My effects" }), mine, beats, h("div", { class: "dj-row" }, h("span", { class: "dj-lbl", text: "" }), bpm, bpmN)),
       h("p", { class: "create-hint", text: lock ? "Only the DJ can use the decks. Everyone in the channel hears what the DJ does." : "Everyone in the voice channel hears everything you do here, at the same moment." }));
   }
+  // The tape: its reels spin while the music plays (faster with more speed); the DJ drags it to scrub
+  function cassette(m, me) {
+    const playing = m.pausedAt == null;
+    const tape = h("div", { class: "dj-tape" + (playing ? " spin" : "") + (me ? " grab" : ""), style: `--spin:${(1.6 / (m.rate || 1)).toFixed(2)}s` },
+      h("div", { class: "dj-tape-label", text: m.now.title }),
+      h("div", { class: "dj-reels" }, h("i", { class: "dj-reel" }), h("div", { class: "dj-window" }), h("i", { class: "dj-reel" })),
+      h("div", { class: "dj-tape-time", text: fmt(api.position()) }));
+    if (!me) return tape;
+    let drag = null;
+    tape.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, pos: api.position(), t: performance.now(), scratched: false }; tape.setPointerCapture(e.pointerId); tape.classList.add("dragging"); });
+    tape.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x, to = Math.max(0, drag.pos + dx / 12);
+      tape.querySelector(".dj-tape-time").textContent = fmt(to);
+      tape.style.setProperty("--turn", `${dx * 3}deg`);
+      // A quick flick scratches (everyone hears it)
+      const speed = Math.abs(e.movementX || 0);
+      if (speed > 18 && !drag.scratched) { drag.scratched = true; send({ action: "fx", fx: "scratch" }); }
+    });
+    const end = (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x, to = Math.max(0, drag.pos + dx / 12);
+      tape.classList.remove("dragging"); tape.style.removeProperty("--turn");
+      if (Math.abs(dx) > 4) send({ action: "cue", at: to });
+      drag = null;
+    };
+    tape.addEventListener("pointerup", end);
+    tape.addEventListener("pointercancel", end);
+    return tape;
+  }
+  let myPads = [];
+  apiCall("/api/me/dj-pads").then((d) => { myPads = d.pads || []; paint(); }).catch(() => {});
+  // The tape's clock keeps moving
+  const clock = setInterval(() => { if (!box.isConnected) return clearInterval(clock); const t = box.querySelector(".dj-tape:not(.dragging) .dj-tape-time"); if (t) t.textContent = fmt(api.position()); }, 500);
   paint();
   return { el: box, paint };
 }
