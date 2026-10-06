@@ -184,8 +184,24 @@ function liveOf(id) {
 function authorView(u) {
   if (!u) return { name: "Deleted account", username: "", avatar: null, verified: false };
   const live = liveOf(u.id);
-  return { name: u.name, username: u.username, avatar: u.avatar, verified: Boolean(u.verified), verifiedType: u.verified ? u.verifiedType || "creator" : null, ...(live ? { live } : {}) };
+  return { name: u.name, username: u.username, avatar: u.avatar, verified: Boolean(u.verified), verifiedType: u.verified ? u.verifiedType || "creator" : null, ...(live ? { live } : {}), ...(u.look ? { look: lookOf(u) } : {}) };
 }
+// How someone's name looks (colour, font, effect) and their profile's accent colour
+const NAME_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "lilac", "white",
+  "sunset", "ocean", "aurora", "candy", "fire", "galaxy", "rainbow", "peach", "neon", "ice"];
+const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide"];
+const NAME_EFFECTS = ["glow", "shine", "shadow"];
+const HEX = /^#[0-9a-f]{6}$/i;
+function cleanLook(b) {
+  if (!b || typeof b !== "object") return null;
+  const out = {};
+  if (NAME_COLORS.includes(b.color) || HEX.test(b.color || "")) out.color = String(b.color).toLowerCase();
+  if (NAME_FONTS.includes(b.font)) out.font = b.font;
+  if (NAME_EFFECTS.includes(b.effect)) out.effect = b.effect;
+  if (HEX.test(b.accent || "")) out.accent = String(b.accent).toLowerCase();
+  return Object.keys(out).length ? out : null;
+}
+const lookOf = (u) => (u.look ? { ...u.look } : null);
 
 /* ---------- Notes: a short line or emoji that disappears after 24 hours ---------- */
 const NOTE_MS = 24 * 60 * 60 * 1000;
@@ -311,6 +327,7 @@ function profileView(user, me) {
   return {
     id: user.id,
     name: user.name,
+    look: lookOf(user),
     username: user.username,
     bio: user.bio,
     bioMentions: usernamesOf(findMentions(user.bio)),
@@ -1772,6 +1789,16 @@ async function handleSocial(req, res, url, me) {
       sendJSON(res, 201, { ok: true });
       return true;
     }
+  }
+
+  // My look: POST /api/me/look { color, font, effect, accent }  (any of them; null = default)
+  if (m === "POST" && a === "me" && b === "look" && parts.length === 2) {
+    rateLimit("look:" + me.id, 60, 10 * 60 * 1000, "Slow down a little.");
+    me.look = cleanLook(await readJSON(req));
+    if (!me.look) delete me.look;
+    save("users");
+    sendJSON(res, 200, { look: lookOf(me) });
+    return true;
   }
 
   // Edit my profile: POST /api/me/profile { name, bio, avatar, banner }

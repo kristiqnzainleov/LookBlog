@@ -4731,3 +4731,41 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .notif-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .notif-sound { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--card-2); font-size: 1rem; cursor: pointer; }
 .notif-sound:hover { border-color: var(--pink); }
+
+/* ---------- Name looks (colour, font, effect), shown wherever the name is ---------- */
+.nl-hook { display: none; }
+.nl[data-ncol="1"] { background-image: var(--ng); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.nl[data-ncol="1"] .verified, .nl[data-ncol="1"] svg { -webkit-text-fill-color: initial; }
+.nl[data-nf="display"] { font-family: var(--display); font-weight: 900; letter-spacing: -0.01em; }
+.nl[data-nf="serif"] { font-family: "Playfair Display", Georgia, serif; font-style: italic; font-weight: 700; }
+.nl[data-nf="mono"] { font-family: "Space Mono", ui-monospace, monospace; font-weight: 700; }
+.nl[data-nf="script"] { font-family: "Pacifico", "Brush Script MT", cursive; font-weight: 400; }
+.nl[data-nf="rounded"] { font-family: "Fredoka", var(--body); font-weight: 600; }
+.nl[data-nf="wide"] { font-family: var(--display); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.92em; }
+.nl[data-ne="glow"] { filter: drop-shadow(0 0 6px var(--nc, currentColor)); }
+.nl[data-ne="shadow"] { filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.85)) drop-shadow(0 0 1px var(--nc, transparent)); }
+.nl[data-ne="shine"] { background-image: linear-gradient(110deg, transparent 38%, rgba(255, 255, 255, 0.9) 50%, transparent 62%), var(--ng, linear-gradient(currentColor, currentColor)); background-size: 250% 100%, 100% 100%; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: nameShine 3.2s linear infinite; }
+@keyframes nameShine { from { background-position: 150% 0, 0 0; } to { background-position: -150% 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) { .nl[data-ne="shine"] { animation: none; } }
+
+.look-btn { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card-2); color: var(--paper); font: 700 0.8rem var(--body); cursor: pointer; vertical-align: middle; }
+.look-btn:hover { border-color: var(--pink); color: var(--pink); }
+.look-editor .look-label { margin: 14px 0 6px; font: 800 0.85rem var(--body); }
+.look-preview { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 12px; border-radius: 18px; background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent, #ff4fa3) 30%, transparent), transparent 70%), var(--card-2); border: 1.5px solid var(--accent, #ff4fa3); }
+.look-preview-b { font: 800 1.7rem var(--body); text-align: center; overflow-wrap: anywhere; }
+.look-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+.look-sw, .look-acc { position: relative; width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; background: var(--card-2); cursor: pointer; display: grid; place-items: center; color: var(--muted); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.look-sw.on, .look-acc.on { border-color: var(--paper); transform: scale(1.12); }
+.look-custom-wrap { overflow: hidden; background: conic-gradient(#ff4757, #ffd23f, #2ee6a6, #4cc9ff, #9b5cff, #ff4fa3, #ff4757); color: #fff; font-weight: 900; }
+.look-custom-wrap span { text-shadow: 0 1px 2px #000; pointer-events: none; }
+.look-custom { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.look-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.look-chip { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card-2); color: var(--paper); font: 600 0.88rem var(--body); cursor: pointer; }
+.look-chip[data-nf="display"] { font-family: var(--display); font-weight: 900; }
+.look-chip[data-nf="serif"] { font-family: "Playfair Display", Georgia, serif; font-style: italic; }
+.look-chip[data-nf="mono"] { font-family: "Space Mono", monospace; }
+.look-chip[data-nf="script"] { font-family: "Pacifico", cursive; }
+.look-chip[data-nf="rounded"] { font-family: "Fredoka", sans-serif; }
+.look-chip[data-nf="wide"] { letter-spacing: 0.08em; text-transform: uppercase; }
+.look-chip.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.look-editor .btn-full { margin-top: 10px; }

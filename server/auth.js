@@ -135,6 +135,7 @@ function meView(u) {
   return {
     id: u.id,
     name: u.name,
+    look: u.look || null,
     username: u.username,
     email: u.email,
     bio: u.bio,

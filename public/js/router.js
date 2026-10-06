@@ -24,6 +24,7 @@ export async function render() {
   const view = $("view");
   view.replaceChildren();
   view.className = "view";
+  view.removeAttribute("style"); // e.g. a profile's own accent colour
   document.body.dataset.page = "";
   window.scrollTo(0, 0);
 

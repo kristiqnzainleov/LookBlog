@@ -207,6 +207,7 @@ export async function profilePage(view, m, params) {
       // My own profile: settings in one place
       const item = (ic, label, fn) => { const b = h("button", { type: "button", class: "btn btn-full btn-outline-light me-opt" }, h("span", { text: ic }), h("span", { text: label })); b.addEventListener("click", () => { mm.close(); fn(); }); return b; };
       const mm = modal({ title: "Settings", body: h("div", { class: "create-form" },
+        item("🎨", "Customize profile", () => customize()),
         item("🌐", "Language", () => import("../i18n.js").then((x) => x.openLanguage())),
         item("🔒", "Privacy & blocking", openPrivacy),
         item("❓", "Help", () => import("../components/help.js").then((x) => x.openHelp()))) });
@@ -350,6 +351,9 @@ export async function profilePage(view, m, params) {
     try { profile.note = (await api(`/api/users/${encodeURIComponent(profile.username)}`)).profile.note; paintNote(); } catch {}
   });
   const nameEl = h("h2", {}, profile.name, tick(profile, 26), profile.private ? h("span", { class: "private-lock", title: "Private account", text: "🔒" }) : null);
+  // Their own accent colour for the whole profile
+  const paintAccent = () => { if (profile.look?.accent) view.style.setProperty("--pink", profile.look.accent); else view.style.removeProperty("--pink"); };
+  paintAccent();
 
   /* Role badges (Musician, Artist, …) under the name */
   const rolesEl = h("div", { class: "role-badges" });
@@ -426,10 +430,20 @@ export async function profilePage(view, m, params) {
     });
   }
 
+  /* Customize: name colour, font, effect, and the profile's accent colour */
+  function customize() {
+    import("../components/profile-look.js").then(({ openLookEditor, applyLook }) => openLookEditor((look) => {
+      profile.look = look;
+      applyLook(nameEl, look);
+      paintAccent();
+    }));
+  }
+
   /* @username: on my profile, click it to pick a new one */
   const handleText = h("span", { class: "handle-text", text: "@" + profile.username });
   const handleEl = h("p", { class: "handle" }, handleText,
     profile.isMe ? h("span", { class: "name-pen small" }, icon("edit")) : h("span", { class: "handle-presence" }, presenceDot(profile), presenceText(profile)),
+    profile.isMe ? h("button", { type: "button", class: "look-btn", onclick: (e) => { e.stopPropagation(); customize(); } }, h("span", { text: "🎨" }), h("span", { text: "Customize" })) : null,
 );
   if (profile.isMe) {
     handleText.classList.add("editable");

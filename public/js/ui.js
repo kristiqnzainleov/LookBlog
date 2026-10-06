@@ -1,3 +1,4 @@
+import { lookHook } from "./components/profile-look.js";
 import { verifyType } from "./verify-types.js";
 // Small UI helpers. User text always goes in with textContent, never as HTML.
 
@@ -153,7 +154,14 @@ function linkify(root) {
 
 /* ---------- Verification tick ---------- */
 export function tick(user, size = 18) {
-  if (!user?.verified) return null;
+  // Someone with a custom name look: their name (the element the tick sits in) gets it
+  if (!user?.verified) {
+    if (!user?.look) return null;
+    const hook = document.createElement("span");
+    hook.className = "nl-hook";
+    lookHook(user, hook);
+    return hook;
+  }
   const t = verifyType(user.verifiedType);
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   s.setAttribute("viewBox", "0 0 24 24");
@@ -166,6 +174,7 @@ export function tick(user, size = 18) {
   s.dataset.verify = t.id;
   s.style.setProperty("--tick", t.color);
   s.innerHTML = `<path d="M12 1.8l2.5 1.9 3.1-.2 1 3 2.6 1.7-.9 3 .9 3-2.6 1.7-1 3-3.1-.2-2.5 1.9-2.5-1.9-3.1.2-1-3-2.6-1.7.9-3-.9-3 2.6-1.7 1-3 3.1.2z" fill="${t.color}"/><g fill="none" stroke="#121111" stroke-width="${t.id === "creator" || t.id === "other" ? 2.4 : 1.6}" stroke-linecap="round" stroke-linejoin="round">${t.glyph}</g>`;
+  if (user.look) lookHook(user, s);
   return s;
 }
 
