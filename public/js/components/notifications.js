@@ -13,6 +13,8 @@ function sentence(n) {
     case "team": return "";
     case "note-reply": return "replied to your note";
     case "story-reply": return "replied to your story";
+    case "story-mention": return "mentioned you in their story";
+    case "story-repost": return "added your story to theirs";
     case "story-reaction": return `reacted ${n.emoji || ""} to your story`;
     case "security": return "· security";
     case "song-comment": return "commented on your song";
@@ -63,7 +65,7 @@ function target(n) {
   const hash = ["comment", "answer", "reaction"].includes(n.type) ? "#replies" : "";
   return postHref(n.postId) + hash;
 }
-const ICON = { team: "🛡️", "story-reply": "📖", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
+const ICON = { team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
 
 function itemEl(n, close) {
   const quote = n.type === "badge" ? null : n.text || n.postText;
@@ -94,6 +96,10 @@ function itemEl(n, close) {
     if (e.metaKey || e.ctrlKey) return;
     e.preventDefault();
     close();
+    // Tagged in a story: open it right here (with "Add to your story")
+    if (n.type === "story-mention" && n.storyId) {
+      return import("./stories.js").then(async (mod) => { if (!(await mod.openUserStories(n.actor.username, null, n.storyId))) toast("This story has ended."); });
+    }
     if (target(n)) navigate(target(n));
   });
   return el;

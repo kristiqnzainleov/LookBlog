@@ -17,7 +17,7 @@ import { linkBlock } from "./links.js";
 import { upload } from "../api.js";
 import { attachMentions } from "./mentions.js";
 import { openSoundPicker, soundChip, playSound } from "./sounds.js";
-import { applyWallpaper, applyTheme, onHold, openChatOptions } from "./wallpaper.js";
+import { applyWallpaper, applyTheme, onHold, openChatOptions, openVanishPicker, vanishLabel } from "./wallpaper.js";
 
 export function chatPic(c, size = 44) {
   if (c.kind === "dm") return avatarWithPresence(c.other, size);
@@ -344,6 +344,7 @@ function messageEl(msg, chat, onRemoved) {
   }
 
   if (msg.pinned) bubble.prepend(h("span", { class: "pin-mark", title: "Pinned", text: "📌" }));
+  if (msg.expiresAt) bubble.append(h("span", { class: "vanish-mark", title: "Disappears " + new Date(msg.expiresAt).toLocaleString(), text: "⏳" }));
   const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : ""), dataset: { id: msg.id } },
     msg.mine ? null : h("a", { href: profileHref(msg.author.username), class: "msg-avatar", tabindex: "-1" }, avatar(msg.author, 34)),
     h("div", { class: "msg-stack" }, bubble, reactionsEl(msg, chat)),
@@ -539,7 +540,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   const typingTick = setInterval(paintTyping, 1000);
   const el = h("section", { class: "convo" }, head, pinBar, list, typingBar, footer);
   // Hold (or right-click) anywhere on the chat's background: theme, wallpaper and photo
-  const chatOptions = () => chat && openChatOptions(chat, { onTheme: (t) => applyTheme(el, t), onWallpaper: (wp) => applyWallpaper(el, wp), onPhoto: () => refresh() });
+  const chatOptions = () => chat && openChatOptions(chat, { onTheme: (t) => applyTheme(el, t), onWallpaper: (wp) => applyWallpaper(el, wp), onPhoto: () => refresh(), onVanish: () => paintHead() });
   onHold(list, chatOptions, { ignore: ".bubble, a, button, input, textarea, video, audio, img, .game" });
   // "Seen" (DM) / "Seen by …" (group) under the newest message
   let lastMsg = null;
@@ -637,6 +638,14 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     // Photos, videos, links and search
     const libBtn = h("button", { class: "icon-btn", title: "Photos, videos, links & search", "aria-label": "Photos, videos, links and search" }, h("span", { class: "nick-ic", text: "🗂" }));
     libBtn.addEventListener("click", () => openLibrary());
+    // Disappearing messages: shows when it's on; people who can change the chat can tap it
+    const canVanish = chat.kind === "dm" ? chat.canSend : chat.isOwner || chat.perms?.includes("manage_group");
+    if (chat.vanish || canVanish) {
+      const vBtn = h("button", { class: "icon-btn vanish-btn" + (chat.vanish ? " on" : ""), title: chat.vanish ? `Disappearing messages: ${vanishLabel(chat.vanish)}` : "Disappearing messages", "aria-label": "Disappearing messages" },
+        h("span", { class: "nick-ic", text: "⏳" }), chat.vanish ? h("small", { text: vanishLabel(chat.vanish).replace(/ hours?| days?/, (x) => x.trim()[0]) }) : null);
+      vBtn.addEventListener("click", () => canVanish ? openVanishPicker(chat, () => paintHead()) : toast(`Messages here disappear after ${vanishLabel(chat.vanish)}.`));
+      tools.append(vBtn);
+    }
     tools.append(libBtn);
     if (chat.kind === "dm") {
       const nickBtn = h("button", { class: "icon-btn", title: "Nicknames", "aria-label": "Nicknames" }, h("span", { class: "nick-ic", text: "Aa" }));
@@ -995,7 +1004,13 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     paintPins();
   });
   const offNicks = on("chat:nicknames", (ev) => { if (ev.chatId === chatId && chat) refresh().catch(() => {}); });
+  const offVanish = on("chat:vanish", (ev) => { if (ev.chatId === chatId && chat) { chat.vanish = ev.vanish; paintHead(); } });
+  // Disappearing messages leave the screen the moment their time is up
+  const vanishTick = setInterval(() => {
+    const now = new Date().toISOString();
+    list.querySelectorAll(".msg").forEach((row) => { if (row._msg?.expiresAt && row._msg.expiresAt <= now) { ids.delete(row._msg.id); row.remove(); } });
+  }, 5000);
 
-  return { el, stop: () => { offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
+  return { el, stop: () => { offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
 }
 

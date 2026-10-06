@@ -4536,3 +4536,26 @@ button.note-item { background: none; border: 0; padding: 0; font: inherit; color
 .sv-gif:hover { border-color: var(--pink); color: var(--pink); }
 .lv-chat-tool.lv-gif { font: 900 0.68rem var(--body); color: var(--paper); }
 .lv-chat-tool.lv-gif:hover { color: var(--pink); }
+
+/* ---------- Story tags and "Add to your story" ---------- */
+.sv-tags { position: absolute; left: 12px; right: 12px; top: 74px; z-index: 4; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; pointer-events: none; }
+.story-frame:not(.preview) .story-caption { bottom: calc(var(--foot-h, 82px) + 14px); }
+.sv-tags:empty { display: none; }
+.story-frame.preview .sv-tags { top: 14px; }
+.sv-tag { pointer-events: auto; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: #111; font: 800 0.85rem var(--body); text-decoration: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+a.sv-tag:hover { background: var(--pink); color: #000; }
+.sv-repost { margin-left: 4px; padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); color: #fff; font: 700 0.78rem var(--body); text-decoration: none; white-space: nowrap; }
+.sv-foot:has(.sv-add-story) { flex-wrap: wrap; }
+.sv-add-story { flex: 0 0 100%; min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border: none; border-radius: 12px; background: #fff; color: #111; font: 800 0.92rem var(--body); cursor: pointer; }
+.sv-add-story span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--pink); color: #000; font-weight: 900; }
+.sv-add-story:disabled { opacity: 0.85; cursor: default; }
+.story-tag-input { margin-top: -4px; }
+
+/* ---------- Disappearing messages ---------- */
+.vanish-mark { display: inline-block; margin-left: 6px; font-size: 0.7rem; opacity: 0.7; vertical-align: middle; }
+.vanish-btn { position: relative; }
+.vanish-btn.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 18%, transparent); }
+.vanish-btn small { position: absolute; right: -4px; bottom: -4px; padding: 1px 4px; border-radius: 999px; background: var(--pink); color: #000; font: 800 0.6rem var(--body); line-height: 1.2; }
+.vanish-opt { position: relative; }
+.vanish-opt.on { border-color: var(--pink); }
+.vanish-check { margin-left: auto; color: var(--pink); font-weight: 900; }

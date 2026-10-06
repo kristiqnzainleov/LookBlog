@@ -75,7 +75,7 @@ const mutual = (a, b) => a.following.includes(b.id) && b.following.includes(a.id
 const isMember = (chat, user) => chat.members.includes(user.id);
 
 function lastMessage(chat) {
-  for (let i = db.messages.length - 1; i >= 0; i--) if (db.messages[i].chatId === chat.id) return db.messages[i];
+  for (let i = db.messages.length - 1; i >= 0; i--) if (db.messages[i].chatId === chat.id && !expired(db.messages[i])) return db.messages[i];
   return null;
 }
 function unread(chat, me) {
@@ -164,6 +164,7 @@ function chatView(chat, me, { full = false } = {}) {
     pinnedCount: (chat.pins || []).length,
     wallpaper: chatWallpaper(chat), // the background everyone in the chat sees
     theme: chat.theme || null, // the bubble colours everyone in the chat sees
+    vanish: chat.vanish || 0, // disappearing messages: seconds, 0 = off
   };
   if (chat.kind === "dm") {
     const other = findUser(chat.members.find((id) => id !== me.id));
@@ -248,6 +249,7 @@ function messageView(msg, me) {
   return {
     id: msg.id,
     chatId: msg.chatId,
+    expiresAt: msg.expiresAt || null,
     text: msg.text,
     media: msg.media,
     post,
@@ -348,11 +350,36 @@ async function translate(text, to) {
 
 // Send a message to every member, each with their own view of it
 function deliver(chat, msg) {
+  // Disappearing messages: each one is deleted for everyone after the chat's timer
+  if (chat.vanish && !msg.system && !msg.expiresAt) {
+    msg.expiresAt = new Date(new Date(msg.createdAt).getTime() + chat.vanish * 1000).toISOString();
+    save("messages");
+  }
   for (const id of chat.members) {
     const u = findUser(id);
     if (u) sendTo([id], { type: "message", chatId: chat.id, message: messageView(msg, u), chat: chatView(chat, u) });
   }
 }
+// Delete disappearing messages whose time is up (and tell the chat, so they vanish from open screens)
+const VANISH = { 0: "off", 3600: "1 hour", 86400: "24 hours", 604800: "7 days" };
+const expired = (x) => x.expiresAt && x.expiresAt <= new Date().toISOString();
+function sweepVanished() {
+  const gone = db.messages.filter(expired);
+  if (!gone.length) return;
+  const ids = new Set(gone.map((x) => x.id));
+  db.messages = db.messages.filter((x) => !ids.has(x.id));
+  for (const x of gone) {
+    if (x.media && !x.media.sticker && !x.media.gif && !x.media.shared) { deleteMedia(x.media.url); if (x.media.poster) deleteMedia(x.media.poster); }
+    const chat = findChat(x.chatId);
+    if (chat) {
+      chat.pins = (chat.pins || []).filter((p) => (p.id || p) !== x.id);
+      notifyMembers(chat, { type: "message:deleted", chatId: chat.id, messageId: x.id });
+    }
+  }
+  save("messages"); save("chats");
+}
+every(sweepVanished, 30 * 1000).unref();
+
 // A small note in the chat ("📅 New event", nickname changes, …)
 function systemMessage(chat, me, text, extra = {}) {
   const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media: null, postId: null, replyTo: null, mentions: [], system: true, createdAt: new Date().toISOString() };
@@ -584,7 +611,7 @@ async function handleChat(req, res, url, me) {
     if (m === "GET" && c === "messages" && parts.length === 3) {
       const before = url.searchParams.get("before");
       const channel = chat.kind === "group" ? (chat.channels.find((x) => x.id === url.searchParams.get("channel") && x.kind === "text") || firstText(chat)).id : null;
-      const all = db.messages.filter((x) => x.chatId === chat.id && (!before || x.createdAt < before) && (!channel || channelOf(chat, x) === channel));
+      const all = db.messages.filter((x) => x.chatId === chat.id && !expired(x) && (!before || x.createdAt < before) && (!channel || channelOf(chat, x) === channel));
       const slice = all.slice(-PAGE);
       sendJSON(res, 200, { messages: slice.map((x) => messageView(x, me)), more: all.length > PAGE ? slice[0].createdAt : null });
       return true;
@@ -899,6 +926,24 @@ async function handleChat(req, res, url, me) {
       return true;
     }
 
+    // Disappearing messages: POST /api/chats/:id/vanish { seconds }  (0 = off; groups: people who can change the group)
+    // New messages are deleted for everyone that long after they're sent.
+    if (m === "POST" && c === "vanish" && parts.length === 3) {
+      if (!isMember(chat, me)) throw httpError(403, "Join to change this.");
+      if (chat.kind === "group" && !require("./groups").can(chat, me, "manage_group")) throw httpError(403, "Only people who can change the group can turn on disappearing messages.");
+      const seconds = Number((await readJSON(req)).seconds) || 0;
+      if (!(seconds in VANISH)) throw httpError(400, "Pick a time.");
+      if ((chat.vanish || 0) !== seconds) {
+        chat.vanish = seconds || undefined;
+        if (!seconds) delete chat.vanish;
+        save("chats");
+        sendTo(chat.members, { type: "chat:vanish", chatId: chat.id, vanish: seconds });
+        systemMessage(chat, me, seconds ? `⏳ ${me.name} turned on disappearing messages: new messages disappear after ${VANISH[seconds]}` : `⏳ ${me.name} turned off disappearing messages`);
+      }
+      sendJSON(res, 200, { vanish: seconds });
+      return true;
+    }
+
     // The chat's theme, for everyone in it: POST /api/chats/:id/theme { theme }  (groups: people who can change the group)
     if (m === "POST" && c === "theme" && parts.length === 3) {
       if (!chat.members.includes(me.id)) throw httpError(403, "Join to change the theme.");
@@ -1032,4 +1077,4 @@ async function handleChat(req, res, url, me) {
   return false;
 }
 
-module.exports = { handleChat, streakOf, deliverMessage: (chat, msg) => deliver(chat, msg) };
+module.exports = { handleChat, streakOf, sweepVanished, deliverMessage: (chat, msg) => deliver(chat, msg) };

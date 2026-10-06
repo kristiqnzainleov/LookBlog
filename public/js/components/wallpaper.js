@@ -229,6 +229,29 @@ export function openThemePicker(chat, onDone) {
     }))) });
 }
 
+// Disappearing messages: new messages are deleted for everyone after this long
+export const VANISH = [[0, "Off", "Messages stay"], [3600, "1 hour", "Gone an hour after they’re sent"], [86400, "24 hours", "Gone a day after they’re sent"], [604800, "7 days", "Gone a week after they’re sent"]];
+export const vanishLabel = (sec) => VANISH.find(([s]) => s === sec)?.[1] || "";
+export function openVanishPicker(chat, onDone) {
+  const m = modal({ title: "Disappearing messages", body: h("div", { class: "create-form" },
+    h("p", { class: "create-hint", text: "New messages disappear for everyone in the chat after the time you pick. Messages sent before stay." }),
+    h("div", { class: "co-list" }, ...VANISH.map(([sec, label, sub]) => {
+      const b = h("button", { type: "button", class: "co-item vanish-opt" + ((chat.vanish || 0) === sec ? " on" : "") },
+        h("span", { class: "co-ic", text: sec ? "⏳" : "∞" }), h("span", { class: "co-text" }, h("b", { text: label }), h("small", { class: "muted", text: sub })),
+        (chat.vanish || 0) === sec ? h("span", { class: "vanish-check", text: "✓" }) : null);
+      b.addEventListener("click", async () => {
+        try {
+          const r = await api(`/api/chats/${chat.id}/vanish`, { method: "POST", body: { seconds: sec } });
+          chat.vanish = r.vanish;
+          onDone?.(r.vanish);
+          m.close();
+          toast(sec ? `Disappearing messages: ${label}.` : "Disappearing messages are off.");
+        } catch (err) { toast(err.error || "Couldn’t change it."); }
+      });
+      return b;
+    }))) });
+}
+
 // A new photo for a group
 function pickGroupPhoto(chat, onDone) {
   const file = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/gif", hidden: true });
@@ -253,7 +276,7 @@ function pickGroupPhoto(chat, onDone) {
 }
 
 // What holding a chat opens
-export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto } = {}) {
+export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto, onVanish } = {}) {
   const name = chat.kind === "dm" ? chat.other?.name : chat.name;
   const canGroup = chat.kind === "group" && (chat.isOwner || chat.perms?.includes("manage_group"));
   const canTheme = chat.kind === "dm" || canGroup;
@@ -262,6 +285,7 @@ export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto } = {}) {
   const m = modal({ title: name || "Chat", body: h("div", { class: "co-list" },
     canTheme ? item("🎨", "Theme", "Bubble colours, for everyone in the chat", () => openThemePicker(chat, onTheme)) : null,
     canTheme ? item("🖼️", "Wallpaper", "The chat’s background, for everyone in it", () => openWallpaperPicker(chat, onWallpaper)) : null,
+    canTheme ? item("⏳", "Disappearing messages", chat.vanish ? `On: ${vanishLabel(chat.vanish)}` : "Off", () => openVanishPicker(chat, onVanish)) : null,
     canGroup ? item("📷", "Group photo", "Change the group’s picture", () => pickGroupPhoto(chat, onPhoto)) : null,
-    canTheme ? null : h("p", { class: "muted", text: "Only people who can change the group can change its theme and wallpaper." })) });
+    canTheme ? null : h("p", { class: "muted", text: "Only people who can change the group can change its theme, wallpaper and disappearing messages." })) });
 }

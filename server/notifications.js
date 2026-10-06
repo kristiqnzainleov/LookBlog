@@ -23,7 +23,7 @@ function view(n) {
     postId: post ? post.id : null,
     postType: post ? post.type : null,
     postText: post ? snippet(post.title || post.text) : null,
-    thumb: post?.media?.[0] ? (post.media[0].kind === "image" ? post.media[0].url : post.media[0].poster || null) : null,
+    thumb: post?.media?.[0] ? (post.media[0].kind === "image" ? post.media[0].url : post.media[0].poster || null) : n.storyThumb || null,
     emoji: n.emoji || null,
     text: n.text || null,
     chatId: n.chatId || null,
@@ -32,6 +32,7 @@ function view(n) {
     eventId: n.eventId || null,
     streamId: n.streamId || null,
     link: n.link || null,
+    storyId: n.storyId || null,
     createdAt: n.createdAt,
     read: Boolean(n.read),
   };
@@ -70,6 +71,8 @@ function notify(recipientId, type, actor, extra = {}) {
     eventId: extra.eventId || null, // public events
     streamId: extra.streamId || null, // live streams
     link: extra.link || null, // where it opens (messages from the LookBlog team)
+    storyId: extra.storyId || null, // tagged in a story, or someone added mine to theirs
+    storyThumb: extra.thumb || null,
     createdAt: new Date().toISOString(),
     read: false,
   };

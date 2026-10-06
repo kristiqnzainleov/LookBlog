@@ -20,6 +20,13 @@ const canSee = (owner, me) => owner.id === me.id || me.following.includes(owner.
 const canSeeProfile = (owner, me) => owner.id === me.id || !owner.private || me.following.includes(owner.id);
 const highlightsOf = (userId) => (db.highlights || []).filter((x) => x.userId === userId);
 const inHighlight = (s) => (db.highlights || []).some((x) => x.storyIds.includes(s.id));
+const repostedBy = (s, me) => db.stories.some((x) => x.userId === me.id && x.repostOf?.storyId === s.id);
+// A story's files are deleted with it, unless another story (a repost) still shows them
+function dropMedia(story, gone = new Set([story.id])) {
+  for (const url of [story.media.url, story.media.poster].filter(Boolean)) {
+    if (!db.stories.some((x) => !gone.has(x.id) && (x.media.url === url || x.media.poster === url))) deleteMedia(url);
+  }
+}
 
 function storyView(s, me) {
   const out = {
@@ -32,6 +39,11 @@ function storyView(s, me) {
     seen: s.viewers.some((v) => v.userId === me.id),
     mine: s.userId === me.id,
     myReaction: s.reactions?.[me.id] || null,
+    // People tagged in it (they can add it to their own story)
+    tags: (s.tags || []).map(findUser).filter(Boolean).map((u) => ({ username: u.username, name: u.name })),
+    taggedMe: (s.tags || []).includes(me.id),
+    canRepost: live(s) && s.userId !== me.id && (s.tags || []).includes(me.id) && !repostedBy(s, me),
+    repostOf: s.repostOf ? (() => { const o = findUser(s.repostOf.userId); return o ? { username: o.username, name: o.name } : null; })() : null,
   };
   if (s.userId === me.id) {
     out.viewers = s.viewers.slice().reverse().map((v) => ({ ...authorView(findUser(v.userId)), at: v.at, reaction: s.reactions?.[v.userId] || null }));
@@ -56,8 +68,8 @@ function sweep() {
   const cutoff = Date.now() - ARCHIVE_DAYS * DAY;
   const old = db.stories.filter((s) => new Date(s.createdAt).getTime() < cutoff && !inHighlight(s));
   if (!old.length) return;
-  for (const s of old) { deleteMedia(s.media.url); if (s.media.poster) deleteMedia(s.media.poster); }
   const gone = new Set(old.map((s) => s.id));
+  for (const s of old) dropMedia(s, gone);
   db.stories = db.stories.filter((s) => !gone.has(s.id));
   save("stories");
 }
@@ -185,8 +197,9 @@ async function handleStories(req, res, url, me) {
   // One person's stories: GET /api/stories/user/:username
   if (m === "GET" && parts[1] === "user" && parts.length === 3) {
     const u = db.users.find((x) => x.username.toLowerCase() === decodeURIComponent(parts[2]).toLowerCase());
-    if (!u || !canSee(u, me)) throw httpError(404, "No stories here.");
-    const list = db.stories.filter((s) => s.userId === u.id && live(s)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    if (!u) throw httpError(404, "No stories here.");
+    const list = db.stories.filter((s) => s.userId === u.id && live(s) && (canSee(u, me) || (s.tags || []).includes(me.id))).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    if (!list.length && !canSee(u, me)) throw httpError(404, "No stories here.");
     sendJSON(res, 200, { group: { user: authorView(u), isMe: u.id === me.id, stories: list.map((s) => storyView(s, me)) } });
     return true;
   }
@@ -201,8 +214,14 @@ async function handleStories(req, res, url, me) {
     if (media.kind === "video" && media.duration && media.duration > 60.5) throw httpError(400, "Story videos can be up to 60 seconds.");
     const text = clean(body.text);
     if (chars(text) > 120) throw httpError(400, "Keep the text under 120 characters.");
-    const story = { id: crypto.randomUUID(), userId: me.id, media, text, createdAt: new Date().toISOString(), viewers: [], reactions: {} };
+    // Tag people (up to 10): @usernames
+    const { findByUsername } = require("./db");
+    const tagged = [...new Set((Array.isArray(body.tags) ? body.tags : []).slice(0, 20).map((x) => String(x).replace(/^@/, "").trim().toLowerCase()).filter(Boolean))]
+      .map((n) => findByUsername(n)).filter((u) => u && u.id !== me.id && !(u.blocked || []).includes(me.id) && !(me.blocked || []).includes(u.id));
+    if (tagged.length > 10) throw httpError(400, "You can tag up to 10 people.");
+    const story = { id: crypto.randomUUID(), userId: me.id, media, text, createdAt: new Date().toISOString(), viewers: [], reactions: {}, ...(tagged.length ? { tags: tagged.map((u) => u.id) } : {}) };
     db.stories.push(story);
+    for (const u of tagged) notify(u.id, "story-mention", me, { storyId: story.id, thumb: media.kind === "video" ? media.poster || null : media.url });
     me.storyCount = (me.storyCount || 0) + 1;
     save("users");
     markUsed(media.url, "story:" + story.id);
@@ -217,8 +236,26 @@ async function handleStories(req, res, url, me) {
   // One story: while it's up for everyone (24 hours), in a highlight, or in my own archive
   const story = parts[1] && db.stories.find((s) => s.id === parts[1]);
   const owner = story && findUser(story.userId);
-  const reachable = story && owner && (story.userId === me.id || (live(story) && canSee(owner, me)) || (inHighlight(story) && canSeeProfile(owner, me)));
+  const reachable = story && owner && (story.userId === me.id || (live(story) && (canSee(owner, me) || (story.tags || []).includes(me.id))) || (inHighlight(story) && canSeeProfile(owner, me)));
   if (!reachable) throw httpError(404, "This story is gone.");
+
+  // Tagged in it: add it to my story too. POST /api/stories/:id/repost
+  if (m === "POST" && parts[2] === "repost") {
+    if (!(story.tags || []).includes(me.id)) throw httpError(403, "Only people tagged in this story can add it to theirs.");
+    if (!live(story)) throw httpError(400, "This story has ended.");
+    if (repostedBy(story, me)) throw httpError(400, "It’s already in your story.");
+    rateLimit("story:" + me.id, 30, 60 * 60 * 1000, "You’ve posted a lot of stories. Try again later.");
+    const mine = { id: crypto.randomUUID(), userId: me.id, media: { ...story.media }, text: story.text || "", createdAt: new Date().toISOString(), viewers: [], reactions: {},
+      repostOf: { storyId: story.id, userId: story.userId } };
+    db.stories.push(mine);
+    me.storyCount = (me.storyCount || 0) + 1;
+    save("users"); save("stories");
+    notify(story.userId, "story-repost", me, { storyId: story.id, thumb: story.media.kind === "video" ? story.media.poster || null : story.media.url });
+    const followers = db.users.filter((u) => u.following.includes(me.id)).map((u) => u.id);
+    sendTo([me.id, ...followers], { type: "story:new", username: me.username });
+    sendJSON(res, 201, { story: storyView(mine, me) });
+    return true;
+  }
 
   // Seen: POST /api/stories/:id/view
   if (m === "POST" && parts[2] === "view") {
@@ -265,9 +302,8 @@ async function handleStories(req, res, url, me) {
   // Delete mine: DELETE /api/stories/:id  (also leaves any highlight it was in)
   if (m === "DELETE" && parts.length === 2) {
     if (story.userId !== me.id) throw httpError(403, "You can only delete your own stories.");
+    dropMedia(story);
     db.stories = db.stories.filter((s) => s !== story);
-    deleteMedia(story.media.url);
-    if (story.media.poster) deleteMedia(story.media.poster);
     save("stories");
     for (const hl of highlightsOf(me.id).filter((x) => x.storyIds.includes(story.id))) {
       hl.storyIds = hl.storyIds.filter((id) => id !== story.id);

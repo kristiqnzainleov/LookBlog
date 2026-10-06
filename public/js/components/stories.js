@@ -5,6 +5,7 @@ import { on, state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
 import { inspectVideo } from "./media-picker.js";
 import { openGifs, gifBody, closeGifs } from "./gifs.js";
+import { attachMentions } from "./mentions.js";
 
 const IMAGE_SECONDS = 5;
 const REACTIONS = ["😂", "😮", "😍", "😢", "👏", "🔥", "❤️", "💯"];
@@ -27,14 +28,22 @@ export async function addStory() {
   const text = h("input", { type: "text", class: "story-text-input", maxlength: 120, placeholder: "Add text (optional)" });
   const caption = h("div", { class: "story-caption", hidden: true });
   text.addEventListener("input", () => { caption.textContent = text.value; caption.hidden = !text.value.trim(); });
+  // Tag people: they get told, and can add it to their own story
+  const tagIn = h("input", { type: "text", class: "story-text-input story-tag-input", placeholder: "👥 Tag people: @username", autocomplete: "off" });
+  const tagChips = h("div", { class: "sv-tags preview-tags" });
+  const tagsOf = () => [...new Set((tagIn.value.match(/@?[\w.]{2,30}/g) || []).map((x) => x.replace(/^@/, "").toLowerCase()))].slice(0, 10);
+  const paintTags = () => tagChips.replaceChildren(...tagsOf().map((u) => h("span", { class: "sv-tag", text: "@" + u })));
+  tagIn.addEventListener("input", paintTags);
+  attachMentions(tagIn);
   const share = h("button", { type: "button", class: "btn btn-primary btn-full" }, h("span", { text: "Share to your story" }));
   const media = isVideo ? h("video", { src: url, autoplay: true, muted: true, loop: true, playsInline: true }) : h("img", { src: url, alt: "" });
   return new Promise((resolve) => {
     let done = false;
     const m = modal({ title: "New story", onClose: () => { URL.revokeObjectURL(url); if (!done) resolve(false); },
       body: h("div", { class: "story-compose" },
-        h("div", { class: "story-frame preview" }, media, caption),
+        h("div", { class: "story-frame preview" }, media, caption, tagChips),
         text,
+        tagIn,
         h("p", { class: "create-hint", text: "Your followers can see it for 24 hours." }),
         share) });
     setTimeout(() => text.focus(), 80);
@@ -42,7 +51,7 @@ export async function addStory() {
       share.disabled = true;
       share.querySelector("span").textContent = "Uploading…";
       try {
-        const body = { media: { url: (await upload(file)).url }, text: text.value };
+        const body = { media: { url: (await upload(file)).url }, text: text.value, tags: tagsOf() };
         if (isVideo) {
           Object.assign(body.media, { duration: info.duration, width: info.width, height: info.height });
           if (info.posterBlob) body.media.poster = (await upload(new File([info.posterBlob], "cover.jpg", { type: "image/jpeg" }))).url;
@@ -68,11 +77,12 @@ export function openStories(groups, startGroup = 0, onClosed) {
   const who = h("div", { class: "sv-who" });
   const stage = h("div", { class: "sv-stage" });
   const caption = h("div", { class: "story-caption" });
+  const tagRow = h("div", { class: "sv-tags" });
   const foot = h("div", { class: "sv-foot" });
   const closeBtn = h("button", { type: "button", class: "sv-close", "aria-label": "Close" }, icon("close"));
   const prevZone = h("button", { type: "button", class: "sv-zone left", "aria-label": "Previous" });
   const nextZone = h("button", { type: "button", class: "sv-zone right", "aria-label": "Next" });
-  const frame = h("div", { class: "story-frame" }, stage, caption, prevZone, nextZone, h("div", { class: "sv-top" }, bars, h("div", { class: "sv-head" }, who, closeBtn)), foot);
+  const frame = h("div", { class: "story-frame" }, stage, caption, tagRow, prevZone, nextZone, h("div", { class: "sv-top" }, bars, h("div", { class: "sv-head" }, who, closeBtn)), foot);
   const box = h("div", { class: "story-viewer", role: "dialog", "aria-modal": "true", "aria-label": "Story" }, frame);
   document.body.append(box);
   document.body.classList.add("no-scroll");
@@ -116,7 +126,13 @@ export function openStories(groups, startGroup = 0, onClosed) {
     }
     caption.textContent = s.text || "";
     caption.hidden = !s.text;
+    // Tagged people (tap to see their profile)
+    tagRow.replaceChildren(...(s.tags || []).map((t) => h("a", { class: "sv-tag", href: profileHref(t.username), text: "@" + t.username,
+      onclick: (e) => { e.preventDefault(); close(); navigate(profileHref(t.username)); } })));
+    if (s.repostOf) who.append(h("a", { class: "sv-repost", href: profileHref(s.repostOf.username), text: "🔁 @" + s.repostOf.username,
+      onclick: (e) => { e.preventDefault(); close(); navigate(profileHref(s.repostOf.username)); } }));
     paintFoot(s);
+    frame.style.setProperty("--foot-h", foot.offsetHeight + "px");
     if (!s.mine && !s.seen) { s.seen = true; api(`/api/stories/${s.id}/view`, { method: "POST" }).catch(() => {}); }
     group().unseen = group().stories.some((x) => !x.seen);
     paintBars(0);
@@ -208,7 +224,17 @@ export function openStories(groups, startGroup = 0, onClosed) {
           } catch (err) { toast(err.error || "Couldn’t send it."); }
         }, { onClose: () => pause(false) });
       });
-      foot.replaceChildren(reacts, h("div", { class: "sv-reply-row" }, input, gifBtn, send));
+      // Tagged in it: add it to my story (like Instagram)
+      let repost = null;
+      if (s.canRepost) {
+        repost = h("button", { type: "button", class: "sv-add-story" }, h("span", { text: "＋" }), h("b", { text: "Add to your story" }));
+        repost.addEventListener("click", async () => {
+          repost.disabled = true;
+          try { await api(`/api/stories/${s.id}/repost`, { method: "POST" }); s.canRepost = false; repost.replaceChildren(h("b", { text: "✓ Added to your story" })); toast("It’s in your story now."); }
+          catch (err) { toast(err.error || "Couldn’t add it."); repost.disabled = false; }
+        });
+      }
+      foot.replaceChildren(...(repost ? [repost] : []), reacts, h("div", { class: "sv-reply-row" }, input, gifBtn, send));
     }
   }
   // A reaction floats up over the story
@@ -267,7 +293,7 @@ export function openStories(groups, startGroup = 0, onClosed) {
   document.addEventListener("keydown", onKey);
   // Start at the first unseen story of the person
   const firstUnseen = group().stories.findIndex((s) => !s.seen && !s.mine);
-  i = firstUnseen > 0 ? firstUnseen : 0;
+  i = group().startAt ?? (firstUnseen > 0 ? firstUnseen : 0);
   show();
 }
 
@@ -295,10 +321,11 @@ export function storyBar() {
 }
 
 // Open one person's stories (e.g. from their profile picture)
-export async function openUserStories(username, onClosed) {
+export async function openUserStories(username, onClosed, storyId = null) {
   try {
     const { group } = await api(`/api/stories/user/${encodeURIComponent(username)}`);
     if (!group.stories.length) return false;
+    if (storyId) group.startAt = Math.max(0, group.stories.findIndex((x) => x.id === storyId));
     openStories([group], 0, onClosed);
     return true;
   } catch { return false; }
