@@ -312,6 +312,26 @@ async function handleAuth(req, res, url, { port }) {
     return true;
   }
 
+  // Change my password: POST /api/me/password { current, password }
+  // (Google accounts without a password can set one.) Every other device is logged out; this one stays in.
+  if (route === "POST /api/me/password") {
+    const me = sessionUser(req);
+    if (!me) throw httpError(401, "Not logged in.");
+    rateLimit("pass:" + me.id, 10, 60 * 60 * 1000, "You’ve tried a lot of times. Try again in an hour.");
+    const body = await readJSON(req);
+    if (me.passwordHash && !verifyPassword(String(body.current || ""), me.passwordHash)) throw httpError(401, "Your current password isn’t right.");
+    const password = String(body.password || "");
+    if (password.length < 8) throw httpError(400, "Use at least 8 characters.");
+    if (password.length > 128) throw httpError(400, "That password is too long.");
+    if (me.passwordHash && verifyPassword(password, me.passwordHash)) throw httpError(400, "That’s your current password. Pick a new one.");
+    me.passwordHash = hashPassword(password);
+    save("users");
+    endSessionsFor(me.id);
+    require("./notifications").notify(me.id, "security", me, { text: "Your password was changed. If this wasn’t you, change it again right away." });
+    sendJSON(res, 200, { ok: true }, { "Set-Cookie": [startSession(me, true), ...keepPrevious(req, me)] });
+    return true;
+  }
+
   if (route === "POST /api/me/2fa") {
     const me = sessionUser(req);
     if (!me) throw httpError(401, "Not logged in.");

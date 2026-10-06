@@ -5085,3 +5085,7 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .vd-watch.on { background: color-mix(in srgb, var(--pink) 25%, transparent); }
 .wt-msg-btn { margin-top: 6px; }
 @media (max-width: 640px) { .wt-pop { right: 10px; left: 10px; width: auto; top: 70px; bottom: auto; } .wt-pop.tall { left: auto; width: 62vw; } }
+.set-pass { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+.set-pass .text-input { margin: 0; }
+.set-pass .btn { align-self: flex-start; }
+.set-show { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); cursor: pointer; }

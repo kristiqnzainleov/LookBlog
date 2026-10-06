@@ -102,11 +102,32 @@ export function settingsPage(view) {
   });
   paintNsfw();
 
+  // Password: the current one, then the new one twice
+  const pw = (ph, ac) => h("input", { type: "password", class: "text-input", placeholder: ph, autocomplete: ac, maxlength: 128 });
+  const pwNow = pw("Current password", "current-password"), pwNew = pw("New password (at least 8 characters)", "new-password"), pwAgain = pw("New password again", "new-password");
+  const pwShow = h("label", { class: "set-show" }, h("input", { type: "checkbox", onchange: (e) => [pwNow, pwNew, pwAgain].forEach((x) => (x.type = e.target.checked ? "text" : "password")) }), h("span", { text: "Show passwords" }));
+  const pwErr = h("p", { class: "form-error", role: "alert", hidden: true });
+  const pwBtn = h("button", { type: "button", class: "btn btn-primary btn-sm", text: "Change password" });
+  pwBtn.addEventListener("click", async () => {
+    pwErr.hidden = true;
+    const fail = (t) => { pwErr.textContent = t; pwErr.hidden = false; };
+    if (pwNew.value.length < 8) return fail("Use at least 8 characters.");
+    if (pwNew.value !== pwAgain.value) return fail("The two new passwords aren’t the same.");
+    pwBtn.disabled = true;
+    try {
+      await api("/api/me/password", { method: "POST", body: { current: pwNow.value, password: pwNew.value } });
+      [pwNow, pwNew, pwAgain].forEach((x) => (x.value = ""));
+      toast("Password changed. Other devices were logged out.");
+    } catch (err) { fail(err.error || "Couldn’t change it."); }
+    pwBtn.disabled = false;
+  });
+  pwAgain.addEventListener("keydown", (e) => { if (e.key === "Enter") pwBtn.click(); });
+
   view.append(
     section("Email", "You log in with it and get password reset links there.", emailNow, h("div", { class: "set-row" }, emailIn, emailBtn)),
+    section("Password", "Changing it logs you out on your other devices. (Signed up with Google? Leave the current one empty to set a password.)", h("div", { class: "set-pass" }, pwNow, pwNew, pwAgain, pwShow, pwErr, pwBtn)),
     section("Two-step verification (2FA)", "When it’s on, LookBlog asks for your code after your password — so knowing your password (or email) isn’t enough to get into your account. LookBlog can make the code for you, or you can pick your own.", twoBox),
     section("Preferences", null, h("div", { class: "set-row" }, lang, priv)),
-    section("⚠️ Sensitive content isn’t allowed", "Violence, blood, weapons, self-harm and other disturbing content go against the LookBlog rules. LookBlog checks posts, stories, comments and photos when they’re uploaded and refuses it; if something gets through and people report it, it’s taken down."),
     section("🔞 Sensitive content (NSFW)", "LookBlog checks photos and videos when they’re posted. Sensitive ones (nudity and other 18+ things) are blurred and aren’t recommended to people who didn’t ask for them.", h("div", { class: "set-row" }, nsfwState, nsfwBtn)),
     section("Delete account", "This removes your profile, posts, videos, songs, messages and everything else you made. It can’t be undone.", del));
 }

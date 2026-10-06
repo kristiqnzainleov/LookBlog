@@ -5,7 +5,7 @@ import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic } from "./voice-music.js";
-import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings } from "./audio-devices.js";
+import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings, hdDescription, hdSenders } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
 import * as wt from "./watch-together.js";
 let room = null;
@@ -134,7 +134,7 @@ function peer(username) {
   };
   // A dropped connection tries again on its own
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "connected") relay.unneed(username); // direct works: no relay needed
+    if (pc.connectionState === "connected") { relay.unneed(username); hdSenders(pc); } // direct works: no relay needed; HD voice
     if (pc.connectionState === "failed") { relay.need(username); pc.restartIce(); }
     if (pc.connectionState === "disconnected") setTimeout(() => { if (pc.connectionState === "disconnected") pc.restartIce(); }, 4000);
   };
@@ -227,7 +227,7 @@ async function onSignal(ev) {
         const collision = d.description.type === "offer" && (p.makingOffer || pc.signalingState !== "stable");
         p.ignoreOffer = !p.polite && collision;
         if (p.ignoreOffer) return;
-        await pc.setRemoteDescription(d.description);
+        await pc.setRemoteDescription(hdDescription(d.description)); // HD voice (see audio-devices.js)
         // Candidates that came early (from an older version of the page) go in now
         for (const c of (p.early || []).splice(0)) await pc.addIceCandidate(c).catch(() => {});
         if (d.description.type === "offer") {

@@ -5,7 +5,7 @@ import { api } from "../api.js";
 import { on } from "../state.js";
 import { gameView, openGamePicker } from "./games.js";
 import { currentVoice } from "./voice-room.js";
-import { iceServers, micConstraints } from "./audio-devices.js";
+import { iceServers, micConstraints, hdDescription, hdSenders } from "./audio-devices.js";
 
 let ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
 // Use LookBlog's connection servers (with TURN, so calls work across mobile networks too)
@@ -82,6 +82,7 @@ function callUI({ chatId, person, video, outgoing, callId }) {
     };
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected" && !st.connectedAt) {
+        hdSenders(pc); // HD voice
         st.connectedAt = Date.now();
         st.stopRing();
         st.timer = setInterval(() => (status.textContent = fmt((Date.now() - st.connectedAt) / 1000)), 500);
@@ -107,12 +108,12 @@ function callUI({ chatId, person, video, outgoing, callId }) {
       send(chatId, { kind: "offer", callId, data: pc.localDescription.toJSON() });
     } else if (ev.kind === "offer") {
       const pc = st.pc || makePeer();
-      await pc.setRemoteDescription(ev.data);
+      await pc.setRemoteDescription(hdDescription(ev.data));
       await flushIce();
       await pc.setLocalDescription(await pc.createAnswer());
       send(chatId, { kind: "answer", callId, data: pc.localDescription.toJSON() });
     } else if (ev.kind === "answer" && st.pc) {
-      await st.pc.setRemoteDescription(ev.data);
+      await st.pc.setRemoteDescription(hdDescription(ev.data));
       await flushIce();
     } else if (ev.kind === "ice") {
       if (st.pc?.remoteDescription) await st.pc.addIceCandidate(ev.data).catch(() => {});

@@ -22,7 +22,42 @@ export async function getMic(prefs = audioPrefs()) {
 
 // The same choice as constraints for getUserMedia (a missing mic just falls back to the default)
 export function micConstraints(prefs = audioPrefs()) {
-  return { echoCancellation: prefs.echoCancellation, noiseSuppression: prefs.noiseSuppression, autoGainControl: true, ...(prefs.micId ? { deviceId: { ideal: prefs.micId } } : {}) };
+  // HD: the microphone at full quality (48 kHz)
+  return { echoCancellation: prefs.echoCancellation, noiseSuppression: prefs.noiseSuppression, autoGainControl: true,
+    sampleRate: { ideal: 48000 }, sampleSize: { ideal: 16 }, channelCount: { ideal: 1 }, ...(prefs.micId ? { deviceId: { ideal: prefs.micId } } : {}) };
+}
+
+/* ---------- HD voice ----------
+   Opus normally sends voice at about 32 kbps. Before using the other side's offer/answer we ask for much more
+   (up to 128 kbps, full 48 kHz, with repair for lost packets): their settings decide how *my* voice is sent,
+   so both sides doing this makes both directions HD. */
+const HD = { maxaveragebitrate: 128000, maxplaybackrate: 48000, useinbandfec: 1, usedtx: 0 };
+export function hdDescription(desc) {
+  if (!desc?.sdp) return desc;
+  const pt = (desc.sdp.match(/a=rtpmap:(\d+) opus\/48000/i) || [])[1];
+  if (!pt) return desc;
+  const lines = desc.sdp.split("\r\n");
+  const i = lines.findIndex((l) => l.startsWith(`a=fmtp:${pt} `));
+  const params = Object.fromEntries(i >= 0 ? lines[i].slice(`a=fmtp:${pt} `.length).split(";").map((x) => x.trim().split("=")).filter((x) => x[0]) : []);
+  Object.assign(params, HD);
+  const line = `a=fmtp:${pt} ` + Object.entries(params).map(([k, v]) => `${k}=${v}`).join(";");
+  if (i >= 0) lines[i] = line;
+  else { const r = lines.findIndex((l) => l.startsWith(`a=rtpmap:${pt} `)); if (r >= 0) lines.splice(r + 1, 0, line); }
+  return { type: desc.type, sdp: lines.join("\r\n") };
+}
+// And let my voice use that much (once connected)
+export async function hdSenders(pc) {
+  for (const sender of pc.getSenders()) {
+    if (sender.track?.kind !== "audio" || !sender.getParameters) continue;
+    try {
+      const prm = sender.getParameters();
+      if (!prm.encodings?.length) prm.encodings = [{}];
+      prm.encodings[0].maxBitrate = HD.maxaveragebitrate;
+      prm.encodings[0].priority = "high";
+      prm.encodings[0].networkPriority = "high";
+      await sender.setParameters(prm);
+    } catch {}
+  }
 }
 
 export async function listDevices() {
