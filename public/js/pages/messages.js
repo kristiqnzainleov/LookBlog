@@ -5,6 +5,7 @@ import { on } from "../state.js";
 import { navigate } from "../router.js";
 import { conversation, chatPic, chatTitle, callNoteText } from "../components/chat.js";
 import { notesRow } from "../components/notes.js";
+import { instantsPile } from "../components/instants.js";
 import { groupView } from "../components/group.js";
 import { onHold, openChatOptions, applyWallpaper, applyTheme } from "../components/wallpaper.js";
 
@@ -40,7 +41,9 @@ export function messagesPage(view, m) {
     h("header", { class: "inbox-head" }, h("h1", { text: "Messages" }), newBtn),
     notesRow(),
     listEl,
-    h("a", { class: "inbox-groups", href: "/groups" }, icon("group"), h("span", { text: "Find public groups" }))
+    h("a", { class: "inbox-groups", href: "/groups" }, icon("group"), h("span", { text: "Find public groups" })),
+    // Instants: phones only (the pile hides itself on computers)
+    instantsPile()
   );
   const pane = h("div", { class: "convo-pane" });
   const messenger = h("div", { class: "messenger" + (openId ? " has-open" : "") }, inbox, pane);

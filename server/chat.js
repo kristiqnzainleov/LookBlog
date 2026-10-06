@@ -279,6 +279,7 @@ function messageViewFull(msg, me) {
     reactions: reactionsView(msg, me),
     replyTo: replyPreview(msg),
     storyReply: msg.storyReply ? { ...require("./stories").storyPreview(msg.storyReply.storyId, me), reaction: msg.storyReply.reaction, toMe: msg.storyReply.owner === me.id } : null,
+    instantReply: msg.instantReply ? { reaction: msg.instantReply.reaction || null, toMe: msg.instantReply.owner === me.id } : null,
     noteReply: msg.noteReply ? { text: msg.noteReply.text, media: msg.noteReply.media, toMe: msg.noteReply.owner === me.id } : null,
     author: { ...authorView(findUser(msg.userId)), nickname: nicknameOf(chat, msg.userId) },
     mine: msg.userId === me.id,

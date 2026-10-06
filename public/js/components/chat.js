@@ -385,13 +385,16 @@ function messageEl(msg, chat, onRemoved) {
   const call = chat.kind === "dm" && !msg.media && !msg.post ? callNoteText(msg.text, msg.mine, chat.other.name) : null;
   const onlyEmoji = msg.text && !msg.media && !msg.post && /^(\p{Extended_Pictographic}|\p{Emoji_Component}|\u200D|\uFE0F|\s){1,24}$/u.test(msg.text) && [...msg.text.replace(/\s/g, "")].length <= 12;
   const quote = msg.replyTo ? replyQuote(msg.replyTo) : null;
-  const bubble = h("div", { class: "bubble" + (msg.game ? " game-bubble" : "") + (onlyEmoji && !quote && !msg.storyReply && !msg.noteReply ? " emoji-only" : "") + (msg.media?.kind === "audio" ? " voice-bubble" : "") + (msg.media?.sticker ? " sticker-bubble" : "") + (msg.storyReply?.reaction ? " story-react" : "") },
+  const bubble = h("div", { class: "bubble" + (msg.game ? " game-bubble" : "") + (onlyEmoji && !quote && !msg.storyReply && !msg.noteReply ? " emoji-only" : "") + (msg.media?.kind === "audio" ? " voice-bubble" : "") + (msg.media?.sticker ? " sticker-bubble" : "") + (msg.storyReply?.reaction || msg.instantReply?.reaction ? " story-react" : "") },
     chat.kind === "group" && !msg.mine ? h("a", { class: "bubble-name", href: profileHref(msg.author.username), style: roleColor(chat, msg.author.username) }, shownName(msg.author), tick(msg.author, 13)) : null,
     quote,
     msg.storyReply ? h("div", { class: "note-quote story-quote" },
       h("small", { text: msg.storyReply.reaction ? (msg.mine ? "You reacted to their story" : "Reacted to your story") : (msg.mine ? "You replied to their story" : "Replied to your story") }),
       msg.storyReply.gone ? h("span", { class: "nq-body muted", text: "Story no longer available" })
         : h("span", { class: "nq-body" }, msg.storyReply.thumb ? h("img", { class: "sq-thumb", src: msg.storyReply.thumb, alt: "" }) : null)) : null,
+    msg.instantReply ? h("div", { class: "note-quote instant-quote" },
+      h("small", { text: msg.instantReply.reaction ? (msg.mine ? "You reacted to their instant" : "Reacted to your instant") : (msg.mine ? "You replied to their instant" : "Replied to your instant") }),
+      h("span", { class: "nq-body muted", text: "⚡ Instant · seen once" })) : null,
     msg.noteReply ? h("div", { class: "note-quote" },
       h("small", { text: msg.mine ? (msg.noteReply.toMe ? "Replied to your note" : "You replied to their note") : msg.noteReply.toMe ? "Replied to your note" : "Replied to a note" }),
       h("span", { class: "nq-body" }, msg.noteReply.media ? h("img", { src: msg.noteReply.media.url, alt: "" }) : null, msg.noteReply.text ? h("span", { text: msg.noteReply.text }) : null)) : null,

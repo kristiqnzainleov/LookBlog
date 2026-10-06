@@ -21,6 +21,7 @@ const { handlePlaylists } = require("./server/playlists");
 const { handleChat } = require("./server/chat");
 const { handleNotifications } = require("./server/notifications");
 const { handleStories } = require("./server/stories");
+const { handleInstants } = require("./server/instants");
 const { handleAnalytics } = require("./server/analytics");
 const { handleEvents: handlePublicEvents } = require("./server/events");
 const { handleMusic } = require("./server/music");
@@ -223,6 +224,7 @@ async function handleApi(req, res, url) {
   if (await handleStreams(req, res, url, me)) return;
   if (await handleAnalytics(req, res, url, me)) return;
   if (await handleStories(req, res, url, me)) return;
+  if (await handleInstants(req, res, url, me)) return;
   if (await handleNotifications(req, res, url, me)) return;
   if (await handlePlaylists(req, res, url, me)) return;
   if (await handleChat(req, res, url, me)) return;

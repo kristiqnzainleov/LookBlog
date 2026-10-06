@@ -39,6 +39,7 @@ const db = {
   albums: load("albums", []), // albums, EPs and singles
   streams: load("streams", []), // live streams (and their recordings)
   highlights: load("highlights", []),
+  instants: load("instants", []), // quick camera photos to friends, seen once, gone after 24 hours
   voice: load("voice", {}),
   liveViewers: load("liveViewers", {}),
   badgeDefs: load("badgeDefs", []), // badges the team designed (name, emoji or picture, colour)
