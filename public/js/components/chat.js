@@ -437,7 +437,7 @@ function swipeToReply(row, msg) {
 }
 
 // A sensitive (18+) photo or video in a message is blurred for the others until they tap "View"
-const sensitive = (msg, el) => (msg.media?.nsfw && !msg.mine ? nsfwWrap(el, "photo") : el);
+const sensitive = (msg, el) => (msg.mine ? el : msg.media?.nsfw ? nsfwWrap(el, "photo", "nsfw") : msg.media?.sensitive ? nsfwWrap(el, "photo", "sensitive") : el);
 
 function messageEl(msg, chat, onRemoved) {
   // Small notes in the middle ("📅 New event", nickname changes)
@@ -484,6 +484,12 @@ function messageEl(msg, chat, onRemoved) {
     (() => { const m = /\/invite\/([A-Za-z0-9]{6,12})\b/.exec(msg.text || ""); return m ? inviteCard(m[1]) : null; })(),
     (() => { const m = /\/event\/([\w-]{6,40})\b/.exec(msg.text || ""); return m ? eventLinkCard(m[1]) : null; })(),
     msg.text ? linkBlock(msg.text) : null,
+    // A YouTube/TikTok link while I'm in this group's voice channel: watch it together
+    (() => {
+      const link = msg.text && /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s]*v=|shorts\/)[\w-]{11}|youtu\.be\/[\w-]{11}|(?:www\.|vm\.|vt\.)?tiktok\.com\/)[^\s]*/i.exec(msg.text);
+      if (!link || window.__lbCurrentVoice?.()?.chatId !== chat.id) return null;
+      return h("button", { type: "button", class: "btn btn-xs btn-primary wt-msg-btn", text: "📺 Watch together in voice", onclick: (e) => { e.stopPropagation(); window.__lbWatchLink?.(link[0]); } });
+    })(),
     msg.song ? songChatCard(msg.song) : null,
     h("span", { class: "bubble-time" }, timeEl(msg.createdAt))
   );

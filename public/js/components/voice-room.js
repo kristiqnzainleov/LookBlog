@@ -7,6 +7,7 @@ import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic } from "./voice-music.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
+import * as wt from "./watch-together.js";
 let room = null;
 export const currentVoice = () => room && { chatId: room.chat.id, channelId: room.channel.id };
 export const speakingNow = new Set();
@@ -52,7 +53,11 @@ export async function joinVoice(chat, channel) {
   // The fallback for people we can't reach directly
   relay.startRelay({ topic: joined.relayTopic, me: state.me.username, mic, box: audioBox, speakerId: audioPrefs().speakerId }).catch((err) => console.warn("[relay]", err));
   for (const p of others) peer(p.username); // I call everyone who is already here
-  room.ping = setInterval(() => post({ kind: "ping" }).then((r) => syncPeople(r.participants)).catch((err) => { if (/not in that voice/i.test(err.error || "")) leaveVoice(true); }), 15000);
+  // Something is already being watched together: show it
+  room.skew = joined.now ? joined.now - Date.now() : 0;
+  room.watch = joined.watch || null;
+  if (room.watch) showWatch(room.watch, false);
+  room.ping = setInterval(() => post({ kind: "ping" }).then((r) => { syncPeople(r.participants); syncWatch(r); }).catch((err) => { if (/not in that voice/i.test(err.error || "")) leaveVoice(true); }), 15000);
   playTone(true);
   emit("voice:local", currentVoice());
 }
@@ -62,6 +67,7 @@ export async function leaveVoice(silent) {
   const r = room;
   room = null;
   reactBar?.remove(); reactBar = null;
+  wt.closeWatch();
   r.ended = true;
   clearInterval(r.ping);
   clearInterval(r.place);
@@ -259,6 +265,49 @@ on("voice:sound", (ev) => {
   if (ev.username !== state.me.username) playSoundHere(ev);
   showSoundToast(ev);
 });
+/* ---------- Watch together (YouTube, Shorts, TikTok) ---------- */
+function showWatch(w, gesture) {
+  if (!room) return;
+  room.watchClosed = null;
+  wt.openWatch(w, {
+    skew: room.skew || 0, gesture,
+    send: (st) => post({ kind: "watch", action: "state", ...st }).catch(() => {}),
+    onStop: () => post({ kind: "watch", action: "stop" }).catch((err) => toast(err.error || "Couldn’t stop it.")),
+    canStop: w.by === state.me.username || room.chat.isOwner || room.chat.perms?.includes("manage_group"),
+    onClose: () => { if (room) { room.watchClosed = w.id; paintDock(); } },
+  });
+  paintDock();
+}
+async function startWatch(url) {
+  if (!room) return toast("Join a voice channel to watch together.");
+  if (url) { const r = await post({ kind: "watch", action: "start", url }); room.watch = r.watch; return showWatch(r.watch, true); }
+  return wt.askForVideo(async (link) => { const r = await post({ kind: "watch", action: "start", url: link }); room.watch = r.watch; showWatch(r.watch, true); });
+}
+// The heartbeat also says what's playing (a missed update fixes itself)
+function syncWatch(r) {
+  if (!room || !("watch" in r)) return;
+  if (r.now) room.skew = r.now - Date.now();
+  const w = r.watch;
+  if (!w) { if (room.watch) { room.watch = null; wt.closeWatch(); paintDock(); } return; }
+  const changed = !room.watch || room.watch.id !== w.id || room.watch.provider !== w.provider;
+  room.watch = w;
+  if (changed && room.watchClosed !== w.id) showWatch(w, false);
+  else if (wt.watchOpen()) wt.applyWatch(w, room.skew);
+}
+on("voice:watch", (ev) => {
+  if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
+  room.skew = ev.now - Date.now();
+  const w = ev.watch;
+  room.watch = w;
+  if (!w) { wt.closeWatch(); paintDock(); if (ev.by !== state.me.username) toast("Stopped watching together."); return; }
+  if (ev.action === "start") { if (ev.by !== state.me.username) toast(`📺 @${ev.by} started a video for everyone.`); showWatch(w, ev.by === state.me.username); }
+  else if (ev.by !== state.me.username && wt.watchOpen()) wt.applyWatch(w, room.skew);
+  paintDock();
+});
+// For chats: a "Watch together" button on YouTube/TikTok links while you're in the group's voice channel
+window.__lbCurrentVoice = () => currentVoice();
+window.__lbWatchLink = (url) => startWatch(url).catch((err) => toast(err.error || "Couldn’t play that link."));
+
 /* ---------- Invite people from the group who aren't in the channel ---------- */
 let inviteList = null;
 async function openVoiceInvite() {
@@ -699,6 +748,9 @@ function paintDock() {
       (() => { const b = btn("sound", "Soundboard", false, () => openSoundboard(b)); return b; })(),
       (() => { const b = h("button", { type: "button", class: "vd-btn vd-react", title: "React", "aria-label": "React", text: "😊" }); b.addEventListener("click", () => openReactBar(b, null)); return b; })(),
       btn("userPlus", "Invite people to this channel", false, () => openVoiceInvite()),
+      (() => { const b = h("button", { type: "button", class: "vd-btn vd-watch" + (room.watch ? " on" : ""), title: room.watch ? (wt.watchOpen() ? "Watching together" : "Open what everyone is watching") : "Watch a video together", "aria-label": "Watch together", text: "📺" });
+        b.addEventListener("click", () => (room.watch && !wt.watchOpen() ? showWatch(room.watch, true) : room.watch ? null : startWatch()));
+        return b; })(),
       btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker })),
       btn("note", "Music", Boolean(musicState()?.now), () => openMusicPanel(), "vd-music"),
       btn("leave", "Leave voice", false, () => leaveVoice(), "danger")));

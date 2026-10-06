@@ -1,6 +1,6 @@
-// The automatic NSFW check: a small model (NSFWJS, MobileNetV2) runs right in the browser on photos
-// (and a video's first frame) when they're picked, before they're posted. Sensitive ones get marked,
-// shown blurred to others, and left out of recommendations.
+// The automatic checks on photos (and a video's first frame) when they're picked, before they're posted,
+// right in the browser: NSFW (NSFWJS) and sensitive things like weapons (MobileNet).
+// Marked ones are shown covered to others and left out of recommendations.
 let modelP = null;
 const add = (src) => new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("load " + src)); document.head.append(s); });
 function model() {
@@ -23,15 +23,37 @@ const toImage = (src) => new Promise((ok, no) => {
   img.onerror = () => { URL.revokeObjectURL(url); no(new Error("image")); };
   img.src = url;
 });
-// → { nsfw, scores } (nsfw is false when the check can't run, so nothing is ever blocked by mistake)
+// Sensitive (violence): a general picture model (MobileNet) that knows weapons
+let objectsP = null;
+function objects() {
+  if (!objectsP) {
+    objectsP = (async () => {
+      if (!window.tf) await add("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js");
+      if (!window.mobilenet) await add("https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js");
+      return window.mobilenet.load({ version: 2, alpha: 0.5 });
+    })();
+    objectsP.catch(() => { objectsP = null; });
+  }
+  return objectsP;
+}
+const WEAPONS = ["assault rifle", "revolver", "rifle", "holster", "guillotine"];
+async function hasWeapon(img) {
+  try {
+    const preds = await (await objects()).classify(img, 5);
+    return preds.some((p) => WEAPONS.some((w) => p.className.startsWith(w)) && p.probability >= 0.35);
+  } catch { return false; }
+}
+
+// → { nsfw, sensitive, scores } (both false when the check can't run, so nothing is ever blocked by mistake)
 export async function checkImage(src) {
   try {
-    const [m, img] = await Promise.all([model(), toImage(src)]);
+    const img = await toImage(src);
+    const [m, weapon] = await Promise.all([model(), hasWeapon(img)]);
     const preds = await m.classify(img);
     const s = Object.fromEntries(preds.map((p) => [p.className, p.probability]));
     const nsfw = (s.Porn || 0) + (s.Hentai || 0) >= 0.55 || (s.Sexy || 0) >= 0.8;
-    return { nsfw, scores: s };
-  } catch { return { nsfw: false, scores: null }; }
+    return { nsfw, sensitive: weapon, scores: s };
+  } catch { return { nsfw: false, sensitive: false, scores: null }; }
 }
 // Start downloading the model early (e.g. when the composer opens)
 export const warmUp = () => { model().catch(() => {}); };

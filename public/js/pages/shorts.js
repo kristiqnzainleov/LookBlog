@@ -3,7 +3,7 @@ import { h, icon, avatar, count, empty, tick } from "../ui.js";
 import { taggedSlot } from "../components/tags.js";
 import { api } from "../api.js";
 import { on } from "../state.js";
-import { actions, trackPlay, trackImpression, likeBurst, nsfwCover } from "../components/post.js";
+import { actions, trackPlay, trackImpression, likeBurst, nsfwCover, warnKind } from "../components/post.js";
 import { profileHref } from "../router.js";
 import { followButton } from "./profile.js";
 import { postTextEl } from "../components/edit-post.js";
@@ -157,7 +157,7 @@ export function shortsPage(view, _m, params) {
       h("div", { class: "reel-rail" }, actions(p, { onDeleted: () => reel.querySelector(`[data-id="${CSS.escape(p.id)}"]`)?.remove() }))
     ), p.id);
     // Sensitive (18+): blurred until you tap "View"
-    if (p.nsfw && !p.mine) nsfwCover(item.querySelector(".reel-frame"), { what: "short", onReveal: () => { video.muted = false; video.play().catch(() => {}); } });
+    if (warnKind(p)) nsfwCover(item.querySelector(".reel-frame"), { what: "short", kind: warnKind(p), onReveal: () => { video.muted = false; video.play().catch(() => {}); } });
     return item;
   }
 

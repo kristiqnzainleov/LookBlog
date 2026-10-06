@@ -286,6 +286,7 @@ function postView(p, me) {
   return {
     id: p.id,
     nsfw: Boolean(p.nsfw),
+    sensitive: Boolean(p.sensitive),
     type: p.type,
     title: p.title,
     text: p.text,
@@ -465,6 +466,7 @@ function buildMedia(item, me) {
   const out = { url: m.url, kind: m.kind };
   // NSFW: the photo (or the video's first frame) was checked when it was picked; sensitive ones are blurred for others
   if (item.nsfw === true) out.nsfw = true;
+  if (item.sensitive === true) out.sensitive = true; // violence, weapons… (also found by the photo check)
   if (m.kind === "video") {
     const poster = item.poster ? ownedMedia(item.poster, me.id, "image") : null;
     if (poster) out.poster = poster.url;
@@ -650,6 +652,7 @@ async function handleSocial(req, res, url, me) {
     for (const p of db.posts) {
       if (p.visibility !== "public" || ms(p.createdAt) < from) continue;
       if (p.nsfw && !me.showNsfw) continue; // sensitive posts aren't pushed to people who didn't ask for them
+      if (p.sensitive && !me.showSensitive) continue;
       if (type && p.type !== type) continue;
       if (type === "video" && notPlainVideo(p)) continue;
       const engagement = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + p.viewedBy.length * 0.15 - p.dislikes.length * 0.5;
@@ -695,6 +698,8 @@ async function handleSocial(req, res, url, me) {
     post.tags = []; // people are tagged with @ in the text (post.mentions)
     // Sensitive (18+): found by the automatic check, or marked by the author
     if (body.nsfw === true || post.media.some((x) => x.nsfw)) post.nsfw = true;
+    // Sensitive (violence, blood, weapons…): the words, the photo check, or the author
+    if (body.sensitive === true || post.media.some((x) => x.sensitive) || require("./sensitive").sensitiveText(post.title, post.text)) post.sensitive = true;
     db.posts.unshift(post);
     claim(post.media, "post:" + post.id);
     if (post.film?.backdrop) markUsed(post.film.backdrop, "post:" + post.id);
@@ -941,7 +946,7 @@ async function handleSocial(req, res, url, me) {
     if (!post) throw httpError(404, "This post doesn’t exist anymore.");
     if (post.userId === me.id) throw httpError(400, "You can’t report your own post.");
     const body = await readJSON(req);
-    const REASONS = ["spam", "harassment", "hate", "violence", "nudity", "misinformation", "copyright", "other"];
+    const REASONS = ["spam", "harassment", "hate", "violence", "self-harm", "sensitive", "nudity", "misinformation", "copyright", "other"];
     const reason = REASONS.includes(body.reason) ? body.reason : null;
     if (!reason) throw httpError(400, "Choose a reason.");
     const details = clean(body.details).slice(0, 500);
@@ -950,6 +955,15 @@ async function handleSocial(req, res, url, me) {
       save("reports");
       require("./admin").pingAdmins();
       console.log(`[report] ${reason} on post ${post.id} by @${me.username}`);
+      // Reported as violent/disturbing by a couple of people: it gets the warning right away (the team still checks it)
+      if (!post.sensitive && ["violence", "self-harm", "sensitive"].includes(reason)) {
+        const n = new Set(db.reports.filter((r) => r.postId === post.id && ["violence", "self-harm", "sensitive"].includes(r.reason)).map((r) => r.reporterId)).size;
+        if (n >= 2) { post.sensitive = true; save("posts"); }
+      }
+      if (!post.nsfw && reason === "nudity") {
+        const n = new Set(db.reports.filter((r) => r.postId === post.id && r.reason === "nudity").map((r) => r.reporterId)).size;
+        if (n >= 2) { post.nsfw = true; save("posts"); }
+      }
     }
     sendJSON(res, 200, { ok: true });
     return true;
@@ -1857,6 +1871,14 @@ async function handleSocial(req, res, url, me) {
     me.showNsfw = Boolean(body.show);
     save("users");
     sendJSON(res, 200, { showNsfw: me.showNsfw });
+    return true;
+  }
+
+  // Sensitive content (violence, blood…): POST /api/me/sensitive { show }
+  if (m === "POST" && a === "me" && b === "sensitive" && parts.length === 2) {
+    me.showSensitive = Boolean((await readJSON(req)).show);
+    save("users");
+    sendJSON(res, 200, { showSensitive: me.showSensitive });
     return true;
   }
 

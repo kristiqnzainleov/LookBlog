@@ -137,6 +137,7 @@ function meView(u) {
     name: u.name,
     look: u.look || null,
     showNsfw: Boolean(u.showNsfw),
+    showSensitive: Boolean(u.showSensitive),
     username: u.username,
     email: u.email,
     bio: u.bio,

@@ -7,6 +7,8 @@ const REASONS = [
   ["harassment", "Harassment or bullying"],
   ["hate", "Hate speech"],
   ["violence", "Violence or threats"],
+  ["sensitive", "Disturbing or graphic (blood, weapons…)"],
+  ["self-harm", "Self-harm or suicide"],
   ["nudity", "Nudity or sexual content"],
   ["misinformation", "False information"],
   ["copyright", "Uses my work without permission"],

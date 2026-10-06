@@ -132,6 +132,8 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
       if (item.check) {
         const r = await item.check;
         item.nsfw = r.nsfw;
+        item.sensitive = r.sensitive;
+        if (r.sensitive && !r.nsfw) { item.el?.append(h("span", { class: "preview-nsfw", title: "Marked as sensitive: others see a warning first", text: "⚠️" })); onError("This looks sensitive (weapons or violence). People will see a warning before it."); }
         if (r.nsfw) { item.el?.classList.add("is-nsfw"); item.el?.append(h("span", { class: "preview-nsfw", title: "Marked as sensitive (18+): others see it blurred", text: "🔞" })); onError("This looks sensitive (18+). It will be posted blurred, and people tap to see it."); }
       }
       item.status = "done";
@@ -186,7 +188,7 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
     items: () => items,
     busy: () => items.some((i) => i.status === "uploading"),
     media: () => items.filter((i) => i.status === "done").map((i) => ({
-      url: i.url, poster: i.poster, duration: i.duration, width: i.width, height: i.height, ...(i.nsfw ? { nsfw: true } : {}),
+      url: i.url, poster: i.poster, duration: i.duration, width: i.width, height: i.height, ...(i.nsfw ? { nsfw: true } : {}), ...(i.sensitive ? { sensitive: true } : {}),
     })),
     clear: () => [...items].forEach(remove),
   };

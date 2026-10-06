@@ -337,26 +337,36 @@ export function mediaBlock(p) {
   const images = p.media.filter((m) => m.kind === "image");
   const video = p.media.find((m) => m.kind === "video");
   const block = images.length ? imageGrid(images) : video ? videoPlayer(video, p, { vertical: p.type === "short" }) : null;
-  return block && p.nsfw && !p.mine ? nsfwWrap(block) : block;
+  const kind = warnKind(p);
+  return block && kind ? nsfwWrap(block, "post", kind) : block;
 }
-// Sensitive (18+) media: blurred, with a button to see it (unless you turned that off in Settings)
-export function nsfwWrap(block, what = "post") {
-  if (state.me?.showNsfw) return block;
+// Should this be covered for me? "nsfw" (18+), "sensitive" (violence, blood, weapons…) or nothing
+export function warnKind(p) {
+  if (!p || p.mine) return null;
+  if (p.nsfw && !state.me?.showNsfw) return "nsfw";
+  if (p.sensitive && !state.me?.showSensitive) return "sensitive";
+  return null;
+}
+// Covered media (blurred, with a button to see it), unless you turned that off in Settings
+export function nsfwWrap(block, what = "post", kind = "nsfw") {
+  if (kind === "nsfw" ? state.me?.showNsfw : state.me?.showSensitive) return block;
   const wrap = h("div", { class: "nsfw-wrap" }, block);
-  nsfwCover(wrap, { what });
+  nsfwCover(wrap, { what, kind });
   return wrap;
 }
-// The cover itself, on any box (a player, a short): blurred until you tap "View"; videos wait until then
-export function nsfwCover(box, { what = "post", onReveal = null } = {}) {
-  if (state.me?.showNsfw) return false;
+// The cover itself, on any box (a player, a short): covered until you tap "View"; videos wait until then
+export function nsfwCover(box, { what = "post", kind = "nsfw", onReveal = null } = {}) {
   box.classList.add("nsfw-on");
+  if (kind === "sensitive") box.classList.add("sens");
   const v = box.querySelector("video");
   if (v) { v.autoplay = false; v.dataset.nsfwHold = "1"; v.pause(); }
-  const cover = h("div", { class: "nsfw-cover" }, h("b", { text: "🔞 Sensitive content" }), h("span", { text: `This ${what} may show nudity or other 18+ things.` }),
+  const cover = h("div", { class: "nsfw-cover" + (kind === "sensitive" ? " sens" : "") },
+    h("b", { text: kind === "sensitive" ? "⚠️ Sensitive content" : "🔞 Sensitive content (18+)" }),
+    h("span", { text: kind === "sensitive" ? `This ${what} may show violence, blood, weapons or other disturbing things.` : `This ${what} may show nudity or other 18+ things.` }),
     h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "View" }));
   cover.addEventListener("click", (e) => {
     e.preventDefault(); e.stopPropagation();
-    box.classList.remove("nsfw-on"); cover.remove();
+    box.classList.remove("nsfw-on", "sens"); cover.remove();
     if (v) delete v.dataset.nsfwHold;
     onReveal?.();
   });
@@ -373,6 +383,7 @@ export function postCard(p, { onDeleted } = {}) {
   const typeBadge = p.type === "short" ? h("span", { class: "badge", text: "Short" }) : p.stream ? h("span", { class: "badge badge-live", text: "🔴 Past live" }) : p.type === "video" ? h("span", { class: "badge", text: "Video" }) : null;
 
   let body;
+  const warn = warnKind(p);
   if (p.type === "video") {
     const v = p.media[0];
     body = h("a", { class: "video-card", href: watchHref(p.id) },
@@ -383,8 +394,11 @@ export function postCard(p, { onDeleted } = {}) {
       ),
       liveTitle(p, "h3", "video-title"),
     );
+    if (warn) { const th = body.querySelector(".thumb"); th.classList.add("nsfw-on"); th.append(h("span", { class: "nsfw-thumb-tag", text: warn === "nsfw" ? "🔞 18+" : "⚠️ Sensitive" })); }
   } else {
-    body = [makeEditable(postTextEl(p, "post-text", { placeholder: p.type === "short" ? "Add a caption" : "Add some text" }), p), p.poll ? pollEl(p) : null, mediaBlock(p),
+    const textEl = makeEditable(postTextEl(p, "post-text", { placeholder: p.type === "short" ? "Add a caption" : "Add some text" }), p);
+    // A post that's only words (no photo) and was found sensitive: the words are covered too
+    body = [warn && !p.media.length ? nsfwWrap(textEl, "post", warn) : textEl, p.poll ? pollEl(p) : null, mediaBlock(p),
       p.type === "post" && !p.media.length && !p.poll ? linkBlock(p.text) : null];
   }
 

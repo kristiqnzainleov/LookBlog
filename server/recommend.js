@@ -68,6 +68,7 @@ function recommend(me, { type = null, limit = 20, seed = null, skip = [] } = {})
   for (const p of db.posts) {
     if (p.userId === me.id || p.visibility !== "public" || skipSet.has(p.id) || (seed && p.id === seed.id)) continue;
     if (p.nsfw && !me.showNsfw) continue; // the algorithm doesn't recommend sensitive posts unless you asked for them
+    if (p.sensitive && !me.showSensitive) continue;
     if (type && p.type !== type) continue;
     if (type === "video" && require("./social").notPlainVideo(p)) continue;
     const author = findUser(p.userId);

@@ -3,7 +3,7 @@ import { h, icon, avatar, timeEl, empty, count, richText, tick } from "../ui.js"
 import { api } from "../api.js";
 import { state } from "../state.js";
 import { on } from "../state.js";
-import { actions, mediaBlock, videoPlayer, sendView } from "../components/post.js";
+import { actions, mediaBlock, videoPlayer, sendView, warnKind, nsfwWrap } from "../components/post.js";
 import { visibilityButton } from "../components/visibility.js";
 import { pollEl } from "../components/poll.js";
 import { categorySelect, makeEditable, postTextEl, editedLabel } from "../components/edit-post.js";
@@ -54,7 +54,8 @@ export async function postPage(view, m) {
   } else {
     main = h("article", { class: "detail" + (p.type === "short" ? " detail-short" : "") },
       authorRow,
-      makeEditable(postTextEl(p, "detail-text post-text", { placeholder: p.type === "short" ? "Add a caption" : "Add some text" }), p),
+      // Words found sensitive (and no photo to cover): the words are covered
+      ((el) => (warnKind(p) && !p.media.length ? nsfwWrap(el, "post", warnKind(p)) : el))(makeEditable(postTextEl(p, "detail-text post-text", { placeholder: p.type === "short" ? "Add a caption" : "Add some text" }), p)),
       p.poll ? pollEl(p) : null,
       mediaBlock(p),
       viewsLine,

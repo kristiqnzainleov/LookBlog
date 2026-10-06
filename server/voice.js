@@ -57,6 +57,38 @@ function playNext(key) {
   else save("voice");
 }
 
+// Watch together: what's playing in a channel
+const watchView = (key) => { const w = db.voice[key]?.watch; return w ? { ...w } : null; };
+// A YouTube / YouTube Shorts / TikTok link → { provider, id, kind }
+async function parseVideo(url) {
+  let u;
+  try { u = new URL(url.trim()); } catch { return null; }
+  const host = u.hostname.replace(/^(www|m|music)\./, "");
+  const yt = /^[\w-]{11}$/;
+  if (host === "youtu.be") { const id = u.pathname.slice(1, 12); return yt.test(id) ? { provider: "youtube", id, kind: "video" } : null; }
+  if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    const short = u.pathname.match(/^\/shorts\/([\w-]{11})/);
+    if (short) return { provider: "youtube", id: short[1], kind: "short" };
+    const embed = u.pathname.match(/^\/(?:embed|live|v)\/([\w-]{11})/);
+    if (embed) return { provider: "youtube", id: embed[1], kind: "video" };
+    const id = u.searchParams.get("v");
+    return id && yt.test(id) ? { provider: "youtube", id, kind: "video" } : null;
+  }
+  if (host.endsWith("tiktok.com")) {
+    let m = u.pathname.match(/\/video\/(\d{8,25})/) || u.pathname.match(/\/player\/v1\/(\d{8,25})/);
+    if (!m && (host === "vm.tiktok.com" || host === "vt.tiktok.com" || u.pathname.startsWith("/t/"))) {
+      // A short share link: follow it to the real one
+      try {
+        const r = await fetch(u.href, { redirect: "manual", headers: { "User-Agent": "Mozilla/5.0 LookBlog" }, signal: AbortSignal.timeout(6000) });
+        const to = r.headers.get("location") || "";
+        m = to.match(/\/video\/(\d{8,25})/);
+      } catch {}
+    }
+    return m ? { provider: "tiktok", id: m[1], kind: "short" } : null;
+  }
+  return null;
+}
+
 function participants(chatId, channelId) {
   const room = roomAt(chatId + ":" + channelId);
   if (!room) return [];
@@ -106,7 +138,7 @@ async function handleVoice(req, res, me, chat, chats) {
     announce(chat, channel.id);
     // A secret topic for the fallback voice relay (when two people can't connect directly)
     const relayTopic = require("./store").enabled ? "vr-" + require("crypto").createHmac("sha256", process.env.SUPABASE_SERVICE_KEY || "lb").update("voice:" + key).digest("base64url").slice(0, 24) : null;
-    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic });
+    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic, watch: watchView(key), now: Date.now() });
     return true;
   }
   if (body.kind === "leave") {
@@ -131,7 +163,7 @@ async function handleVoice(req, res, me, chat, chats) {
   // Heartbeat: written at most every 10 seconds
   if (Date.now() - (mine.seen || 0) > 10 * 1000) { mine.seen = Date.now(); save("voice"); }
   // The heartbeat also says who is in the channel, so a missed update fixes itself
-  if (body.kind === "ping") { sendJSON(res, 200, { ok: true, participants: participants(chat.id, channel.id) }); return true; }
+  if (body.kind === "ping") { sendJSON(res, 200, { ok: true, participants: participants(chat.id, channel.id), watch: watchView(key), now: Date.now() }); return true; }
   if (body.kind === "state") {
     for (const k of ["muted", "deaf", "video", "screen"]) if (k in body) mine[k] = Boolean(body[k]);
     save("voice");
@@ -165,6 +197,32 @@ async function handleVoice(req, res, me, chat, chats) {
       invited.push(u.username);
     }
     sendJSON(res, 200, { invited });
+    return true;
+  }
+  // Watch together: a YouTube video, YouTube Short or TikTok, in sync for everyone in the channel.
+  // { kind: "watch", action: "start", url } · { action: "state", playing, pos } (anyone can play, pause or skip) · { action: "stop" }
+  if (body.kind === "watch") {
+    rateLimit("vwatch:" + me.id, 120, 60 * 1000, "Slow down a little.");
+    const v = db.voice[key];
+    if (body.action === "start") {
+      const found = await parseVideo(String(body.url || ""));
+      if (!found) throw httpError(400, "Paste a YouTube, YouTube Shorts or TikTok link.");
+      v.watch = { ...found, by: me.username, byName: me.name, playing: true, pos: 0, at: Date.now() };
+    } else if (body.action === "state") {
+      if (!v.watch) throw httpError(404, "Nothing is playing.");
+      const pos = Number(body.pos);
+      v.watch.playing = Boolean(body.playing);
+      v.watch.pos = Number.isFinite(pos) && pos >= 0 ? Math.min(pos, 24 * 3600) : 0;
+      v.watch.at = Date.now();
+      v.watch.lastBy = me.username;
+    } else if (body.action === "stop") {
+      if (!v.watch) { sendJSON(res, 200, { ok: true }); return true; }
+      if (v.watch.by !== me.username && !can(chat, me, "manage_group")) throw httpError(403, "Only the person who started it can stop it for everyone. You can close it for yourself.");
+      delete v.watch;
+    } else throw httpError(400, "Unknown action.");
+    save("voice");
+    sendTo(Object.keys(room), { type: "voice:watch", chatId: chat.id, channelId: channel.id, watch: watchView(key), by: me.username, action: body.action, now: Date.now() });
+    sendJSON(res, 200, { watch: watchView(key), now: Date.now() });
     return true;
   }
   // A reaction while you talk: { kind: "react", emoji, to } — to someone's camera or screen (to = their username), or to the channel.

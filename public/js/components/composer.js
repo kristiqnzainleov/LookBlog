@@ -168,13 +168,17 @@ function postForm() {
   let repliesOff = false;
   const repliesOffBtn = h("button", { type: "button", class: "tool-btn replies-off-btn", title: "Replies on — click to turn them off" }, h("span", { class: "tool-emoji", text: "💬" }));
   repliesOffBtn.addEventListener("click", () => { repliesOff = !repliesOff; repliesOffBtn.classList.toggle("off", repliesOff); repliesOffBtn.title = repliesOff ? "Replies off — click to turn them on" : "Replies on — click to turn them off"; toast(repliesOff ? "Replies will be off for this post." : "Replies are on."); });
+  // ⚠️ Mark as sensitive (violence, blood…): people see a warning before it
+  let sensitive = false;
+  const sensBtn = h("button", { type: "button", class: "tool-btn sens-btn", title: "Mark as sensitive (violence, blood, weapons…)" }, h("span", { class: "tool-emoji", text: "⚠️" }));
+  sensBtn.addEventListener("click", () => { sensitive = !sensitive; sensBtn.classList.toggle("on", sensitive); toast(sensitive ? "Marked as sensitive: people see a warning first." : "Not marked as sensitive."); });
   const form = h("form", { class: "composer", novalidate: true },
     avatar(state.me, 42),
     h("div", { class: "composer-main" },
       text,
       picker.previews,
       poll.el,
-      h("div", { class: "composer-bar" }, picker.button, pollBtn, repliesOffBtn, cat.el, cnt.el, submit),
+      h("div", { class: "composer-bar" }, picker.button, pollBtn, repliesOffBtn, sensBtn, cat.el, cnt.el, submit),
       err
     )
   );
@@ -189,7 +193,7 @@ function postForm() {
     submit.disabled = true;
     submit.textContent = "Posting…";
     try {
-      await publish({ type: "post", text: text.value, media: poll.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, categoryId: cat.value() || null, repliesOff });
+      await publish({ type: "post", text: text.value, media: poll.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, categoryId: cat.value() || null, repliesOff, sensitive });
       toast(poll.on() ? "Poll posted." : "Posted.");
       text.value = "";
       picker.clear();
@@ -303,6 +307,8 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
   // Replies on or off (can be changed later from the post)
   const repliesBox = h("input", { type: "checkbox" });
   const repliesRow = h("label", { class: "check-row replies-row" }, repliesBox, h("span", {}, h("b", { text: "💬 Turn off replies" }), h("small", { class: "muted", text: " — nobody can reply to it" })));
+  const sensBox = h("input", { type: "checkbox" });
+  const sensRow = h("label", { class: "check-row" }, sensBox, h("span", {}, h("b", { text: "⚠️ Sensitive content" }), h("small", { class: "muted", text: " — violence, blood, weapons… people see a warning first" })));
   // SoundCloud-style extras (off unless you turn them on)
   const timedBox = h("input", { type: "checkbox" }), momentsBox = h("input", { type: "checkbox" });
   const extrasRow = h("div", { class: "extras-rows" },
@@ -346,6 +352,7 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
     vis?.el,
     schedEl,
     repliesRow,
+    sensRow,
     extrasRow,
     err,
     submit
@@ -362,7 +369,7 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
       const media = picker.media();
       if (thumb && media[0] && thumb.value()) media[0].poster = thumb.value();
       const publishAt = schedAt?.dataset.on ? new Date(schedAt.value).toISOString() : null;
-      await publish({ type: kind, text: text.value, title: title?.value || "", media, visibility: vis?.value() || "public", categoryId: cat?.value() || null, publishAt, repliesOff: repliesBox.checked, timedComments: timedBox.checked, momentReactions: momentsBox.checked, replyTo: replyTo?.id || null, ...(series ? { seriesId: series.id, season: Number(seasonSel.value) } : {}) });
+      await publish({ type: kind, text: text.value, title: title?.value || "", media, visibility: vis?.value() || "public", categoryId: cat?.value() || null, publishAt, repliesOff: repliesBox.checked, sensitive: sensBox.checked, timedComments: timedBox.checked, momentReactions: momentsBox.checked, replyTo: replyTo?.id || null, ...(series ? { seriesId: series.id, season: Number(seasonSel.value) } : {}) });
       close();
       if (series) { toast(`📺 Episode added to Season ${seasonSel.value} of “${series.title}”.`); onDone?.(Number(seasonSel.value)); return; }
       if (replyTo) toast(`✅ Your video reply is up! It shows under “${replyTo.title || "the video"}”.`);
