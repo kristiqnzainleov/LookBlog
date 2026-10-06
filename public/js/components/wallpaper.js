@@ -256,22 +256,51 @@ export function openVanishPicker(chat, onDone) {
 const GROUP_COLORS = ["#ff4fa3", "#ff3b4f", "#ff8a3b", "#ffcc33", "#b6f23a", "#1fc77a", "#19d3c5", "#66d1ff", "#3b6bff", "#a66bff", "#d6a4ff", "#ff7eb3", "#f5f0eb"];
 function openGroupColor(chat) {
   let pick = chat.color || "#ff4fa3";
+  // A gradient too: 2–4 colours and a direction (the first colour is the group's colour for small things)
+  const g0 = chat.colorGrad ? chat.colorGrad.slice(5).split("@") : null;
+  const grad = { on: Boolean(g0), cols: g0 ? g0[0].split(",") : [pick, "#9b5cff"], deg: g0 ? Number(g0[1]) || 135 : 135 };
+  const gradCss = () => `linear-gradient(${grad.deg}deg, ${grad.cols.join(", ")})`;
   const preview = h("div", { class: "gcol-preview" }, h("span", { class: "gcol-dot" }), h("b", { text: chat.name }), h("span", { class: "gcol-bubble", text: "Hi everyone! 👋" }));
+  const gToggle = h("input", { type: "checkbox", checked: grad.on });
+  const gStops = h("div", { class: "grad-stops" });
+  const gAdd = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "＋ Colour" });
+  const gAngle = h("input", { type: "range", min: 0, max: 360, step: 5, value: grad.deg, class: "grad-angle", "aria-label": "Direction" });
+  const gBox = h("div", { class: "grad-box" }, h("div", { class: "grad-row" }, gStops, gAdd), h("div", { class: "grad-row" }, h("span", { text: "Direction" }), gAngle));
+  const paintGrad = () => {
+    gBox.hidden = !grad.on;
+    gAdd.hidden = grad.cols.length >= 4;
+    gStops.replaceChildren(...grad.cols.map((c, i) => {
+      const input = h("input", { type: "color", value: c, "aria-label": `Colour ${i + 1}` });
+      input.addEventListener("input", () => { grad.cols[i] = input.value; if (i === 0) pick = input.value; paint(); });
+      const del = grad.cols.length > 2 ? h("button", { type: "button", class: "grad-del", "aria-label": "Remove", text: "✕", onclick: () => { grad.cols.splice(i, 1); paint(); } }) : null;
+      return h("label", { class: "grad-stop", style: `background:${c}` }, input, del);
+    }));
+  };
+  gToggle.addEventListener("change", () => { grad.on = gToggle.checked; if (grad.on) grad.cols[0] = pick; paint(); });
+  gAdd.addEventListener("click", () => { grad.cols.push(grad.cols[grad.cols.length - 1]); paint(); });
+  gAngle.addEventListener("input", () => { grad.deg = Number(gAngle.value); paint(); });
   const grid = h("div", { class: "look-grid" });
   const custom = h("input", { type: "color", class: "look-custom", value: pick, "aria-label": "Any colour" });
   const paint = () => {
     preview.style.setProperty("--c", pick);
-    grid.replaceChildren(...GROUP_COLORS.map((c) => { const b = h("button", { type: "button", class: "look-sw" + (c === pick ? " on" : ""), style: `background:${c}`, "aria-label": c }); b.addEventListener("click", () => { pick = c; paint(); }); return b; }),
+    preview.style.setProperty("--paint", grad.on ? gradCss() : pick);
+    paintGrad();
+    grid.replaceChildren(...GROUP_COLORS.map((c) => { const b = h("button", { type: "button", class: "look-sw" + (c === pick ? " on" : ""), style: `background:${c}`, "aria-label": c }); b.addEventListener("click", () => { pick = c; if (grad.on) grad.cols[0] = c; paint(); }); return b; }),
       h("label", { class: "look-sw look-custom-wrap" + (GROUP_COLORS.includes(pick) ? "" : " on"), title: "Any colour" }, h("span", { text: "＋" }), custom));
   };
   custom.addEventListener("input", () => { pick = custom.value; paint(); });
   const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save colour" });
   save.addEventListener("click", async () => {
     save.disabled = true;
-    try { const r = await api(`/api/groups/${chat.id}/color`, { method: "POST", body: { color: pick } }); chat.color = r.color; m.close(); toast("Group colour changed for everyone."); }
+    try {
+      const body = { color: grad.on ? grad.cols[0] : pick, gradient: grad.on ? `grad:${grad.cols.join(",")}@${grad.deg}` : null };
+      const r = await api(`/api/groups/${chat.id}/color`, { method: "POST", body });
+      chat.color = r.color; chat.colorGrad = r.gradient; m.close(); toast("Group colour changed for everyone.");
+    }
     catch (err) { toast(err.error || "Couldn’t change it."); save.disabled = false; }
   });
-  const m = modal({ title: "Group colour", body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "Buttons, highlights and messages in the group take this colour, for everyone." }), preview, grid, save) });
+  const m = modal({ title: "Group colour", body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "The group’s top and side bars, buttons, highlights and messages take this colour, for everyone." }), preview, grid,
+    h("label", { class: "gcol-grad-toggle" }, gToggle, h("span", { text: "🌈 Use a gradient" })), gBox, save) });
   paint();
 }
 

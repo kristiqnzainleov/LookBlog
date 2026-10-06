@@ -5033,3 +5033,27 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .pe-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -92%); font-size: 2.1rem; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.45)); animation: pinDrop 0.5s cubic-bezier(.3, 1.5, .5, 1); }
 @keyframes pinDrop { from { transform: translate(-50%, -260%); opacity: 0; } }
 .pe-osm { position: absolute; right: 6px; bottom: 4px; padding: 1px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.85); color: #333; font-size: 0.62rem; }
+
+/* ---------- Sensitive (NSFW) content ---------- */
+.nsfw-wrap, .nsfw-on { position: relative; }
+.nsfw-on > :not(.nsfw-cover) { filter: blur(28px) saturate(0.6); pointer-events: none; user-select: none; }
+.nsfw-on { overflow: hidden; border-radius: 14px; }
+.nsfw-cover { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 16px; text-align: center; color: #fff; background: rgba(10, 9, 9, 0.35); cursor: pointer; }
+.nsfw-cover b { font-size: 1.05rem; }
+.nsfw-cover span { font-size: 0.85rem; opacity: 0.85; max-width: 280px; }
+.nsfw-cover .btn { margin-top: 6px; background: rgba(0, 0, 0, 0.5); }
+.sv-stage.nsfw-on > img, .sv-stage.nsfw-on > video { filter: blur(32px); }
+.sv-nsfw { z-index: 4; }
+.preview.is-nsfw img, .preview.is-nsfw video { filter: blur(6px); }
+.preview-nsfw { position: absolute; left: 6px; top: 6px; z-index: 3; font-size: 1.1rem; filter: drop-shadow(0 1px 3px #000); }
+.set-state { flex: 1; color: var(--muted); font-size: 0.9rem; }
+
+/* ---------- Group colour on the top and side bars (and gradients) ---------- */
+.group-view.tinted .gv-side { background: linear-gradient(rgba(14, 13, 13, 0.6), rgba(14, 13, 13, 0.6)), var(--group-paint); }
+.group-view.tinted .convo-head { background: linear-gradient(rgba(14, 13, 13, 0.5), rgba(14, 13, 13, 0.5)), var(--group-paint); }
+.group-view.has-grad .gv-ch.on { background: linear-gradient(90deg, color-mix(in srgb, var(--group) 30%, transparent), transparent); }
+.gcol-preview { background: linear-gradient(rgba(14, 13, 13, 0.55), rgba(14, 13, 13, 0.55)), var(--paint, var(--c)); }
+.gcol-bubble { background: var(--paint, var(--c)); }
+.gcol-grad-toggle { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; font-weight: 700; cursor: pointer; }
+.gcol-grad-toggle input { width: 18px; height: 18px; accent-color: var(--pink); }
+.grad-box[hidden] { display: none; }

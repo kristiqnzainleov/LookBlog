@@ -4,7 +4,7 @@ import { openEmojiPicker, insertAtCursor, QUICK, closeEmojiPicker } from "./emoj
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
-import { openHref } from "./post.js";
+import { openHref, nsfwWrap } from "./post.js";
 import { createPicker } from "./media-picker.js";
 import { createPlayer } from "./player.js";
 import { startRecording, voicePlayer } from "./voice.js";
@@ -436,6 +436,9 @@ function swipeToReply(row, msg) {
   row.addEventListener("click", (e) => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);
 }
 
+// A sensitive (18+) photo or video in a message is blurred for the others until they tap "View"
+const sensitive = (msg, el) => (msg.media?.nsfw && !msg.mine ? nsfwWrap(el, "photo") : el);
+
 function messageEl(msg, chat, onRemoved) {
   // Small notes in the middle ("📅 New event", nickname changes)
   if (msg.system) {
@@ -452,9 +455,9 @@ function messageEl(msg, chat, onRemoved) {
     : msg.media?.kind === "sound" ? soundChip(msg.media)
     : msg.media?.kind === "audio" ? voicePlayer(msg.media)
     : msg.media
-    ? msg.media.kind === "image"
+    ? sensitive(msg, msg.media.kind === "image"
       ? h("a", { href: msg.media.url, target: "_blank", rel: "noopener", class: "msg-media" }, h("img", { src: msg.media.url, alt: "", loading: "lazy" }))
-      : createPlayer({ src: msg.media.url, poster: msg.media.poster || null, width: msg.media.width, height: msg.media.height, className: "msg-media" })
+      : createPlayer({ src: msg.media.url, poster: msg.media.poster || null, width: msg.media.width, height: msg.media.height, className: "msg-media" }))
     : null;
   if (msg.viewOnce) return viewOnceRow(msg, chat, onRemoved);
   const call = chat.kind === "dm" && !msg.media && !msg.post ? callNoteText(msg.text, msg.mine, chat.other.name) : null;

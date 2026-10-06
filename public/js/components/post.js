@@ -7,7 +7,7 @@ import { pollEl } from "./poll.js";
 import { openReport } from "./report.js";
 import { makeEditable, postTextEl, editedLabel, liveTitle } from "./edit-post.js";
 import { api } from "../api.js";
-import { emit } from "../state.js";
+import { emit, state } from "../state.js";
 import { profileHref, postHref } from "../router.js";
 
 export const watchHref = (id) => `/watch/${encodeURIComponent(id)}`;
@@ -336,9 +336,32 @@ function imageGrid(images) {
 export function mediaBlock(p) {
   const images = p.media.filter((m) => m.kind === "image");
   const video = p.media.find((m) => m.kind === "video");
-  if (images.length) return imageGrid(images);
-  if (video) return videoPlayer(video, p, { vertical: p.type === "short" });
-  return null;
+  const block = images.length ? imageGrid(images) : video ? videoPlayer(video, p, { vertical: p.type === "short" }) : null;
+  return block && p.nsfw && !p.mine ? nsfwWrap(block) : block;
+}
+// Sensitive (18+) media: blurred, with a button to see it (unless you turned that off in Settings)
+export function nsfwWrap(block, what = "post") {
+  if (state.me?.showNsfw) return block;
+  const wrap = h("div", { class: "nsfw-wrap" }, block);
+  nsfwCover(wrap, { what });
+  return wrap;
+}
+// The cover itself, on any box (a player, a short): blurred until you tap "View"; videos wait until then
+export function nsfwCover(box, { what = "post", onReveal = null } = {}) {
+  if (state.me?.showNsfw) return false;
+  box.classList.add("nsfw-on");
+  const v = box.querySelector("video");
+  if (v) { v.autoplay = false; v.dataset.nsfwHold = "1"; v.pause(); }
+  const cover = h("div", { class: "nsfw-cover" }, h("b", { text: "🔞 Sensitive content" }), h("span", { text: `This ${what} may show nudity or other 18+ things.` }),
+    h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "View" }));
+  cover.addEventListener("click", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    box.classList.remove("nsfw-on"); cover.remove();
+    if (v) delete v.dataset.nsfwHold;
+    onReveal?.();
+  });
+  box.append(cover);
+  return true;
 }
 
 /* ---------- The card ---------- */

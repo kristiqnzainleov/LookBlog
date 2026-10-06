@@ -117,15 +117,23 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
         if (maxVideoSeconds && (!info || !Number.isFinite(info.duration))) throw { error: "We couldn’t read this video. Try an MP4 file." };
         if (maxVideoSeconds && info.duration > maxVideoSeconds + 0.5) throw { error: `Shorts can be up to ${maxVideoSeconds} seconds. This one is ${fmtDuration(info.duration)}.` };
         if (info?.posterBlob) {
+          item.check = import("./nsfw.js").then((m) => m.checkImage(info.posterBlob)); // the NSFW check on the first frame
           const poster = await upload(new File([info.posterBlob], "cover.jpg", { type: "image/jpeg" }));
           item.poster = poster.url;
         }
         paintMeta(item);
       } else {
+        item.check = import("./nsfw.js").then((m) => m.checkImage(item.file)); // the NSFW check, while it uploads
         Object.assign(item, await imageSize(item.file));
       }
       const res = await upload(item.file, (p) => { item.progress = p; paintProgress(item); });
       item.url = res.url;
+      // Sensitive (18+)? Marked, so others see it blurred
+      if (item.check) {
+        const r = await item.check;
+        item.nsfw = r.nsfw;
+        if (r.nsfw) { item.el?.classList.add("is-nsfw"); item.el?.append(h("span", { class: "preview-nsfw", title: "Marked as sensitive (18+): others see it blurred", text: "🔞" })); onError("This looks sensitive (18+). It will be posted blurred, and people tap to see it."); }
+      }
       item.status = "done";
     } catch (err) {
       item.status = "error";
@@ -178,7 +186,7 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
     items: () => items,
     busy: () => items.some((i) => i.status === "uploading"),
     media: () => items.filter((i) => i.status === "done").map((i) => ({
-      url: i.url, poster: i.poster, duration: i.duration, width: i.width, height: i.height,
+      url: i.url, poster: i.poster, duration: i.duration, width: i.width, height: i.height, ...(i.nsfw ? { nsfw: true } : {}),
     })),
     clear: () => [...items].forEach(remove),
   };

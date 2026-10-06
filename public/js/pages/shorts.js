@@ -3,7 +3,7 @@ import { h, icon, avatar, count, empty, tick } from "../ui.js";
 import { taggedSlot } from "../components/tags.js";
 import { api } from "../api.js";
 import { on } from "../state.js";
-import { actions, trackPlay, trackImpression, likeBurst } from "../components/post.js";
+import { actions, trackPlay, trackImpression, likeBurst, nsfwCover } from "../components/post.js";
 import { profileHref } from "../router.js";
 import { followButton } from "./profile.js";
 import { postTextEl } from "../components/edit-post.js";
@@ -25,7 +25,7 @@ export function shortsPage(view, _m, params) {
       const v = e.target.querySelector("video");
       if (e.isIntersecting && e.intersectionRatio > 0.6) {
         v.muted = muted;
-        v.play().catch(() => {});
+        if (!v.dataset.nsfwHold) v.play().catch(() => {}); // a sensitive short waits until you tap "View"
         if (e.target === reel.lastElementChild || e.target === reel.lastElementChild?.previousElementSibling) more();
       } else {
         v.pause();
@@ -137,7 +137,7 @@ export function shortsPage(view, _m, params) {
     reactBtn?.addEventListener("click", (e) => { e.stopPropagation(); reactRow.hidden = !reactRow.hidden; });
     const skips = h("div", {}, pops, reactBtn, reactRow);
     const href = profileHref(p.author.username);
-    return trackImpression(h("section", { class: "reel-item", dataset: { id: p.id } },
+    const item = trackImpression(h("section", { class: "reel-item", dataset: { id: p.id } },
       h("div", { class: "reel-frame" },
         video,
         playIcon,
@@ -156,6 +156,9 @@ export function shortsPage(view, _m, params) {
       ),
       h("div", { class: "reel-rail" }, actions(p, { onDeleted: () => reel.querySelector(`[data-id="${CSS.escape(p.id)}"]`)?.remove() }))
     ), p.id);
+    // Sensitive (18+): blurred until you tap "View"
+    if (p.nsfw && !p.mine) nsfwCover(item.querySelector(".reel-frame"), { what: "short", onReveal: () => { video.muted = false; video.play().catch(() => {}); } });
+    return item;
   }
 
   async function more() {

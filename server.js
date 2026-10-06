@@ -56,6 +56,7 @@ const TYPES = {
   ".ico": "image/x-icon",
   ".gif": "image/gif",
   ".json": "application/json; charset=utf-8",
+  ".bin": "application/octet-stream",
 };
 
 // Pages of the app (all served by app.html, which shows the right one)

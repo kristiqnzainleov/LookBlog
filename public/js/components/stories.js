@@ -51,7 +51,9 @@ export async function addStory() {
       share.disabled = true;
       share.querySelector("span").textContent = "Uploading…";
       try {
+        const check = import("./nsfw.js").then((m) => m.checkImage(isVideo ? info.posterBlob : file)).catch(() => ({ nsfw: false }));
         const body = { media: { url: (await upload(file)).url }, text: text.value, tags: tagsOf() };
+        if ((isVideo ? info.posterBlob : true) && (await check).nsfw) body.media.nsfw = true; // sensitive (18+): blurred for others
         if (isVideo) {
           Object.assign(body.media, { duration: info.duration, width: info.width, height: info.height });
           if (info.posterBlob) body.media.poster = (await upload(new File([info.posterBlob], "cover.jpg", { type: "image/jpeg" }))).url;
@@ -124,6 +126,14 @@ export function openStories(groups, startGroup = 0, onClosed) {
     } else {
       stage.replaceChildren(h("img", { src: s.media.url, alt: "" }));
     }
+    // Sensitive (18+): blurred until you tap "View"
+    if (s.media.nsfw && !s.mine && !state.me.showNsfw) {
+      stage.classList.add("nsfw-on");
+      video?.pause();
+      const cover = h("div", { class: "nsfw-cover sv-nsfw" }, h("b", { text: "🔞 Sensitive content" }), h("span", { text: "This story may show nudity or other 18+ things." }),
+        h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "View story", onclick: (e) => { e.stopPropagation(); stage.classList.remove("nsfw-on"); cover.remove(); video?.play().catch(() => {}); } }));
+      stage.append(cover);
+    } else stage.classList.remove("nsfw-on");
     caption.textContent = s.text || "";
     caption.hidden = !s.text;
     // Tagged people (tap to see their profile)

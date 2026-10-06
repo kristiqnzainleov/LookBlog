@@ -78,14 +78,19 @@ export function groupView(chatId, { onBack } = {}) {
   const unread = new Set();
 
   // The group's colour is the accent of the whole group page (buttons, my bubbles, highlights)
-  function paintColor(c) {
+  // The top and left bars take it too (a gradient if the group has one)
+  function paintColor(c, grad) {
     el.style.setProperty("--group", c || "#ff4fa3");
     if (c && c !== "#ff4fa3") el.style.setProperty("--pink", c); else el.style.removeProperty("--pink");
+    const g = grad ? (() => { const [cols, deg] = grad.slice(5).split("@"); return `linear-gradient(${Number(deg) || 135}deg, ${cols.split(",").join(", ")})`; })() : null;
+    el.style.setProperty("--group-paint", g || (c || "#ff4fa3"));
+    el.classList.toggle("has-grad", Boolean(g));
+    el.classList.toggle("tinted", Boolean(g) || Boolean(c && c.toLowerCase() !== "#ff4fa3"));
   }
-  const offColor = on("group:color", (ev) => { if (ev.chatId === chatId) { if (chat) chat.color = ev.color; paintColor(ev.color); } });
+  const offColor = on("group:color", (ev) => { if (ev.chatId === chatId) { if (chat) { chat.color = ev.color; chat.colorGrad = ev.gradient; } paintColor(ev.color, ev.gradient); } });
   async function load() {
     chat = (await api(`/api/chats/${chatId}`)).chat;
-    paintColor(chat.color);
+    paintColor(chat.color, chat.colorGrad);
     const want = new URLSearchParams(location.search).get("c");
     const texts = chat.channels.filter((c) => c.kind === "text");
     if (!active || !texts.some((c) => c.id === active)) open(texts.some((c) => c.id === want) ? want : texts[0].id);

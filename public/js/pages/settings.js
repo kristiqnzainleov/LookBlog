@@ -87,10 +87,26 @@ export function settingsPage(view) {
   });
   emailIn.addEventListener("keydown", (e) => { if (e.key === "Enter") emailBtn.click(); });
 
+  // Sensitive (18+) content: blurred by default, and not recommended. Grown-ups can choose to see it plainly.
+  const nsfwState = h("span", { class: "set-state" });
+  const nsfwBtn = h("button", { type: "button", class: "btn btn-sm btn-outline-light" });
+  const paintNsfw = () => {
+    nsfwState.textContent = state.me.showNsfw ? "Shown without blur (and can be recommended to you)" : "Blurred — tap a post to see it. Not recommended to you.";
+    nsfwBtn.textContent = state.me.showNsfw ? "Blur it again" : "Show without blur";
+  };
+  nsfwBtn.addEventListener("click", async () => {
+    const show = !state.me.showNsfw;
+    if (show && !confirm("Are you 18 or older? Sensitive content can show nudity and other things for adults.")) return;
+    try { const r = await api("/api/me/nsfw", { method: "POST", body: { show, adult: show } }); state.me.showNsfw = r.showNsfw; paintNsfw(); toast(r.showNsfw ? "Sensitive content is shown without blur." : "Sensitive content is blurred again."); }
+    catch (err) { toast(err.error || "Couldn’t change it."); }
+  });
+  paintNsfw();
+
   view.append(
     section("Email", "You log in with it and get password reset links there.", emailNow, h("div", { class: "set-row" }, emailIn, emailBtn)),
     section("Two-step verification (2FA)", "When it’s on, LookBlog asks for your code after your password — so knowing your password (or email) isn’t enough to get into your account. LookBlog can make the code for you, or you can pick your own.", twoBox),
     section("Preferences", null, h("div", { class: "set-row" }, lang, priv)),
+    section("🔞 Sensitive content (NSFW)", "LookBlog checks photos and videos when they’re posted. Sensitive ones (nudity and other 18+ things) are blurred and aren’t recommended to people who didn’t ask for them.", h("div", { class: "set-row" }, nsfwState, nsfwBtn)),
     section("Delete account", "This removes your profile, posts, videos, songs, messages and everything else you made. It can’t be undone.", del));
 }
 settingsPage.navName = () => "";

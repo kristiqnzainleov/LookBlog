@@ -5,7 +5,7 @@ import { starsWidget } from "../components/stars.js";
 import { api } from "../api.js";
 import { state } from "../state.js";
 import { on } from "../state.js";
-import { actions, videoPlayer, watchHref } from "../components/post.js";
+import { actions, videoPlayer, watchHref, nsfwCover } from "../components/post.js";
 import { commentsSection } from "../components/comments.js";
 import { openSaveToPlaylist, playlistHref } from "../components/playlists.js";
 import { openChangeThumbnail } from "../components/thumbnail.js";
@@ -107,6 +107,7 @@ export async function watchPage(view, m, params) {
   };
   const player = videoPlayer(p.media[0], p, { autoplay: true, onTheater: () => setTheater(!theater) });
   player.classList.add("watch-player");
+  if (p.nsfw && !p.mine) nsfwCover(player, { what: "video", onReveal: () => player.video?.play().catch(() => {}) });
 
   /* Channel row */
   const href = profileHref(p.author.username);

@@ -188,6 +188,7 @@ function chatView(chat, me, { full = false } = {}) {
     out.visibility = chat.visibility;
     out.canSend = isMember(chat, me);
     out.color = ensureGroup(chat).color;
+    out.colorGrad = chat.colorGrad || null;
     if (full) {
       out.members = chat.members.map(findUser).filter(Boolean).map((u) => ({ ...authorView(u), ...presence(u.id), ...memberExtras(chat, u), isOwner: u.id === chat.ownerId, isMe: u.id === me.id }));
       out.onlineCount = chat.members.filter((id) => presence(id).online).length;
@@ -1128,14 +1129,19 @@ async function handleChat(req, res, url, me) {
       // Just the colour: POST /api/groups/:id/color { color }  (people who can change the group)
       if (m === "POST" && parts[2] === "color" && parts.length === 3) {
         if (!can(chat, me, "manage_group")) throw httpError(403, "Only people who can change the group can change its colour.");
-        const color = String((await readJSON(req)).color || "");
+        const body = await readJSON(req);
+        const color = String(body.color || "");
         if (!COLOR_RE.test(color)) throw httpError(400, "Pick a colour.");
         chat.color = color.toLowerCase();
+        // A gradient too (2–4 colours and a direction): the colour above is its first one, for small things like icons
+        const grad = String(body.gradient || "");
+        if (/^grad:#[0-9a-f]{6}(,#[0-9a-f]{6}){1,3}@\d{1,3}$/i.test(grad) && Number(grad.split("@")[1]) <= 360) chat.colorGrad = grad.toLowerCase();
+        else delete chat.colorGrad;
         save("chats");
-        sendTo(chat.members, { type: "group:color", chatId: chat.id, color: chat.color });
+        sendTo(chat.members, { type: "group:color", chatId: chat.id, color: chat.color, gradient: chat.colorGrad || null });
         sendTo(chat.members, { type: "group:changed", chatId: chat.id, what: "group" });
         systemMessage(chat, me, `🎨 ${me.name} changed the group colour`);
-        sendJSON(res, 200, { color: chat.color });
+        sendJSON(res, 200, { color: chat.color, gradient: chat.colorGrad || null });
         return true;
       }
 

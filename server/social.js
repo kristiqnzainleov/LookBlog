@@ -285,6 +285,7 @@ function stats(p) {
 function postView(p, me) {
   return {
     id: p.id,
+    nsfw: Boolean(p.nsfw),
     type: p.type,
     title: p.title,
     text: p.text,
@@ -462,6 +463,8 @@ function buildMedia(item, me) {
   const m = ownedMedia(item && item.url, me.id);
   if (!m) throw httpError(400, "One of the files couldn’t be found. Try uploading it again.");
   const out = { url: m.url, kind: m.kind };
+  // NSFW: the photo (or the video's first frame) was checked when it was picked; sensitive ones are blurred for others
+  if (item.nsfw === true) out.nsfw = true;
   if (m.kind === "video") {
     const poster = item.poster ? ownedMedia(item.poster, me.id, "image") : null;
     if (poster) out.poster = poster.url;
@@ -646,6 +649,7 @@ async function handleSocial(req, res, url, me) {
     const items = [];
     for (const p of db.posts) {
       if (p.visibility !== "public" || ms(p.createdAt) < from) continue;
+      if (p.nsfw && !me.showNsfw) continue; // sensitive posts aren't pushed to people who didn't ask for them
       if (type && p.type !== type) continue;
       if (type === "video" && notPlainVideo(p)) continue;
       const engagement = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + p.viewedBy.length * 0.15 - p.dislikes.length * 0.5;
@@ -689,6 +693,8 @@ async function handleSocial(req, res, url, me) {
     };
     post.mentions = findMentions(post.text, post.title);
     post.tags = []; // people are tagged with @ in the text (post.mentions)
+    // Sensitive (18+): found by the automatic check, or marked by the author
+    if (body.nsfw === true || post.media.some((x) => x.nsfw)) post.nsfw = true;
     db.posts.unshift(post);
     claim(post.media, "post:" + post.id);
     if (post.film?.backdrop) markUsed(post.film.backdrop, "post:" + post.id);
@@ -1842,6 +1848,16 @@ async function handleSocial(req, res, url, me) {
       sendJSON(res, 201, { ok: true });
       return true;
     }
+  }
+
+  // Sensitive content: POST /api/me/nsfw { show, adult }  (show it without blur, and in recommendations; 18+ only)
+  if (m === "POST" && a === "me" && b === "nsfw" && parts.length === 2) {
+    const body = await readJSON(req);
+    if (body.show && body.adult !== true) throw httpError(400, "Only people who are 18 or older can turn this on.");
+    me.showNsfw = Boolean(body.show);
+    save("users");
+    sendJSON(res, 200, { showNsfw: me.showNsfw });
+    return true;
   }
 
   // My look: POST /api/me/look { color, font, effect, accent }  (any of them; null = default)

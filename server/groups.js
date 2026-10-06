@@ -100,6 +100,7 @@ function groupExtras(chat, me, voiceRooms) {
   const now = Date.now();
   return {
     color: chat.color,
+    colorGrad: chat.colorGrad || null,
     channels: chat.channels.map((c) => ({ ...c, voice: c.kind === "voice" ? voiceRooms(chat.id, c.id) : undefined })),
     roles: chat.roles.map(roleView),
     perms: permsOf(chat, me),
@@ -173,7 +174,7 @@ function makeInvite(chat, me, { days = 7, maxUses = 0 } = {}) {
 const inviteView = (inv) => ({ code: inv.code, url: "/invite/" + inv.code, uses: inv.uses, maxUses: inv.maxUses || null, expiresAt: inv.expiresAt });
 function groupPreview(chat, me, presence) {
   return {
-    id: chat.id, name: chat.name, description: chat.description, cover: chat.cover, banner: chat.banner || null, color: chat.color, kind: "group",
+    id: chat.id, name: chat.name, description: chat.description, cover: chat.cover, banner: chat.banner || null, color: chat.color, colorGrad: chat.colorGrad || null, kind: "group",
     memberCount: chat.members.length, onlineCount: chat.members.filter((id) => presence(id).online).length,
     visibility: chat.visibility, member: chat.members.includes(me.id),
   };
