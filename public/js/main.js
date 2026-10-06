@@ -27,6 +27,7 @@ import { settingsPage } from "./pages/settings.js";
 import { albumPage } from "./pages/album.js";
 import { leaderboardPage } from "./pages/leaderboard.js";
 import { adminPage } from "./pages/admin.js";
+import { setupAlertSounds } from "./components/sfx.js";
 import { peoplePage } from "./pages/people.js";
 import { editorPage } from "./pages/editor.js";
 import { livePage } from "./pages/live.js";
@@ -183,6 +184,7 @@ function setupMenu() {
   on("account:banned", () => { location.href = "/"; });
   setupMenu();
   setupNotifications();
+  setupAlertSounds(state.me);
   listenForCalls();
 
   // Any photo in a post, reply or message opens in the site's own viewer

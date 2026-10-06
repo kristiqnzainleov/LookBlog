@@ -3,6 +3,7 @@ import { $, h, avatar, timeEl, toast, spinner, empty, tick } from "../ui.js";
 import { api } from "../api.js";
 import { on } from "../state.js";
 import { navigate, profileHref, postHref } from "../router.js";
+import { sfx, soundsOff, setSoundsOff } from "./sfx.js";
 
 const kindWord = (t) => (t === "video" ? "video" : t === "short" ? "short" : "post");
 
@@ -146,4 +147,11 @@ export function setupNotifications() {
   });
 
   api("/api/notifications").then(({ unread }) => paintBadge(unread)).catch(() => {});
+  // Sounds on/off (for notifications, messages, sending and hearts)
+  const snd = $("notifSound");
+  if (snd) {
+    const paintSnd = () => { snd.textContent = soundsOff() ? "🔇" : "🔊"; snd.title = soundsOff() ? "Sounds are off — tap to turn them on" : "Sounds are on — tap to turn them off"; };
+    snd.addEventListener("click", (e) => { e.stopPropagation(); setSoundsOff(!soundsOff()); paintSnd(); if (!soundsOff()) sfx("notify"); toast(soundsOff() ? "Sounds off." : "Sounds on."); });
+    paintSnd();
+  }
 }

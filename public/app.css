@@ -4728,3 +4728,6 @@ a.sv-tag:hover { background: var(--pink); color: #000; }
 .typing-bubble { display: inline-flex; align-items: center; min-height: 38px; padding: 10px 16px; }
 .typing-dots.big i { width: 8px; height: 8px; }
 .convo-who .muted.is-typing { color: var(--pink); font-weight: 700; }
+.notif-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.notif-sound { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--card-2); font-size: 1rem; cursor: pointer; }
+.notif-sound:hover { border-color: var(--pink); }
