@@ -120,8 +120,10 @@ function reactionsEl(msg, chat) {
       e.stopPropagation();
       if (tapTimer) {
         clearTimeout(tapTimer); tapTimer = null;
-        if (!r.mine) { likeBurst(chip.closest(".msg")?.querySelector(".bubble"), r.emoji); react(msg, chat, r.emoji); }
-        else likeBurst(chip.closest(".msg")?.querySelector(".bubble"), r.emoji, true);
+        // Not mine yet: add it. Already mine: take it back.
+        if (!r.mine) likeBurst(chip.closest(".msg")?.querySelector(".bubble"), r.emoji);
+        else sfx("unlike");
+        react(msg, chat, r.emoji);
         return;
       }
       tapTimer = setTimeout(() => { tapTimer = null; openReactions(msg, chat); }, 280);
@@ -507,11 +509,12 @@ function messageEl(msg, chat, onRemoved) {
     if (!open) row.classList.add("show-tools");
   });
   // Double-click a message to send a heart
-  // Double tap (or double click) a message: ❤️ (like Instagram: it only adds, it never takes it away)
+  // Double tap (or double click) a message: no reaction from me yet → ❤️; I already reacted → it's taken back
   const heart = () => {
     const mine = (msg.reactions || []).find((x) => x.mine);
-    likeBurst(bubble, "❤️", mine?.emoji === "❤️");
-    if (mine?.emoji !== "❤️") react(msg, chat, "❤️");
+    if (mine) { sfx("unlike"); react(msg, chat, mine.emoji); return; }
+    likeBurst(bubble, "❤️");
+    react(msg, chat, "❤️");
   };
   bubble.addEventListener("dblclick", (e) => { if (!e.target.closest("a, video, .lb-player, .reaction")) heart(); });
   let lastTap = 0;

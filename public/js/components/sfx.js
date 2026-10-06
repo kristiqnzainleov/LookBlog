@@ -32,11 +32,13 @@ export function sfx(kind) {
     else if (kind === "notify") { tone(c, { from: 784, to: 784, dur: 0.14, vol: 0.06, type: "triangle" }); tone(c, { from: 988, to: 988, at: 0.1, dur: 0.14, vol: 0.06, type: "triangle" }); tone(c, { from: 1319, to: 1319, at: 0.2, dur: 0.26, vol: 0.06, type: "triangle" }); }
     // A new message: a soft "ding-dong"
     else if (kind === "message") { tone(c, { from: 1046, to: 1046, dur: 0.16, vol: 0.06 }); tone(c, { from: 784, to: 784, at: 0.12, dur: 0.24, vol: 0.055 }); }
+    // Taking a reaction back: a short soft note going down
+    else if (kind === "unlike") { tone(c, { from: 700, to: 380, dur: 0.13, vol: 0.05, type: "triangle" }); }
     else if (kind === "like") { tone(c, { from: 660, to: 990, dur: 0.09, vol: 0.07, type: "triangle" }); tone(c, { from: 990, to: 1480, at: 0.08, dur: 0.12, vol: 0.06, type: "triangle" }); }
   } catch {}
 }
 
-// Sounds for things that happen while you're on LookBlog: notifications, and messages for chats you don't have open
+// Sounds for things that happen while you're on LookBlog: notifications, and every new message someone sends you
 export function setupAlertSounds(me) {
   const wake = () => { engine(); removeEventListener("pointerdown", wake); removeEventListener("keydown", wake); };
   addEventListener("pointerdown", wake);
@@ -47,7 +49,6 @@ export function setupAlertSounds(me) {
   on("message", (ev) => {
     const m = ev.message;
     if (!m || m.mine || m.system || m.author?.username === me?.username) return;
-    const open = document.querySelector(`.convo[data-wall-chat="${CSS.escape(ev.chatId)}"]`) && document.visibilityState === "visible";
-    if (!open) play("message");
+    play("message");
   });
 }
