@@ -5,7 +5,8 @@ import { api, upload } from "../api.js";
 import { BUILTIN_SOUNDS, previewSound } from "./voice-room.js";
 
 let panel = null;
-export function closeSoundPicker() { panel?.remove(); panel = null; }
+let away = null;
+export function closeSoundPicker() { panel?.remove(); panel = null; if (away) document.removeEventListener("mousedown", away); away = null; }
 // Play a sound that came in a message, comment or stream
 export const playSound = (m) => previewSound(m.builtin ? { builtin: m.builtin } : { url: m.url });
 export const soundLabel = (m) => (m.builtin ? BUILTIN_SOUNDS.find((x) => x.builtin === m.builtin)?.name || m.builtin : m.name || "Sound");
@@ -45,15 +46,22 @@ export function openSoundPicker(anchor, { group = null, builtin = true, onPick }
   let tab = "mine";
   const list = h("div", { class: "snd-list" });
   const tabs = h("div", { class: "snd-tabs" });
-  panel = h("div", { class: "sticker-panel snd-panel", role: "dialog", "aria-label": "Sounds" }, tabs, list);
+  panel = h("div", { class: "sticker-panel snd-panel", role: "dialog", "aria-label": "Sounds", style: "visibility:hidden" }, tabs, list);
   document.body.append(panel);
+  // Next to the button, before it's shown (it used to flash in the corner first). Above the button it hangs from
+  // its bottom edge, so it grows upwards when the list loads instead of sliding down over the button.
   const place = () => {
     if (!panel) return;
     const a = anchor.getBoundingClientRect(), w = Math.min(320, innerWidth - 16);
     panel.style.width = w + "px";
     panel.style.left = Math.min(Math.max(8, a.left + a.width / 2 - w / 2), innerWidth - w - 8) + "px";
-    const top = a.top - panel.offsetHeight - 8;
-    panel.style.top = (top > 8 ? top : Math.min(a.bottom + 8, innerHeight - panel.offsetHeight - 8)) + "px";
+    const above = a.top - 16, below = innerHeight - a.bottom - 16;
+    if (above >= 200 || above >= below) {
+      panel.style.top = "auto"; panel.style.bottom = innerHeight - a.top + 8 + "px"; panel.style.maxHeight = Math.min(380, above) + "px";
+    } else {
+      panel.style.bottom = "auto"; panel.style.top = a.bottom + 8 + "px"; panel.style.maxHeight = Math.min(380, below) + "px";
+    }
+    panel.style.visibility = "";
   };
   const row = (s, body, extra) => {
     const play = h("button", { type: "button", class: "snd-play", title: "Listen", text: "▶" });
@@ -71,6 +79,7 @@ export function openSoundPicker(anchor, { group = null, builtin = true, onPick }
       list.replaceChildren(...(gs.length ? gs.map((s) => row(s, { groupSound: s.id })) : [h("p", { class: "muted snd-empty", text: "This group has no sounds yet. Admins add them in the voice channel soundboard." })]));
     } else {
       list.replaceChildren(spinner());
+      place();
       try {
         const { sounds } = await api("/api/me/sounds");
         const add = h("button", { type: "button", class: "snd-add", text: "＋ Add your own sound", onclick: () => { closeSoundPicker(); addMySound(() => openSoundPicker(anchor, { group, builtin, onPick })); } });
@@ -84,8 +93,10 @@ export function openSoundPicker(anchor, { group = null, builtin = true, onPick }
     place();
   }
   paint();
+  const mine = panel;
   setTimeout(() => {
-    const away = (e) => { if (panel && !panel.contains(e.target) && !anchor.contains(e.target) && !e.target.closest?.(".app-modal")) { closeSoundPicker(); document.removeEventListener("mousedown", away); } };
+    if (panel !== mine) return;
+    away = (e) => { if (panel && !panel.contains(e.target) && !anchor.contains(e.target) && !e.target.closest?.(".app-modal")) closeSoundPicker(); };
     document.addEventListener("mousedown", away);
   });
 }
