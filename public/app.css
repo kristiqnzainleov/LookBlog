@@ -5702,3 +5702,37 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 @keyframes cfTumble2 { from { transform: rotate(var(--tilt)) rotateX(0deg) rotateY(0deg); } to { transform: rotate(calc(var(--tilt) + 180deg)) rotateX(360deg) rotateY(180deg); } }
 .chain-photo { display: block; width: 100%; max-width: 420px; max-height: 420px; object-fit: cover; border-radius: 12px; margin-top: 6px; }
 .chain-turn-bar { display: flex; align-items: center; gap: 10px; }
+/* Polls in chats */
+.bubble.poll-bubble { min-width: min(320px, 72vw); max-width: 380px; }
+.cpoll { display: flex; flex-direction: column; gap: 6px; }
+.cpoll-head { display: flex; gap: 8px; align-items: flex-start; }
+.cpoll-ic { font-size: 1.1rem; }
+.cpoll-q { font-size: 1rem; line-height: 1.3; word-break: break-word; }
+.cpoll-info { opacity: 0.7; font-size: 0.72rem; margin: -2px 0 2px; }
+.cpoll-opt { position: relative; overflow: hidden; display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 12px; border: 1.5px solid rgba(255, 255, 255, 0.18); background: rgba(0, 0, 0, 0.18); color: inherit; font: 600 0.9rem var(--body); text-align: left; cursor: pointer; }
+.msg.mine .cpoll-opt { border-color: rgba(0, 0, 0, 0.2); background: rgba(255, 255, 255, 0.18); }
+.cpoll-opt:disabled { cursor: default; }
+.cpoll-fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 255, 255, 0.14); transition: width 0.4s ease; z-index: 0; }
+.cpoll-opt.mine { border-color: currentColor; }
+.cpoll-opt.mine .cpoll-fill { background: rgba(255, 255, 255, 0.28); }
+.cpoll-opt.win { box-shadow: 0 0 0 2px #ffd23f; }
+.cpoll-opt > *:not(.cpoll-fill) { position: relative; z-index: 1; }
+.cpoll-check { width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%; border: 2px solid currentColor; display: grid; place-items: center; font-size: 0.7rem; font-weight: 900; opacity: 0.8; }
+.cpoll-opt.mine .cpoll-check { background: currentColor; }
+.cpoll-opt.mine .cpoll-check { color: inherit; }
+.cpoll-text { flex: 1; min-width: 0; word-break: break-word; }
+.cpoll-faces { display: flex; }
+.cpoll-faces > * { margin-left: -5px; box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.4); border-radius: 50%; }
+.cpoll-pct { font-size: 0.8rem; min-width: 34px; text-align: right; }
+.cpoll-foot { display: flex; align-items: center; gap: 10px; font-size: 0.76rem; margin-top: 2px; }
+.cpoll-link { border: none; background: none; color: inherit; font: 700 0.76rem var(--body); text-decoration: underline; cursor: pointer; padding: 0; opacity: 0.85; }
+.cpoll.ended .cpoll-opt { opacity: 0.85; }
+.cpoll-form-opts { display: flex; flex-direction: column; gap: 6px; }
+.cpoll-form-row { display: flex; gap: 6px; align-items: center; }
+.cpoll-form-row .text-input { flex: 1; }
+.cpoll-toggles, .cpoll-ends { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.cpoll-toggle, .cpoll-chip { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--paper); font: 700 0.8rem var(--body); cursor: pointer; }
+.cpoll-toggle.on, .cpoll-chip.on { background: var(--pink); border-color: var(--pink); color: #000; }
+.cpoll-votes { display: flex; flex-direction: column; gap: 14px; }
+.cpoll-vgroup { display: flex; flex-direction: column; gap: 6px; }
+.cpoll-opt.mine .cpoll-check { background: #fff; color: #111; border-color: #fff; opacity: 1; }

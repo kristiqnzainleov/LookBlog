@@ -85,6 +85,7 @@ function unread(chat, me) {
 }
 function preview(msg) {
   if (!msg) return "";
+  if (msg.poll) return `📊 Poll: ${msg.poll.question}`;
   if (msg.game) return `${gameDef(msg.game.type)?.emoji || "🎮"} Started a game of ${gameDef(msg.game.type)?.name || "something"}`;
   if (msg.viewOnce) return msg.viewOnce.gone || (msg.media ? msg.media.kind : "text") === "text" ? "👁 View-once message" : msg.media?.kind === "video" ? "👁 View-once video" : "👁 View-once photo";
   if (msg.text) return msg.text.slice(0, 120);
@@ -279,6 +280,7 @@ function messageViewFull(msg, me) {
     pingsMe: msg.userId !== me.id && (msg.mentions.includes(me.id) || Boolean(msg.everyone)),
     reactions: reactionsView(msg, me),
     notes: notesView(msg, me),
+    poll: msg.poll ? chatPollView(msg.poll, me, chat) : null,
     hypes: (msg.hypes || []).length,
     hypedByMe: (msg.hypes || []).includes(me.id),
     replyTo: replyPreview(msg),
@@ -293,6 +295,22 @@ function messageViewFull(msg, me) {
     event: msg.event && chat?.events ? (chat.events.find((e) => e.id === msg.event) ? msg.event : null) : null,
     createdAt: msg.createdAt,
   };
+}
+
+/* ---------- Polls in chats and groups ---------- */
+// { question, options: [{ id, text, votes: [userIds] }], multi, anonymous, endsAt, closed, by }
+function chatPollView(p, me, chat) {
+  const ended = p.closed || (p.endsAt && Date.now() > new Date(p.endsAt).getTime());
+  const voters = new Set(p.options.flatMap((o) => o.votes));
+  return {
+    question: p.question, multi: Boolean(p.multi), anonymous: Boolean(p.anonymous), endsAt: p.endsAt || null, ended: Boolean(ended),
+    total: voters.size, mine: p.options.filter((o) => o.votes.includes(me.id)).map((o) => o.id), isAuthor: p.by === me.id,
+    options: p.options.map((o) => ({ id: o.id, text: o.text, count: o.votes.length,
+      voters: p.anonymous ? [] : o.votes.slice(0, 12).map(findUser).filter(Boolean).map((u) => ({ name: nicknameOf(chat, u.id) || u.name, username: u.username, avatar: u.avatar })) })),
+  };
+}
+function pushPoll(chat, msg) {
+  for (const id of chat.members) { const u = findUser(id); if (u) sendTo([id], { type: "message:poll", chatId: chat.id, messageId: msg.id, poll: chatPollView(msg.poll, u, chat) }); }
 }
 
 /* ---------- Notes on a message: little sticky notes the chat's members leave on it ---------- */
@@ -866,6 +884,60 @@ async function handleChat(req, res, url, me) {
 
     // Voice channels: POST /api/groups/:id/voice
     if (m === "POST" && c === "voice" && parts.length === 3 && chat.kind === "group") return handleVoice(req, res, me, chat, db.chats);
+
+    /* ---------- Polls ---------- */
+    // Start one: POST /api/chats/:id/polls { question, options, multi, anonymous, hours, channelId }
+    if (m === "POST" && c === "polls" && parts.length === 3) {
+      if (!isMember(chat, me)) throw httpError(403, "Join to start a poll.");
+      if (chat.kind === "dm") { const other = findUser(chat.members.find((id) => id !== me.id)); if (!other || !mutual(me, other)) throw httpError(403, "You can send messages when you follow each other."); }
+      rateLimit("chatpoll:" + me.id, 20, 10 * 60 * 1000, "That’s a lot of polls. Try again in a bit.");
+      const body = await readJSON(req);
+      const question = clean(body.question).replace(/\s+/g, " ").trim();
+      const opts = (Array.isArray(body.options) ? body.options : []).map((o) => clean(o).replace(/\s+/g, " ").trim()).filter(Boolean);
+      if (!question) throw httpError(400, "Ask a question.");
+      if (chars(question) > 200) throw httpError(400, "Keep the question under 200 characters.");
+      if (opts.length < 2) throw httpError(400, "Add at least 2 answers.");
+      if (opts.length > 10) throw httpError(400, "A poll can have up to 10 answers.");
+      if (opts.some((o) => chars(o) > 80)) throw httpError(400, "Keep each answer under 80 characters.");
+      if (new Set(opts.map((o) => o.toLowerCase())).size !== opts.length) throw httpError(400, "Each answer must be different.");
+      require("./sensitive").refuseSensitive([question, ...opts], []);
+      const hours = [1, 6, 24, 72, 168].includes(Number(body.hours)) ? Number(body.hours) : null;
+      const poll = { question, options: opts.map((t) => ({ id: crypto.randomUUID().slice(0, 8), text: t, votes: [] })), multi: Boolean(body.multi), anonymous: Boolean(body.anonymous),
+        endsAt: hours ? new Date(Date.now() + hours * 3600 * 1000).toISOString() : null, by: me.id };
+      const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text: "", media: null, postId: null, replyTo: null, mentions: [], poll, createdAt: new Date().toISOString() };
+      if (chat.kind === "group") msg.channelId = (chat.channels.find((x) => x.id === body.channelId && x.kind === "text") || firstText(chat)).id;
+      if (chat.vanish) msg.expiresAt = new Date(Date.now() + chat.vanish * 1000).toISOString();
+      db.messages.push(msg);
+      chat.lastAt = msg.createdAt;
+      save("messages"); save("chats");
+      deliver(chat, msg);
+      sendJSON(res, 201, { message: messageView(msg, me) });
+      return true;
+    }
+    // Vote: POST /api/chats/:id/messages/:messageId/vote { optionId }  (tap again to take it back; one answer unless it's multiple choice)
+    // Close it: POST /api/chats/:id/messages/:messageId/vote { close: true }  (the one who asked, or a moderator)
+    if (m === "POST" && c === "messages" && d && parts[4] === "vote" && parts.length === 5) {
+      if (!isMember(chat, me)) throw httpError(403, "Join to vote.");
+      const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id && x.poll);
+      if (!msg) throw httpError(404, "That poll is gone.");
+      const p = msg.poll, body = await readJSON(req);
+      if (body.close) {
+        if (p.by !== me.id && !(chat.kind === "group" && can(chat, me, "delete_messages"))) throw httpError(403, "Only the person who asked can end the poll.");
+        p.closed = true;
+      } else {
+        if (p.closed || (p.endsAt && Date.now() > new Date(p.endsAt).getTime())) throw httpError(400, "This poll has ended.");
+        const opt = p.options.find((o) => o.id === body.optionId);
+        if (!opt) throw httpError(400, "Pick one of the answers.");
+        const had = opt.votes.includes(me.id);
+        if (!p.multi) for (const o of p.options) o.votes = o.votes.filter((x) => x !== me.id);
+        else opt.votes = opt.votes.filter((x) => x !== me.id);
+        if (!had) opt.votes.push(me.id);
+      }
+      save("messages");
+      pushPoll(chat, msg);
+      sendJSON(res, 200, { poll: chatPollView(p, me, chat) });
+      return true;
+    }
 
     /* ---------- Games: chess, tic-tac-toe, connect four ---------- */
     // Start one: POST /api/chats/:id/games { type, channelId }

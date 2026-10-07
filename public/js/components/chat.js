@@ -196,6 +196,96 @@ function paintReactions(messageId, reactions, chat) {
   row.querySelector(".reactions").replaceWith(reactionsEl(msg, chat));
 }
 
+/* ---------- Polls in chats ---------- */
+function chatPollEl(msg, chat) {
+  const p = msg.poll;
+  const box = h("div", { class: "cpoll" + (p.ended ? " ended" : "") });
+  const top = Math.max(0, ...p.options.map((o) => o.count));
+  const info = [p.multi ? "Pick as many as you like" : "Pick one", p.anonymous ? "Anonymous" : null,
+    p.ended ? "Ended" : p.endsAt ? `Ends ${new Date(p.endsAt).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}` : null].filter(Boolean).join(" · ");
+  box.append(h("div", { class: "cpoll-head" }, h("span", { class: "cpoll-ic", text: "📊" }), h("b", { class: "cpoll-q", text: p.question })), h("small", { class: "cpoll-info", text: info }));
+  for (const o of p.options) {
+    const mine = p.mine.includes(o.id), pct = p.total ? Math.round((o.count / p.total) * 100) : 0;
+    const b = h("button", { type: "button", class: "cpoll-opt" + (mine ? " mine" : "") + (p.ended && o.count === top && top > 0 ? " win" : ""), disabled: p.ended || chat.member === false },
+      h("i", { class: "cpoll-fill", style: `width:${pct}%` }),
+      h("span", { class: "cpoll-check", text: mine ? "✓" : "" }),
+      h("span", { class: "cpoll-text", text: o.text }),
+      o.voters.length ? h("span", { class: "cpoll-faces" }, ...o.voters.slice(0, 3).map((u) => avatar(u, 18))) : null,
+      h("b", { class: "cpoll-pct", text: p.total ? `${pct}%` : "" }));
+    b.title = p.anonymous ? `${o.count} ${o.count === 1 ? "vote" : "votes"}` : o.voters.map((u) => u.name).join(", ") || "No votes yet";
+    b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try { const r = await api(`/api/chats/${chat.id}/messages/${msg.id}/vote`, { method: "POST", body: { optionId: o.id } }); paintPoll(msg.id, r.poll, chat); }
+      catch (err) { toast(err.error || "Couldn’t vote."); }
+    });
+    box.append(b);
+  }
+  const foot = h("div", { class: "cpoll-foot" }, h("span", { class: "muted", text: `${p.total} ${p.total === 1 ? "vote" : "votes"}` }));
+  if (!p.anonymous && p.total) {
+    const who = h("button", { type: "button", class: "cpoll-link", text: "See votes" });
+    who.addEventListener("click", (e) => {
+      e.stopPropagation();
+      modal({ title: p.question, body: h("div", { class: "cpoll-votes" }, ...p.options.map((o) => h("div", { class: "cpoll-vgroup" },
+        h("b", { text: `${o.text} · ${o.count}` }),
+        ...(o.voters.length ? o.voters.map((u) => h("div", { class: "conn-row" }, avatar(u, 30), h("span", { text: u.name }))) : [h("p", { class: "muted", text: "Nobody yet" })])))) });
+    });
+    foot.append(who);
+  }
+  if (p.isAuthor && !p.ended) {
+    const end = h("button", { type: "button", class: "cpoll-link", text: "End poll" });
+    end.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!end.dataset.sure) { end.dataset.sure = "1"; end.textContent = "End it for everyone?"; return; }
+      try { const r = await api(`/api/chats/${chat.id}/messages/${msg.id}/vote`, { method: "POST", body: { close: true } }); paintPoll(msg.id, r.poll, chat); } catch (err) { toast(err.error || "Couldn’t end it."); }
+    });
+    foot.append(end);
+  }
+  box.append(foot);
+  return box;
+}
+function paintPoll(messageId, poll, chat) {
+  const row = document.querySelector(`.msg[data-id="${CSS.escape(messageId)}"]`);
+  if (!row) return;
+  row._msg.poll = poll;
+  row.querySelector(".cpoll")?.replaceWith(chatPollEl(row._msg, chat));
+}
+function openPollForm(onCreate) {
+  const q = h("input", { type: "text", class: "text-input", maxlength: 200, placeholder: "Ask a question…" });
+  const opts = h("div", { class: "cpoll-form-opts" });
+  const addOpt = (v = "") => {
+    if (opts.children.length >= 10) return;
+    const i = h("input", { type: "text", class: "text-input", maxlength: 80, placeholder: `Answer ${opts.children.length + 1}`, value: v });
+    const rm = h("button", { type: "button", class: "icon-btn cpoll-rm", "aria-label": "Remove answer" }, icon("close"));
+    const row = h("div", { class: "cpoll-form-row" }, i, rm);
+    rm.addEventListener("click", () => { if (opts.children.length > 2) { row.remove(); paintAdd(); } });
+    i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (row === opts.lastChild && i.value.trim()) { addOpt(); opts.lastChild.querySelector("input").focus(); } } });
+    opts.append(row); paintAdd();
+  };
+  const add = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "＋ Add answer" });
+  const paintAdd = () => { add.hidden = opts.children.length >= 10; };
+  add.addEventListener("click", () => { addOpt(); opts.lastChild.querySelector("input").focus(); });
+  addOpt(); addOpt();
+  let multi = false, anonymous = false, hours = 0;
+  const toggle = (label, get, set) => { const b = h("button", { type: "button", class: "cpoll-toggle" }); const paint = () => { b.classList.toggle("on", get()); b.textContent = (get() ? "✓ " : "") + label; }; b.addEventListener("click", () => { set(!get()); paint(); }); paint(); return b; };
+  const ends = h("div", { class: "cpoll-ends" }, h("span", { class: "muted", text: "Ends" }), ...[[0, "Never"], [1, "1 h"], [24, "1 day"], [72, "3 days"], [168, "1 week"]].map(([v, l]) => {
+    const b = h("button", { type: "button", class: "cpoll-chip" + (hours === v ? " on" : ""), text: l });
+    b.addEventListener("click", () => { hours = v; ends.querySelectorAll(".cpoll-chip").forEach((x) => x.classList.toggle("on", x === b)); });
+    return b;
+  }));
+  const go = h("button", { type: "button", class: "btn btn-primary btn-full", text: "📊 Send poll" });
+  const md = modal({ title: "New poll", body: h("div", { class: "create-form cpoll-form" }, q, h("b", { class: "vis-label", text: "Answers" }), opts, add,
+    h("div", { class: "cpoll-toggles" }, toggle("Multiple answers", () => multi, (v) => (multi = v)), toggle("Anonymous", () => anonymous, (v) => (anonymous = v))), ends, go) });
+  go.addEventListener("click", async () => {
+    const options = [...opts.querySelectorAll("input")].map((i) => i.value.trim()).filter(Boolean);
+    if (!q.value.trim()) return q.focus();
+    if (options.length < 2) return toast("Add at least 2 answers.");
+    go.disabled = true;
+    try { await onCreate({ question: q.value, options, multi, anonymous, hours: hours || null }); md.close(); }
+    catch (err) { toast(err.error || "Couldn’t send the poll."); go.disabled = false; }
+  });
+  setTimeout(() => q.focus(), 60);
+}
+
 // Hype (like trending): a 🔥 count under the message; hot messages glow
 function hypeEl(msg, chat) {
   const b = h("button", { type: "button", class: "msg-hype" + (msg.hypedByMe ? " on" : "") + (msg.hypes >= 3 ? " hot" : ""), hidden: !msg.hypes, title: msg.hypedByMe ? "You hyped this" : "Hype it", "aria-label": `${msg.hypes || 0} hypes` },
@@ -553,6 +643,7 @@ function messageEl(msg, chat, onRemoved) {
     return row;
   }
   const media = msg.game ? gameView(chat.id, msg.id, msg.game)
+    : msg.poll ? chatPollEl(msg, chat)
     : msg.media?.gif ? h("img", { class: "msg-gif", src: msg.media.url, alt: "GIF" })
     : msg.media?.sticker ? h("img", { class: "sticker-img", src: msg.media.url, alt: "Sticker" })
     : msg.media?.kind === "sound" ? soundChip(msg.media)
@@ -566,7 +657,7 @@ function messageEl(msg, chat, onRemoved) {
   const call = chat.kind === "dm" && !msg.media && !msg.post ? callNoteText(msg.text, msg.mine, chat.other.name) : null;
   const onlyEmoji = msg.text && !msg.media && !msg.post && /^(\p{Extended_Pictographic}|\p{Emoji_Component}|\u200D|\uFE0F|\s){1,24}$/u.test(msg.text) && [...msg.text.replace(/\s/g, "")].length <= 12;
   const quote = msg.replyTo ? replyQuote(msg.replyTo) : null;
-  const bubble = h("div", { class: "bubble" + (msg.game ? " game-bubble" : "") + (onlyEmoji && !quote && !msg.storyReply && !msg.noteReply ? " emoji-only" : "") + (msg.media?.kind === "audio" ? " voice-bubble" : "") + (msg.media?.sticker ? " sticker-bubble" : "") + (msg.storyReply?.reaction || msg.instantReply?.reaction ? " story-react" : "") },
+  const bubble = h("div", { class: "bubble" + (msg.game ? " game-bubble" : "") + (msg.poll ? " poll-bubble" : "") + (onlyEmoji && !quote && !msg.storyReply && !msg.noteReply ? " emoji-only" : "") + (msg.media?.kind === "audio" ? " voice-bubble" : "") + (msg.media?.sticker ? " sticker-bubble" : "") + (msg.storyReply?.reaction || msg.instantReply?.reaction ? " story-react" : "") },
     chat.kind === "group" && !msg.mine ? h("a", { class: "bubble-name", href: profileHref(msg.author.username), style: roleColor(chat, msg.author.username) }, shownName(msg.author), tick(msg.author, 13)) : null,
     quote,
     msg.storyReply ? h("div", { class: "note-quote story-quote" },
@@ -1221,6 +1312,13 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     });
     inputRow.insertBefore(camBtn, voBtn);
     footer.append(camInput);
+    // A poll
+    const pollBtn = h("button", { type: "button", class: "tool-btn poll-btn", "aria-label": "Poll", title: "Start a poll" }, h("span", { text: "📊" }));
+    pollBtn.addEventListener("click", () => openPollForm(async (body) => {
+      const { message } = await api(`/api/chats/${chat.id}/polls`, { method: "POST", body: { ...body, channelId } });
+      sfx("send"); add(message); toBottom();
+    }));
+    inputRow.insertBefore(pollBtn, camBtn);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (send.disabled) return;
@@ -1391,6 +1489,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   });
   const offReact = on("message:reactions", (ev) => { if (ev.chatId === chatId && chat) paintReactions(ev.messageId, ev.reactions, chat); });
   const offNotes = on("message:notes", (ev) => { if (ev.chatId === chatId && chat) paintNotes(ev.messageId, ev.notes, chat); });
+  const offPoll = on("message:poll", (ev) => { if (ev.chatId === chatId && chat) paintPoll(ev.messageId, ev.poll, chat); });
   const offHype = on("message:hype", (ev) => { if (ev.chatId === chatId && chat) paintHype(ev.messageId, ev.hypes, chat, ev.by === state.me.username ? ev.on : undefined); });
   const offHyped = on("message:hyped", (ev) => { if (ev.chatId === chatId) toast(ev.hypes === 1 ? `🔥 @${ev.by} hyped your message` : `🔥 Your message is trending: ${ev.hypes} hypes!`); });
   const offMembers = on("group:members", (ev) => { if (ev.chatId === chatId && chat) { chat.memberCount = ev.memberCount; paintHead(); } });
@@ -1414,6 +1513,6 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     list.querySelectorAll(".msg").forEach((row) => { if (row._msg?.expiresAt && row._msg.expiresAt <= now) { ids.delete(row._msg.id); row.remove(); } });
   }, 5000);
 
-  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offNotes(); offHype(); offHyped(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
+  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offNotes(); offHype(); offHyped(); offPoll(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
 }
 
