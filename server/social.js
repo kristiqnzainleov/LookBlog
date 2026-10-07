@@ -566,13 +566,13 @@ function validatePost(body, me) {
   }
 
   // A chain post (like Gartic Phone): the text is the first part; the next person only sees the part before theirs,
-  // and the whole thing is shown when it's finished. mode "text" = everyone writes · "gartic" = write, draw, write, draw…
+  // and the whole thing is shown when it's finished. Everyone writes (older "gartic" chains alternate writing and drawing).
   let chain = null;
   if (type === "post" && body.chain) {
     if (!text) throw httpError(400, "Write how the chain starts.");
     if (media.length || poll) throw httpError(400, "A chain post starts with words only.");
     if (chars(text) > 280) throw httpError(400, "Keep the start under 280 characters.");
-    chain = { mode: body.chain.mode === "gartic" ? "gartic" : "text", max: [4, 6, 8, 10, 12].includes(Number(body.chain.max)) ? Number(body.chain.max) : 6,
+    chain = { mode: "text", max: [4, 6, 8, 10, 12].includes(Number(body.chain.max)) ? Number(body.chain.max) : 6,
       parts: [{ userId: me.id, type: "text", value: text, at: new Date().toISOString() }], done: false };
   }
 

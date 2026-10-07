@@ -113,14 +113,8 @@ function pollBuilder(onChange) {
 /* ---------- Chain post builder (like Gartic Phone) ---------- */
 function chainBuilder(onChange) {
   let mode = "text", max = 6;
-  const modes = h("div", { class: "chain-modes" });
   const sizes = h("div", { class: "chain-sizes" });
   const paint = () => {
-    modes.replaceChildren(...[["text", "✍️ Words", "Everyone writes the next line"], ["gartic", "🎨 Draw & write", "Write, draw it, say what it is, draw that…"]].map(([k, l, d]) => {
-      const b = h("button", { type: "button", class: "chain-mode" + (mode === k ? " on" : ""), title: d }, h("b", { text: l }), h("small", { text: d }));
-      b.addEventListener("click", () => { mode = k; paint(); onChange(); });
-      return b;
-    }));
     sizes.replaceChildren(h("span", { class: "muted", text: "Parts" }), ...[4, 6, 8, 10, 12].map((n) => {
       const b = h("button", { type: "button", class: "chain-size" + (max === n ? " on" : ""), text: String(n) });
       b.addEventListener("click", () => { max = n; paint(); });
@@ -132,7 +126,7 @@ function chainBuilder(onChange) {
   const el = h("div", { class: "chain-builder", hidden: true },
     h("b", { class: "vis-label", text: "⛓️ Chain post" }),
     h("p", { class: "create-hint", text: "Others carry it on. Each person only sees the part right before theirs — nobody knows the rest until the chain is finished. Then everyone sees how it turned out." }),
-    modes, h("div", { class: "poll-tools" }, sizes, h("span", { style: "flex:1" }), remove));
+    h("div", { class: "poll-tools" }, sizes, h("span", { style: "flex:1" }), remove));
   const api_ = { el, on: () => !el.hidden, open: () => { el.hidden = false; onChange(); }, close: () => { el.hidden = true; onChange(); }, value: () => ({ mode, max }) };
   remove.addEventListener("click", api_.close);
   return api_;
@@ -185,7 +179,7 @@ function postForm() {
     chainBtn.disabled = picker.items().length > 0 || hasPoll;
     pollBtn.classList.toggle("on", hasPoll);
     chainBtn.classList.toggle("on", hasChain);
-    text.placeholder = hasPoll ? "Ask a question…" : hasChain ? (chain.value().mode === "gartic" ? "Write something for the next person to draw…" : "Start the chain… the next person only sees this line") : prompt;
+    text.placeholder = hasPoll ? "Ask a question…" : hasChain ? "Start the chain… the next person only sees this line" : prompt;
     submit.disabled = picker.busy() || cnt.over() || (hasPoll ? !text.value.trim() || !poll.ready() : hasChain ? !text.value.trim() : !text.value.trim() && !picker.media().length);
     submit.textContent = picker.busy() ? "Uploading…" : "Post";
   }
