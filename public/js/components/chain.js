@@ -36,8 +36,8 @@ export function chainEl(p) {
     }
     // Finished: every part, with who made it
     const list = h("ol", { class: "chain-parts" }, ...c.parts.map((x, i) => h("li", { class: "chain-part " + x.type, style: `--i:${i}` },
-      h("div", { class: "chain-who" }, x.author ? avatar(x.author, 24) : null, h("b", { text: x.author?.name || "Someone" }), h("small", { class: "muted", text: x.type === "draw" ? "drew" : i === 0 ? "started" : "wrote" })),
-      x.type === "draw" ? h("img", { class: "chain-img", src: x.value, alt: "A drawing", loading: "lazy" }) : h("p", { class: "chain-text", text: x.value }))));
+      h("div", { class: "chain-who" }, x.author ? avatar(x.author, 24) : null, h("b", { text: x.author?.name || "Someone" }), h("small", { class: "muted", text: x.type === "draw" ? "drew" : i === 0 ? "started" : x.image && !x.value ? "added a photo" : "wrote" })),
+      x.type === "draw" ? h("img", { class: "chain-img", src: x.value, alt: "A drawing", loading: "lazy" }) : [x.value ? h("p", { class: "chain-text", text: x.value }) : null, x.image ? h("img", { class: "chain-photo", src: x.image.url, alt: "Photo", loading: "lazy" }) : null])));
     const replayBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "▶ Replay" });
     replayBtn.addEventListener("click", () => replay());
     box.replaceChildren(h("div", { class: "chain-head" }, h("span", { class: "chain-badge done", text: "🎬 Chain finished" }), h("span", { class: "chain-count", text: `${c.count} parts` }), replayBtn), list, faces);
@@ -65,11 +65,12 @@ async function continueChain(p, done) {
   try { turn = await api(`/api/posts/${p.id}/chain`); } catch (err) { return toast(err.error || "Couldn’t open it."); }
   const prevEl = h("div", { class: "chain-prev" });
   const body = h("div", { class: "create-form chain-turn" });
-  let pad = null, input = null;
+  let pad = null, input = null, photo = null;
   const send = h("button", { type: "button", class: "btn btn-primary btn-full" });
   const paintTurn = () => {
     prevEl.replaceChildren(h("small", { class: "muted", text: turn.type === "draw" ? "Draw this:" : turn.prev.type === "draw" ? "What is this drawing? Say it in words:" : "Carry on from this:" }),
-      turn.prev.type === "draw" ? h("img", { class: "chain-img", src: turn.prev.value, alt: "The drawing before yours" }) : h("p", { class: "chain-quote", text: turn.prev.value }));
+      turn.prev.type === "draw" ? h("img", { class: "chain-img", src: turn.prev.value, alt: "The drawing before yours" })
+        : h("div", {}, turn.prev.value ? h("p", { class: "chain-quote", text: turn.prev.value }) : null, turn.prev.image ? h("img", { class: "chain-photo", src: turn.prev.image.url, alt: "The photo before yours" }) : null));
     send.textContent = turn.type === "draw" ? "✅ Send my drawing" : "✅ Add my part";
   };
   paintTurn();
@@ -78,8 +79,10 @@ async function continueChain(p, done) {
     pad = drawPad();
     body.append(prevEl, pad.el, send);
   } else {
-    input = h("textarea", { class: "text-input", rows: 3, maxlength: 280, placeholder: turn.prev.type === "draw" ? "I think it’s…" : "What happens next…" });
-    body.append(prevEl, input, send);
+    input = h("textarea", { class: "text-input", rows: 3, maxlength: 280, placeholder: turn.prev.type === "draw" ? "I think it’s…" : "What happens next… (or add a photo)" });
+    const { createPicker } = await import("./media-picker.js");
+    photo = createPicker({ accept: "image", max: 1, onChange: () => { photo.button.disabled = photo.items().length >= 1; }, onError: (m) => toast(m) });
+    body.append(prevEl, input, photo.previews, h("div", { class: "chain-turn-bar" }, photo.button, h("span", { class: "muted", text: "Words, a photo, or both" })), send);
   }
   const md = modal({ title: `Part ${turn.count + 1} of ${turn.max}`, wide: turn.type === "draw", body: h("div", {}, h("p", { class: "create-hint", text: "You only see the part before yours. Nobody sees the whole chain until it’s finished." }), body) });
   setTimeout(() => input?.focus(), 60);
@@ -92,11 +95,13 @@ async function continueChain(p, done) {
       catch (err) { send.disabled = false; paintTurn(); return toast(err.error || "Couldn’t send it."); }
     } else {
       value = input.value.trim();
-      if (!value) return input.focus();
+      if (photo?.busy()) return toast("Wait for the photo to finish uploading.");
+      if (!value && !photo?.media().length) return input.focus();
       send.disabled = true;
     }
+    const pic = photo?.media()[0] || null;
     try {
-      const r = await api(`/api/posts/${p.id}/chain`, { method: "POST", body: { value, after: turn.count } });
+      const r = await api(`/api/posts/${p.id}/chain`, { method: "POST", body: { value, after: turn.count, ...(pic ? { image: pic.url, width: pic.width, height: pic.height } : {}) } });
       p.chain = r.chain; md.close(); done();
       toast(p.chain.done ? "🎬 That was the last part — the chain is revealed!" : "⛓️ Added! You’ll see the whole thing when it’s finished.");
     } catch (err) {

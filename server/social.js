@@ -263,7 +263,7 @@ function chainView(p, me) {
     mode: c.mode, max: c.max, count, done: c.done, isAuthor: p.userId === me.id, joined: by.has(me.id),
     canContinue: !c.done && !by.has(me.id), nextType,
     people: [...by].map(findUser).filter(Boolean).map((u) => ({ name: u.name, username: u.username, avatar: u.avatar })),
-    parts: c.done ? c.parts.map((x) => { const u = findUser(x.userId); return { type: x.type, value: x.value, author: u ? { name: u.name, username: u.username, avatar: u.avatar } : null }; }) : null,
+    parts: c.done ? c.parts.map((x) => { const u = findUser(x.userId); return { type: x.type, value: x.value, image: x.image || null, author: u ? { name: u.name, username: u.username, avatar: u.avatar } : null }; }) : null,
   };
 }
 function finishChain(p) {
@@ -569,11 +569,13 @@ function validatePost(body, me) {
   // and the whole thing is shown when it's finished. Everyone writes (older "gartic" chains alternate writing and drawing).
   let chain = null;
   if (type === "post" && body.chain) {
-    if (!text) throw httpError(400, "Write how the chain starts.");
-    if (media.length || poll) throw httpError(400, "A chain post starts with words only.");
+    // Each part is words, a photo, or both
+    if (poll) throw httpError(400, "A chain post can’t have a poll.");
+    if (videos.length || images.length > 1) throw httpError(400, "A chain part can have one photo.");
+    if (!text && !images.length) throw httpError(400, "Write how the chain starts, or add a photo.");
     if (chars(text) > 280) throw httpError(400, "Keep the start under 280 characters.");
     chain = { mode: "text", max: [4, 6, 8, 10, 12].includes(Number(body.chain.max)) ? Number(body.chain.max) : 6,
-      parts: [{ userId: me.id, type: "text", value: text, at: new Date().toISOString() }], done: false };
+      parts: [{ userId: me.id, type: "text", value: text, ...(images[0] ? { image: images[0] } : {}), at: new Date().toISOString() }], done: false };
   }
 
   // One of my own categories
@@ -616,7 +618,7 @@ function validatePost(body, me) {
     if (!orig || orig.type === "post") throw httpError(404, "The video you’re replying to is gone.");
     replyTo = orig.id;
   }
-  return { ...(replyTo ? { replyTo } : {}), ...(timedComments ? { timedComments } : {}), ...(momentReactions ? { momentReactions, moments: [] } : {}), repliesOff: Boolean(body.repliesOff), type, text: chain ? "" : text, title: type === "video" ? title : "", media, visibility: publishAt ? "private" : visibility, poll, ...(chain ? { chain } : {}), categoryId, ...(film ? { film } : {}), ...(publishAt ? { publishAt, reminders: [], premiere: true } : {}) };
+  return { ...(replyTo ? { replyTo } : {}), ...(timedComments ? { timedComments } : {}), ...(momentReactions ? { momentReactions, moments: [] } : {}), repliesOff: Boolean(body.repliesOff), type, text: chain ? "" : text, title: type === "video" ? title : "", media: chain ? [] : media, visibility: publishAt ? "private" : visibility, poll, ...(chain ? { chain } : {}), categoryId, ...(film ? { film } : {}), ...(publishAt ? { publishAt, reminders: [], premiere: true } : {}) };
 }
 
 // Movies and series unlock with a Filmmaker, Film Producer, Photographer or Creator role
@@ -726,7 +728,7 @@ async function handleSocial(req, res, url, me) {
     }
     const data = validatePost(body, me);
     // Sensitive content (violence, blood, weapons…) isn't allowed: refused right away
-    require("./sensitive").refuseSensitive([data.title, data.text, data.chain?.parts[0]?.value, data.poll?.question, ...(data.poll?.options || []).map((o) => o.text || o)], data.media);
+    require("./sensitive").refuseSensitive([data.title, data.text, data.chain?.parts[0]?.value, data.poll?.question, ...(data.poll?.options || []).map((o) => o.text || o)], [...data.media, ...(data.chain?.parts[0]?.image ? [data.chain.parts[0].image] : [])]);
     const post = {
       id: crypto.randomUUID(),
       userId: me.id,
@@ -746,6 +748,7 @@ async function handleSocial(req, res, url, me) {
 
     db.posts.unshift(post);
     claim(post.media, "post:" + post.id);
+    if (post.chain?.parts[0]?.image) markUsed(post.chain.parts[0].image.url, "post:" + post.id);
     if (post.film?.backdrop) markUsed(post.film.backdrop, "post:" + post.id);
     save("posts");
     if (series) {
@@ -978,7 +981,7 @@ async function handleSocial(req, res, url, me) {
       const v = chainView(post, me);
       if (!v.canContinue) throw httpError(400, ch.done ? "This chain is finished." : "You already added your part.");
       const prev = ch.parts[ch.parts.length - 1];
-      sendJSON(res, 200, { type: v.nextType, prev: { type: prev.type, value: prev.value }, count: ch.parts.length, max: ch.max });
+      sendJSON(res, 200, { type: v.nextType, prev: { type: prev.type, value: prev.value, image: prev.image || null }, count: ch.parts.length, max: ch.max });
       return true;
     }
     if (m === "POST" && parts.length === 3) {
@@ -987,8 +990,8 @@ async function handleSocial(req, res, url, me) {
       if (!v.canContinue) throw httpError(400, ch.done ? "This chain is finished." : "You already added your part.");
       const body = await readJSON(req);
       // Someone added a part while I was on mine: I get the new last part
-      if (Number(body.after) !== ch.parts.length) { const prev = ch.parts[ch.parts.length - 1]; sendJSON(res, 409, { error: "Someone added a part just now — here’s the new one to continue.", turn: { type: v.nextType, prev: { type: prev.type, value: prev.value }, count: ch.parts.length, max: ch.max } }); return true; }
-      let value;
+      if (Number(body.after) !== ch.parts.length) { const prev = ch.parts[ch.parts.length - 1]; sendJSON(res, 409, { error: "Someone added a part just now — here’s the new one to continue.", turn: { type: v.nextType, prev: { type: prev.type, value: prev.value, image: prev.image || null }, count: ch.parts.length, max: ch.max } }); return true; }
+      let value, image = null;
       if (v.nextType === "draw") {
         const img = ownedMedia(body.value, me.id, "image");
         if (!img) throw httpError(400, "Draw something first.");
@@ -996,11 +999,16 @@ async function handleSocial(req, res, url, me) {
         value = img.url;
       } else {
         value = clean(body.value);
-        if (!value) throw httpError(400, "Write your part.");
+        if (body.image) {
+          image = buildMedia({ url: body.image, width: body.width, height: body.height }, me);
+          if (image.kind !== "image") throw httpError(400, "Add a photo (not a video).");
+        }
+        if (!value && !image) throw httpError(400, "Write your part or add a photo.");
         if (chars(value) > 280) throw httpError(400, "Keep it under 280 characters.");
-        require("./sensitive").refuseSensitive([value], []);
+        require("./sensitive").refuseSensitive([value], image ? [image] : []);
+        if (image) markUsed(image.url, "post:" + post.id);
       }
-      ch.parts.push({ userId: me.id, type: v.nextType, value, at: new Date().toISOString() });
+      ch.parts.push({ userId: me.id, type: v.nextType, value, ...(image ? { image } : {}), at: new Date().toISOString() });
       if (ch.parts.length >= ch.max) finishChain(post);
       else if (post.userId !== me.id) notify(post.userId, "chain-add", me, { postId: post.id, text: `added part ${ch.parts.length} of ${ch.max} to your chain` });
       save("posts");
@@ -2243,6 +2251,8 @@ function removePost(post) {
   if (i === -1) return;
   db.posts.splice(i, 1);
   for (const md of post.media) { deleteMedia(md.url); if (md.poster) deleteMedia(md.poster); for (const r of md.renditions || []) deleteMedia(r.url); }
+  // A chain's photos and drawings
+  for (const part of post.chain?.parts || []) { if (part.image) deleteMedia(part.image.url); if (part.type === "draw" && part.value) deleteMedia(part.value); }
   db.comments = db.comments.filter((x) => {
     if (x.postId !== post.id) return true;
     if (x.media && !x.media.gif && !x.media.sticker && !x.media.shared) { deleteMedia(x.media.url); if (x.media.poster) deleteMedia(x.media.poster); }

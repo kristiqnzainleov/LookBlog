@@ -125,7 +125,7 @@ function chainBuilder(onChange) {
   const remove = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Not a chain" });
   const el = h("div", { class: "chain-builder", hidden: true },
     h("b", { class: "vis-label", text: "⛓️ Chain post" }),
-    h("p", { class: "create-hint", text: "Others carry it on. Each person only sees the part right before theirs — nobody knows the rest until the chain is finished. Then everyone sees how it turned out." }),
+    h("p", { class: "create-hint", text: "Others carry it on with words or a photo. Each person only sees the part right before theirs — nobody knows the rest until the chain is finished. Then everyone sees how it turned out." }),
     h("div", { class: "poll-tools" }, sizes, h("span", { style: "flex:1" }), remove));
   const api_ = { el, on: () => !el.hidden, open: () => { el.hidden = false; onChange(); }, close: () => { el.hidden = true; onChange(); }, value: () => ({ mode, max }) };
   remove.addEventListener("click", api_.close);
@@ -174,13 +174,15 @@ function postForm() {
 
   function update() {
     const hasPoll = poll.on(), hasChain = chain.on();
-    picker.button.disabled = hasPoll || hasChain || picker.items().some((i) => i.kind === "video") || picker.items().length >= 4;
+    // A chain part can have one photo (no video)
+    const chainOk = picker.items().length <= 1 && !picker.items().some((i) => i.kind === "video");
+    picker.button.disabled = hasPoll || (hasChain && picker.items().length >= 1) || picker.items().some((i) => i.kind === "video") || picker.items().length >= 4;
     pollBtn.disabled = picker.items().length > 0 || hasChain;
-    chainBtn.disabled = picker.items().length > 0 || hasPoll;
+    chainBtn.disabled = !chainOk || hasPoll;
     pollBtn.classList.toggle("on", hasPoll);
     chainBtn.classList.toggle("on", hasChain);
-    text.placeholder = hasPoll ? "Ask a question…" : hasChain ? "Start the chain… the next person only sees this line" : prompt;
-    submit.disabled = picker.busy() || cnt.over() || (hasPoll ? !text.value.trim() || !poll.ready() : hasChain ? !text.value.trim() : !text.value.trim() && !picker.media().length);
+    text.placeholder = hasPoll ? "Ask a question…" : hasChain ? "Start the chain with words, a photo, or both… the next person only sees this" : prompt;
+    submit.disabled = picker.busy() || cnt.over() || (hasPoll ? !text.value.trim() || !poll.ready() : hasChain ? !chainOk || (!text.value.trim() && !picker.media().length) : !text.value.trim() && !picker.media().length);
     submit.textContent = picker.busy() ? "Uploading…" : "Post";
   }
   text.addEventListener("input", update);
@@ -217,7 +219,7 @@ function postForm() {
     submit.disabled = true;
     submit.textContent = "Posting…";
     try {
-      await publish({ type: "post", text: text.value, media: poll.on() || chain.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, chain: chain.on() ? chain.value() : null, categoryId: cat.value() || null, repliesOff });
+      await publish({ type: "post", text: text.value, media: poll.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, chain: chain.on() ? chain.value() : null, categoryId: cat.value() || null, repliesOff });
       toast(poll.on() ? "Poll posted." : chain.on() ? "⛓️ Chain started! Others can carry it on now." : "Posted.");
       text.value = "";
       picker.clear();

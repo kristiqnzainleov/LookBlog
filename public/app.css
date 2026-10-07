@@ -5700,3 +5700,5 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 @keyframes pfxSwing { from { transform: translate3d(calc(var(--drift) * -0.5), 0, 0); } to { transform: translate3d(calc(var(--drift) * 0.5), 0, 0); } }
 .pfx .cf i { animation: cfTumble2 var(--spin, 1.6s) linear infinite; box-shadow: none; filter: none; backface-visibility: visible; }
 @keyframes cfTumble2 { from { transform: rotate(var(--tilt)) rotateX(0deg) rotateY(0deg); } to { transform: rotate(calc(var(--tilt) + 180deg)) rotateX(360deg) rotateY(180deg); } }
+.chain-photo { display: block; width: 100%; max-width: 420px; max-height: 420px; object-fit: cover; border-radius: 12px; margin-top: 6px; }
+.chain-turn-bar { display: flex; align-items: center; gap: 10px; }
