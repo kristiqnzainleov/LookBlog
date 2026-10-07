@@ -5535,3 +5535,6 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 .pfx .coin i { display: grid; place-items: center; width: var(--sz, 18px); height: var(--sz, 18px); border-radius: 50%; font: 900 calc(var(--sz, 18px) * 0.55)/1 system-ui; font-style: normal; color: #8a5a00;
   background: radial-gradient(circle at 35% 30%, #fff6b0, #ffd23f 45%, #d4a017 80%); border: 1.5px solid #b8860b; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35); animation: coinSpin var(--spin, 1.4s) linear infinite; }
 @keyframes coinSpin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+@keyframes pfxSwayIn { 0% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(var(--drift), calc(var(--fall, 380px) / 2), 0); } 100% { transform: translate3d(0, var(--fall, 380px), 0); } }
+@keyframes pfxFallIn { from { transform: translateY(0) rotate(0); } to { transform: translate(var(--drift), var(--fall, 340px)) rotate(300deg); } }
+.pfx.inside.drawn span { top: -24px; }
