@@ -39,7 +39,7 @@ const TRAIL_PARTS = { sparkle: ["✨", "✦", "⋆"], hearts: ["💗", "💖", "
 
 // Something falling or floating over my profile, and a decoration on my photo
 export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "💗 Hearts"], ["sparkles", "✨ Sparkles"], ["stars", "⭐ Stars"], ["sakura", "🌸 Sakura"],
-  ["confetti", "🎉 Confetti"], ["bubbles", "🫧 Bubbles"], ["fire", "🔥 Fire"], ["leaves", "🍂 Leaves"], ["money", "💸 Money"]];
+  ["confetti", "🎉 Confetti"], ["bubbles", "🫧 Bubbles"], ["fire", "🔥 Fire"], ["leaves", "🍂 Leaves"], ["money", "💸 Money rain"]];
 const FX_PARTS = { snow: ["❄️", "❅", "❆"], hearts: ["💗", "💖", "💕", "❤️"], sparkles: ["✨", "💫", "⭐"], stars: ["⭐", "🌟", "✦"], sakura: ["🌸", "🌺", "💮"],
   confetti: ["🎉", "🎊", "✨", "🟣", "🟡"], bubbles: ["🫧", "○", "◦"], fire: ["🔥", "✨"], leaves: ["🍂", "🍁", "🍃"], money: ["💸", "💵", "🪙"] };
 const RISING = new Set(["bubbles", "fire"]);
@@ -122,8 +122,18 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
   if (fxHost) {
     fxHost.querySelector(":scope > .pfx")?.remove();
     if (look?.fx && FX_PARTS[look.fx] && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const parts = FX_PARTS[look.fx], n = fxBox ? 10 : 22;
-      fxHost.append(h("div", { class: "pfx" + (RISING.has(look.fx) ? " rise" : "") + (fxBox ? " inside" : ""), "aria-hidden": "true" }, ...Array.from({ length: n }, (_, i) => h("span", {
+      const parts = FX_PARTS[look.fx];
+      // Confetti and money are drawn pieces (paper strips, bank notes, coins) that tumble as they fall
+      const drawn = look.fx === "confetti" || look.fx === "money";
+      const n = drawn ? (fxBox ? 18 : innerWidth < 700 ? 26 : 44) : fxBox ? 10 : 22;
+      const CONF = ["#ff4fa3", "#ffd23f", "#2ee6a6", "#1f8bff", "#9b5cff", "#ff8a3d", "#ffffff", "#ff4757"];
+      const piece = (i) => {
+        const base = `left:${(i * 97 + (i % 7) * 3) % 100}%;--delay:-${((i * 53) % 120) / 10}s;--drift:${((i * 41) % 80) - 40}px;--spin:${1.2 + ((i * 17) % 20) / 10}s;--tilt:${(i * 67) % 360}deg`;
+        if (look.fx === "confetti") return h("span", { class: "cf", style: `${base};--dur:${6 + ((i * 37) % 6)}s;--c:${CONF[i % CONF.length]};--w:${7 + (i % 4) * 2}px;--h:${12 + ((i * 3) % 5) * 2}px` }, h("i"));
+        if (i % 3 === 2) return h("span", { class: "coin", style: `${base};--dur:${5 + ((i * 37) % 5)}s;--sz:${16 + (i % 3) * 4}px` }, h("i", { text: "$" }));
+        return h("span", { class: "bill", style: `${base};--dur:${7 + ((i * 37) % 6)}s;--sc:${0.8 + ((i * 29) % 6) / 10}` }, h("i", {}, h("b", { text: "$" }), h("small", { text: "100" })));
+      };
+      fxHost.append(h("div", { class: "pfx" + (RISING.has(look.fx) ? " rise" : "") + (fxBox ? " inside" : "") + (drawn ? " drawn" : ""), "aria-hidden": "true" }, ...Array.from({ length: n }, (_, i) => drawn ? piece(i) : h("span", {
         text: parts[i % parts.length],
         style: `left:${(i * 97) % 100}%;--dur:${7 + ((i * 37) % 9)}s;--delay:-${(i * 53) % 12}s;--size:${0.8 + ((i * 29) % 10) / 10}em;--drift:${((i * 41) % 60) - 30}px`,
       }))));

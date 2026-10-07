@@ -11,7 +11,9 @@ const fail = (msg) => { const e = new Error(msg); e.gameRule = true; throw e; };
 const log = (s, text) => { s.log.push(text); if (s.log.length > 12) s.log.shift(); };
 const cleanText = (t, max) => String(t || "").replace(/\s+/g, " ").trim().slice(0, max);
 // A drawing is a picture uploaded to LookBlog
-const isPicture = (v) => typeof v === "string" && /^\/media\/[0-9a-f-]{36}\.(png|jpg|webp)$/.test(v);
+// (or a bot's drawing: a doodle the server draws, see doodles.js)
+const { doodleFor, isDoodle, guessFor, storyLine, PROMPTS, pick } = require("./doodles");
+const isPicture = (v) => typeof v === "string" && (/^\/media\/[0-9a-f-]{36}\.(png|jpg|webp)$/.test(v) || isDoodle(v));
 
 /* ======================= DOS ======================= */
 const DOS_COLORS = ["R", "G", "B", "Y"];
@@ -145,7 +147,7 @@ const dos = {
 // A chain is what happened to one starting idea: [{ seat, type: "text" | "draw", value }]
 function roundGame({ name, emoji, desc, min = 2, max = 10, taskOf, rounds }) {
   return {
-    name, emoji, desc, min, max, party: true, noBots: true,
+    name, emoji, desc, min, max, party: true,
     start(n) { return { kind: "chain", game: name, n, round: 0, rounds: rounds(n), chains: Array.from({ length: n }, () => []), done: [], phase: "play", log: [] }; },
     // Round r: player p works on chain (p - r) mod n, so each one only sees what came right before
     chainOf: (s, seat) => ((seat - s.round) % s.n + s.n) % s.n,
@@ -176,7 +178,13 @@ function roundGame({ name, emoji, desc, min = 2, max = 10, taskOf, rounds }) {
     },
     over: (s) => (s.phase === "done" ? { winner: -1, done: true } : null),
     waiting: (s) => (s.phase === "play" ? Array.from({ length: s.n }, (_, i) => i).filter((i) => !s.done.includes(i)) : []),
-    bot: () => ({ skip: true }),
+    // A bot writes or draws like everyone else (its drawings are doodles of what it read)
+    bot(s, seat) {
+      const chain = s.chains[this.chainOf(s, seat)], prev = s.round === 0 ? null : chain[chain.length - 1] || null;
+      if (taskOf(s.round) === "draw") return { value: doodleFor(prev?.skipped ? "" : prev?.value) };
+      if (name === "Story Chain") return { value: storyLine(prev) };
+      return { value: s.round === 0 ? pick(PROMPTS) : guessFor(prev) };
+    },
   };
 }
 // Draw & Tell: write → draw it → say what the drawing is → draw that → …
@@ -193,7 +201,7 @@ const storyChain = roundGame({
 
 /* ======================= Draw This! ======================= */
 const drawThis = {
-  name: "Draw This!", emoji: "🖍️", desc: "One person says what to draw, everyone else draws it, and they pick the best drawing.", min: 2, max: 10, party: true, noBots: true,
+  name: "Draw This!", emoji: "🖍️", desc: "One person says what to draw, everyone else draws it, and they pick the best drawing.", min: 2, max: 10, party: true,
   start(n) { return { kind: "drawthis", n, round: 0, rounds: n, judge: 0, step: "prompt", prompt: "", drawings: {}, scores: Array(n).fill(0), history: [], phase: "play", log: [] }; },
   act(s, seat, a, names) {
     if (s.phase !== "play") fail("This game is over.");
@@ -251,7 +259,13 @@ const drawThis = {
     if (s.step === "prompt" || s.step === "pick") return [s.judge];
     return Array.from({ length: s.n }, (_, i) => i).filter((i) => i !== s.judge && s.drawings[i] === undefined);
   },
-  bot: () => ({ skip: true }),
+  // A bot says what to draw, draws a doodle of it, or picks a favourite
+  bot(s, seat) {
+    if (s.step === "prompt") return { value: pick(PROMPTS) };
+    if (s.step === "draw") return { value: doodleFor(s.prompt) };
+    const options = Object.keys(s.drawings).filter((k) => s.drawings[k]);
+    return { winner: Number(pick(options)) };
+  },
 };
 
 module.exports = { dos, drawtell: drawTell, story: storyChain, drawthis: drawThis };

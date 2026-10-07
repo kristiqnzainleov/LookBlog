@@ -5519,3 +5519,19 @@ body.bass-boost .vd-music-btn { box-shadow: 0 0 calc(var(--bass) * 22px) #ff3b5c
 .app-overlay { z-index: 900; }
 .toast { z-index: 1000; }
 body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-shadow: 0 0 6px #000, 0 0 calc(var(--bass) * 10px) #fff !important; }
+/* Confetti and money rain: pieces fall and sway (outer), and tumble in 3D (inner) */
+.pfx.drawn span { opacity: 1; perspective: 400px; animation: pfxSway var(--dur, 8s) linear var(--delay, 0s) infinite; }
+.pfx.inside.drawn span { animation-name: pfxSwayIn; }
+@keyframes pfxSway { 0% { transform: translate3d(0, 0, 0); } 25% { transform: translate3d(var(--drift), 28vh, 0); } 50% { transform: translate3d(calc(var(--drift) * -0.6), 56vh, 0); } 75% { transform: translate3d(var(--drift), 84vh, 0); } 100% { transform: translate3d(0, 115vh, 0); } }
+@keyframes pfxSwayIn { 0% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(var(--drift), 180px, 0); } 100% { transform: translate3d(0, 380px, 0); } }
+.pfx .cf i { display: block; width: var(--w, 7px); height: var(--h, 12px); background: var(--c, #ff4fa3); border-radius: 1.5px; transform: rotate(var(--tilt)); animation: cfTumble var(--spin, 1.6s) linear infinite; box-shadow: inset 0 0 0 100px rgba(255, 255, 255, 0); }
+@keyframes cfTumble { 0% { transform: rotate(var(--tilt)) rotateX(0) rotateY(0); filter: brightness(1); } 50% { transform: rotate(calc(var(--tilt) + 90deg)) rotateX(180deg) rotateY(90deg); filter: brightness(0.7); } 100% { transform: rotate(calc(var(--tilt) + 180deg)) rotateX(360deg) rotateY(180deg); filter: brightness(1); } }
+.pfx .bill i { display: flex; align-items: center; justify-content: space-between; width: 46px; height: 22px; padding: 0 4px; box-sizing: border-box; border-radius: 3px; font-style: normal;
+  background: linear-gradient(135deg, #8fd694 0%, #4caf50 45%, #2e7d32 100%); border: 1.5px solid #1b5e20; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 0 3px 6px rgba(0, 0, 0, 0.35);
+  color: #0d3b12; transform: scale(var(--sc, 1)) rotate(var(--tilt)); animation: billFlutter var(--spin, 2s) ease-in-out infinite alternate; }
+.pfx .bill b { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: rgba(255, 255, 255, 0.45); font: 900 9px/1 system-ui; }
+.pfx .bill small { font: 800 8px/1 system-ui; letter-spacing: -0.02em; }
+@keyframes billFlutter { 0% { transform: scale(var(--sc, 1)) rotate(var(--tilt)) rotateX(0deg) rotateY(-20deg); } 50% { transform: scale(var(--sc, 1)) rotate(calc(var(--tilt) + 25deg)) rotateX(70deg) rotateY(15deg); } 100% { transform: scale(var(--sc, 1)) rotate(calc(var(--tilt) - 15deg)) rotateX(160deg) rotateY(-10deg); } }
+.pfx .coin i { display: grid; place-items: center; width: var(--sz, 18px); height: var(--sz, 18px); border-radius: 50%; font: 900 calc(var(--sz, 18px) * 0.55)/1 system-ui; font-style: normal; color: #8a5a00;
+  background: radial-gradient(circle at 35% 30%, #fff6b0, #ffd23f 45%, #d4a017 80%); border: 1.5px solid #b8860b; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35); animation: coinSpin var(--spin, 1.4s) linear infinite; }
+@keyframes coinSpin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }

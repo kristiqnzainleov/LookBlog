@@ -311,6 +311,7 @@ async function handle(req, res) {
     if (info) return servePublic(res, `info/${info}.html`);
     // An invite link: "Join LookBlog" (with the logo when it's shared)
     if (/^\/join\/[a-z0-9]{4,12}$/i.test(p)) return serveJoinPage(req, res, p.slice(6));
+    if (/^\/doodle\/[a-z]+(?:_[a-z]+)?-\d{1,10}\.svg$/.test(p)) return require("./server/doodles").serveDoodle(res, p.slice(8));
     if (APP_PAGES.some((re) => re.test(p))) {
       if (!loggedIn) return redirect(res, "/");
       return servePublic(res, "app.html");
