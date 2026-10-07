@@ -25,6 +25,9 @@ export async function render() {
   view.replaceChildren();
   view.className = "view";
   view.removeAttribute("style"); // e.g. a profile's own accent colour
+  // …and the rest of a profile's look: its background, frame and pointer trail stay on that profile only
+  for (const k of Object.keys(view.dataset)) delete view.dataset[k];
+  view._trailOff?.(); view._trailOff = null;
   document.body.dataset.page = "";
   window.scrollTo(0, 0);
 

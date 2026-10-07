@@ -5691,3 +5691,12 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 .chain-card.replaying .chain-part.in { opacity: 1; transform: none; }
 .chain-turn .chain-prev { padding: 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
 .chain-quote { margin: 4px 0 0; font-size: 1.1rem; font-weight: 600; }
+/* Confetti / money, smoother: the piece falls straight (linear), sways with ease-in-out, and tumbles — no sharp turns */
+.pfx.drawn span { animation: pfxDrop var(--dur, 8s) linear var(--delay, 0s) infinite; perspective: 300px; will-change: transform; }
+.pfx.inside.drawn span { animation-name: pfxDropIn; }
+@keyframes pfxDrop { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 115vh, 0); } }
+@keyframes pfxDropIn { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, var(--fall, 380px), 0); } }
+.pfx.drawn em { display: block; font-style: normal; animation: pfxSwing var(--sw, 2.6s) ease-in-out var(--delay, 0s) infinite alternate; will-change: transform; }
+@keyframes pfxSwing { from { transform: translate3d(calc(var(--drift) * -0.5), 0, 0); } to { transform: translate3d(calc(var(--drift) * 0.5), 0, 0); } }
+.pfx .cf i { animation: cfTumble2 var(--spin, 1.6s) linear infinite; box-shadow: none; filter: none; backface-visibility: visible; }
+@keyframes cfTumble2 { from { transform: rotate(var(--tilt)) rotateX(0deg) rotateY(0deg); } to { transform: rotate(calc(var(--tilt) + 180deg)) rotateX(360deg) rotateY(180deg); } }

@@ -192,9 +192,11 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
       const CONF = ["#ff4fa3", "#ffd23f", "#2ee6a6", "#1f8bff", "#9b5cff", "#ff8a3d", "#ffffff", "#ff4757"];
       const piece = (i) => {
         const base = `left:${(((i * 61.8034) % 100) * 0.94 + 3).toFixed(1)}%;--delay:-${((i * 53) % 120) / 10}s;--drift:${((i * 41) % 80) - 40}px;--spin:${1.2 + ((i * 17) % 20) / 10}s;--tilt:${(i * 67) % 360}deg`;
-        if (look.fx === "confetti") return h("span", { class: "cf", style: `${base};--dur:${6 + ((i * 37) % 6)}s;--c:${CONF[i % CONF.length]};--w:${7 + (i % 4) * 2}px;--h:${12 + ((i * 3) % 5) * 2}px` }, h("i"));
-        if (i % 3 === 2) return h("span", { class: "coin", style: `${base};--dur:${5 + ((i * 37) % 5)}s;--sz:${16 + (i % 3) * 4}px` }, h("i", { text: "$" }));
-        return h("span", { class: "bill", style: `${base};--dur:${7 + ((i * 37) % 6)}s;--sc:${0.8 + ((i * 29) % 6) / 10}` }, h("i", {}, h("b", { text: "$" }), h("small", { text: "100" })));
+        // three layers, each with one smooth movement: falling (span) · swaying side to side (em) · tumbling (i)
+        const sway = `--sw:${2.2 + ((i * 13) % 14) / 10}s`;
+        if (look.fx === "confetti") return h("span", { class: "cf", style: `${base};--dur:${6 + ((i * 37) % 6)}s;--c:${CONF[i % CONF.length]};--w:${7 + (i % 4) * 2}px;--h:${12 + ((i * 3) % 5) * 2}px` }, h("em", { style: sway }, h("i")));
+        if (i % 3 === 2) return h("span", { class: "coin", style: `${base};--dur:${5 + ((i * 37) % 5)}s;--sz:${16 + (i % 3) * 4}px` }, h("em", { style: sway }, h("i", { text: "$" })));
+        return h("span", { class: "bill", style: `${base};--dur:${7 + ((i * 37) % 6)}s;--sc:${0.8 + ((i * 29) % 6) / 10}` }, h("em", { style: sway }, h("i", {}, h("b", { text: "$" }), h("small", { text: "100" }))));
       };
       // (inside a small box, things fall exactly its height, so none of them are hidden below it half the time)
       fxHost.append(h("div", { class: "pfx" + (RISING.has(look.fx) ? " rise" : "") + (fxBox ? " inside" : "") + (drawn ? " drawn" : "") + " k-" + look.fx, "aria-hidden": "true", style: fxBox ? `--fall:${Math.max(160, (fxBox.offsetHeight || 220) + 40)}px` : "" }, ...Array.from({ length: n }, (_, i) => drawn ? piece(i) : h("span", {
