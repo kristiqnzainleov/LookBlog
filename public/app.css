@@ -5736,3 +5736,13 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 .cpoll-votes { display: flex; flex-direction: column; gap: 14px; }
 .cpoll-vgroup { display: flex; flex-direction: column; gap: 6px; }
 .cpoll-opt.mine .cpoll-check { background: #fff; color: #111; border-color: #fff; opacity: 1; }
+/* Hype in Trending */
+.trend-hype { position: relative; display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; padding: 8px 16px 8px 12px; border-radius: 999px; border: 1.5px solid rgba(255, 138, 61, 0.55); background: rgba(255, 138, 61, 0.1); color: #ffb070; font: 800 0.88rem var(--body); cursor: pointer; transition: transform 0.15s, background 0.2s; }
+.trend-hype:hover:not(:disabled) { background: rgba(255, 138, 61, 0.2); }
+.trend-hype:disabled { opacity: 0.55; cursor: default; }
+.trend-hype.on { background: linear-gradient(90deg, #ff8a3d, #ff4757); border-color: transparent; color: #fff; box-shadow: 0 0 18px rgba(255, 100, 60, 0.45); }
+.trend-hype-ic { font-size: 1.05rem; }
+.trend-hype .hype-n { padding: 1px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.25); }
+.trend-hype.pop { animation: hypePop 0.4s ease; }
+@keyframes hypePop { 40% { transform: scale(1.15); } }
+.trend-hype-fly { position: absolute; left: 22px; top: 0; font-style: normal; pointer-events: none; opacity: 0; animation: hypeFly 0.9s ease-out var(--d, 0s) forwards; }

@@ -1,5 +1,5 @@
 // /feed: the latest posts, shorts and videos, newest first.
-import { h, empty, avatar, tick } from "../ui.js";
+import { h, empty, avatar, tick, toast } from "../ui.js";
 import { api } from "../api.js";
 import { navigate } from "../router.js";
 import { state, on } from "../state.js";
@@ -130,6 +130,7 @@ export function feedPage(view) {
       rank++;
       card.classList.add("trending-card");
       card.prepend(h("span", { class: "trend-rank" + (rank <= 3 ? " top" : ""), text: `🔥 #${rank}` }));
+      (card.querySelector(".post-body") || card).append(hypeButton(p));
       return card;
     };
     pager = pagedList({
@@ -184,3 +185,24 @@ export function feedPage(view) {
   return () => { pager?.stop(); offCreated(); offNew(); offDeleted(); offRepost(); };
 }
 feedPage.navName = () => "feed";
+
+// Hype: only here in Trending. Hyped posts and videos climb the list.
+function hypeButton(p) {
+  const count = h("b", { class: "hype-n", text: String(p.hypes || 0), dataset: { hypeFor: p.id } });
+  const b = h("button", { type: "button", class: "trend-hype" + (p.hypedByMe ? " on" : ""), disabled: p.mine, title: p.mine ? "Others can hype your post" : p.hypedByMe ? "Take back your hype" : "Hype it — it climbs Trending" },
+    h("span", { class: "trend-hype-ic", text: "🔥" }), h("span", { class: "trend-hype-l", text: p.hypedByMe ? "Hyped" : "Hype" }), count);
+  b.addEventListener("click", async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    try {
+      const r = await api(`/api/posts/${p.id}/hype`, { method: "POST" });
+      p.hypes = r.hypes; p.hypedByMe = r.hypedByMe;
+      b.classList.toggle("on", r.hypedByMe);
+      b.querySelector(".trend-hype-l").textContent = r.hypedByMe ? "Hyped" : "Hype";
+      count.textContent = String(r.hypes);
+      if (r.hypedByMe) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); for (let i = 0; i < 6; i++) { const f = h("i", { class: "trend-hype-fly", text: "🔥", style: `--dx:${(i - 2.5) * 16}px;--d:${i * 45}ms` }); b.append(f); setTimeout(() => f.remove(), 950); } }
+    } catch (err) { toast(err.error || "Couldn’t hype it."); }
+  });
+  return b;
+}
+// Live counts from others
+on("hype", (ev) => document.querySelectorAll(`[data-hype-for="${CSS.escape(ev.id)}"]`).forEach((el) => { el.textContent = String(ev.hypes); }));

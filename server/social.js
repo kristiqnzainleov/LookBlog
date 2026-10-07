@@ -336,6 +336,8 @@ function postView(p, me) {
     subtitles: (p.subtitles || []).map((x) => ({ id: x.id, lang: x.lang, label: x.label, url: `/api/posts/${p.id}/subtitles/${x.id}.vtt` })),
     createdAt: p.createdAt,
     pinned: (findUser(p.userId)?.pins || []).includes(p.id),
+    hypes: (p.hypes || []).length,
+    hypedByMe: (p.hypes || []).includes(me.id),
     author: authorView(findUser(p.userId)),
     ...stats(p),
     reaction: p.likes.includes(me.id) ? "like" : p.dislikes.includes(me.id) ? "dislike" : null,
@@ -700,7 +702,8 @@ async function handleSocial(req, res, url, me) {
       if (p.sensitive && !me.showSensitive) continue;
       if (type && p.type !== type) continue;
       if (type === "video" && notPlainVideo(p)) continue;
-      const engagement = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + p.viewedBy.length * 0.15 - p.dislikes.length * 0.5;
+      // Hype (only in Trending) pushes a post up the most
+      const engagement = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + (p.hypes || []).length * 4 + p.viewedBy.length * 0.15 - p.dislikes.length * 0.5;
       if (engagement <= 0) continue;
       const age = (now - ms(p.createdAt)) / 3600000;
       const score = (engagement + 1) / Math.pow(age + 2, hours <= 24 ? 1.5 : 1.1);
@@ -1285,6 +1288,23 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
   // The creator changes the extras later: POST /api/posts/:id/options { timedComments, momentReactions }
+  // Hype a post or video (the button is in Trending): POST /api/posts/:id/hype  (again takes it back)
+  if (m === "POST" && a === "posts" && c === "hype" && parts.length === 3) {
+    const post = viewablePost(b, me);
+    if (!post || post.visibility !== "public") throw httpError(404, "This post doesn’t exist anymore.");
+    if (post.userId === me.id) throw httpError(400, "You can’t hype your own post — let others do it!");
+    rateLimit("posthype:" + me.id, 120, 60 * 1000, "Easy on the hype!");
+    post.hypes = post.hypes || [];
+    const on = !post.hypes.includes(me.id);
+    if (on) post.hypes.push(me.id); else post.hypes = post.hypes.filter((x) => x !== me.id);
+    save("posts");
+    broadcast({ type: "hype", id: post.id, hypes: post.hypes.length });
+    // The creator hears about it at a few milestones
+    if (on && [1, 10, 50, 100, 500, 1000].includes(post.hypes.length)) notify(post.userId, "hype", me, { postId: post.id, postType: post.type, text: post.hypes.length === 1 ? "hyped your post in Trending" : `Your post has ${post.hypes.length} hypes in Trending!` });
+    sendJSON(res, 200, { hypes: post.hypes.length, hypedByMe: on });
+    return true;
+  }
+
   // Pin to my profile (up to 3 of each kind, at the top of that tab): POST /api/posts/:id/pin { pin }
   if (m === "POST" && a === "posts" && c === "pin" && parts.length === 3) {
     const post = findPost(b);
