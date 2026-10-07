@@ -196,6 +196,63 @@ function paintReactions(messageId, reactions, chat) {
   row.querySelector(".reactions").replaceWith(reactionsEl(msg, chat));
 }
 
+// Hype (like trending): a 🔥 count under the message; hot messages glow
+function hypeEl(msg, chat) {
+  const b = h("button", { type: "button", class: "msg-hype" + (msg.hypedByMe ? " on" : "") + (msg.hypes >= 3 ? " hot" : ""), hidden: !msg.hypes, title: msg.hypedByMe ? "You hyped this" : "Hype it", "aria-label": `${msg.hypes || 0} hypes` },
+    h("span", { text: "🔥" }), h("b", { text: String(msg.hypes || 0) }), msg.hypes >= 3 ? h("small", { text: "TRENDING" }) : null);
+  b.addEventListener("click", (e) => { e.stopPropagation(); hype(msg, chat); });
+  return b;
+}
+async function hype(msg, chat) {
+  if (chat.member === false) return toast("Join to hype messages.");
+  try {
+    const r = await api(`/api/chats/${chat.id}/messages/${msg.id}/hype`, { method: "POST" });
+    paintHype(msg.id, r.hypes, chat, r.hypedByMe);
+    if (r.hypedByMe) hypeBurst(msg.id);
+  } catch (err) { toast(err.error || "Couldn’t hype it."); }
+}
+function paintHype(messageId, hypes, chat, mine) {
+  const row = document.querySelector(`.msg[data-id="${CSS.escape(messageId)}"]`);
+  if (!row) return;
+  row._msg.hypes = hypes;
+  if (mine !== undefined) row._msg.hypedByMe = mine;
+  row.querySelector(".msg-hype")?.replaceWith(hypeEl(row._msg, chat));
+  row.classList.toggle("hot", hypes >= 3);
+}
+function hypeBurst(messageId) {
+  const row = document.querySelector(`.msg[data-id="${CSS.escape(messageId)}"] .bubble`);
+  if (!row) return;
+  for (let i = 0; i < 6; i++) { const f = h("span", { class: "hype-fly", text: "🔥", style: `--dx:${(i - 2.5) * 14}px;--d:${i * 40}ms` }); row.append(f); setTimeout(() => f.remove(), 900); }
+}
+// The chat's trending messages, ranked by hype
+function openTrending(chat, channelId, jump) {
+  let period = "week";
+  const list = h("div", { class: "ht-list" }, spinner());
+  const tabs = h("div", { class: "ht-tabs" }, ...[["day", "Today"], ["week", "This week"], ["month", "This month"], ["all", "All time"]].map(([k, l]) => {
+    const b = h("button", { type: "button", class: "ht-tab" + (k === period ? " on" : ""), text: l });
+    b.addEventListener("click", () => { period = k; tabs.querySelectorAll(".ht-tab").forEach((x) => x.classList.toggle("on", x === b)); load(); });
+    return b;
+  }));
+  const md = modal({ title: "🔥 Trending here", body: h("div", { class: "ht" }, tabs, list) });
+  async function load() {
+    list.replaceChildren(spinner());
+    try {
+      const { messages } = await api(`/api/chats/${chat.id}/trending?period=${period}${channelId ? "&channelId=" + encodeURIComponent(channelId) : ""}`);
+      list.replaceChildren(...(messages.length ? messages.map((m, i) => {
+        const what = m.text || (m.media?.gif ? "GIF" : m.media?.kind === "image" ? "📷 Photo" : m.media?.kind === "video" ? "🎬 Video" : m.media?.kind === "audio" ? "🎤 Voice message" : m.post ? "📝 Shared a post" : "Message");
+        const row = h("button", { type: "button", class: "ht-row" + (i < 3 ? " top" : "") },
+          h("span", { class: "ht-rank", text: i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "#" + (i + 1) }),
+          avatar(m.author, 34),
+          h("span", { class: "ht-body" }, h("b", { text: m.author.nickname || m.author.name }), h("span", { class: "ht-text", text: what }), h("small", { class: "muted", text: new Date(m.createdAt).toLocaleString() })),
+          h("span", { class: "ht-count" + (m.hypedByMe ? " on" : "") }, "🔥 ", h("b", { text: String(m.hypes) })));
+        row.addEventListener("click", () => { md.close(); jump(m.id); });
+        return row;
+      }) : [empty("Nothing’s hyped yet.", "Tap 🔥 on a message to hype it. The most hyped ones show up here.")]));
+    } catch (err) { list.replaceChildren(empty("Couldn’t load it.", err.error || "")); }
+  }
+  load();
+}
+
 // Notes on a message: sticky notes from the chat's members, under the bubble
 const MSG_NOTE_COLORS = ["yellow", "pink", "mint", "sky", "lilac", "peach"];
 function notesEl(msg, chat) {
@@ -575,6 +632,12 @@ function messageEl(msg, chat, onRemoved) {
     });
     tools.append(pin);
   }
+  // Hype it
+  if (chat.member !== false && !msg.system) {
+    const hb = h("button", { type: "button", class: "tool-icon hype-tool", "aria-label": "Hype", title: msg.hypedByMe ? "Take back your hype" : "Hype it 🔥" }, h("span", { text: "🔥" }));
+    hb.addEventListener("click", () => hype(row._msg || msg, chat));
+    tools.prepend(hb);
+  }
   // Leave a note on it
   if (chat.member !== false && !msg.system) {
     const nb = h("button", { type: "button", class: "tool-icon", "aria-label": "Add a note", title: "Add a note" }, h("span", { text: "🗒" }));
@@ -608,9 +671,9 @@ function messageEl(msg, chat, onRemoved) {
 
   if (msg.pinned) bubble.prepend(h("span", { class: "pin-mark", title: "Pinned", text: "📌" }));
   if (msg.expiresAt) bubble.append(h("span", { class: "vanish-mark", title: "Disappears " + new Date(msg.expiresAt).toLocaleString(), text: "⏳" }));
-  const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : ""), dataset: { id: msg.id, author: msg.author.username || "" } },
+  const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : "") + (msg.hypes >= 3 ? " hot" : ""), dataset: { id: msg.id, author: msg.author.username || "" } },
     msg.mine ? null : h("a", { href: profileHref(msg.author.username), class: "msg-avatar", tabindex: "-1" }, avatar(msg.author, 34)),
-    h("div", { class: "msg-stack" }, bubble, reactionsEl(msg, chat), notesEl(msg, chat)),
+    h("div", { class: "msg-stack" }, bubble, h("div", { class: "msg-under" }, reactionsEl(msg, chat), hypeEl(msg, chat)), notesEl(msg, chat)),
     tools.children.length ? tools : null
   );
   row._msg = msg;
@@ -934,6 +997,9 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     gamesBtn.addEventListener("click", () => openGamePicker(chat, { channelId, onStarted: (m) => { add(m); toBottom(); } }));
     tools.append(styleBtn);
     if (chat.canSend) tools.append(gamesBtn);
+    const hotBtn = h("button", { class: "icon-btn", title: "Trending here: the most hyped messages", "aria-label": "Trending messages" }, h("span", { class: "nick-ic", text: "🔥" }));
+    hotBtn.addEventListener("click", () => openTrending(chat, channelId, jumpTo));
+    tools.append(hotBtn);
     // Photos, videos, links and search
     const libBtn = h("button", { class: "icon-btn", title: "Photos, videos, links & search", "aria-label": "Photos, videos, links and search" }, h("span", { class: "nick-ic", text: "🗂" }));
     libBtn.addEventListener("click", () => openLibrary());
@@ -1325,6 +1391,8 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   });
   const offReact = on("message:reactions", (ev) => { if (ev.chatId === chatId && chat) paintReactions(ev.messageId, ev.reactions, chat); });
   const offNotes = on("message:notes", (ev) => { if (ev.chatId === chatId && chat) paintNotes(ev.messageId, ev.notes, chat); });
+  const offHype = on("message:hype", (ev) => { if (ev.chatId === chatId && chat) paintHype(ev.messageId, ev.hypes, chat, ev.by === state.me.username ? ev.on : undefined); });
+  const offHyped = on("message:hyped", (ev) => { if (ev.chatId === chatId) toast(ev.hypes === 1 ? `🔥 @${ev.by} hyped your message` : `🔥 Your message is trending: ${ev.hypes} hypes!`); });
   const offMembers = on("group:members", (ev) => { if (ev.chatId === chatId && chat) { chat.memberCount = ev.memberCount; paintHead(); } });
   const offPins = on("message:pinned", (ev) => {
     if (ev.chatId !== chatId) return;
@@ -1346,6 +1414,6 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     list.querySelectorAll(".msg").forEach((row) => { if (row._msg?.expiresAt && row._msg.expiresAt <= now) { ids.delete(row._msg.id); row.remove(); } });
   }, 5000);
 
-  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offNotes(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
+  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offNotes(); offHype(); offHyped(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
 }
 

@@ -15,6 +15,8 @@ function sentence(n) {
     case "note-reply": return "replied to your note";
     case "story-reply": return "replied to your story";
     case "story-comment": return "commented on your story";
+    case "chain-add": return n.text || "added a part to your chain";
+    case "chain-done": return "🎬 A chain you’re in is finished — see how it turned out!";
     case "story-mention": return "mentioned you in their story";
     case "referral": return "joined LookBlog with your invite 🎉";
     case "voice-invite": return `invited you to a voice channel in ${n.group || "a group"}`;
@@ -69,7 +71,7 @@ function target(n) {
   const hash = ["comment", "answer", "reaction"].includes(n.type) ? "#replies" : "";
   return postHref(n.postId) + hash;
 }
-const ICON = { "voice-invite": "🔊", referral: "🎉", team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-comment": "💬", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
+const ICON = { "voice-invite": "🔊", referral: "🎉", team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-comment": "💬", "chain-add": "⛓️", "chain-done": "🎬", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
 
 function itemEl(n, close) {
   const quote = n.type === "badge" ? null : n.text || n.postText;

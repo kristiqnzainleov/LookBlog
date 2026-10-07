@@ -110,6 +110,34 @@ function pollBuilder(onChange) {
   return api_;
 }
 
+/* ---------- Chain post builder (like Gartic Phone) ---------- */
+function chainBuilder(onChange) {
+  let mode = "text", max = 6;
+  const modes = h("div", { class: "chain-modes" });
+  const sizes = h("div", { class: "chain-sizes" });
+  const paint = () => {
+    modes.replaceChildren(...[["text", "✍️ Words", "Everyone writes the next line"], ["gartic", "🎨 Draw & write", "Write, draw it, say what it is, draw that…"]].map(([k, l, d]) => {
+      const b = h("button", { type: "button", class: "chain-mode" + (mode === k ? " on" : ""), title: d }, h("b", { text: l }), h("small", { text: d }));
+      b.addEventListener("click", () => { mode = k; paint(); onChange(); });
+      return b;
+    }));
+    sizes.replaceChildren(h("span", { class: "muted", text: "Parts" }), ...[4, 6, 8, 10, 12].map((n) => {
+      const b = h("button", { type: "button", class: "chain-size" + (max === n ? " on" : ""), text: String(n) });
+      b.addEventListener("click", () => { max = n; paint(); });
+      return b;
+    }));
+  };
+  paint();
+  const remove = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Not a chain" });
+  const el = h("div", { class: "chain-builder", hidden: true },
+    h("b", { class: "vis-label", text: "⛓️ Chain post" }),
+    h("p", { class: "create-hint", text: "Others carry it on. Each person only sees the part right before theirs — nobody knows the rest until the chain is finished. Then everyone sees how it turned out." }),
+    modes, h("div", { class: "poll-tools" }, sizes, h("span", { style: "flex:1" }), remove));
+  const api_ = { el, on: () => !el.hidden, open: () => { el.hidden = false; onChange(); }, close: () => { el.hidden = true; onChange(); }, value: () => ({ mode, max }) };
+  remove.addEventListener("click", api_.close);
+  return api_;
+}
+
 /* ---------- A quick post: text and photos ---------- */
 const PROMPTS = [
   "What did you see today? Tag people with @",
@@ -146,14 +174,19 @@ function postForm() {
   const poll = pollBuilder(() => update());
   const pollBtn = h("button", { type: "button", class: "tool-btn", title: "Add a poll", "aria-label": "Add a poll" }, icon("poll"));
   pollBtn.addEventListener("click", () => (poll.on() ? poll.close() : poll.open()));
+  const chain = chainBuilder(() => update());
+  const chainBtn = h("button", { type: "button", class: "tool-btn", title: "Chain post: others carry it on, blind (like Gartic Phone)", "aria-label": "Chain post" }, h("span", { class: "tool-emoji", text: "⛓️" }));
+  chainBtn.addEventListener("click", () => (chain.on() ? chain.close() : (poll.close(), chain.open(), text.focus())));
 
   function update() {
-    const hasPoll = poll.on();
-    picker.button.disabled = hasPoll || picker.items().some((i) => i.kind === "video") || picker.items().length >= 4;
-    pollBtn.disabled = picker.items().length > 0;
+    const hasPoll = poll.on(), hasChain = chain.on();
+    picker.button.disabled = hasPoll || hasChain || picker.items().some((i) => i.kind === "video") || picker.items().length >= 4;
+    pollBtn.disabled = picker.items().length > 0 || hasChain;
+    chainBtn.disabled = picker.items().length > 0 || hasPoll;
     pollBtn.classList.toggle("on", hasPoll);
-    text.placeholder = hasPoll ? "Ask a question…" : prompt;
-    submit.disabled = picker.busy() || cnt.over() || (hasPoll ? !text.value.trim() || !poll.ready() : !text.value.trim() && !picker.media().length);
+    chainBtn.classList.toggle("on", hasChain);
+    text.placeholder = hasPoll ? "Ask a question…" : hasChain ? (chain.value().mode === "gartic" ? "Write something for the next person to draw…" : "Start the chain… the next person only sees this line") : prompt;
+    submit.disabled = picker.busy() || cnt.over() || (hasPoll ? !text.value.trim() || !poll.ready() : hasChain ? !text.value.trim() : !text.value.trim() && !picker.media().length);
     submit.textContent = picker.busy() ? "Uploading…" : "Post";
   }
   text.addEventListener("input", update);
@@ -174,7 +207,8 @@ function postForm() {
       text,
       picker.previews,
       poll.el,
-      h("div", { class: "composer-bar" }, picker.button, pollBtn, repliesOffBtn, cat.el, cnt.el, submit),
+      chain.el,
+      h("div", { class: "composer-bar" }, picker.button, pollBtn, chainBtn, repliesOffBtn, cat.el, cnt.el, submit),
       err
     )
   );
@@ -189,11 +223,12 @@ function postForm() {
     submit.disabled = true;
     submit.textContent = "Posting…";
     try {
-      await publish({ type: "post", text: text.value, media: poll.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, categoryId: cat.value() || null, repliesOff });
-      toast(poll.on() ? "Poll posted." : "Posted.");
+      await publish({ type: "post", text: text.value, media: poll.on() || chain.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, chain: chain.on() ? chain.value() : null, categoryId: cat.value() || null, repliesOff });
+      toast(poll.on() ? "Poll posted." : chain.on() ? "⛓️ Chain started! Others can carry it on now." : "Posted.");
       text.value = "";
       picker.clear();
       poll.close();
+      chain.close();
       cnt.paint();
       fit();
     } catch (ex) {

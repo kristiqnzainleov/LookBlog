@@ -279,6 +279,8 @@ function messageViewFull(msg, me) {
     pingsMe: msg.userId !== me.id && (msg.mentions.includes(me.id) || Boolean(msg.everyone)),
     reactions: reactionsView(msg, me),
     notes: notesView(msg, me),
+    hypes: (msg.hypes || []).length,
+    hypedByMe: (msg.hypes || []).includes(me.id),
     replyTo: replyPreview(msg),
     storyReply: msg.storyReply ? { ...require("./stories").storyPreview(msg.storyReply.storyId, me), reaction: msg.storyReply.reaction, toMe: msg.storyReply.owner === me.id } : null,
     instantReply: msg.instantReply ? { reaction: msg.instantReply.reaction || null, toMe: msg.instantReply.owner === me.id } : null,
@@ -784,6 +786,36 @@ async function handleChat(req, res, url, me) {
         .map((x) => ({ user: { ...authorView(x.u), nickname: nicknameOf(chat, x.u.id) }, emoji: x.emoji, mine: x.u.id === me.id }))
         .sort((a, b) => Number(b.mine) - Number(a.mine));
       sendJSON(res, 200, { reactions: people });
+      return true;
+    }
+
+    // Hype a message (like trending): POST /api/chats/:id/messages/:messageId/hype  (again takes it back)
+    if (m === "POST" && c === "messages" && d && parts[4] === "hype" && parts.length === 5) {
+      if (!isMember(chat, me)) throw httpError(403, "Join to hype messages.");
+      const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
+      if (!msg || msg.system) throw httpError(404, "That message doesn’t exist.");
+      rateLimit("hype:" + me.id, 120, 60 * 1000, "Easy on the hype!");
+      msg.hypes = msg.hypes || [];
+      const on = !msg.hypes.includes(me.id);
+      if (on) msg.hypes.push(me.id); else msg.hypes = msg.hypes.filter((x) => x !== me.id);
+      save("messages");
+      sendTo(chat.members, { type: "message:hype", chatId: chat.id, messageId: msg.id, hypes: msg.hypes.length, by: me.username, on });
+      // The author hears about it when their message gets hot
+      if (on && msg.userId !== me.id && [1, 5, 10, 25, 50, 100].includes(msg.hypes.length)) {
+        sendTo([msg.userId], { type: "message:hyped", chatId: chat.id, messageId: msg.id, hypes: msg.hypes.length, by: me.username });
+      }
+      sendJSON(res, 200, { hypes: msg.hypes.length, hypedByMe: on });
+      return true;
+    }
+    // The chat's trending messages: GET /api/chats/:id/trending?channelId=&period=day|week|month|all
+    if (m === "GET" && c === "trending" && parts.length === 3) {
+      if (!isMember(chat, me) && !(chat.kind === "group" && chat.visibility === "public")) throw httpError(403, "Join to see this.");
+      const H = { day: 24, week: 168, month: 720, all: 1e7 }[url.searchParams.get("period")] || 168;
+      const from = Date.now() - H * 3600 * 1000, ch = url.searchParams.get("channelId");
+      const list = db.messages.filter((x) => x.chatId === chat.id && (x.hypes || []).length && !x.system && (!ch || (x.channelId || null) === ch) && new Date(x.createdAt).getTime() >= from && !(x.expiresAt && new Date(x.expiresAt) < new Date()))
+        .map((x) => ({ x, score: x.hypes.length / Math.pow((Date.now() - new Date(x.createdAt).getTime()) / 3600000 + 2, H <= 24 ? 1.2 : 0.6) }))
+        .sort((a, b) => b.x.hypes.length - a.x.hypes.length || b.score - a.score).slice(0, 30);
+      sendJSON(res, 200, { messages: list.map(({ x }) => messageView(x, me)) });
       return true;
     }
 

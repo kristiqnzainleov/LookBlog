@@ -4,6 +4,7 @@ import { openShare } from "./share.js";
 import { createPlayer } from "./player.js";
 import { visibilityBadge } from "./visibility.js";
 import { pollEl } from "./poll.js";
+import { chainEl } from "./chain.js";
 import { openReport } from "./report.js";
 import { makeEditable, postTextEl, editedLabel, liveTitle } from "./edit-post.js";
 import { api } from "../api.js";
@@ -415,8 +416,8 @@ export function postCard(p, { onDeleted, onProfile = false } = {}) {
   } else {
     const textEl = makeEditable(postTextEl(p, "post-text", { placeholder: p.type === "short" ? "Add a caption" : "Add some text" }), p);
     // A post that's only words (no photo) and was found sensitive: the words are covered too
-    body = [warn && !p.media.length ? nsfwWrap(textEl, "post", warn) : textEl, p.poll ? pollEl(p) : null, mediaBlock(p),
-      p.type === "post" && !p.media.length && !p.poll ? linkBlock(p.text) : null];
+    body = [p.chain ? null : warn && !p.media.length ? nsfwWrap(textEl, "post", warn) : textEl, p.poll ? pollEl(p) : null, p.chain ? chainEl(p) : null, mediaBlock(p),
+      p.type === "post" && !p.media.length && !p.poll && !p.chain ? linkBlock(p.text) : null];
   }
 
   // "Mila reposted" above posts that show up because someone shared them

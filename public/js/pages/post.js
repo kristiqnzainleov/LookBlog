@@ -6,6 +6,7 @@ import { on } from "../state.js";
 import { actions, mediaBlock, videoPlayer, sendView, warnKind, nsfwWrap } from "../components/post.js";
 import { visibilityButton } from "../components/visibility.js";
 import { pollEl } from "../components/poll.js";
+import { chainEl } from "../components/chain.js";
 import { categorySelect, makeEditable, postTextEl, editedLabel } from "../components/edit-post.js";
 import { commentsSection } from "../components/comments.js";
 import { profileHref, navigate } from "../router.js";
@@ -55,8 +56,9 @@ export async function postPage(view, m) {
     main = h("article", { class: "detail" + (p.type === "short" ? " detail-short" : "") },
       authorRow,
       // Words found sensitive (and no photo to cover): the words are covered
-      ((el) => (warnKind(p) && !p.media.length ? nsfwWrap(el, "post", warnKind(p)) : el))(makeEditable(postTextEl(p, "detail-text post-text", { placeholder: p.type === "short" ? "Add a caption" : "Add some text" }), p)),
+      p.chain ? null : ((el) => (warnKind(p) && !p.media.length ? nsfwWrap(el, "post", warnKind(p)) : el))(makeEditable(postTextEl(p, "detail-text post-text", { placeholder: p.type === "short" ? "Add a caption" : "Add some text" }), p)),
       p.poll ? pollEl(p) : null,
+      p.chain ? chainEl(p) : null,
       mediaBlock(p),
       viewsLine,
       actions(p, { onDeleted, big: true })
