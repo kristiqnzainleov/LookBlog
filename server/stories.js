@@ -43,6 +43,7 @@ function storyView(s, me) {
     tags: (s.tags || []).map(findUser).filter(Boolean).map((u) => ({ username: u.username, name: u.name })),
     taggedMe: (s.tags || []).includes(me.id),
     canRepost: live(s) && s.userId !== me.id && (s.tags || []).includes(me.id) && !repostedBy(s, me),
+    comments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).length,
     repostOf: s.repostOf ? (() => { const o = findUser(s.repostOf.userId); return o ? { username: o.username, name: o.name } : null; })() : null,
   };
   if (s.userId === me.id) {
@@ -297,6 +298,61 @@ async function handleStories(req, res, url, me) {
     if (!text && !gif) throw httpError(400, "Write a reply.");
     if (chars(text) > 1000) throw httpError(400, "Keep it under 1000 characters.");
     sendJSON(res, 201, deliverToOwner(story, me, { text, gif }));
+    return true;
+  }
+
+  /* ---------- Comments on a story: they stay on it (in highlights too), everyone who can see it sees them ---------- */
+  const commentView = (c) => {
+    const u = findUser(c.userId);
+    return u ? { id: c.id, text: c.text, gif: c.gif || null, at: c.at, author: authorView(u), mine: c.userId === me.id, canDelete: c.userId === me.id || story.userId === me.id,
+      likes: (c.likes || []).length, liked: (c.likes || []).includes(me.id), byOwner: c.userId === story.userId } : null;
+  };
+  const { blockedBetween } = require("./social");
+  const commentsOf = () => (story.comments || []).filter((c) => { const u = findUser(c.userId); return u && !blockedBetween(u, me); }).map(commentView).filter(Boolean);
+  const tellWatchers = () => {
+    const ids = new Set([story.userId, ...story.viewers.map((v) => v.userId), ...(story.comments || []).map((c) => c.userId)]);
+    sendTo([...ids], { type: "story:comments", id: story.id, count: (story.comments || []).length });
+  };
+  // GET /api/stories/:id/comments
+  if (m === "GET" && parts[2] === "comments" && parts.length === 3) {
+    sendJSON(res, 200, { comments: commentsOf() });
+    return true;
+  }
+  // POST /api/stories/:id/comments { text, gif }
+  if (m === "POST" && parts[2] === "comments" && parts.length === 3) {
+    rateLimit("story-comment:" + me.id, 60, 10 * 60 * 1000, "You’ve written a lot of comments. Take a short break.");
+    const body = await readJSON(req);
+    const text = clean(body.text);
+    const gif = body.gif || body.gifUrl ? require("./social").resolveGif(body, me) : null;
+    if (!text && !gif) throw httpError(400, "Write a comment.");
+    if (chars(text) > 500) throw httpError(400, "Keep it under 500 characters.");
+    story.comments = story.comments || [];
+    if (story.comments.length >= 500) throw httpError(400, "This story has a lot of comments already.");
+    story.comments.push({ id: crypto.randomUUID().slice(0, 12), userId: me.id, text, gif: gif ? { url: gif.url, width: gif.width || null, height: gif.height || null } : null, at: new Date().toISOString(), likes: [] });
+    if (!story.viewers.some((v) => v.userId === me.id) && story.userId !== me.id) story.viewers.push({ userId: me.id, at: new Date().toISOString() });
+    save("stories");
+    if (story.userId !== me.id) notify(story.userId, "story-comment", me, { text: text || "commented with a GIF", storyId: story.id });
+    tellWatchers();
+    sendJSON(res, 201, { comments: commentsOf() });
+    return true;
+  }
+  const comment = parts[2] === "comments" && parts[3] ? (story.comments || []).find((c) => c.id === parts[3]) : null;
+  if (parts[2] === "comments" && parts[3] && !comment) throw httpError(404, "That comment is gone.");
+  // Like a comment: POST /api/stories/:id/comments/:cid/like
+  if (m === "POST" && comment && parts[4] === "like") {
+    comment.likes = comment.likes || [];
+    if (comment.likes.includes(me.id)) comment.likes = comment.likes.filter((x) => x !== me.id); else comment.likes.push(me.id);
+    save("stories");
+    sendJSON(res, 200, { likes: comment.likes.length, liked: comment.likes.includes(me.id) });
+    return true;
+  }
+  // Delete: DELETE /api/stories/:id/comments/:cid  (mine, or any on my story)
+  if (m === "DELETE" && comment && parts.length === 4) {
+    if (comment.userId !== me.id && story.userId !== me.id) throw httpError(403, "You can only delete your own comments.");
+    story.comments = story.comments.filter((c) => c !== comment);
+    save("stories");
+    tellWatchers();
+    sendJSON(res, 200, { comments: commentsOf() });
     return true;
   }
 

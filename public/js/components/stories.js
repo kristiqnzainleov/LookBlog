@@ -76,7 +76,7 @@ export async function addStory() {
 }
 
 /* ---------- The viewer ---------- */
-export function openStories(groups, startGroup = 0, onClosed) {
+export function openStories(groups, startGroup = 0, onClosed, { comments: openComments = false } = {}) {
   let g = startGroup, i = 0, timer = null, started = 0, elapsed = 0, paused = false, closed = false;
   const bars = h("div", { class: "sv-bars" });
   const who = h("div", { class: "sv-who" });
@@ -153,6 +153,58 @@ export function openStories(groups, startGroup = 0, onClosed) {
     paintBars(0);
     timer = requestAnimationFrame(tickTime);
   }
+  // Comments: they stay on the story; everyone who can see it sees them
+  function commentsBtn(s) {
+    const b = h("button", { type: "button", class: "sv-pill sv-comments-btn", title: "Comments", "aria-label": "Comments" }, h("span", { text: "💬" }), h("span", { class: "sv-cc", text: String(s.comments || 0) }));
+    b.addEventListener("click", () => showComments(s));
+    return b;
+  }
+  function showComments(s) {
+    pause(true);
+    const list = h("div", { class: "sc-list" }, h("p", { class: "muted", text: "Loading…" }));
+    const input = h("input", { type: "text", class: "text-input sc-input", placeholder: s.mine ? "Add a comment…" : `Comment on ${group().user.name.split(" ")[0]}’s story…`, maxlength: 500 });
+    const send = h("button", { type: "button", class: "btn btn-primary sc-send", text: "Post", disabled: true });
+    const gifBtn = h("button", { type: "button", class: "sv-gif sc-gif", title: "GIF", "aria-label": "Comment with a GIF" }, h("span", { text: "GIF" }));
+    const paintList = (comments) => {
+      s.comments = comments.length;
+      frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(comments.length); });
+      list.replaceChildren(...(comments.length ? comments.map((c) => {
+        const like = h("button", { type: "button", class: "sc-like" + (c.liked ? " on" : ""), "aria-label": "Like" }, h("span", { text: c.liked ? "❤️" : "🤍" }), h("small", { text: c.likes ? String(c.likes) : "" }));
+        like.addEventListener("click", async () => {
+          try { const r = await api(`/api/stories/${s.id}/comments/${c.id}/like`, { method: "POST" }); c.liked = r.liked; c.likes = r.likes; like.classList.toggle("on", r.liked); like.querySelector("span").textContent = r.liked ? "❤️" : "🤍"; like.querySelector("small").textContent = r.likes ? String(r.likes) : ""; } catch {}
+        });
+        const del = c.canDelete ? h("button", { type: "button", class: "sc-del", title: "Delete", "aria-label": "Delete comment" }, icon("trash")) : null;
+        del?.addEventListener("click", async () => {
+          if (!del.dataset.sure) { del.dataset.sure = "1"; del.classList.add("sure"); del.replaceChildren(h("span", { text: "Delete?" })); return; }
+          try { paintList((await api(`/api/stories/${s.id}/comments/${c.id}`, { method: "DELETE" })).comments); } catch (err) { toast(err.error || "Couldn’t delete it."); }
+        });
+        return h("div", { class: "sc-row" },
+          h("a", { href: profileHref(c.author.username), class: "sc-av" }, avatar(c.author, 34)),
+          h("div", { class: "sc-body" },
+            h("div", { class: "sc-head" }, h("b", {}, c.author.name, tick(c.author, 13)), c.byOwner ? h("span", { class: "sc-owner", text: "Author" }) : null, h("small", { class: "muted", text: timeAgo(c.at) })),
+            c.text ? h("p", { class: "sc-text", text: c.text }) : null,
+            c.gif ? h("img", { class: "sc-gif-img", src: c.gif.url, alt: "GIF", loading: "lazy" }) : null),
+          h("div", { class: "sc-tools" }, like, del));
+      }) : [h("p", { class: "muted sc-empty", text: "No comments yet. Be the first!" })]));
+      list.scrollTop = list.scrollHeight;
+    };
+    const post = async (body) => {
+      send.disabled = true;
+      try { paintList((await api(`/api/stories/${s.id}/comments`, { method: "POST", body })).comments); input.value = ""; }
+      catch (err) { toast(err.error || "Couldn’t post it."); }
+      send.disabled = !input.value.trim();
+    };
+    input.addEventListener("input", () => { send.disabled = !input.value.trim(); });
+    input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter" && input.value.trim()) post({ text: input.value }); });
+    send.addEventListener("click", () => input.value.trim() && post({ text: input.value }));
+    gifBtn.addEventListener("click", () => openGifs(gifBtn, (gf) => post({ text: input.value, ...gifBody(gf) })));
+    const md = modal({ title: "Comments", onClose: () => { closeGifs(); offC(); if (!closed) pause(false); }, body: h("div", { class: "sc-sheet" }, list, h("div", { class: "sc-compose" }, input, gifBtn, send)) });
+    const load = () => api(`/api/stories/${s.id}/comments`).then((r) => paintList(r.comments)).catch(() => list.replaceChildren(h("p", { class: "muted", text: "Couldn’t load the comments." })));
+    const offC = on("story:comments", (ev) => { if (ev.id === s.id) load(); });
+    load();
+    setTimeout(() => input.focus(), 80);
+    return md;
+  }
   function paintFoot(s) {
     if (s.mine) {
       const viewersBtn = h("button", { type: "button", class: "sv-pill" }, icon("eye"), h("span", { text: `${s.viewers.length} ${s.viewers.length === 1 ? "viewer" : "viewers"}` }));
@@ -194,7 +246,7 @@ export function openStories(groups, startGroup = 0, onClosed) {
         close();
         import("./highlights.js").then((mod) => mod.openHighlightEditor({ highlight: group().highlight, onDone: onClosed }));
       });
-      foot.replaceChildren(viewersBtn, hlBtn, ...(editHl ? [editHl] : []), del);
+      foot.replaceChildren(viewersBtn, commentsBtn(s), hlBtn, ...(editHl ? [editHl] : []), del);
     } else {
       // Quick reactions (tap the same one again to take it back)
       const reacts = h("div", { class: "sv-reacts" }, ...REACTIONS.map((e) => {
@@ -249,7 +301,7 @@ export function openStories(groups, startGroup = 0, onClosed) {
           catch (err) { toast(err.error || "Couldn’t add it."); repost.disabled = false; }
         });
       }
-      foot.replaceChildren(...(repost ? [repost] : []), reacts, h("div", { class: "sv-reply-row" }, input, gifBtn, send));
+      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts, commentsBtn(s)), h("div", { class: "sv-reply-row" }, input, gifBtn, send));
     }
   }
   // A reaction floats up over the story
@@ -276,11 +328,17 @@ export function openStories(groups, startGroup = 0, onClosed) {
     const btn = foot.querySelector(".sv-pill span");
     if (btn) btn.textContent = `${ev.count} ${ev.count === 1 ? "viewer" : "viewers"}`;
   });
+  const offComments = on("story:comments", (ev) => {
+    const s = story();
+    if (!s || ev.id !== s.id) return;
+    s.comments = ev.count;
+    frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(ev.count); });
+  });
   function close() {
     if (closed) return;
     closed = true;
     closeGifs();
-    offViewed();
+    offViewed(); offComments();
     cancelAnimationFrame(timer);
     video?.pause();
     document.removeEventListener("keydown", onKey);
@@ -299,7 +357,7 @@ export function openStories(groups, startGroup = 0, onClosed) {
   closeBtn.addEventListener("click", close);
   box.addEventListener("click", (e) => { if (e.target === box) close(); });
   const onKey = (e) => {
-    if (e.target.closest?.("input")) return;
+    if (e.target.closest?.("input") || document.querySelector(".app-overlay")) return; // (a window on top, like the comments, handles its own keys)
     if (e.key === "Escape") close();
     else if (e.key === "ArrowRight") next();
     else if (e.key === "ArrowLeft") prev();
@@ -310,6 +368,7 @@ export function openStories(groups, startGroup = 0, onClosed) {
   const firstUnseen = group().stories.findIndex((s) => !s.seen && !s.mine);
   i = group().startAt ?? (firstUnseen > 0 ? firstUnseen : 0);
   show();
+  if (openComments && story()) setTimeout(() => showComments(story()), 300);
 }
 
 /* ---------- The bar at the top of the feed ---------- */
@@ -336,12 +395,12 @@ export function storyBar() {
 }
 
 // Open one person's stories (e.g. from their profile picture)
-export async function openUserStories(username, onClosed, storyId = null) {
+export async function openUserStories(username, onClosed, storyId = null, opts = {}) {
   try {
     const { group } = await api(`/api/stories/user/${encodeURIComponent(username)}`);
     if (!group.stories.length) return false;
     if (storyId) group.startAt = Math.max(0, group.stories.findIndex((x) => x.id === storyId));
-    openStories([group], 0, onClosed);
+    openStories([group], 0, onClosed, opts);
     return true;
   } catch { return false; }
 }

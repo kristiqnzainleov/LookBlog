@@ -193,22 +193,25 @@ function nameLookOf(u) {
 }
 // How someone's name looks (colour, font, effect) and their profile's accent colour
 const NAME_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "sky", "blue", "purple", "lilac", "white",
-  "sunset", "ocean", "aurora", "candy", "fire", "galaxy", "rainbow", "peach", "neon", "ice"];
+  "sunset", "ocean", "aurora", "candy", "fire", "galaxy", "rainbow", "peach", "neon", "ice",
+  "xmas", "forest", "turtle", "steel", "pumpkin", "love", "beach", "matrix", "coffee", "pastel", "blood"];
 const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide",
   "tall", "retro", "marker", "pixel", "scifi", "hand", "groovy", "blocky", "comic", "classic", "neon", "fancy", "spooky", "techno",
   "minecraft", "fortnite", "valorant", "cod", "arcade", "glitch", "esports", "terminal"]; // the last ones: gamer fonts
 // A custom gradient: 2–4 colours and a direction, e.g. "grad:#ff0000,#00ff88@90"
 const GRAD = /^grad:#[0-9a-f]{6}(,#[0-9a-f]{6}){1,3}@\d{1,3}$/i;
 const NAME_EFFECTS = ["glow", "shine", "shadow"];
-const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white"];
-const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora"];
-const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono"];
-const PROFILE_FX = ["snow", "hearts", "sparkles", "stars", "sakura", "confetti", "bubbles", "fire", "leaves", "money"];
+const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white", "xmas", "steel", "forest"];
+const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora", "snow", "candy", "shell", "pinstripe", "hearts", "matrix", "sunrays"];
+const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono", "xmas", "winter", "forest", "turtle", "business", "halloween", "beach", "love", "matrix", "coffee", "pirate", "spring"];
+const PROFILE_FX = ["snow", "hearts", "sparkles", "stars", "sakura", "confetti", "bubbles", "fire", "leaves", "money",
+  "xmas", "turtles", "pumpkins", "bats", "love", "notes", "charts", "fish", "rain", "coffee", "paws", "petals", "gems", "matrix", "summer", "school", "balls", "food"];
 const AVATAR_SHAPES = ["squircle", "hex", "heart", "star", "blob", "diamond"];
 const NAME_ANIMS = ["wave", "bounce", "pulse", "glitch", "rainbow", "float"];
-const CARD_FRAMES = ["neon", "glass", "gold", "pixel", "comic", "holo"];
-const CURSOR_TRAILS = ["sparkle", "hearts", "stars", "bubbles", "fire", "rainbow"];
-const AVATAR_DECOS = ["crown", "halo", "horns", "cat", "headphones", "flowers", "bow", "flame", "star", "cap"];
+const CARD_FRAMES = ["neon", "glass", "gold", "pixel", "comic", "holo", "candy", "ice", "wood", "business", "shell"];
+const CURSOR_TRAILS = ["sparkle", "hearts", "stars", "bubbles", "fire", "rainbow", "snow", "money", "leaves", "notes", "love"];
+const AVATAR_DECOS = ["crown", "halo", "horns", "cat", "headphones", "flowers", "bow", "flame", "star", "cap",
+  "santa", "antlers", "turtle", "tie", "glasses", "pumpkin", "snowflake", "cupid", "gradcap", "cup", "pirate", "gift", "bone", "seashell", "unicorn", "alien"];
 const EMOJI_ONE = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u;
 const HEX = /^#[0-9a-f]{6}$/i;
 function cleanLook(b) {

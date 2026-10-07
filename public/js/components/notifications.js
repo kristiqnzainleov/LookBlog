@@ -1,7 +1,7 @@
 // The bell in the top bar: a list of what happened, with a live unread count.
 import { $, h, avatar, timeEl, toast, spinner, empty, tick } from "../ui.js";
 import { api } from "../api.js";
-import { on } from "../state.js";
+import { on, state } from "../state.js";
 import { navigate, profileHref, postHref } from "../router.js";
 import { sfx, soundsOff, setSoundsOff } from "./sfx.js";
 
@@ -14,6 +14,7 @@ function sentence(n) {
     case "team": return "";
     case "note-reply": return "replied to your note";
     case "story-reply": return "replied to your story";
+    case "story-comment": return "commented on your story";
     case "story-mention": return "mentioned you in their story";
     case "referral": return "joined LookBlog with your invite 🎉";
     case "voice-invite": return `invited you to a voice channel in ${n.group || "a group"}`;
@@ -68,7 +69,7 @@ function target(n) {
   const hash = ["comment", "answer", "reaction"].includes(n.type) ? "#replies" : "";
   return postHref(n.postId) + hash;
 }
-const ICON = { "voice-invite": "🔊", referral: "🎉", team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
+const ICON = { "voice-invite": "🔊", referral: "🎉", team: "🛡️", "story-mention": "👥", "story-repost": "🔁", "story-reply": "📖", "story-comment": "💬", "story-reaction": "✨", "note-reply": "💭", "creator-heart": "💗", "video-reply": "🎥", "chat-mention": "@", live: "🔴", "live-upcoming": "📅", "live-mod": "🛡️", "upcoming-video": "⏳", premiere: "🎬", "public-event-now": "🔴", "event-now": "🔴", "song-comment": "🎵", security: "🔐", song: "🎵", tag: "👥", "public-event": "📅", "public-event-join": "🙋", "public-event-post": "💬", "public-event-start": "⏰", "public-event-cancelled": "❌", "follow-request": "🔒", "follow-accept": "✅", event: "📅", "event-start": "⏰", invite: "📨", badge: "🏅", follow: "👋", mention: "@", comment: "💬", answer: "↩", reaction: "", cool: "😎", repost: "🔁", upload: "🔔" };
 
 function itemEl(n, close) {
   const quote = n.type === "badge" ? null : n.text || n.postText;
@@ -100,6 +101,9 @@ function itemEl(n, close) {
     e.preventDefault();
     close();
     // Tagged in a story: open it right here (with "Add to your story")
+    if (n.type === "story-comment" && n.storyId) {
+      return import("./stories.js").then(async (mod) => { if (!(await mod.openUserStories(state.me.username, null, n.storyId, { comments: true }))) toast("This story is gone."); });
+    }
     if (n.type === "story-mention" && n.storyId) {
       return import("./stories.js").then(async (mod) => { if (!(await mod.openUserStories(n.actor.username, null, n.storyId))) toast("This story has ended."); });
     }
