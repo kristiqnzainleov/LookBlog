@@ -58,7 +58,12 @@ function playNext(key) {
 }
 
 // Watch together: what's playing in a channel
-const watchView = (key) => { const w = db.voice[key]?.watch; return w ? { ...w } : null; };
+// Only the people it was started with see it (and the one who started it)
+const watchView = (key, me) => {
+  const w = db.voice[key]?.watch;
+  if (!w || (me && w.with && !w.with.includes(me.username))) return null;
+  return { ...w, withNames: (w.with || []).map((u) => { const x = findByUsername(u); return x ? { username: x.username, name: x.name } : null; }).filter(Boolean) };
+};
 // A YouTube / YouTube Shorts / TikTok link → { provider, id, kind }
 async function parseVideo(url) {
   let u;
@@ -140,7 +145,7 @@ async function handleVoice(req, res, me, chat, chats) {
     announce(chat, channel.id);
     // A secret topic for the fallback voice relay (when two people can't connect directly)
     const relayTopic = require("./store").enabled ? "vr-" + require("crypto").createHmac("sha256", process.env.SUPABASE_SERVICE_KEY || "lb").update("voice:" + key).digest("base64url").slice(0, 24) : null;
-    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic, watch: watchView(key), dj: db.voice[key].dj || null, beat: db.voice[key].beat || null, beatMix: db.voice[key].beatMix || null, status: db.voice[key].status || null, now: Date.now() });
+    sendJSON(res, 200, { participants: others, music: musicView(key), relayTopic, watch: watchView(key, me), dj: db.voice[key].dj || null, beat: db.voice[key].beat || null, beatMix: db.voice[key].beatMix || null, status: db.voice[key].status || null, now: Date.now() });
     return true;
   }
   if (body.kind === "leave") {
@@ -165,7 +170,7 @@ async function handleVoice(req, res, me, chat, chats) {
   // Heartbeat: written at most every 10 seconds
   if (Date.now() - (mine.seen || 0) > 10 * 1000) { mine.seen = Date.now(); save("voice"); }
   // The heartbeat also says who is in the channel, so a missed update fixes itself
-  if (body.kind === "ping") { sendJSON(res, 200, { ok: true, participants: participants(chat.id, channel.id), watch: watchView(key), now: Date.now() }); return true; }
+  if (body.kind === "ping") { sendJSON(res, 200, { ok: true, participants: participants(chat.id, channel.id), watch: watchView(key, me), now: Date.now() }); return true; }
   if (body.kind === "state") {
     for (const k of ["muted", "deaf", "video", "screen"]) if (k in body) mine[k] = Boolean(body[k]);
     save("voice");
@@ -201,30 +206,46 @@ async function handleVoice(req, res, me, chat, chats) {
     sendJSON(res, 200, { invited });
     return true;
   }
-  // Watch together: a YouTube video, YouTube Short or TikTok, in sync for everyone in the channel.
-  // { kind: "watch", action: "start", url } · { action: "state", playing, pos } (anyone can play, pause or skip) · { action: "stop" }
+  // Watch together: a YouTube video, YouTube Short or TikTok, in sync — only for the people it was started with.
+  // { kind: "watch", action: "start", url, with: [usernames] } · { action: "add", with } (the one who started it)
+  // · { action: "state", playing, pos } (anyone watching can play, pause or skip) · { action: "stop" }
   if (body.kind === "watch") {
     rateLimit("vwatch:" + me.id, 120, 60 * 1000, "Slow down a little.");
     const v = db.voice[key];
+    const inRoom = new Set(Object.keys(room).map((id) => findUser(id)?.username).filter(Boolean));
+    const pickWith = () => [...new Set((Array.isArray(body.with) ? body.with : []).map(String))].filter((u) => u !== me.username && inRoom.has(u)).slice(0, 12);
+    const watching = v.watch && (!v.watch.with || v.watch.with.includes(me.username));
+    const before = v.watch?.with || null;
     if (body.action === "start") {
+      const chosen = pickWith();
+      if (!chosen.length) throw httpError(400, "Pick at least one person in the voice channel to watch with.");
       const found = await parseVideo(String(body.url || ""));
       if (!found) throw httpError(400, "Paste a YouTube, YouTube Shorts or TikTok link.");
-      v.watch = { ...found, by: me.username, byName: me.name, playing: true, pos: 0, at: Date.now() };
-    } else if (body.action === "state") {
+      v.watch = { ...found, by: me.username, byName: me.name, with: [me.username, ...chosen], playing: true, pos: 0, at: Date.now() };
+    } else if (body.action === "add") {
       if (!v.watch) throw httpError(404, "Nothing is playing.");
+      if (v.watch.by !== me.username) throw httpError(403, "Only the person who started it can add people.");
+      const more = pickWith().filter((u) => !v.watch.with.includes(u));
+      if (!more.length) throw httpError(400, "Pick someone who isn’t watching yet.");
+      v.watch.with.push(...more);
+    } else if (body.action === "state") {
+      if (!watching) throw httpError(404, "Nothing is playing.");
       const pos = Number(body.pos);
       v.watch.playing = Boolean(body.playing);
       v.watch.pos = Number.isFinite(pos) && pos >= 0 ? Math.min(pos, 24 * 3600) : 0;
       v.watch.at = Date.now();
       v.watch.lastBy = me.username;
     } else if (body.action === "stop") {
-      if (!v.watch) { sendJSON(res, 200, { ok: true }); return true; }
+      if (!watching) { sendJSON(res, 200, { ok: true }); return true; }
       if (v.watch.by !== me.username && !can(chat, me, "manage_group")) throw httpError(403, "Only the person who started it can stop it for everyone. You can close it for yourself.");
       delete v.watch;
     } else throw httpError(400, "Unknown action.");
     save("voice");
-    sendTo(Object.keys(room), { type: "voice:watch", chatId: chat.id, channelId: channel.id, watch: watchView(key), by: me.username, action: body.action, now: Date.now() });
-    sendJSON(res, 200, { watch: watchView(key), now: Date.now() });
+    // Tell only the people watching (and, when it stops, the ones who were)
+    const audience = new Set([...(v.watch?.with || []), ...(before || [])]);
+    const ids = Object.keys(room).filter((id) => audience.has(findUser(id)?.username));
+    for (const id of ids) { const u = findUser(id); sendTo([id], { type: "voice:watch", chatId: chat.id, channelId: channel.id, watch: watchView(key, u), by: me.username, action: body.action, now: Date.now() }); }
+    sendJSON(res, 200, { watch: watchView(key, me), now: Date.now() });
     return true;
   }
   // The channel's status (like Discord): { kind: "status", text }  — anyone in the channel; empty clears it

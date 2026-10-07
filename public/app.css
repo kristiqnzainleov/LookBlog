@@ -5615,3 +5615,15 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 .sv-react-row .sv-react { flex-shrink: 0; }
 .sv-foot:has(.sv-reacts):not(:has(.sv-add-story)) { flex-wrap: nowrap; }
 .sv-foot:has(.sv-reacts) > * { min-width: 0; }
+/* Watch together: who sees it */
+.wt-pick { display: flex; flex-direction: column; gap: 8px; }
+.wt-pick-head { display: flex; align-items: center; justify-content: space-between; }
+.wt-people { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.wt-person { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; border: 1.5px solid var(--line); background: transparent; color: var(--paper); cursor: pointer; text-align: left; }
+.wt-person.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 14%, transparent); }
+.wt-pname { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wt-pname b { font-size: 0.92rem; } .wt-pname small { font-size: 0.75rem; }
+.wt-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 900; font-size: 0.8rem; }
+.wt-person.on .wt-check { background: var(--pink); border-color: var(--pink); color: #000; }
+.wt-with { padding: 4px 12px 6px; font-size: 0.75rem; color: var(--muted); background: rgba(0, 0, 0, 0.25); }
+.wt-with:empty { display: none; }

@@ -1,6 +1,6 @@
 // Watch together in a voice channel: a YouTube video, YouTube Short or TikTok in a pop-up window,
 // in sync for everyone in the channel. Anyone can play, pause or skip; everyone can close it for themselves.
-import { h, icon, toast } from "../ui.js";
+import { h, icon, toast, avatar } from "../ui.js";
 
 let win = null; // { el, w, player, send, ... }
 let ytReady = null;
@@ -30,22 +30,26 @@ export function closeWatch() {
 }
 
 // Show it (or switch to another video). send(state) tells the channel when I play, pause or skip.
-export function openWatch(w, { skew = 0, send, onStop, canStop, gesture = false, onClose } = {}) {
-  if (win && win.w.provider === w.provider && win.w.id === w.id) return applyWatch(w, skew);
+export function openWatch(w, { skew = 0, send, onStop, canStop, gesture = false, onClose, onAdd } = {}) {
+  if (win && win.w.provider === w.provider && win.w.id === w.id) { paintWith(w); return applyWatch(w, skew); }
   closeWatch();
   const tall = w.kind === "short";
   const stage = h("div", { class: "wt-stage" + (tall ? " tall" : "") });
   const soundBtn = h("button", { type: "button", class: "wt-sound", hidden: true }, "🔊 Tap for sound");
   const stopBtn = canStop ? h("button", { type: "button", class: "wt-btn", title: "Stop for everyone", "aria-label": "Stop for everyone", text: "⏹" }) : null;
   const minBtn = h("button", { type: "button", class: "wt-btn", title: "Make it smaller", "aria-label": "Make it smaller", text: "▁" });
+  const addBtn = onAdd ? h("button", { type: "button", class: "wt-btn", title: "Watch with more people", "aria-label": "Watch with more people", text: "👥" }) : null;
+  addBtn?.addEventListener("click", () => onAdd());
   const closeBtn = h("button", { type: "button", class: "wt-btn", title: "Close for me", "aria-label": "Close for me" }, icon("close"));
   const head = h("div", { class: "wt-head" },
     h("span", { class: "wt-live" }, h("span", { class: "wt-dot" }), "Watching together"),
     h("span", { class: "wt-who", text: `${w.provider === "tiktok" ? "TikTok" : tall ? "YouTube Short" : "YouTube"} · from ${w.byName || "@" + w.by}` }),
-    h("div", { class: "wt-tools" }, minBtn, stopBtn, closeBtn));
-  const el = h("div", { class: "wt-pop" + (tall ? " tall" : ""), role: "dialog", "aria-label": "Watching together" }, head, stage, soundBtn);
+    h("div", { class: "wt-tools" }, addBtn, minBtn, stopBtn, closeBtn));
+  const withLine = h("div", { class: "wt-with" });
+  const el = h("div", { class: "wt-pop" + (tall ? " tall" : ""), role: "dialog", "aria-label": "Watching together" }, head, withLine, stage, soundBtn);
   document.body.append(el);
-  win = { el, w: { ...w }, skew, send, applying: 0, lastTime: 0, lastAt: 0, muted: !gesture };
+  win = { el, w: { ...w }, skew, send, applying: 0, lastTime: 0, lastAt: 0, muted: !gesture, withLine };
+  paintWith(w);
 
   closeBtn.addEventListener("click", () => { closeWatch(); onClose?.(); });
   stopBtn?.addEventListener("click", () => onStop?.());
@@ -143,6 +147,12 @@ export function openWatch(w, { skew = 0, send, onStop, canStop, gesture = false,
   }, 1000);
 }
 
+// Who's watching (only these people see it)
+function paintWith(w) {
+  if (!win?.withLine) return;
+  const names = (w.withNames || []).map((p) => p.name.split(" ")[0]);
+  win.withLine.textContent = names.length ? `🔒 Only ${names.join(", ")}` : "";
+}
 // Someone played, paused or skipped: catch up
 export function applyWatch(w, skew = 0, force = false) {
   if (!win) return;
@@ -154,21 +164,60 @@ export function applyWatch(w, skew = 0, force = false) {
   if (!w.playing && c.playing()) c.pause();
 }
 
-// Pasting a link to start
-export function askForVideo(onPick) {
+// Who to watch with: people in the voice channel (one or more). Resolves the chosen usernames.
+function peoplePicker(people, { selected = [] } = {}) {
+  const chosen = new Set(selected);
+  const all = h("button", { type: "button", class: "btn btn-xs btn-outline-light wt-all" });
+  const list = h("div", { class: "wt-people" });
+  const paint = () => {
+    all.textContent = chosen.size === people.length ? "Clear" : "Everyone";
+    list.replaceChildren(...people.map((p) => {
+      const on = chosen.has(p.username);
+      const b = h("button", { type: "button", class: "wt-person" + (on ? " on" : ""), "aria-pressed": on ? "true" : "false" },
+        avatar(p, 32), h("span", { class: "wt-pname" }, h("b", { text: p.name }), h("small", { class: "muted", text: "@" + p.username })), h("span", { class: "wt-check", text: on ? "✓" : "" }));
+      b.addEventListener("click", () => { if (chosen.has(p.username)) chosen.delete(p.username); else chosen.add(p.username); paint(); });
+      return b;
+    }));
+  };
+  all.addEventListener("click", () => { if (chosen.size === people.length) chosen.clear(); else people.forEach((p) => chosen.add(p.username)); paint(); });
+  paint();
+  return { el: h("div", { class: "wt-pick" }, h("div", { class: "wt-pick-head" }, h("b", { text: "Watch with" }), all), list), chosen: () => [...chosen] };
+}
+
+// Pasting a link to start: and picking who sees it (only them, nobody else in the channel)
+export function askForVideo(onPick, { people = [], url = "" } = {}) {
   return import("../ui.js").then(({ modal }) => {
-    const input = h("input", { type: "url", class: "text-input", placeholder: "Paste a YouTube, YouTube Shorts or TikTok link", autocomplete: "off" });
+    if (!people.length) return toast("Nobody else is in the voice channel yet — invite someone to watch with.");
+    const input = h("input", { type: "url", class: "text-input", placeholder: "Paste a YouTube, YouTube Shorts or TikTok link", autocomplete: "off", value: url });
+    const picker = peoplePicker(people, { selected: people.length === 1 ? [people[0].username] : [] });
     const go = h("button", { type: "button", class: "btn btn-primary btn-full", text: "📺 Watch together" });
     const m = modal({ title: "Watch together", body: h("div", { class: "create-form" },
-      h("p", { class: "create-hint", text: "Everyone in the voice channel sees it in a pop-up, in sync. Anyone can pause or skip, and anyone can close it for themselves." }), input, go) });
+      h("p", { class: "create-hint", text: "Only the people you pick see it, in a pop-up, in sync. The others in the channel won’t see it." }), input, picker.el, go) });
     const start = async () => {
       if (!input.value.trim()) return input.focus();
+      const who = picker.chosen();
+      if (!who.length) return toast("Pick at least one person to watch with.");
       go.disabled = true;
-      try { await onPick(input.value.trim()); m.close(); } catch (err) { toast(err.error || "Couldn’t play that link."); go.disabled = false; }
+      try { await onPick(input.value.trim(), who); m.close(); } catch (err) { toast(err.error || "Couldn’t play that link."); go.disabled = false; }
     };
     go.addEventListener("click", start);
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") start(); });
-    setTimeout(() => input.focus(), 60);
+    setTimeout(() => (url ? go.focus() : input.focus()), 60);
+  });
+}
+// Adding more people to what's playing
+export function askForPeople(people, onPick) {
+  return import("../ui.js").then(({ modal }) => {
+    if (!people.length) return toast("Everyone in the voice channel is already watching.");
+    const picker = peoplePicker(people);
+    const go = h("button", { type: "button", class: "btn btn-primary btn-full", text: "➕ Add to the video" });
+    const m = modal({ title: "Watch with more people", body: h("div", { class: "create-form" }, picker.el, go) });
+    go.addEventListener("click", async () => {
+      const who = picker.chosen();
+      if (!who.length) return toast("Pick someone.");
+      go.disabled = true;
+      try { await onPick(who); m.close(); } catch (err) { toast(err.error || "Couldn’t add them."); go.disabled = false; }
+    });
   });
 }
 // Links in messages that can be watched together

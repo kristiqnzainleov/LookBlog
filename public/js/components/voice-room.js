@@ -388,13 +388,18 @@ function showWatch(w, gesture) {
     onStop: () => post({ kind: "watch", action: "stop" }).catch((err) => toast(err.error || "Couldn’t stop it.")),
     canStop: w.by === state.me.username || room.chat.isOwner || room.chat.perms?.includes("manage_group"),
     onClose: () => { if (room) { room.watchClosed = w.id; paintDock(); } },
+    onAdd: w.by === state.me.username ? () => {
+      const watching = new Set((room?.watch?.with || w.with || []));
+      wt.askForPeople((room?.people || []).filter((p) => p.username !== state.me.username && !watching.has(p.username)), async (who) => { const r = await post({ kind: "watch", action: "add", with: who }); room.watch = r.watch; showWatch(r.watch, false); toast("Added. They see the video now."); });
+    } : null,
   });
   paintDock();
 }
 async function startWatch(url) {
   if (!room) return toast("Join a voice channel to watch together.");
-  if (url) { const r = await post({ kind: "watch", action: "start", url }); room.watch = r.watch; return showWatch(r.watch, true); }
-  return wt.askForVideo(async (link) => { const r = await post({ kind: "watch", action: "start", url: link }); room.watch = r.watch; showWatch(r.watch, true); });
+  // Pick who sees it: one or more people in the channel
+  const people = room.people.filter((p) => p.username !== state.me.username);
+  return wt.askForVideo(async (link, who) => { const r = await post({ kind: "watch", action: "start", url: link, with: who }); room.watch = r.watch; showWatch(r.watch, true); }, { people, url: url || "" });
 }
 // The heartbeat also says what's playing (a missed update fixes itself)
 function syncWatch(r) {
@@ -413,7 +418,8 @@ on("voice:watch", (ev) => {
   const w = ev.watch;
   room.watch = w;
   if (!w) { wt.closeWatch(); paintDock(); if (ev.by !== state.me.username) toast("Stopped watching together."); return; }
-  if (ev.action === "start") { if (ev.by !== state.me.username) toast(`📺 @${ev.by} started a video for everyone.`); showWatch(w, ev.by === state.me.username); }
+  if (ev.action === "start" || (ev.action === "add" && !wt.watchOpen())) { if (ev.by !== state.me.username) toast(`📺 @${ev.by} is watching a video with you.`); showWatch(w, ev.by === state.me.username); }
+  else if (ev.action === "add") showWatch(w, false);
   else if (ev.by !== state.me.username && wt.watchOpen()) wt.applyWatch(w, room.skew);
   paintDock();
 });
