@@ -86,6 +86,7 @@ function unread(chat, me) {
 function preview(msg) {
   if (!msg) return "";
   if (msg.poll) return `📊 Poll: ${msg.poll.question}`;
+  if (msg.unlockAt && Date.now() < new Date(msg.unlockAt).getTime()) return "⏳ A time capsule";
   if (msg.game) return `${gameDef(msg.game.type)?.emoji || "🎮"} Started a game of ${gameDef(msg.game.type)?.name || "something"}`;
   if (msg.viewOnce) return msg.viewOnce.gone || (msg.media ? msg.media.kind : "text") === "text" ? "👁 View-once message" : msg.media?.kind === "video" ? "👁 View-once video" : "👁 View-once photo";
   if (msg.text) return msg.text.slice(0, 120);
@@ -209,8 +210,8 @@ function replyPreview(msg) {
     id: orig.id,
     author: author ? author.name : "Deleted account",
     username: author ? author.username : "",
-    text: preview(orig),
-    thumb: orig.media && !orig.viewOnce ? (orig.media.kind === "image" ? orig.media.url : orig.media.poster || null) : null,
+    text: orig.unlockAt && Date.now() < new Date(orig.unlockAt).getTime() ? "⏳ A time capsule" : preview(orig),
+    thumb: orig.media && !orig.viewOnce && !(orig.unlockAt && Date.now() < new Date(orig.unlockAt).getTime()) ? (orig.media.kind === "image" ? orig.media.url : orig.media.poster || null) : null,
   };
 }
 
@@ -257,7 +258,10 @@ function viewOnceView(msg, me, out) {
 }
 function messageView(msg, me) {
   if (msg.viewOnce) return viewOnceView(msg, me, messageViewFull(msg, me));
-  return messageViewFull(msg, me);
+  const v = messageViewFull(msg, me);
+  if (msg.unlockAt) v.unlockAt = msg.unlockAt;
+  if (lockedFor(msg, me)) { v.text = ""; v.media = null; v.post = null; v.song = null; v.comment = null; v.locked = true; }
+  return v;
 }
 function messageViewFull(msg, me) {
   let post = null;
@@ -303,7 +307,11 @@ function messageViewFull(msg, me) {
 /* ---------- How my messages look (my own style, everyone sees it) and send effects ---------- */
 const MSG_EFFECTS = ["slam", "loud", "gentle", "ink", "confetti", "hearts", "fireworks", "balloons", "spotlight", "lasers", "shake", "rainbow",
   "snow", "stars", "money", "fire", "bubbles", "kisses", "butterflies", "petals", "rockets", "party", "thunder", "disco", "zoom", "glitch", "typewriter", "bounce", "spin", "ghost",
-  "cash", "pizza", "cats", "dogs", "skulls", "clowns", "eyes", "hundred", "goats", "aliens", "crowns", "diamonds", "rain", "matrix", "magic", "heartbeat", "flip", "drop", "tornado", "jelly", "explode"];
+  "cash", "pizza", "cats", "dogs", "skulls", "clowns", "eyes", "hundred", "goats", "aliens", "crowns", "diamonds", "rain", "matrix", "magic", "heartbeat", "flip", "drop", "tornado", "jelly", "explode",
+  // secret & fun messages (they stay that way)
+  "scratch", "hold", "whisper", "upside", "mirror", "capsule", "selfdestruct", "shaking", "glowing"];
+// A time capsule: nobody but the sender sees what's inside until it opens
+const lockedFor = (msg, me) => Boolean(msg.unlockAt && Date.now() < new Date(msg.unlockAt).getTime() && msg.userId !== me.id);
 function msgStyleOf(userId) { const u = findUser(userId); return u?.msgStyle || null; }
 
 /* ---------- Polls in chats and groups ---------- */
@@ -501,7 +509,7 @@ async function handleChat(req, res, url, me) {
       const msg = db.messages.find((x) => x.id === body.messageId);
       const ch = msg && findChat(msg.chatId);
       if (!msg || !ch || !canRead(ch, me)) throw httpError(404, "That message doesn’t exist.");
-      text = msg.viewOnce ? "" : msg.text || "";
+      text = msg.viewOnce || lockedFor(msg, me) ? "" : msg.text || "";
     }
     text = text.slice(0, 2000);
     if (!text.trim()) throw httpError(400, "There’s nothing to translate.");
@@ -664,7 +672,7 @@ async function handleChat(req, res, url, me) {
       const tz = Number(url.searchParams.get("tz")) || 0; // the browser's getTimezoneOffset()
       if (!q && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw httpError(400, "Type something or pick a day.");
       const dayOf = (iso) => new Date(new Date(iso).getTime() - tz * 60000).toISOString().slice(0, 10);
-      const found = db.messages.filter((x) => x.chatId === chat.id && !x.system && !x.viewOnce
+      const found = db.messages.filter((x) => x.chatId === chat.id && !x.system && !x.viewOnce && !lockedFor(x, me)
         && (!q || String(x.text || "").toLowerCase().includes(q) || (x.media?.name || "").toLowerCase().includes(q))
         && (!date || dayOf(x.createdAt) === date)).slice(-200).reverse();
       sendJSON(res, 200, { messages: found.map((x) => messageView(x, me)) });
@@ -734,6 +742,12 @@ async function handleChat(req, res, url, me) {
       const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media, postId: post ? post.id : null, commentId: commentRef, songId: songRef, replyTo, mentions: findMentions(text), createdAt: new Date().toISOString() };
       // Sent with an effect (like iMessage): everyone sees it play when it arrives
       if (MSG_EFFECTS.includes(body.effect)) msg.effect = body.effect;
+      if (msg.effect === "capsule") {
+        const mins = [1, 5, 15, 60, 180, 1440, 10080].includes(Number(body.unlockIn)) ? Number(body.unlockIn) : 60;
+        msg.unlockAt = new Date(Date.now() + mins * 60000).toISOString();
+      }
+      // Self-destruct: gone for everyone a minute after it's sent
+      if (msg.effect === "selfdestruct") { const at = Date.now() + 60000; if (!msg.expiresAt || new Date(msg.expiresAt).getTime() > at) msg.expiresAt = new Date(at).toISOString(); }
       // View once: the others can open it one time, then it's gone (like Instagram)
       if (body.viewOnce) {
         if (post || commentRef || songRef || media?.sticker || media?.gif || media?.kind === "audio" || media?.shared) throw httpError(400, "View once works for text, photos and videos.");
@@ -818,6 +832,14 @@ async function handleChat(req, res, url, me) {
       return true;
     }
 
+    // One message (e.g. a time capsule that just opened): GET /api/chats/:id/messages/:messageId
+    if (m === "GET" && c === "messages" && d && parts.length === 4) {
+      if (!isMember(chat, me) && !(chat.kind === "group" && chat.visibility === "public")) throw httpError(403, "Join to see this.");
+      const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
+      if (!msg || (msg.expiresAt && new Date(msg.expiresAt) < new Date())) throw httpError(404, "That message is gone.");
+      sendJSON(res, 200, { message: messageView(msg, me) });
+      return true;
+    }
     // Hype a message (like trending): POST /api/chats/:id/messages/:messageId/hype  (again takes it back)
     if (m === "POST" && c === "messages" && d && parts[4] === "hype" && parts.length === 5) {
       if (!isMember(chat, me)) throw httpError(403, "Join to hype messages.");

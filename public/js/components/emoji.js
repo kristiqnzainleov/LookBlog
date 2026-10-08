@@ -1,5 +1,5 @@
 // Emoji picker: a small panel with categories and recently used emoji. No outside libraries.
-import { h } from "../ui.js";
+import { h, visibleRect } from "../ui.js";
 
 const SETS = [
   ["Smileys", "😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 😮‍💨 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🥵 🥶 🥴 😵 🤯 🤠 🥳 😎 🤓 🧐 😕 😟 🙁 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 👿 💀 💩 🤡 👻 👽 🤖"],
@@ -60,7 +60,7 @@ export function openEmojiPicker(anchor, onPick, { keepOpen = false } = {}) {
   document.body.append(panel);
   openPanel = panel;
   // Place above the anchor when there's room, otherwise below
-  const a = anchor.getBoundingClientRect();
+  const a = visibleRect(anchor);
   const w = Math.min(340, innerWidth - 16);
   panel.style.width = w + "px";
   const left = Math.min(Math.max(8, a.left + a.width / 2 - w / 2), innerWidth - w - 8);

@@ -56,8 +56,8 @@ export async function openInviteFriends() {
     h("div", { class: "inv-link" }, h("input", { type: "text", readonly: true, value: d.url, "aria-label": "Your invite link", onclick: (e) => e.target.select() }), h("button", { type: "button", class: "btn btn-primary btn-sm", text: "Copy", onclick: copy })),
     h("div", { class: "inv-grid" },
       btn("share", navigator.share ? "Share…" : "Copy link", share, "📤"),
-      isPhone() ? link("messenger", "Messenger", `fb-messenger://share/?link=${enc(d.url)}`, "💬")
-        : btn("messenger", "Messenger", async () => { await copy(); open("https://www.messenger.com/", "_blank", "noopener"); }, "💬"),
+      isPhone() ? link("inv-messenger", "Messenger", `fb-messenger://share/?link=${enc(d.url)}`, "💬")
+        : btn("inv-messenger", "Messenger", async () => { await copy(); open("https://www.messenger.com/", "_blank", "noopener"); }, "💬"),
       btn("insta", "Instagram", () => toInstagram(), "📸"),
       link("whatsapp", "WhatsApp", `https://wa.me/?text=${enc(text + " " + d.url)}`, "🟢"),
       link("x", "X", `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(d.url)}`, "✖️"),

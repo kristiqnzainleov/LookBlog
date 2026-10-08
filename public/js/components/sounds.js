@@ -1,6 +1,6 @@
 // Sounds you can send: your own ("Mine", kept on your profile), the group's own soundboard sounds
 // ("This group", only inside that group), and LookBlog's built-in ones. They're kept apart on purpose.
-import { h, toast, spinner, modal } from "../ui.js";
+import { h, toast, spinner, modal, visibleRect } from "../ui.js";
 import { api, upload } from "../api.js";
 import { BUILTIN_SOUNDS, previewSound } from "./voice-room.js";
 
@@ -52,7 +52,7 @@ export function openSoundPicker(anchor, { group = null, builtin = true, onPick }
   // its bottom edge, so it grows upwards when the list loads instead of sliding down over the button.
   const place = () => {
     if (!panel) return;
-    const a = anchor.getBoundingClientRect(), w = Math.min(320, innerWidth - 16);
+    const a = visibleRect(anchor), w = Math.min(320, innerWidth - 16);
     panel.style.width = w + "px";
     panel.style.left = Math.min(Math.max(8, a.left + a.width / 2 - w / 2), innerWidth - w - 8) + "px";
     const above = a.top - 16, below = innerHeight - a.bottom - 16;

@@ -1,5 +1,5 @@
 // Your sticker collection: send one, make a new one from a photo, or remove one.
-import { h, icon, toast, spinner } from "../ui.js";
+import { h, icon, toast, spinner, visibleRect } from "../ui.js";
 import { api, upload } from "../api.js";
 import { openStickerMaker } from "./sticker-maker.js";
 
@@ -33,7 +33,7 @@ export function openStickers(anchor, onSend, { group = null, canManageGroup = fa
   document.body.append(panel);
   const place = () => {
     if (!panel) return;
-    const a = anchor.getBoundingClientRect();
+    const a = visibleRect(anchor);
     const w = Math.min(340, innerWidth - 16);
     panel.style.width = w + "px";
     panel.style.left = Math.min(Math.max(8, a.left + a.width / 2 - w / 2), innerWidth - w - 8) + "px";

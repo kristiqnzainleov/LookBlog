@@ -18,7 +18,7 @@ import { upload } from "../api.js";
 import { attachMentions } from "./mentions.js";
 import { openSoundPicker, soundChip, playSound } from "./sounds.js";
 import { sfx } from "./sfx.js";
-import { styleBubble, playEffect, inkBubble, openMsgStyle, EFFECTS } from "./msg-style.js";
+import { styleBubble, playEffect, inkBubble, openMsgStyle, EFFECTS, SECRET_FX, PERSISTENT, secretBubble } from "./msg-style.js";
 import { applyWallpaper, applyTheme, onHold, openChatOptions, openVanishPicker, vanishLabel } from "./wallpaper.js";
 
 export function chatPic(c, size = 44) {
@@ -836,6 +836,8 @@ function messageEl(msg, chat, onRemoved) {
   // The sender's own message style, and invisible ink
   styleBubble(bubble, msg.style);
   if (msg.effect === "ink" && msg.text) inkBubble(bubble);
+  // Secret & fun messages (a time capsule asks for its contents when it opens)
+  if (PERSISTENT.has(msg.effect)) secretBubble(bubble, msg, { onUnlock: () => setTimeout(() => api(`/api/chats/${chat.id}/messages/${msg.id}`).then(({ message }) => { const row = bubble.closest(".msg"); if (row) row.replaceWith(messageEl(message, chat, onRemoved)); }).catch(() => {}), 800) });
   if (msg.pinned) bubble.prepend(h("span", { class: "pin-mark", title: "Pinned", text: "📌" }));
   if (msg.expiresAt) bubble.append(h("span", { class: "vanish-mark", title: "Disappears " + new Date(msg.expiresAt).toLocaleString(), text: "⏳" }));
   const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : "") + (msg.hypes >= 3 ? " hot" : ""), dataset: { id: msg.id, author: msg.author.username || "" } },
@@ -1141,7 +1143,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const row = messageEl(msg, chat, () => ids.delete(msg.id));
     if (prepend) list.prepend(row); else { list.append(row); if (!msg.system) { lastMsg = msg; paintSeen(); } }
     // Sent with an effect just now: play it (once)
-    if (!prepend && msg.effect && msg.effect !== "ink" && Date.now() - new Date(msg.createdAt).getTime() < 30000) requestAnimationFrame(() => requestAnimationFrame(() => playEffect(msg.effect, row, el)));
+    if (!prepend && msg.effect && !PERSISTENT.has(msg.effect) && Date.now() - new Date(msg.createdAt).getTime() < 30000) requestAnimationFrame(() => requestAnimationFrame(() => playEffect(msg.effect, row, el)));
   }
 
   function paintHead() {
@@ -1416,11 +1418,11 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     inputRow.insertBefore(camBtn, voBtn);
     footer.append(camInput);
     // ✨ My message style, and send with an effect (also: hold the send button)
-    let armedFx = null;
+    let armedFx = null, unlockIn = null;
     const fxBtn = h("button", { type: "button", class: "tool-btn fx-btn", "aria-label": "Message style and effects", title: "Your message style & send effects" }, h("span", { text: "✨" }));
-    const armFx = (k) => {
-      armedFx = k;
-      const e = EFFECTS.find(([x]) => x === k);
+    const armFx = (k, mins = null) => {
+      armedFx = k; unlockIn = mins;
+      const e = EFFECTS.find(([x]) => x === k) || SECRET_FX.find(([x]) => x === k);
       send.classList.toggle("fx-armed", Boolean(k));
       send.dataset.fx = e ? e[1] : "";
       fxBtn.classList.toggle("on", Boolean(k));
@@ -1464,7 +1466,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       send.disabled = true;
       closeEmojiPicker();
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}), ...(armedFx ? { effect: armedFx } : {}) } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}), ...(armedFx ? { effect: armedFx, ...(unlockIn ? { unlockIn } : {}) } : {}) } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         armFx(null);
         setReply(null);
         add(message);

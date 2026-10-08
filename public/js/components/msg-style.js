@@ -17,7 +17,7 @@ const PATTERNS = [["", "None"], ["dots", "• Dots"], ["stripes", "▤ Stripes"]
 const BORDERS = [["", "None"], ["solid", "Solid"], ["dashed", "Dashed"], ["double", "Double"], ["rainbow", "🌈 Rainbow"], ["glowing", "✨ Glowing"]];
 const GLOWS = [["", "None"], ["glow", "✨ Glow"], ["outline", "Outline"], ["shadow", "3D"], ["neon", "💡 Neon"], ["shimmer", "🪩 Shimmer"], ["pulse", "💓 Pulse"],
   ["glass", "🧊 Glass"], ["fire", "🔥 Fire"], ["ice", "❄️ Frost"], ["gradient", "🌈 Moving colours"]];
-export const EFFECTS = [["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["gentle", "🌙", "Gentle"], ["ink", "🫥", "Invisible ink"], ["confetti", "🎉", "Confetti"], ["hearts", "💕", "Hearts"],
+export const EFFECTS = [["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["gentle", "🌙", "Gentle"], ["confetti", "🎉", "Confetti"], ["hearts", "💕", "Hearts"],
   ["fireworks", "🎆", "Fireworks"], ["balloons", "🎈", "Balloons"], ["spotlight", "🔦", "Spotlight"], ["lasers", "🌈", "Lasers"], ["shake", "🫨", "Shake"], ["rainbow", "🦄", "Rainbow"],
   ["party", "🥳", "Party"], ["snow", "❄️", "Snow"], ["stars", "⭐", "Stars"], ["money", "💸", "Money"], ["fire", "🔥", "Fire"], ["bubbles", "🫧", "Bubbles"], ["kisses", "💋", "Kisses"],
   ["butterflies", "🦋", "Butterflies"], ["petals", "🌸", "Petals"], ["rockets", "🚀", "Rockets"], ["thunder", "⚡", "Thunder"], ["disco", "🪩", "Disco"], ["zoom", "🔍", "Zoom in"],
@@ -26,6 +26,10 @@ export const EFFECTS = [["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["ge
   ["eyes", "👀", "Eyes"], ["hundred", "💯", "100"], ["goats", "🐐", "GOAT"], ["aliens", "👽", "Aliens"], ["crowns", "👑", "Crowns"], ["diamonds", "💎", "Diamonds"],
   ["rain", "🌧️", "Rain"], ["matrix", "💻", "Matrix"], ["magic", "🪄", "Magic"], ["heartbeat", "💓", "Heartbeat"], ["flip", "🔄", "Flip"], ["drop", "⬇️", "Drop in"],
   ["tornado", "🌪️", "Tornado"], ["jelly", "🍮", "Jelly"], ["explode", "💣", "Explode"]];
+// Secret & fun messages: they stay like this in the chat
+export const SECRET_FX = [["ink", "🫥", "Invisible ink"], ["scratch", "🪙", "Scratch card"], ["hold", "👆", "Hold to read"], ["whisper", "🤫", "Whisper"], ["upside", "🙃", "Upside down"],
+  ["mirror", "🪞", "Mirror"], ["capsule", "⏳", "Time capsule"], ["selfdestruct", "💣", "Self-destruct"], ["shaking", "🫨", "Always shaking"], ["glowing", "💡", "Glowing"]];
+export const PERSISTENT = new Set(SECRET_FX.map(([k]) => k));
 const colorOf = (k) => (k === "black" ? "#0d0c0c" : /^#/.test(k || "") ? k : NAME_COLORS.find(([x]) => x === k)?.[1] || "");
 
 // Paint a message bubble in its sender's style
@@ -99,6 +103,23 @@ export function openMsgStyle({ onEffect = null, armed = null } = {}) {
       paintSound();
     } else {
       body.replaceChildren(h("p", { class: "create-hint", text: "Pick an effect, then send your message — everyone in the chat sees it play when it arrives." }),
+        h("b", { class: "look-label", text: "🔒 Secret & fun messages (they stay like this)" }),
+        h("div", { class: "ms-effects" }, ...SECRET_FX.map(([k, e, l]) => {
+          const b = h("button", { type: "button", class: "ms-effect secret" + (armed === k ? " on" : "") }, h("span", { class: "ms-effect-e", text: e }), h("b", { text: l }));
+          b.addEventListener("click", () => {
+            if (!onEffect) return toast("Open a chat to send with an effect.");
+            if (k !== "capsule" || armed === k) { onEffect(armed === k ? null : k); return md.close(); }
+            // A time capsule: when does it open?
+            body.replaceChildren(h("p", { class: "create-hint", text: "⏳ When should it open? Until then nobody can see what's inside (not even in the notification)." }),
+              h("div", { class: "ms-effects" }, ...[[1, "1 minute"], [5, "5 minutes"], [15, "15 minutes"], [60, "1 hour"], [180, "3 hours"], [1440, "Tomorrow"], [10080, "In a week"]].map(([mins, l2]) => {
+                const c = h("button", { type: "button", class: "ms-effect" }, h("span", { class: "ms-effect-e", text: "⏳" }), h("b", { text: l2 }));
+                c.addEventListener("click", () => { onEffect("capsule", mins); md.close(); });
+                return c;
+              })));
+          });
+          return b;
+        })),
+        h("b", { class: "look-label", text: "✨ Effects when it arrives" }),
         h("div", { class: "ms-effects" }, ...EFFECTS.map(([k, e, l]) => {
           const b = h("button", { type: "button", class: "ms-effect" + (armed === k ? " on" : "") }, h("span", { class: "ms-effect-e", text: e }), h("b", { text: l }));
           b.addEventListener("click", () => { if (!onEffect) return toast("Open a chat to send with an effect."); onEffect(armed === k ? null : k); md.close(); });
@@ -245,6 +266,80 @@ export function playEffect(effect, row, stage) {
     const l = layer("fx-lasers");
     for (let i = 0; i < 6; i++) l.append(h("i", { style: `--a:${-60 + i * 24}deg;--c:${["#ff4fa3", "#ffd23f", "#2ee6a6", "#4cc9ff", "#9b5cff", "#ff8a3d"][i]};--d:${i * 0.08}s` }));
     setTimeout(() => l.remove(), 2600);
+  }
+}
+// Secret & fun messages: how they look and behave in the chat (for everyone, always)
+export function secretBubble(bubble, msg, { onUnlock } = {}) {
+  const fx = msg.effect;
+  const back = (cls, ms = 5000) => { bubble.classList.remove(cls); setTimeout(() => bubble.classList.add(cls), ms); };
+  const tapToggle = (cls) => bubble.addEventListener("click", (e) => { if (!bubble.classList.contains(cls)) return; e.stopPropagation(); back(cls); });
+  if (fx === "whisper") { bubble.classList.add("fx-whisper"); tapToggle("fx-whisper"); }
+  if (fx === "upside") { bubble.classList.add("fx-upside"); tapToggle("fx-upside"); }
+  if (fx === "mirror") { bubble.classList.add("fx-mirror"); tapToggle("fx-mirror"); }
+  if (fx === "shaking") bubble.classList.add("fx-shaking");
+  if (fx === "glowing") bubble.classList.add("fx-glowing");
+  if (fx === "hold") {
+    bubble.classList.add("fx-hold");
+    const on = () => bubble.classList.add("reveal"), off = () => bubble.classList.remove("reveal");
+    bubble.addEventListener("pointerdown", on); bubble.addEventListener("pointerup", off); bubble.addEventListener("pointerleave", off); bubble.addEventListener("pointercancel", off);
+  }
+  if (fx === "scratch" && msg.text) {
+    // A silver layer you rub off with your finger (or the mouse)
+    const cv = h("canvas", { class: "fx-scratch" });
+    bubble.append(cv);
+    requestAnimationFrame(() => {
+      const r = bubble.getBoundingClientRect(); cv.width = Math.max(40, r.width); cv.height = Math.max(30, r.height);
+      const g = cv.getContext("2d");
+      const grd = g.createLinearGradient(0, 0, cv.width, cv.height); grd.addColorStop(0, "#c9c9d1"); grd.addColorStop(0.5, "#f2f2f7"); grd.addColorStop(1, "#a9a9b6");
+      g.fillStyle = grd; g.fillRect(0, 0, cv.width, cv.height);
+      g.fillStyle = "#6d6d7a"; g.font = "700 12px sans-serif"; g.textAlign = "center"; g.fillText("🪙 Scratch me", cv.width / 2, cv.height / 2 + 4);
+      g.globalCompositeOperation = "destination-out";
+      let down = false, rubbed = 0;
+      const rub = (e) => {
+        if (!down) return;
+        const b = cv.getBoundingClientRect(), x = (e.clientX - b.left) * (cv.width / b.width), y = (e.clientY - b.top) * (cv.height / b.height);
+        g.beginPath(); g.arc(x, y, 14, 0, Math.PI * 2); g.fill();
+        if (++rubbed > 22) { cv.classList.add("gone"); setTimeout(() => cv.remove(), 400); }
+      };
+      cv.addEventListener("pointerdown", (e) => { e.stopPropagation(); down = true; cv.setPointerCapture(e.pointerId); rub(e); });
+      cv.addEventListener("pointermove", rub);
+      cv.addEventListener("pointerup", () => { down = false; });
+    });
+  }
+  if (fx === "capsule" && msg.unlockAt) {
+    const at = new Date(msg.unlockAt).getTime();
+    if (msg.locked || Date.now() < at) {
+      const label = h("span", { class: "fx-capsule-time" });
+      const lockBox = h("div", { class: "fx-capsule" }, h("span", { class: "fx-capsule-ic", text: "⏳" }), h("span", {}, h("b", { text: msg.mine ? "Time capsule (only you see it now)" : "A time capsule" }), h("br"), label));
+      bubble.prepend(lockBox);
+      if (msg.locked) bubble.classList.add("fx-locked");
+      let seen = false;
+      const tick = () => {
+        // (wait until the message is on the screen; stop once it's gone)
+        if (!bubble.isConnected) { if (!seen) setTimeout(tick, 200); return; }
+        seen = true;
+        const left = at - Date.now();
+        if (left <= 0) { label.textContent = "Opening…"; onUnlock?.(); return; }
+        const d = Math.floor(left / 86400000), hh = Math.floor(left / 3600000) % 24, mm = Math.floor(left / 60000) % 60, ss = Math.floor(left / 1000) % 60;
+        label.textContent = "Opens in " + (d ? `${d}d ${hh}h` : hh ? `${hh}h ${mm}m` : `${mm}:${String(ss).padStart(2, "0")}`);
+        setTimeout(tick, 1000);
+      };
+      tick();
+    }
+  }
+  if (fx === "selfdestruct" && msg.expiresAt) {
+    const at = new Date(msg.expiresAt).getTime(), badge = h("span", { class: "fx-boom" });
+    bubble.append(badge);
+    let seen = false;
+    const tick = () => {
+      if (!bubble.isConnected) { if (!seen) setTimeout(tick, 200); return; }
+      seen = true;
+      const left = Math.max(0, Math.ceil((at - Date.now()) / 1000));
+      badge.textContent = `💣 ${left}s`;
+      bubble.classList.toggle("fx-boom-soon", left <= 10);
+      if (left > 0) setTimeout(tick, 1000); else bubble.classList.add("fx-boom-go");
+    };
+    tick();
   }
 }
 // Invisible ink stays on: the words are hidden until you tap them

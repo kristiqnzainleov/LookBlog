@@ -392,3 +392,13 @@ export function linkTimes(el, onSeek, maxSec = Infinity) {
   }
   return el;
 }
+
+// Where to put a panel next to a button. If the button is hidden (e.g. it's in the ＋ panel, which just closed),
+// use the message box it belongs to, so the panel opens there and not in a corner of the screen.
+export function visibleRect(el) {
+  const r = el.getBoundingClientRect();
+  if (r.width || r.height) return r;
+  const form = el.closest(".convo-form");
+  const alt = form?.querySelector(".convo-input .tray-btn") || form?.querySelector(".convo-input") || el.closest("form, .composer, .create-form");
+  return alt ? alt.getBoundingClientRect() : r;
+}

@@ -6183,3 +6183,56 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 @keyframes fxJelly { 0%, 100% { transform: scale(1, 1); } 25% { transform: scale(1.25, 0.75); } 40% { transform: scale(0.8, 1.2); } 55% { transform: scale(1.1, 0.9); } 70% { transform: scale(0.95, 1.05); } }
 .fx-explode { animation: fxExplode 0.8s ease-out; }
 @keyframes fxExplode { 0% { transform: scale(0.2); filter: brightness(3); } 40% { transform: scale(1.25); } 100% { transform: none; filter: none; } }
+/* ---------- Group: the buttons at the top, in one tidy row ---------- */
+.gv-quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin: 10px 10px 6px; }
+.gv-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; margin: 0 !important; padding: 10px 4px 9px !important; border-radius: 14px !important; border: 1px solid var(--line) !important; background: var(--card) !important; color: var(--paper) !important; font: 700 0.76rem var(--body) !important; cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.1s; }
+.gv-tile:hover { border-color: var(--group) !important; background: color-mix(in srgb, var(--group) 10%, var(--card)) !important; }
+.gv-tile:active { transform: scale(0.96); }
+.gv-tile svg { width: 20px; height: 20px; fill: none; stroke: var(--group); stroke-width: 1.9; flex: none; }
+.gv-tile span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; flex: none !important; }
+.gv-tile.gv-invite { background: var(--group) !important; border-color: var(--group) !important; color: #000 !important; }
+.gv-tile.gv-invite svg { stroke: #000; }
+.gv-roles-ic { font-style: normal; font-size: 1.05rem; line-height: 20px; }
+.gv-count { position: absolute; top: 5px; right: 7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--group); color: #000; font-size: 0.68rem; line-height: 18px; text-align: center; }
+/* the chat's buttons at the top: same size, evenly spaced */
+.convo-tools { display: flex; align-items: center; gap: 6px; }
+.convo-tools .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); flex-shrink: 0; }
+.convo-tools .icon-btn:hover { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 10%, transparent); }
+.convo-tools .icon-btn svg { width: 19px; height: 19px; }
+.convo-tools .nick-ic, .convo-tools .chat-style-btn { font-size: 1.05rem; line-height: 1; }
+.gv-quick { display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+/* Invite people: tidy on every screen */
+.invite-row { display: flex; gap: 8px; align-items: stretch; }
+.invite-row .invite-link { flex: 1; min-width: 0; font-size: 0.88rem; text-overflow: ellipsis; }
+.invite-row .btn { flex-shrink: 0; }
+.invite-row .invite-exp { flex: 1; min-width: 0; }
+.invite-list { max-height: min(46vh, 340px); min-height: 0 !important; overflow-y: auto; }
+@media (max-width: 640px) {
+  .invite-row:has(select) { flex-direction: column; }
+  .invite-row .invite-link { font-size: 0.8rem; }
+}
+/* ---------- Secret & fun messages ---------- */
+.ms-effect.secret { background: linear-gradient(160deg, rgba(155, 92, 255, 0.14), rgba(255, 79, 163, 0.08)); }
+.fx-whisper .bubble-text { font-size: 0.62em; opacity: 0.7; letter-spacing: 0.02em; cursor: zoom-in; }
+.fx-whisper::after { content: "🤫 tap"; display: block; font-size: 0.6rem; opacity: 0.6; }
+.fx-upside .bubble-text { display: inline-block; transform: rotate(180deg); cursor: pointer; }
+.fx-mirror .bubble-text { display: inline-block; transform: scaleX(-1); cursor: pointer; }
+.bubble .bubble-text { transition: transform 0.35s ease, font-size 0.25s, filter 0.3s; }
+.fx-shaking { animation: fxShake 0.9s ease-in-out infinite; }
+.fx-glowing { animation: msNeon 1.8s ease-in-out infinite; box-shadow: 0 0 16px var(--pink); }
+.fx-hold { cursor: pointer; user-select: none; }
+.fx-hold:not(.reveal) .bubble-text { filter: blur(9px); }
+.fx-hold:not(.reveal)::after { content: "👆 Hold to read"; display: block; margin-top: 2px; font-size: 0.68rem; opacity: 0.75; }
+.bubble:has(.fx-scratch) { position: relative; }
+.fx-scratch { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; cursor: grab; touch-action: none; z-index: 2; transition: opacity 0.4s; }
+.fx-scratch.gone { opacity: 0; pointer-events: none; }
+.fx-capsule { display: flex; align-items: center; gap: 10px; padding: 4px 2px 6px; }
+.fx-capsule-ic { font-size: 1.6rem; animation: capsuleSwing 2s ease-in-out infinite; }
+@keyframes capsuleSwing { 50% { transform: rotate(180deg); } }
+.fx-capsule b { font-size: 0.88rem; }
+.fx-capsule-time { font-size: 0.78rem; opacity: 0.8; font-variant-numeric: tabular-nums; }
+.fx-locked .bubble-text, .fx-locked .reactions { display: none; }
+.fx-boom { display: inline-block; margin-top: 3px; padding: 1px 7px; border-radius: 999px; background: rgba(0, 0, 0, 0.3); font-size: 0.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fx-boom-soon { animation: fxShake 0.5s ease-in-out infinite; }
+.fx-boom-soon .fx-boom { background: #ff4757; color: #fff; }
+.fx-boom-go { animation: fxExplode 0.5s ease-out reverse forwards; opacity: 0.2; }

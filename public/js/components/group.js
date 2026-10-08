@@ -120,13 +120,12 @@ export function groupView(chatId, { onBack } = {}) {
     back.addEventListener("click", () => onBack?.());
 
     const next = chat.events?.[0];
-    const events = h("button", { type: "button", class: "gv-events" }, icon("calendar"),
-      h("span", { text: chat.events?.length ? `${plural(chat.events.length, "event", "events")}` : "Events" }),
-      next ? h("small", { class: "muted", text: new Date(next.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) }) : null);
+    const events = h("button", { type: "button", class: "gv-tile gv-events", title: next ? `Next: ${new Date(next.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}` : "Events" }, icon("calendar"),
+      h("span", { text: "Events" }), chat.events?.length ? h("b", { class: "gv-count", text: String(chat.events.length) }) : null);
     events.addEventListener("click", openEvents);
-    const invite = chat.member ? h("button", { type: "button", class: "gv-invite" }, icon("userPlus"), h("span", { text: "Invite people" })) : null;
+    const invite = chat.member ? h("button", { type: "button", class: "gv-tile gv-invite", title: "Invite people" }, icon("userPlus"), h("span", { text: "Invite" })) : null;
     invite?.addEventListener("click", () => openInvite(chat));
-    const rolesBtn = has(chat, "manage_roles") ? h("button", { type: "button", class: "gv-roles", title: "Create and give roles" }, h("span", { class: "role-dot", style: `--rc:${chat.color}` }), h("span", { text: "Roles" })) : null;
+    const rolesBtn = has(chat, "manage_roles") ? h("button", { type: "button", class: "gv-tile gv-roles", title: "Create and give roles" }, h("i", { class: "gv-roles-ic", text: "🛡️" }), h("span", { text: "Roles" })) : null;
     rolesBtn?.addEventListener("click", () => openSettings("roles"));
 
     const section = (title, kind) => {
@@ -197,7 +196,7 @@ export function groupView(chatId, { onBack } = {}) {
 
     const top = h("div", { class: "gv-top" + (chat.banner ? " has-banner" : "") }, back, head);
     if (chat.banner) top.style.backgroundImage = `linear-gradient(180deg, rgba(10,10,10,0.25), rgba(21,20,20,0.95)), url("${chat.banner}")`;
-    side.replaceChildren(top, h("div", { class: "gv-quick" }, invite, rolesBtn), events,
+    side.replaceChildren(top, h("div", { class: "gv-quick" }, invite, rolesBtn, events),
       h("nav", { class: "gv-list" }, ...(pinnedRows.length ? [h("div", { class: "gv-sec" }, h("span", { text: "📌 Pinned" })), ...pinnedRows] : []),
         section("Text channels", "text"), ...texts, section("Voice channels", "voice"), ...voices), h("div", { class: "gv-dock-slot" }), meRow);
     placeDock();
