@@ -250,11 +250,30 @@ export function createPlayer({ src, poster = null, width, height, vertical = fal
       h("p", { class: "lbp-menu-title", text: "Subtitles" }),
       option("Off", subOn < 0, () => setSubs(-1)),
       ...tracks.map((t, i) => option(t.label, subOn === i, () => setSubs(i))),
-      tracks.length ? null : h("p", { class: "lbp-menu-note", text: "No subtitles for this video." })].filter(Boolean));
+      tracks.length ? null : h("p", { class: "lbp-menu-note", text: "No subtitles for this video." }),
+      // (on a phone the speed lives here, the bar has no room for it)
+      h("p", { class: "lbp-menu-title lbp-speed-title", text: "Speed" }),
+      h("div", { class: "lbp-speeds" }, ...[...SPEEDS].sort((a, b) => a - b).map((sp) => { const b = h("button", { type: "button", class: "lbp-speed-opt" + (video.playbackRate === sp ? " on" : ""), text: sp + "×" }); b.addEventListener("click", () => { video.playbackRate = sp; speedBtn.textContent = sp + "×"; paintMenu(); }); return b; }))].filter(Boolean));
   }
   paintMenu();
+  // On a phone (not full screen) the menu comes up from the bottom of the screen, big and easy to tap
+  let sheet = null;
+  const closeSheet = () => { if (!sheet) return; sheet.classList.add("out"); const s0 = sheet; sheet = null; setTimeout(() => { s0.remove(); menu.classList.remove("as-sheet"); menu.hidden = true; wrap.append(menu); }, 200); gearBtn.classList.remove("on"); };
   gearBtn.addEventListener("click", (e) => {
     e.stopPropagation();
+    if (matchMedia("(max-width: 640px)").matches && !document.fullscreenElement) {
+      if (sheet) return closeSheet();
+      paintMenu();
+      menu.hidden = false; menu.classList.add("as-sheet");
+      const grab = h("i", { class: "lbp-sheet-grab" });
+      const done = h("button", { type: "button", class: "btn btn-outline-light btn-full lbp-sheet-done", text: "Done" });
+      done.addEventListener("click", closeSheet);
+      sheet = h("div", { class: "lbp-sheet" }, h("div", { class: "lbp-sheet-card" }, grab, menu, done));
+      sheet.addEventListener("click", (ev) => { if (ev.target === sheet) closeSheet(); });
+      document.body.append(sheet);
+      gearBtn.classList.add("on");
+      return;
+    }
     menu.hidden = !menu.hidden;
     gearBtn.classList.toggle("on", !menu.hidden);
     if (!menu.hidden) {

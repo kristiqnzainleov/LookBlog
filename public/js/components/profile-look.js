@@ -24,19 +24,29 @@ export const GAMER_FONTS = [["minecraft", "Minecraft"], ["fortnite", "Fortnite"]
 // ✨ More fonts (all of them write in Cyrillic too)
 export const MORE_FONTS = [["bubbles", "Bubbles"], ["wetpaint", "Wet paint"], ["puddles", "Puddles"], ["beastly", "Beastly"], ["moonrocks", "Moon rocks"], ["microbe", "Microbe"], ["dirt", "Dirt"], ["spray", "Spray paint"], ["vinyl", "Vinyl"], ["iso", "3D Iso"], ["maze", "Maze"], ["burned", "Burned"], ["distressed", "Distressed"], ["gems", "Gemstones"], ["storm", "Storm"], ["fade80", "80s fade"], ["doodle", "Doodle"], ["hatch", "Hatched"], ["pixels", "Pixels"], ["scribble", "Scribble"], ["lines", "Lines"], ["fax", "Broken fax"], ["monoone", "Heavy"], ["comfortaa", "Comfortaa"], ["amatic", "Amatic"], ["neucha", "Neucha"], ["marck", "Marck"], ["badscript", "Bad script"], ["yeseva", "Yeseva"], ["poiret", "Poiret"], ["ruslan", "Ruslan"], ["underdog", "Underdog"], ["kelly", "Kelly slab"], ["stalinist", "Soviet"], ["seymour", "Seymour"], ["philosopher", "Philosopher"], ["pangolin", "Pangolin"], ["jura", "Jura"], ["daysone", "Days one"], ["forum", "Forum"], ["kurale", "Kurale"], ["oranienbaum", "Oranienbaum"], ["montalt", "Montserrat alt"], ["play", "Play"], ["prosto", "Prosto"], ["ubuntu", "Ubuntu"]];
 export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"], ["shadow", "3D"]];
-export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"], ["xmas", "🎄 Candy cane"], ["steel", "Steel"], ["forest", "Forest"]];
+export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"], ["xmas", "🎄 Candy cane"], ["steel", "Steel"], ["forest", "Forest"],
+  ["fire", "🔥 Fire"], ["ice", "🧊 Ice"], ["galaxy", "🌌 Galaxy"], ["candy", "🍬 Candy"], ["toxic", "☢️ Toxic"], ["pastel", "Pastel"], ["disco", "🪩 Disco"]];
 export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradient"], ["aurora", "Aurora"], ["stars", "Stars"], ["grid", "Grid"], ["dots", "Dots"], ["waves", "Waves"],
-  ["snow", "❄️ Snow"], ["candy", "🍬 Candy cane"], ["shell", "🐢 Shell"], ["pinstripe", "💼 Pinstripe"], ["hearts", "💗 Hearts"], ["matrix", "💻 Matrix"], ["sunrays", "☀️ Sun rays"]];
+  ["snow", "❄️ Snow"], ["candy", "🍬 Candy cane"], ["shell", "🐢 Shell"], ["pinstripe", "💼 Pinstripe"], ["hearts", "💗 Hearts"], ["matrix", "💻 Matrix"], ["sunrays", "☀️ Sun rays"],
+  ["hexagons", "⬡ Hexagons"], ["zigzag", "〰️ Zigzag"], ["plaid", "🧣 Plaid"], ["circuit", "🔌 Circuit"], ["bokeh", "✨ Bokeh"], ["confetti", "🎊 Confetti"]];
 export const BANNERS = [["", "Default"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["aurora", "Aurora"], ["candy", "Candy"], ["fire", "Fire"], ["galaxy", "Galaxy"], ["night", "Night"], ["mint", "Mint"], ["mono", "Mono"],
   ["xmas", "🎄 Christmas"], ["winter", "❄️ Winter"], ["forest", "🌲 Forest"], ["turtle", "🐢 Turtle"], ["business", "💼 Business"], ["halloween", "🎃 Halloween"],
   ["beach", "🏖️ Beach"], ["love", "💘 Love"], ["matrix", "💻 Matrix"], ["coffee", "☕ Coffee"], ["pirate", "🏴‍☠️ Pirate"], ["spring", "🌷 Spring"]];
 // Photo shape, name animation, a frame around the profile, a trail behind the pointer
-export const AVATAR_SHAPES = [["", "Circle"], ["squircle", "Squircle"], ["hex", "Hexagon"], ["heart", "Heart"], ["star", "Star"], ["blob", "Blob"], ["diamond", "Diamond"]];
-export const NAME_ANIMS = [["", "None"], ["wave", "Wave"], ["bounce", "Bounce"], ["pulse", "Pulse"], ["glitch", "Glitch"], ["rainbow", "Rainbow cycle"], ["float", "Float"]];
+export const AVATAR_SHAPES = [["", "Circle"], ["squircle", "Squircle"], ["hex", "Hexagon"], ["heart", "Heart"], ["star", "Star"], ["blob", "Blob"], ["diamond", "Diamond"],
+  ["octagon", "Octagon"], ["pentagon", "Pentagon"], ["shield", "Shield"], ["leaf", "Leaf"], ["flower", "Flower"], ["drop", "Drop"]];
+export const NAME_ANIMS = [["", "None"], ["wave", "Wave"], ["bounce", "Bounce"], ["pulse", "Pulse"], ["glitch", "Glitch"], ["rainbow", "Rainbow cycle"], ["float", "Float"],
+  ["shake", "Shake"], ["flicker", "Flicker"], ["glow", "Glow pulse"], ["slide", "Slide"], ["zoom", "Zoom"], ["jelly", "Jelly"]];
 export const CARD_FRAMES = [["", "None"], ["neon", "Neon"], ["glass", "Glass"], ["gold", "Gold"], ["pixel", "Pixel"], ["comic", "Comic"], ["holo", "Holo"],
-  ["candy", "🍬 Candy cane"], ["ice", "🧊 Ice"], ["wood", "🪵 Wood"], ["business", "💼 Business"], ["shell", "🐢 Shell"]];
+  ["candy", "🍬 Candy cane"], ["ice", "🧊 Ice"], ["wood", "🪵 Wood"], ["business", "💼 Business"], ["shell", "🐢 Shell"],
+  ["rainbow", "🌈 Rainbow"], ["fire", "🔥 Fire"], ["dashed", "Dashed"], ["double", "Double"], ["sketch", "✏️ Sketch"], ["aurora", "🌌 Aurora"]];
 export const CURSOR_TRAILS = [["", "None"], ["sparkle", "✨ Sparkles"], ["hearts", "💗 Hearts"], ["stars", "⭐ Stars"], ["bubbles", "🫧 Bubbles"], ["fire", "🔥 Fire"], ["rainbow", "🌈 Rainbow"],
-  ["snow", "❄️ Snow"], ["money", "💵 Money"], ["leaves", "🍃 Leaves"], ["notes", "🎵 Music"], ["love", "💘 Love"]];
+  ["snow", "❄️ Snow"], ["money", "💵 Money"], ["leaves", "🍃 Leaves"], ["notes", "🎵 Music"], ["love", "💘 Love"],
+  ["flowers", "🌸 Flowers"], ["ghosts", "👻 Ghosts"], ["cats", "🐱 Cats"], ["paws", "🐾 Paws"]];
+export const PHOTO_ANIMS = [["", "Still"], ["spin", "🌀 Spin"], ["pulse", "💓 Pulse"], ["float", "🎈 Float"], ["wobble", "🍮 Wobble"], ["glow", "✨ Glow"], ["bounce", "🏀 Bounce"]];
+export const CURSORS = ["", "✨", "💖", "⭐", "🐢", "🔥", "👑", "🎮", "🍕", "🦄", "👻", "🌸", "💎", "🚀", "🐱", "🍓", "⚡", "🎧", "🌙", "🍀"];
+export const BIO_STYLES = [["", "Plain"], ["card", "🪪 Card"], ["note", "🗒 Sticky note"], ["terminal", "💻 Terminal"], ["neon", "💡 Neon"], ["quote", "❝ Quote"], ["bubble", "💬 Bubble"]];
+export const NAME_SIZES = [["", "Normal"], ["big", "Big"], ["huge", "Huge"]];
 // One tap: a whole look at once (in groups)
 const T = (color, font, effect, emoji, accent, ring, bg, banner, fx, deco, shape, anim, frame, trail) => ({ color, font, effect, emoji, accent, ring, bg, banner, fx, deco, shape, anim, frame, trail });
 export const LOOK_THEME_GROUPS = [
@@ -91,7 +101,7 @@ export const LOOK_THEME_GROUPS = [
   ]],
 ];
 export const LOOK_THEMES = LOOK_THEME_GROUPS.flatMap(([, list]) => list);
-const TRAIL_PARTS = { snow: ["❄️", "❅"], money: ["💵", "🪙"], leaves: ["🍃", "🍂"], notes: ["🎵", "🎶"], love: ["💘", "💗"], sparkle: ["✨", "✦", "⋆"], hearts: ["💗", "💖", "💕"], stars: ["⭐", "🌟", "✦"], bubbles: ["🫧", "○"], fire: ["🔥", "✨"], rainbow: ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪"] };
+const TRAIL_PARTS = { flowers: ["🌸", "🌼", "🌷"], ghosts: ["👻"], cats: ["🐱", "😺"], paws: ["🐾"], snow: ["❄️", "❅"], money: ["💵", "🪙"], leaves: ["🍃", "🍂"], notes: ["🎵", "🎶"], love: ["💘", "💗"], sparkle: ["✨", "✦", "⋆"], hearts: ["💗", "💖", "💕"], stars: ["⭐", "🌟", "✦"], bubbles: ["🫧", "○"], fire: ["🔥", "✨"], rainbow: ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪"] };
 
 // Something falling or floating over my profile, and a decoration on my photo
 export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "💗 Hearts"], ["sparkles", "✨ Sparkles"], ["stars", "⭐ Stars"], ["sakura", "🌸 Sakura"],
@@ -157,6 +167,13 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
   if (avatarWrap) { if (look?.ring) avatarWrap.dataset.ring = look.ring; else delete avatarWrap.dataset.ring; }
   if (avatarWrap) { if (look?.shape) avatarWrap.dataset.shape = look.shape; else delete avatarWrap.dataset.shape; }
   if (card) { if (look?.frame) card.dataset.frame = look.frame; else delete card.dataset.frame; }
+  if (avatarWrap) { if (look?.photoAnim) avatarWrap.dataset.pa = look.photoAnim; else delete avatarWrap.dataset.pa; }
+  if (bio) { if (look?.bioStyle) bio.dataset.bs = look.bioStyle; else delete bio.dataset.bs; }
+  if (view) {
+    if (look?.nameSize) view.dataset.nsz = look.nameSize; else delete view.dataset.nsz;
+    // An emoji instead of the mouse pointer on my profile
+    view.style.cursor = look?.cursor ? `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><text x='2' y='26' font-size='24'>${look.cursor}</text></svg>`)}") 6 6, auto` : "";
+  }
   // A trail behind the pointer while you look at the profile
   const trailHost = fxBox || view;
   if (trailHost) {
@@ -262,7 +279,7 @@ export function openLookEditor(onSaved, opts = {}) {
   const paint = () => {
     applyLook(previewWrap.querySelector(".look-preview-b"), cur);
     applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner, fxBox: previewWrap, statusSlot: previewStatus, card: previewWrap }, cur);
-    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
+    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"], [photoAnims, "photoAnim"], [bioStyles, "bioStyle"], [nameSizes, "nameSize"], [cursors, "cursor"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
     songLabel.textContent = songObj ? `🎵 ${songObj.title} · ${songObj.artist?.name || ""}` : "No song";
     songClear.hidden = !songObj;
     previewWrap.style.setProperty("--accent", cur.accent || "#ff4fa3");
@@ -387,6 +404,10 @@ export function openLookEditor(onSaved, opts = {}) {
   const anims = pickRow(NAME_ANIMS, "anim");
   const frames = pickRow(CARD_FRAMES, "frame");
   const trails = pickRow(CURSOR_TRAILS, "trail");
+  const photoAnims = pickRow(PHOTO_ANIMS, "photoAnim");
+  const bioStyles = pickRow(BIO_STYLES, "bioStyle");
+  const nameSizes = pickRow(NAME_SIZES, "nameSize");
+  const cursors = h("div", { class: "look-chips" }, ...CURSORS.map((e) => { const b = h("button", { type: "button", class: "look-emo", dataset: { v: e, cursor: e }, text: e || "🖱" }); b.addEventListener("click", () => { cur.cursor = e; paint(); }); return b; }));
   // One-tap themes
   let themeGroup = 0;
   const themeTabs = h("div", { class: "look-theme-tabs" });
@@ -434,6 +455,9 @@ export function openLookEditor(onSaved, opts = {}) {
     h("p", { class: "look-label", text: "Profile accent colour" }), h("p", { class: "create-hint", text: "Buttons, tabs and highlights on your profile." }), accents,
     h("p", { class: "look-label", text: "Ring around your photo" }), rings,
     h("p", { class: "look-label", text: "Photo shape" }), shapes,
+    h("p", { class: "look-label", text: "Photo movement" }), photoAnims,
+    h("p", { class: "look-label", text: "Name size" }), nameSizes,
+    h("p", { class: "look-label", text: "Pointer" }), h("p", { class: "create-hint", text: "An emoji instead of the mouse pointer when people are on your profile." }), cursors,
     h("p", { class: "look-label", text: "Profile frame" }), frames,
     h("p", { class: "look-label", text: "Pointer trail" }), h("p", { class: "create-hint", text: "Little things that follow the mouse (or finger) on your profile." }), trails,
     h("p", { class: "look-label", text: "Profile background" }), bgs,
@@ -442,6 +466,7 @@ export function openLookEditor(onSaved, opts = {}) {
     h("p", { class: "look-label", text: "Photo decoration" }), decos,
     h("p", { class: "look-label", text: "Profile song" }), h("p", { class: "create-hint", text: "People can play it from your profile." }), h("div", { class: "song-now" }, songLabel, songClear), songSearch, songResults,
     h("p", { class: "look-label", text: "Bio font" }), bioFonts,
+    h("p", { class: "look-label", text: "Bio style" }), bioStyles,
     h("p", { class: "look-label", text: "Banner colours" }), h("p", { class: "create-hint", text: state.me.banner ? "Shown when you remove your banner picture." : "For your banner (you don’t have a banner picture)." }), banners,
     save, reset) });
   const store = async (look) => {

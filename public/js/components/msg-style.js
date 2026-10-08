@@ -9,7 +9,12 @@ import { playPreset, SOUND_PRESETS, playMsgSound } from "./sfx.js";
 
 const COLORS = [["", "Default", ""], ["black", "Black", "#0d0c0c"], ...NAME_COLORS.map(([k, v]) => [k, k[0].toUpperCase() + k.slice(1), v])];
 const LIGHT = new Set(["gold", "lime", "mint", "teal", "sky", "lilac", "white", "candy", "peach", "ice", "pastel", "beach", "steel", "coffee", "neon", "aurora"]);
-const SHAPES = [["", "Normal"], ["round", "Round"], ["square", "Square"], ["pill", "Pill"], ["speech", "Speech"], ["leaf", "Leaf"]];
+const SHAPES = [["", "Normal"], ["round", "Round"], ["square", "Square"], ["pill", "Pill"], ["speech", "Speech"], ["leaf", "Leaf"], ["comic", "💥 Comic"], ["ticket", "🎟 Ticket"], ["sketch", "✏️ Sketch"], ["cloud", "☁️ Cloud"]];
+const FGS = [["", "Auto", ""], ["white", "White", "#ffffff"], ["black", "Black", "#111111"], ["gold", "Gold", "#ffd23f"], ["pink", "Pink", "#ff4fa3"], ["mint", "Mint", "#2ee6a6"], ["sky", "Sky", "#4cc9ff"], ["lilac", "Lilac", "#d6a4ff"]];
+const SIZES = [["small", "Small"], ["", "Normal"], ["big", "Big"], ["huge", "Huge"]];
+const TEXTFX = [["", "None"], ["shadow", "Shadow"], ["outline", "Outline"], ["neon", "💡 Neon"], ["rainbow", "🌈 Rainbow"], ["metal", "🥇 Gold metal"], ["gradient", "🎨 Gradient"]];
+const PATTERNS = [["", "None"], ["dots", "• Dots"], ["stripes", "▤ Stripes"], ["stars", "⭐ Stars"], ["hearts", "💗 Hearts"], ["grid", "▦ Grid"], ["waves", "〰️ Waves"], ["sparkle", "✨ Sparkle"]];
+const BORDERS = [["", "None"], ["solid", "Solid"], ["dashed", "Dashed"], ["double", "Double"], ["rainbow", "🌈 Rainbow"], ["glowing", "✨ Glowing"]];
 const GLOWS = [["", "None"], ["glow", "✨ Glow"], ["outline", "Outline"], ["shadow", "3D"], ["neon", "💡 Neon"], ["shimmer", "🪩 Shimmer"], ["pulse", "💓 Pulse"],
   ["glass", "🧊 Glass"], ["fire", "🔥 Fire"], ["ice", "❄️ Frost"], ["gradient", "🌈 Moving colours"]];
 export const EFFECTS = [["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["gentle", "🌙", "Gentle"], ["ink", "🫥", "Invisible ink"], ["confetti", "🎉", "Confetti"], ["hearts", "💕", "Hearts"],
@@ -29,6 +34,11 @@ export function styleBubble(bubble, style) {
     bubble.style.setProperty("--ms-fg", LIGHT.has(style.bg) ? "#111" : "#fff");
   }
   if (style.shape) bubble.dataset.ms = style.shape;
+  if (style.fg) bubble.style.setProperty("--ms-fg", (FGS.find(([k]) => k === style.fg) || [])[2] || ""), bubble.classList.add("ms-fg");
+  if (style.size) bubble.dataset.msz = style.size;
+  if (style.textfx) bubble.dataset.mtx = style.textfx;
+  if (style.pattern) bubble.dataset.mpat = style.pattern;
+  if (style.border) bubble.dataset.mbd = style.border;
   if (style.glow) bubble.dataset.mg = style.glow;
   if (style.font) {
     const t = bubble.querySelector(".bubble-text");
@@ -59,15 +69,25 @@ export function openMsgStyle({ onEffect = null, armed = null } = {}) {
     if (tab === "style") {
       paintPreview();
       const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save my style" });
+      const rnd = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "🎲 Surprise me" });
+      const pick = (list) => list[Math.floor(Math.random() * list.length)][0];
+      rnd.addEventListener("click", () => { cur = { bg: pick(COLORS.slice(1)), font: pick([...NAME_FONTS.slice(1), ...MORE_FONTS]), shape: pick(SHAPES), glow: pick(GLOWS), textfx: Math.random() < 0.4 ? pick(TEXTFX) : "", pattern: Math.random() < 0.4 ? pick(PATTERNS) : "", border: Math.random() < 0.3 ? pick(BORDERS) : "" }; for (const k of Object.keys(cur)) if (!cur[k]) delete cur[k]; paint(); });
+      const clear = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "↺ Plain" });
+      clear.addEventListener("click", () => { cur = {}; paint(); });
       save.addEventListener("click", async () => {
         save.disabled = true;
         try { const r = await api("/api/me/msg-style", { method: "POST", body: cur }); state.me.msgStyle = r.msgStyle; toast("✨ Saved — your messages look like this now, for everyone."); md.close(); }
         catch (err) { toast(err.error || "Couldn’t save it."); save.disabled = false; }
       });
-      body.replaceChildren(preview,
+      body.replaceChildren(preview, h("div", { class: "ms-sound-tools" }, rnd, clear),
         h("b", { class: "look-label", text: "Bubble colour" }), chips(COLORS, "bg", ([k, l, v]) => h("button", { type: "button", class: "ms-sw" + (k ? "" : " none"), title: l, "aria-label": l, style: v ? `background:${v}` : "" }, k ? null : h("span", { text: "⊘" }))),
         h("b", { class: "look-label", text: "Font" }), chips([["", "Default"], ...NAME_FONTS.filter(([k]) => k), ...GAMER_FONTS, ...MORE_FONTS], "font", ([k, l]) => h("button", { type: "button", class: "ms-chip nl", dataset: k ? { nf: k } : {}, text: l })),
         h("b", { class: "look-label", text: "Shape" }), chips(SHAPES, "shape", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
+        h("b", { class: "look-label", text: "Text colour" }), chips(FGS, "fg", ([k, l, v]) => h("button", { type: "button", class: "ms-sw" + (k ? "" : " none"), title: l, "aria-label": l, style: v ? `background:${v}` : "" }, k ? null : h("span", { text: "A" }))),
+        h("b", { class: "look-label", text: "Text size" }), chips(SIZES, "size", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
+        h("b", { class: "look-label", text: "Text effect" }), chips(TEXTFX, "textfx", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
+        h("b", { class: "look-label", text: "Pattern on the bubble" }), chips(PATTERNS, "pattern", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
+        h("b", { class: "look-label", text: "Border" }), chips(BORDERS, "border", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
         h("b", { class: "look-label", text: "Effect on the bubble" }), chips(GLOWS, "glow", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
         save);
       loadFonts();
