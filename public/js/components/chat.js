@@ -578,7 +578,9 @@ async function openViewOnce(msg, chat, row) {
 }
 
 // Like Instagram: pull a message to the right to answer it (finger or mouse)
+// Swipe to reply: someone else's message to the right, my own (on the right side) to the left
 function swipeToReply(row, msg) {
+  const dir = msg.mine ? -1 : 1;
   const stack = row.querySelector(".msg-stack"), face = row.querySelector(".msg-avatar");
   const moving = [stack, face].filter(Boolean);
   const arrow = h("span", { class: "swipe-reply", "aria-hidden": "true" }, icon("replyArrow"));
@@ -597,7 +599,7 @@ function swipeToReply(row, msg) {
   });
   row.addEventListener("pointermove", (e) => {
     if (!start || e.pointerId !== start.id) return;
-    const mx = e.clientX - start.x, my = e.clientY - start.y;
+    const mx = (e.clientX - start.x) * dir, my = e.clientY - start.y;
     if (!going) {
       if (Math.abs(my) > 12 && Math.abs(my) > Math.abs(mx)) { start = null; return; } // scrolling up or down
       if (mx < 12 || mx < Math.abs(my) * 1.4) return;
@@ -607,7 +609,7 @@ function swipeToReply(row, msg) {
     }
     e.preventDefault();
     dx = Math.max(0, Math.min(LIMIT, mx * 0.62));
-    for (const el of moving) el.style.transform = `translateX(${dx}px)`;
+    for (const el of moving) el.style.transform = `translateX(${dx * dir}px)`;
     arrow.style.opacity = String(Math.min(1, dx / TRIGGER));
     arrow.style.transform = `scale(${0.6 + Math.min(1, dx / TRIGGER) * 0.4})`;
     if (dx >= TRIGGER && !armed) { armed = true; arrow.classList.add("armed"); navigator.vibrate?.(8); }
@@ -1129,6 +1131,25 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
         tools.append(leave);
       }
     }
+    // On a phone: calls stay in the bar, everything else goes in a ⋯ menu (so the name has room)
+    if (matchMedia("(max-width: 640px)").matches) {
+      const keep = [...tools.children].filter((b) => b.classList.contains("call-start"));
+      const rest = [...tools.children].filter((b) => !keep.includes(b));
+      if (rest.length > 1) {
+        const moreBtn = h("button", { class: "icon-btn convo-more", title: "More", "aria-label": "More options" }, h("span", { class: "nick-ic", text: "⋯" }));
+        const hold = h("div", { hidden: true }, ...rest);
+        moreBtn.addEventListener("click", () => {
+          const sheet = modal({ title: "Chat", body: h("div", { class: "convo-menu" }, ...rest.map((b) => {
+            const label = b.getAttribute("title") || b.getAttribute("aria-label") || "";
+            const ic = b.cloneNode(true); ic.removeAttribute("title"); ic.className = "convo-menu-ic";
+            const row = h("button", { type: "button", class: "convo-menu-row" + (b.classList.contains("on") ? " on" : "") }, ic, h("span", { text: label.replace(/ — .*$/, "").replace(/:.*$/, "").replace(/, links & search$/, "") }));
+            row.addEventListener("click", () => { sheet.close(); setTimeout(() => b.click(), 60); });
+            return row;
+          })) });
+        });
+        tools.replaceChildren(...keep, moreBtn, hold);
+      }
+    }
     head.replaceChildren(back, title, tools);
   }
 
@@ -1282,7 +1303,12 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     gifReply = sendGif;
     const chatGif = gifButton((g) => sendGif(g));
     inputRow.insertBefore(chatGif, text);
+    // On a phone the row is just ＋ · text · mic/send; ＋ opens the other tools above
+    const trayBtn = h("button", { type: "button", class: "tool-btn tray-btn", "aria-label": "More: photos, GIFs, polls…", "aria-expanded": "false" }, h("span", { text: "＋" }));
+    inputRow.prepend(trayBtn);
     const form = h("form", { class: "convo-form", novalidate: true }, replyBar, picker.previews, inputRow, recBar, err);
+    trayBtn.addEventListener("click", () => { const open = form.classList.toggle("tray-open"); trayBtn.setAttribute("aria-expanded", String(open)); });
+    inputRow.addEventListener("click", (e) => { const b = e.target.closest(".tool-btn"); if (b && b !== trayBtn && !b.classList.contains("mic-btn") && form.classList.contains("tray-open")) { form.classList.remove("tray-open"); trayBtn.setAttribute("aria-expanded", "false"); } });
     // View once: the next messages can be opened one time only (tap again to turn it off)
     let viewOnce = false;
     const voBtn = h("button", { type: "button", class: "tool-btn vo-btn", "aria-label": "View once", "aria-pressed": "false", title: "View once: they can open it one time" }, h("span", { text: "1" }));

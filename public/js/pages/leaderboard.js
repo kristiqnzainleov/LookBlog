@@ -10,7 +10,8 @@ const BOARDS = [
   ["likes", "❤️ Likes", "Most likes and Cools on their posts"],
   ["artists", "🎤 Artists", "Most plays on their songs"],
   ["songs-week", "🎧 Songs this week", "The most played songs in the last 7 days"],
-  ["videos-week", "🔥 Videos this week", "The most watched videos and shorts in the last 7 days"],
+  ["trending-videos", "🔥 Trending videos", "Videos and shorts trending this week: hypes, likes, replies, reposts and views (newer counts more)"],
+  ["videos-week", "▶ Videos this week", "The most watched videos and shorts in the last 7 days"],
   ["streams", "🔴 Streams", "Top streamers: viewers + likes on their lives (a like counts twice)"],
   ["streams-liked", "❤️ Most liked lives", "Streamers with the most likes on their lives and recordings"],
   ["series", "📺 Series", "The most watched series (all episodes together)"],
@@ -54,10 +55,12 @@ export function leaderboardPage(view, _m, params) {
       const p = x.post;
       return h("a", { class: "lb-row", href: p.type === "short" ? `/shorts?id=${p.id}` : `/watch/${p.id}` }, rank,
         h("span", { class: "lb-thumb" + (p.type === "short" ? " tall" : ""), style: p.media[0]?.poster ? `background-image:url("${p.media[0].poster}")` : "" }),
-        h("span", { class: "lb-who" }, h("b", { text: p.title || p.text?.slice(0, 60) || (p.type === "short" ? "Short" : "Video") }), h("small", { class: "muted", text: x.film ? [p.author.name, p.film?.year, p.film?.genre, p.film?.rating].filter(Boolean).join(" · ") : p.author.name })), value);
+        h("span", { class: "lb-who" }, h("b", { text: p.title || p.text?.slice(0, 60) || (p.type === "short" ? "Short" : "Video") }), h("small", { class: "muted", text: x.film ? [p.author.name, p.film?.year, p.film?.genre, p.film?.rating].filter(Boolean).join(" · ") : x.trend ? [p.author.name, p.type === "short" ? "Short" : "Video", `🔥 ${x.trend.hypes}`, `❤️ ${x.trend.likes}`, `👁 ${x.trend.views}`].join(" · ") : p.author.name })), value);
     }));
   }
   paintTabs();
+  // (on a phone the tabs scroll sideways: show the chosen one)
+  requestAnimationFrame(() => tabs.querySelector(".lb-tab.on")?.scrollIntoView({ inline: "center", block: "nearest" }));
   load();
 }
 leaderboardPage.navName = () => "";

@@ -25,6 +25,13 @@ function compute() {
   // This week
   const songsWeek = db.songs.map((s) => ({ s, n: sum(Object.entries(s.playDaily || {}).filter(([k]) => week.has(k)).map(([, v]) => v)) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 50);
   const videosWeek = pub.filter((p) => p.type === "video" || p.type === "short").map((p) => ({ p, n: (p.viewLog || []).filter((v) => new Date(v.at).getTime() >= weekAgo).length })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 50);
+  // Trending videos and shorts (the last 7 days): the same score as the Trending feed, hype counting the most
+  const trendingVideos = pub.filter((p) => (p.type === "video" || p.type === "short") && !p.film && new Date(p.createdAt).getTime() >= weekAgo).map((p) => {
+    const hypes = (p.hypes || []).length;
+    const points = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + hypes * 4 + p.viewedBy.length * 0.15 - p.dislikes.length * 0.5;
+    const age = (Date.now() - new Date(p.createdAt).getTime()) / 3600000;
+    return { id: p.id, points: Math.round(points * 10) / 10, score: (points + 1) / Math.pow(age + 2, 1.1), hypes, views: p.viewedBy.length, likes: p.likes.length };
+  }).filter((x) => x.points > 0).sort((a, b) => b.score - a.score).slice(0, 50);
   // Series: views on all their episodes; films: views on movies
   const postById = new Map(db.posts.map((p) => [p.id, p]));
   const series = db.playlists.filter((pl) => pl.kind === "series" && (pl.visibility || "public") === "public").map((pl) => {
@@ -60,6 +67,7 @@ function compute() {
     artists: board(plays, "plays", (id) => ({ listeners: (listeners.get(id) || new Set()).size })),
     songsWeek: songsWeek.map((x) => ({ songId: x.s.id, value: x.n })),
     videosWeek: videosWeek.map((x) => ({ postId: x.p.id, value: x.n })),
+    trendingVideos,
   };
 }
 
@@ -76,6 +84,9 @@ async function handleLeaderboard(req, res, url, me) {
   } else if (board === "videos-week") {
     const { postView } = require("./social");
     list = d.videosWeek.map((x, i) => { const p = db.posts.find((y) => y.id === x.postId); return p && canView(p, me) ? { rank: i + 1, post: postView(p, me), value: x.value, unit: "views this week" } : null; });
+  } else if (board === "trending-videos") {
+    const { postView } = require("./social");
+    list = d.trendingVideos.map((x) => { const p = db.posts.find((y) => y.id === x.id); return p && canView(p, me) ? { post: postView(p, me), value: x.points, unit: "trend points", trend: { hypes: x.hypes, views: x.views, likes: x.likes } } : null; });
   } else if (board === "series") {
     list = d.series.map((x) => {
       const pl = db.playlists.find((y) => y.id === x.id); const u = pl && findUser(pl.userId);
