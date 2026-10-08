@@ -2143,6 +2143,19 @@ async function handleSocial(req, res, url, me) {
     }
   }
 
+  // How my messages look: POST /api/me/msg-style { bg, font, shape, glow }  (empty = the chat's normal look)
+  if (m === "POST" && a === "me" && b === "msg-style" && parts.length === 2) {
+    const body = await readJSON(req);
+    const st = {};
+    if (NAME_COLORS.includes(body.bg) || /^#[0-9a-f]{6}$/i.test(body.bg || "") || body.bg === "black") st.bg = String(body.bg).toLowerCase();
+    if (NAME_FONTS.includes(body.font)) st.font = body.font;
+    if (["round", "square", "pill", "speech", "leaf"].includes(body.shape)) st.shape = body.shape;
+    if (["glow", "outline", "shadow"].includes(body.glow)) st.glow = body.glow;
+    me.msgStyle = Object.keys(st).length ? st : null;
+    save("users");
+    sendJSON(res, 200, { msgStyle: me.msgStyle });
+    return true;
+  }
   // My look: POST /api/me/look { color, font, effect, accent }  (any of them; null = default)
   if (m === "POST" && a === "me" && b === "look" && parts.length === 2) {
     rateLimit("look:" + me.id, 60, 10 * 60 * 1000, "Slow down a little.");

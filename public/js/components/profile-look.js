@@ -113,7 +113,7 @@ const ACCENTS = ["#ff4fa3", "#ff4757", "#ff8a3d", "#ffd23f", "#2ee6a6", "#19d3c5
 
 // Extra fonts load only when someone's name uses them
 let fontsLoaded = false;
-function loadFonts() {
+export function loadFonts() {
   if (fontsLoaded) return;
   fontsLoaded = true;
   document.head.append(h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Space+Mono:wght@700&family=Pacifico&family=Fredoka:wght@600&display=swap" }),

@@ -5843,3 +5843,72 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
   /* the floating buttons sit above the menu */
   .fab, .msgs-cam, .scroll-top { bottom: calc(84px + env(safe-area-inset-bottom)) !important; }
 }
+/* ---------- My message style (everyone sees it) ---------- */
+.convo { position: relative; }
+.bubble.ms-bg, .msg.mine .bubble.ms-bg, .convo.themed .msg.mine .bubble.ms-bg { background: var(--ms-bg) !important; color: var(--ms-fg) !important; border-color: transparent !important; }
+.bubble.ms-bg .bubble-name, .bubble.ms-bg .time, .bubble.ms-bg .muted { color: var(--ms-fg) !important; opacity: 0.75; }
+.bubble[data-ms="round"] { border-radius: 24px !important; }
+.bubble[data-ms="square"] { border-radius: 6px !important; }
+.bubble[data-ms="pill"] { border-radius: 999px !important; padding-left: 18px; padding-right: 18px; }
+.bubble[data-ms="speech"] { border-radius: 20px 20px 20px 4px !important; }
+.msg.mine .bubble[data-ms="speech"] { border-radius: 20px 20px 4px 20px !important; }
+.bubble[data-ms="leaf"] { border-radius: 22px 4px 22px 4px !important; }
+.bubble[data-mg="glow"] { box-shadow: 0 0 18px color-mix(in srgb, var(--ms-bg, var(--pink)) 70%, transparent), 0 0 4px rgba(255, 255, 255, 0.25) inset; }
+.bubble[data-mg="outline"] { outline: 2px solid currentColor; outline-offset: 2px; }
+.bubble[data-mg="shadow"] { box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.55); }
+.bubble .bubble-text.nl { -webkit-text-fill-color: currentColor; background: none; }
+/* the editor */
+.ms { display: flex; flex-direction: column; gap: 12px; }
+.ms-tabs { display: flex; gap: 6px; }
+.ms-tab { flex: 1; padding: 9px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--paper); font: 800 0.85rem var(--body); cursor: pointer; }
+.ms-tab.on { background: var(--pink); border-color: var(--pink); color: #000; }
+.ms-body { display: flex; flex-direction: column; gap: 8px; }
+.ms-preview { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--ink); border: 1px solid var(--line); }
+.ms-row { display: flex; } .ms-row.mine { justify-content: flex-end; }
+.ms-demo { max-width: 80%; }
+.ms-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ms-sw { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; background: var(--card-2, #222); color: var(--muted); }
+.ms-sw.on { border-color: #fff; box-shadow: 0 0 0 2px var(--pink); }
+.ms-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--paper); font-size: 0.85rem; cursor: pointer; }
+.ms-chip.on { background: var(--pink); border-color: var(--pink); color: #000; -webkit-text-fill-color: #000; }
+.ms-effects { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.ms-effect { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border-radius: 16px; border: 1px solid var(--line); background: var(--card-2, rgba(255,255,255,0.04)); color: var(--paper); font-size: 0.8rem; cursor: pointer; }
+.ms-effect:hover { border-color: var(--pink); }
+.ms-effect.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 18%, transparent); }
+.ms-effect-e { font-size: 1.7rem; }
+/* an effect is armed: the send button shows it */
+.send-btn.fx-armed { position: relative; box-shadow: 0 0 0 2px #ffd23f, 0 0 14px rgba(255, 210, 63, 0.6); }
+.send-btn.fx-armed::after { content: attr(data-fx); position: absolute; top: -10px; right: -8px; font-size: 0.85rem; }
+.fx-btn.on { background: color-mix(in srgb, #ffd23f 25%, transparent); }
+/* ---------- Send effects ---------- */
+.fx-slam { animation: fxSlam 0.6s cubic-bezier(.2, 1.4, .4, 1); transform-origin: center; }
+@keyframes fxSlam { 0% { transform: scale(3.2); opacity: 0; } 55% { transform: scale(0.92); opacity: 1; } 75% { transform: scale(1.05); } 100% { transform: scale(1); } }
+.fx-quake { animation: fxQuake 0.4s linear; }
+@keyframes fxQuake { 20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -4px); } 60% { transform: translate(-4px, 2px); } 80% { transform: translate(3px, -1px); } }
+.fx-loud { animation: fxLoud 1s ease; transform-origin: center; }
+@keyframes fxLoud { 0% { transform: scale(1); } 20% { transform: scale(1.9) rotate(-3deg); } 35% { transform: scale(1.7) rotate(3deg); } 50% { transform: scale(1.85) rotate(-2deg); } 100% { transform: scale(1); } }
+.fx-gentle { animation: fxGentle 2s ease-out; transform-origin: center; }
+@keyframes fxGentle { 0% { transform: scale(0.45); opacity: 0.1; } 60% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+.fx-shake { animation: fxShake 0.8s ease; }
+@keyframes fxShake { 10%, 50%, 90% { transform: translateX(-8px) rotate(-2deg); } 30%, 70% { transform: translateX(8px) rotate(2deg); } }
+.fx-rainbow { animation: fxRainbow 3s linear; }
+@keyframes fxRainbow { from { filter: hue-rotate(0deg) saturate(1.6); } to { filter: hue-rotate(720deg) saturate(1.6); } }
+.fx-ink { cursor: pointer; }
+.fx-ink .bubble-text { filter: blur(7px); user-select: none; transition: filter 0.4s; }
+.fx-ink::after { content: "🫥 Tap to see"; display: block; margin-top: 2px; font-size: 0.68rem; opacity: 0.75; }
+.fx-layer { position: absolute; inset: 0; z-index: 25; pointer-events: none; overflow: hidden; }
+.fx-cf { position: absolute; top: -20px; width: 9px; height: 14px; background: var(--c); border-radius: 2px; animation: fxFall var(--t) cubic-bezier(.3, .6, .6, 1) var(--d) forwards; opacity: 0; }
+@keyframes fxFall { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 1; transform: translateY(110vh) rotate(var(--r)); } }
+.fx-heart { position: absolute; bottom: -40px; font-size: calc(1.4rem * var(--s)); font-style: normal; animation: fxRise var(--t) ease-out var(--d) forwards; opacity: 0; }
+@keyframes fxRise { 0% { opacity: 0; transform: translateY(0) scale(0.6); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateY(-105vh) scale(1.2) rotate(15deg); } }
+.fx-balloon { position: absolute; bottom: -90px; width: 46px; height: 58px; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.6), transparent 30%), var(--c); animation: fxRise var(--t) ease-in var(--d) forwards; opacity: 0; }
+.fx-balloon::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 40px; background: rgba(255, 255, 255, 0.6); }
+.fx-spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); opacity: 0; animation: fxSpark 1.2s ease-out var(--d) forwards; }
+@keyframes fxSpark { 0% { opacity: 1; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 40px)) scale(0.4); } }
+.fx-spot { background: radial-gradient(circle var(--rad) at var(--x) var(--y), transparent 98%, rgba(0, 0, 0, 0.82)); animation: fxFade 0.4s ease; transition: opacity 0.5s; }
+.fx-spot.out { opacity: 0; }
+@keyframes fxFade { from { opacity: 0; } }
+.fx-lasers i { position: absolute; left: 50%; bottom: -10%; width: 6px; height: 140%; background: linear-gradient(transparent, var(--c), transparent); box-shadow: 0 0 18px var(--c); transform-origin: bottom center; opacity: 0; animation: fxLaser 2.2s ease-in-out var(--d) forwards; }
+@keyframes fxLaser { 0% { opacity: 0; transform: rotate(var(--a)); } 15% { opacity: 0.9; } 50% { transform: rotate(calc(var(--a) * -1)); } 85% { opacity: 0.9; } 100% { opacity: 0; transform: rotate(var(--a)); } }
+@media (max-width: 640px) { .convo-input > .fx-btn { order: 0; } }
+.fx-spark { width: 8px; height: 8px; }

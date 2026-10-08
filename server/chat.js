@@ -281,6 +281,8 @@ function messageViewFull(msg, me) {
     reactions: reactionsView(msg, me),
     notes: notesView(msg, me),
     poll: msg.poll ? chatPollView(msg.poll, me, chat) : null,
+    style: msg.system ? null : msgStyleOf(msg.userId),
+    effect: msg.effect || null,
     hypes: (msg.hypes || []).length,
     hypedByMe: (msg.hypes || []).includes(me.id),
     replyTo: replyPreview(msg),
@@ -296,6 +298,10 @@ function messageViewFull(msg, me) {
     createdAt: msg.createdAt,
   };
 }
+
+/* ---------- How my messages look (my own style, everyone sees it) and send effects ---------- */
+const MSG_EFFECTS = ["slam", "loud", "gentle", "ink", "confetti", "hearts", "fireworks", "balloons", "spotlight", "lasers", "shake", "rainbow"];
+function msgStyleOf(userId) { const u = findUser(userId); return u?.msgStyle || null; }
 
 /* ---------- Polls in chats and groups ---------- */
 // { question, options: [{ id, text, votes: [userIds] }], multi, anonymous, endsAt, closed, by }
@@ -723,6 +729,8 @@ async function handleChat(req, res, url, me) {
         replyTo = orig.id;
       }
       const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media, postId: post ? post.id : null, commentId: commentRef, songId: songRef, replyTo, mentions: findMentions(text), createdAt: new Date().toISOString() };
+      // Sent with an effect (like iMessage): everyone sees it play when it arrives
+      if (MSG_EFFECTS.includes(body.effect)) msg.effect = body.effect;
       // View once: the others can open it one time, then it's gone (like Instagram)
       if (body.viewOnce) {
         if (post || commentRef || songRef || media?.sticker || media?.gif || media?.kind === "audio" || media?.shared) throw httpError(400, "View once works for text, photos and videos.");

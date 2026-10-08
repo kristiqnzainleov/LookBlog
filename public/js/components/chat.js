@@ -18,6 +18,7 @@ import { upload } from "../api.js";
 import { attachMentions } from "./mentions.js";
 import { openSoundPicker, soundChip, playSound } from "./sounds.js";
 import { sfx } from "./sfx.js";
+import { styleBubble, playEffect, inkBubble, openMsgStyle, EFFECTS } from "./msg-style.js";
 import { applyWallpaper, applyTheme, onHold, openChatOptions, openVanishPicker, vanishLabel } from "./wallpaper.js";
 
 export function chatPic(c, size = 44) {
@@ -762,6 +763,9 @@ function messageEl(msg, chat, onRemoved) {
     tools.append(del);
   }
 
+  // The sender's own message style, and invisible ink
+  styleBubble(bubble, msg.style);
+  if (msg.effect === "ink" && msg.text) inkBubble(bubble);
   if (msg.pinned) bubble.prepend(h("span", { class: "pin-mark", title: "Pinned", text: "📌" }));
   if (msg.expiresAt) bubble.append(h("span", { class: "vanish-mark", title: "Disappears " + new Date(msg.expiresAt).toLocaleString(), text: "⏳" }));
   const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : "") + (msg.hypes >= 3 ? " hot" : ""), dataset: { id: msg.id, author: msg.author.username || "" } },
@@ -1065,6 +1069,8 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     list.querySelector(".empty")?.remove();
     const row = messageEl(msg, chat, () => ids.delete(msg.id));
     if (prepend) list.prepend(row); else { list.append(row); if (!msg.system) { lastMsg = msg; paintSeen(); } }
+    // Sent with an effect just now: play it (once)
+    if (!prepend && msg.effect && msg.effect !== "ink" && Date.now() - new Date(msg.createdAt).getTime() < 30000) requestAnimationFrame(() => requestAnimationFrame(() => playEffect(msg.effect, row, el)));
   }
 
   function paintHead() {
@@ -1338,6 +1344,24 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     });
     inputRow.insertBefore(camBtn, voBtn);
     footer.append(camInput);
+    // ✨ My message style, and send with an effect (also: hold the send button)
+    let armedFx = null;
+    const fxBtn = h("button", { type: "button", class: "tool-btn fx-btn", "aria-label": "Message style and effects", title: "Your message style & send effects" }, h("span", { text: "✨" }));
+    const armFx = (k) => {
+      armedFx = k;
+      const e = EFFECTS.find(([x]) => x === k);
+      send.classList.toggle("fx-armed", Boolean(k));
+      send.dataset.fx = e ? e[1] : "";
+      fxBtn.classList.toggle("on", Boolean(k));
+      if (e) { toast(`${e[1]} ${e[2]} — your next message is sent with it.`); text.focus(); }
+    };
+    fxBtn.addEventListener("click", () => openMsgStyle({ onEffect: armFx, armed: armedFx }));
+    let holdT = null;
+    send.addEventListener("pointerdown", () => { holdT = setTimeout(() => { holdT = "fired"; navigator.vibrate?.(10); openMsgStyle({ onEffect: armFx, armed: armedFx }); }, 450); });
+    const unhold = () => { if (holdT && holdT !== "fired") clearTimeout(holdT); };
+    send.addEventListener("pointerup", unhold); send.addEventListener("pointerleave", unhold);
+    send.addEventListener("click", (e) => { if (holdT === "fired") { e.preventDefault(); e.stopImmediatePropagation(); holdT = null; } }, true);
+    inputRow.insertBefore(fxBtn, text);
     // A poll
     const pollBtn = h("button", { type: "button", class: "tool-btn poll-btn", "aria-label": "Poll", title: "Start a poll" }, h("span", { text: "📊" }));
     pollBtn.addEventListener("click", () => openPollForm(async (body) => {
@@ -1352,7 +1376,8 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       send.disabled = true;
       closeEmojiPicker();
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}) } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}), ...(armedFx ? { effect: armedFx } : {}) } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
+        armFx(null);
         setReply(null);
         add(message);
         toBottom();
