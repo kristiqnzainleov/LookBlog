@@ -191,7 +191,12 @@ export function groupView(chatId, { onBack } = {}) {
       const st = chat.myStatus;
       const stBtn = h("button", { type: "button", class: "gv-mystatus" + (st ? "" : " empty"), title: "Your status in this group", text: st ? `${st.emoji ? st.emoji + " " : ""}${st.text}` : "＋ Set a status" });
       stBtn.addEventListener("click", () => editMyStatus());
-      return h("div", { class: "gv-me" }, avatar(state.me, 32), h("div", { class: "gv-me-name" }, h("b", { text: meInfo?.nickname || state.me.name }), stBtn), nick, leave);
+      // Tap my photo or name: my little profile card
+      const who = h("button", { type: "button", class: "gv-me-who", title: "Your profile" }, avatar(state.me, 36));
+      const nameEl = h("button", { type: "button", class: "gv-me-nm", text: meInfo?.nickname || state.me.name });
+      const card = (e) => { const at = e.currentTarget.closest(".gv-me"); import("./mini-profile.js").then((m) => m.miniProfile(state.me.username, at, { extra: { nickname: meInfo?.nickname, groupStatus: chat.myStatus } })); };
+      who.addEventListener("click", card); nameEl.addEventListener("click", card);
+      return h("div", { class: "gv-me" }, who, h("div", { class: "gv-me-name" }, nameEl, stBtn), nick, leave);
     })() : null;
 
     const top = h("div", { class: "gv-top" + (chat.banner ? " has-banner" : "") }, back, head);

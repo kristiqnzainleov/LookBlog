@@ -6236,3 +6236,34 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 .fx-boom-soon { animation: fxShake 0.5s ease-in-out infinite; }
 .fx-boom-soon .fx-boom { background: #ff4757; color: #fff; }
 .fx-boom-go { animation: fxExplode 0.5s ease-out reverse forwards; opacity: 0.2; }
+/* ---------- Groups & chats: nothing moves, the bottoms line up ---------- */
+body[data-page="messages"] { overflow: hidden; overscroll-behavior: none; }
+html:has(body[data-page="messages"]) { overflow: hidden; overscroll-behavior: none; }
+body[data-page="messages"] .view { padding-bottom: 0 !important; }
+@media (min-width: 761px) { body[data-page="messages"] .messenger { height: calc(100dvh - var(--topbar) - 44px) !important; } }
+.convo-messages, .convo-list { overscroll-behavior: contain; }
+.gv-me { min-height: 74px; box-sizing: border-box; padding: 0 10px; gap: 6px; background: var(--card); }
+.convo-foot { min-height: 74px; box-sizing: border-box; padding: 9px 14px 10px; display: flex; flex-direction: column; justify-content: flex-end; }
+.gv-me-who { padding: 0; border: none; background: none; border-radius: 50%; cursor: pointer; flex-shrink: 0; transition: transform 0.15s; }
+.gv-me-who:hover { transform: scale(1.06); }
+.gv-me-nm { display: block; max-width: 100%; padding: 0; border: none; background: none; color: var(--paper); font: 800 0.92rem var(--body); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.gv-me-nm:hover { color: var(--pink); }
+.convo-input .row-tool { display: grid !important; }
+@media (max-width: 640px) { .convo-input .row-tool { width: 36px; height: 36px; } }
+/* ---------- The little profile card ---------- */
+.mini-profile { position: fixed; z-index: 920; border-radius: 20px; overflow: hidden; background: var(--card); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); animation: mpIn 0.18s cubic-bezier(.2, 1.2, .4, 1); }
+.mini-profile.out { animation: mmOut 0.15s ease-in forwards; }
+@keyframes mpIn { from { opacity: 0; transform: translateY(8px) scale(0.96); } }
+.mp-loading { padding: 30px; text-align: center; color: var(--muted); }
+.mp-banner { height: 76px; background: linear-gradient(120deg, var(--pink), #9b5cff); background-size: cover; background-position: center; border-radius: 0 !important; }
+.mp-body { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 0 16px 16px; }
+.mp-av { margin-top: -34px; width: fit-content; border-radius: 50%; border: 4px solid var(--card); background: var(--card); }
+.mp-name { display: flex; align-items: center; gap: 4px; font: 800 1.15rem var(--display); margin-top: 4px; }
+.mp-handle { font-size: 0.85rem; }
+.mp-status { margin: 4px 0 0; padding: 6px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); font-size: 0.85rem; }
+.mp-bio { margin: 6px 0 0; font-size: 0.88rem; line-height: 1.4; color: var(--paper); max-height: 5.6em; overflow: hidden; }
+.mp-stats { display: flex; gap: 12px; margin-top: 8px; font-size: 0.8rem; color: var(--muted); }
+.mp-stats b { color: var(--paper); }
+.mp-btns { display: flex; gap: 8px; margin-top: 12px; }
+.mp-btns .btn { flex: 1; }
+.mp-btns .btn { white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-left: 10px; padding-right: 10px; }

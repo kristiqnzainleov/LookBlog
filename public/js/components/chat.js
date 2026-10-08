@@ -848,6 +848,11 @@ function messageEl(msg, chat, onRemoved) {
   row._msg = msg;
   if (chat.canSend) swipeToReply(row, msg);
   holdForMenu(row, bubble, tools, msg, chat);
+  // Tap a name (or a photo) in a chat: their little profile card
+  for (const el of row.querySelectorAll(".bubble-name, .msg-avatar")) {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", (e) => { if (!msg.author?.username) return; e.preventDefault(); e.stopPropagation(); import("./mini-profile.js").then((m) => m.miniProfile(msg.author.username, el, { extra: { nickname: msg.author.nickname } })); });
+  }
   // Phones have no hover: tap a message to show its menu
   bubble.addEventListener("click", (e) => {
     if (!matchMedia("(hover: none), (max-width: 640px)").matches || e.target.closest("a, video, button, .lb-player")) return;
@@ -1447,14 +1452,18 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const tray = h("div", { class: "convo-tray", role: "group", "aria-label": "More things to send" });
     form.insertBefore(tray, inputRow);
     const tile = (b, label) => h("div", { class: "tray-tile" }, b, h("small", { text: label }));
-    for (const [b, l] of [[stickerBtn, "Stickers"], [soundBtn, "Sounds"], [songBtn, "Song"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
-    const MAIN = [[picker.button, "Photo"], [emojiBtn, "Emoji"], [chatGif, "GIF"], [fxBtn, "Style & effects"]], mainTiles = new Map();
+    // In the ＋ panel: my message style & effects, a song, a poll, the camera, view once
+    for (const [b, l] of [[fxBtn, "Style & effects"], [songBtn, "Song"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
+    // In the row: stickers and sounds always; photo, emoji and GIF too on a computer (on a phone those are in ＋)
+    const ROW = [stickerBtn, soundBtn];
+    const MAIN = [[picker.button, "Photo"], [emojiBtn, "Emoji"], [chatGif, "GIF"]], mainTiles = new Map();
     const layoutTools = () => {
       const phone = matchMedia("(max-width: 640px)").matches;
       MAIN.forEach(([b, l], i) => {
         if (phone) { const t = mainTiles.get(b) || tile(b, l); mainTiles.set(b, t); t.prepend(b); tray.insertBefore(t, tray.children[i] || null); }
         else { inputRow.insertBefore(b, text); mainTiles.get(b)?.remove(); }
       });
+      for (const b of ROW) { b.classList.add("row-tool"); inputRow.insertBefore(b, text); }
     };
     layoutTools();
     matchMedia("(max-width: 640px)").addEventListener?.("change", layoutTools);

@@ -979,6 +979,8 @@ export async function profilePage(view, m, params) {
     show(kinds.some(([k]) => k === want2) ? want2 : "post");
     loadCategories();
   }
+  // Came from "Customize" in the little profile card
+  if (profile.isMe && params?.get("customize") === "1") { history.replaceState(null, "", location.pathname); setTimeout(() => customize(), 300); }
 
   // Something I just posted from the card: show it in its tab
   const offCreated = on("post:created", (p) => {
