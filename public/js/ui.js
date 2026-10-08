@@ -221,7 +221,7 @@ function tone(username) {
   return ["", "alt-1", "alt-2", "alt-3"][n % 4];
 }
 export function avatar(user, size = 42, extra = "") {
-  const el = h("span", { class: `avatar ${tone(user.username)} ${extra}`.trim(), style: `--size:${size}px`, "aria-hidden": "true", dataset: user.username ? { u: user.username } : {} });
+  const el = h("span", { class: `avatar ${tone(user.username)} ${extra}`.trim(), style: `--size:${size}px`, "aria-hidden": "true", dataset: user.username ? { u: user.username, n: user.name || "" } : {} });
   if (user.avatar) el.append(h("img", { src: user.avatar, alt: "", loading: "lazy", decoding: "async" }));
   else el.append(h("span", { class: "av-initials", text: initials(user.name) }));
   if (user.live) markLive(el, true, size);

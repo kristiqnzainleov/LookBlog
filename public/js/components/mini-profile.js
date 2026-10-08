@@ -11,7 +11,7 @@ export async function miniProfile(username, anchor, { extra = null } = {}) {
   const card = h("div", { class: "mini-profile", role: "dialog", "aria-label": "Profile" }, h("div", { class: "mp-loading", text: "…" }));
   document.body.append(card);
   const place = () => {
-    const a = anchor.getBoundingClientRect(), w = Math.min(320, innerWidth - 16), ht = card.offsetHeight;
+    const a = anchor.getBoundingClientRect(), w = Math.min(380, innerWidth - 16), ht = card.offsetHeight;
     card.style.width = w + "px";
     card.style.left = Math.max(8, Math.min(innerWidth - w - 8, a.left)) + "px";
     card.style.top = (a.top - ht - 10 > 8 ? a.top - ht - 10 : Math.min(innerHeight - ht - 8, a.bottom + 10)) + "px";
@@ -46,13 +46,15 @@ export async function miniProfile(username, anchor, { extra = null } = {}) {
   }
   card.replaceChildren(banner,
     h("div", { class: "mp-body" },
-      h("div", { class: "mp-av" }, avatar(p, 64)),
+      h("div", { class: "mp-av" }, avatar(p, 92)),
       name, h("span", { class: "muted mp-handle", text: "@" + p.username + (extra?.nickname ? ` · “${extra.nickname}” here` : "") }),
       look.status ? h("p", { class: "mp-status", text: `${look.status.emoji || ""} ${look.status.text || ""}`.trim() }) : null,
       extra?.groupStatus ? h("p", { class: "mp-status", text: `${extra.groupStatus.emoji || "💬"} ${extra.groupStatus.text || ""}` }) : null,
       p.bio ? h("p", { class: "mp-bio", text: p.bio }) : null,
       h("div", { class: "mp-stats" },
-        h("span", {}, h("b", { text: String(p.followers ?? 0) }), " followers"), h("span", {}, h("b", { text: String(p.following ?? 0) }), " following"), p.posts != null ? h("span", {}, h("b", { text: String(p.posts) }), " posts") : null),
+        h("span", {}, h("b", { text: String(p.followers ?? 0) }), h("small", { text: "Followers" })),
+        h("span", {}, h("b", { text: String(p.following ?? 0) }), h("small", { text: "Following" })),
+        p.posts != null ? h("span", {}, h("b", { text: String(p.posts) }), h("small", { text: "Posts" })) : null),
       h("div", { class: "mp-btns" }, ...btns)));
   if (look.color || look.font) import("./profile-look.js").then((m) => m.applyLook?.(name, look)).catch(() => {});
   place();
