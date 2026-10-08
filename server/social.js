@@ -197,7 +197,8 @@ const NAME_COLORS = ["pink", "red", "orange", "gold", "lime", "mint", "teal", "s
   "xmas", "forest", "turtle", "steel", "pumpkin", "love", "beach", "matrix", "coffee", "pastel", "blood"];
 const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide",
   "tall", "retro", "marker", "pixel", "scifi", "hand", "groovy", "blocky", "comic", "classic", "neon", "fancy", "spooky", "techno",
-  "minecraft", "fortnite", "valorant", "cod", "arcade", "glitch", "esports", "terminal"]; // the last ones: gamer fonts
+  "minecraft", "fortnite", "valorant", "cod", "arcade", "glitch", "esports", "terminal", // gamer fonts
+  "bubbles", "wetpaint", "puddles", "beastly", "moonrocks", "microbe", "dirt", "spray", "vinyl", "iso", "maze", "burned", "distressed", "gems", "storm", "fade80", "doodle", "hatch", "pixels", "scribble", "lines", "fax", "monoone", "comfortaa", "amatic", "neucha", "marck", "badscript", "yeseva", "poiret", "ruslan", "underdog", "kelly", "stalinist", "seymour", "philosopher", "pangolin", "jura", "daysone", "forum", "kurale", "oranienbaum", "montalt", "play", "prosto", "ubuntu"];
 // A custom gradient: 2–4 colours and a direction, e.g. "grad:#ff0000,#00ff88@90"
 const GRAD = /^grad:#[0-9a-f]{6}(,#[0-9a-f]{6}){1,3}@\d{1,3}$/i;
 const NAME_EFFECTS = ["glow", "shine", "shadow"];
@@ -2150,10 +2151,28 @@ async function handleSocial(req, res, url, me) {
     if (NAME_COLORS.includes(body.bg) || /^#[0-9a-f]{6}$/i.test(body.bg || "") || body.bg === "black") st.bg = String(body.bg).toLowerCase();
     if (NAME_FONTS.includes(body.font)) st.font = body.font;
     if (["round", "square", "pill", "speech", "leaf"].includes(body.shape)) st.shape = body.shape;
-    if (["glow", "outline", "shadow"].includes(body.glow)) st.glow = body.glow;
+    if (["glow", "outline", "shadow", "neon", "shimmer", "pulse", "glass", "fire", "ice", "gradient"].includes(body.glow)) st.glow = body.glow;
     me.msgStyle = Object.keys(st).length ? st : null;
     save("users");
     sendJSON(res, 200, { msgStyle: me.msgStyle });
+    return true;
+  }
+  // My message sound (people hear it when a message or notification from me arrives):
+  // POST /api/me/msg-sound { url } (an audio file I uploaded) · { preset } (one of LookBlog's) · {} = the normal sound
+  if (m === "POST" && a === "me" && b === "msg-sound" && parts.length === 2) {
+    const body = await readJSON(req);
+    const PRESETS = ["pop", "chime", "bubble", "coin", "laser", "bell", "drop", "whoosh", "harp", "game", "retro", "kiss", "boing", "twinkle", "bass", "magic"];
+    const old = me.msgSound?.url;
+    if (body.url) {
+      const snd = ownedMedia(body.url, me.id, "audio");
+      if (!snd) throw httpError(400, "Upload a sound first.");
+      markUsed(snd.url, "msgsound:" + me.id);
+      me.msgSound = { url: snd.url, name: clean(body.name || "").slice(0, 30) || "My sound" };
+    } else if (PRESETS.includes(body.preset)) me.msgSound = { preset: body.preset };
+    else delete me.msgSound;
+    if (old && old !== me.msgSound?.url) deleteMedia(old);
+    save("users");
+    sendJSON(res, 200, { msgSound: me.msgSound || null });
     return true;
   }
   // My look: POST /api/me/look { color, font, effect, accent }  (any of them; null = default)

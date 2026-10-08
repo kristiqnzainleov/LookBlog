@@ -3,14 +3,20 @@
 import { h, modal, toast } from "../ui.js";
 import { api } from "../api.js";
 import { state } from "../state.js";
-import { NAME_COLORS, NAME_FONTS, GAMER_FONTS, loadFonts } from "./profile-look.js";
+import { NAME_COLORS, NAME_FONTS, GAMER_FONTS, MORE_FONTS, loadFonts } from "./profile-look.js";
+import { upload } from "../api.js";
+import { playPreset, SOUND_PRESETS, playMsgSound } from "./sfx.js";
 
 const COLORS = [["", "Default", ""], ["black", "Black", "#0d0c0c"], ...NAME_COLORS.map(([k, v]) => [k, k[0].toUpperCase() + k.slice(1), v])];
 const LIGHT = new Set(["gold", "lime", "mint", "teal", "sky", "lilac", "white", "candy", "peach", "ice", "pastel", "beach", "steel", "coffee", "neon", "aurora"]);
 const SHAPES = [["", "Normal"], ["round", "Round"], ["square", "Square"], ["pill", "Pill"], ["speech", "Speech"], ["leaf", "Leaf"]];
-const GLOWS = [["", "None"], ["glow", "✨ Glow"], ["outline", "Outline"], ["shadow", "3D"]];
+const GLOWS = [["", "None"], ["glow", "✨ Glow"], ["outline", "Outline"], ["shadow", "3D"], ["neon", "💡 Neon"], ["shimmer", "🪩 Shimmer"], ["pulse", "💓 Pulse"],
+  ["glass", "🧊 Glass"], ["fire", "🔥 Fire"], ["ice", "❄️ Frost"], ["gradient", "🌈 Moving colours"]];
 export const EFFECTS = [["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["gentle", "🌙", "Gentle"], ["ink", "🫥", "Invisible ink"], ["confetti", "🎉", "Confetti"], ["hearts", "💕", "Hearts"],
-  ["fireworks", "🎆", "Fireworks"], ["balloons", "🎈", "Balloons"], ["spotlight", "🔦", "Spotlight"], ["lasers", "🌈", "Lasers"], ["shake", "🫨", "Shake"], ["rainbow", "🦄", "Rainbow"]];
+  ["fireworks", "🎆", "Fireworks"], ["balloons", "🎈", "Balloons"], ["spotlight", "🔦", "Spotlight"], ["lasers", "🌈", "Lasers"], ["shake", "🫨", "Shake"], ["rainbow", "🦄", "Rainbow"],
+  ["party", "🥳", "Party"], ["snow", "❄️", "Snow"], ["stars", "⭐", "Stars"], ["money", "💸", "Money"], ["fire", "🔥", "Fire"], ["bubbles", "🫧", "Bubbles"], ["kisses", "💋", "Kisses"],
+  ["butterflies", "🦋", "Butterflies"], ["petals", "🌸", "Petals"], ["rockets", "🚀", "Rockets"], ["thunder", "⚡", "Thunder"], ["disco", "🪩", "Disco"], ["zoom", "🔍", "Zoom in"],
+  ["glitch", "👾", "Glitch"], ["typewriter", "⌨️", "Typewriter"], ["bounce", "🏀", "Bounce"], ["spin", "🌀", "Spin"], ["ghost", "👻", "Ghost"]];
 const colorOf = (k) => (k === "black" ? "#0d0c0c" : /^#/.test(k || "") ? k : NAME_COLORS.find(([x]) => x === k)?.[1] || "");
 
 // Paint a message bubble in its sender's style
@@ -49,7 +55,7 @@ export function openMsgStyle({ onEffect = null, armed = null } = {}) {
     return b;
   }));
   function paint() {
-    tabs.replaceChildren(...[["style", "🎨 My style"], ["effects", "✨ Send with effect"]].map(([k, l]) => { const b = h("button", { type: "button", class: "ms-tab" + (tab === k ? " on" : ""), text: l }); b.addEventListener("click", () => { tab = k; paint(); }); return b; }));
+    tabs.replaceChildren(...[["style", "🎨 My style"], ["effects", "✨ Send with effect"], ["sound", "🔔 My sound"]].map(([k, l]) => { const b = h("button", { type: "button", class: "ms-tab" + (tab === k ? " on" : ""), text: l }); b.addEventListener("click", () => { tab = k; paint(); }); return b; }));
     if (tab === "style") {
       paintPreview();
       const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save my style" });
@@ -60,11 +66,13 @@ export function openMsgStyle({ onEffect = null, armed = null } = {}) {
       });
       body.replaceChildren(preview,
         h("b", { class: "look-label", text: "Bubble colour" }), chips(COLORS, "bg", ([k, l, v]) => h("button", { type: "button", class: "ms-sw" + (k ? "" : " none"), title: l, "aria-label": l, style: v ? `background:${v}` : "" }, k ? null : h("span", { text: "⊘" }))),
-        h("b", { class: "look-label", text: "Font" }), chips([["", "Default"], ...NAME_FONTS.filter(([k]) => k), ...GAMER_FONTS], "font", ([k, l]) => h("button", { type: "button", class: "ms-chip nl", dataset: k ? { nf: k } : {}, text: l })),
+        h("b", { class: "look-label", text: "Font" }), chips([["", "Default"], ...NAME_FONTS.filter(([k]) => k), ...GAMER_FONTS, ...MORE_FONTS], "font", ([k, l]) => h("button", { type: "button", class: "ms-chip nl", dataset: k ? { nf: k } : {}, text: l })),
         h("b", { class: "look-label", text: "Shape" }), chips(SHAPES, "shape", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
         h("b", { class: "look-label", text: "Effect on the bubble" }), chips(GLOWS, "glow", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
         save);
       loadFonts();
+    } else if (tab === "sound") {
+      paintSound();
     } else {
       body.replaceChildren(h("p", { class: "create-hint", text: "Pick an effect, then send your message — everyone in the chat sees it play when it arrives." }),
         h("div", { class: "ms-effects" }, ...EFFECTS.map(([k, e, l]) => {
@@ -74,6 +82,54 @@ export function openMsgStyle({ onEffect = null, armed = null } = {}) {
         })),
         armed ? h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "No effect", onclick: () => { onEffect(null); md.close(); } }) : null);
     }
+  }
+  // 🔔 My sound: what people hear when a message or notification from me arrives
+  function paintSound() {
+    const now = state.me.msgSound || null;
+    const saveSound = async (b, msg) => {
+      try { const r = await api("/api/me/msg-sound", { method: "POST", body: b }); state.me.msgSound = r.msgSound; toast(msg); paintSound(); }
+      catch (err) { toast(err.error || "Couldn’t save it."); }
+    };
+    const presets = h("div", { class: "ms-effects" }, ...SOUND_PRESETS.map(([k, e, l]) => {
+      const b = h("button", { type: "button", class: "ms-effect" + (now?.preset === k ? " on" : "") }, h("span", { class: "ms-effect-e", text: e }), h("b", { text: l }));
+      b.addEventListener("click", () => { playPreset(k); saveSound({ preset: k }, `${e} ${l} — people hear it when your messages arrive.`); });
+      return b;
+    }));
+    const file = h("input", { type: "file", accept: "audio/*,.mp3,.wav,.ogg,.m4a", hidden: true });
+    const up = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "⬆️ Upload a sound" });
+    up.addEventListener("click", () => file.click());
+    file.addEventListener("change", async () => {
+      const f = file.files[0]; file.value = "";
+      if (!f) return;
+      if (f.size > 1.5 * 1024 * 1024) return toast("Keep it short: up to 1.5 MB (a few seconds).");
+      up.disabled = true; up.textContent = "Uploading…";
+      try { const { url } = await upload(f); await saveSound({ url, name: f.name.replace(/\.[^.]+$/, "") }, "🔔 Your sound is set!"); } catch (err) { toast(err.error || "Couldn’t upload it."); }
+      up.disabled = false; up.textContent = "⬆️ Upload a sound";
+    });
+    const rec = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "🎙 Record (3 s)" });
+    rec.addEventListener("click", async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find((t) => window.MediaRecorder?.isTypeSupported?.(t)) || "";
+        const r = new MediaRecorder(stream, type ? { mimeType: type } : {}), chunks = [];
+        r.ondataavailable = (e) => chunks.push(e.data);
+        r.onstop = async () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const blob = new Blob(chunks, { type: (r.mimeType || "audio/webm").split(";")[0] });
+          const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+          rec.textContent = "Saving…";
+          try { const { url } = await upload(new File([blob], "sound." + ext, { type: blob.type })); await saveSound({ url, name: "My recording" }, "🔔 Your sound is set!"); } catch (err) { toast(err.error || "Couldn’t save it."); }
+        };
+        r.start(); rec.disabled = true; rec.textContent = "⏺ Recording…";
+        setTimeout(() => r.state === "recording" && r.stop(), 3000);
+      } catch { toast("Allow the microphone to record a sound."); }
+    });
+    const current = h("div", { class: "ms-sound-now" },
+      h("span", { text: now ? (now.preset ? `${(SOUND_PRESETS.find(([k]) => k === now.preset) || [])[1] || "🔔"} ${(SOUND_PRESETS.find(([k]) => k === now.preset) || [])[2] || now.preset}` : `🎵 ${now.name || "My sound"}`) : "🔔 The normal LookBlog sound" }),
+      now ? h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "▶ Hear it", onclick: () => playMsgSound(now, true) }) : null,
+      now ? h("button", { type: "button", class: "btn btn-xs btn-danger-outline", text: "Back to normal", onclick: () => saveSound({}, "Back to the normal sound.") }) : null);
+    body.replaceChildren(h("p", { class: "create-hint", text: "When a message or a notification from you arrives, the other person hears your sound. Pick one, upload your own (an MP3, a few seconds), or record it." }),
+      current, h("div", { class: "ms-sound-tools" }, up, rec, file), h("b", { class: "look-label", text: "Or pick one" }), presets);
   }
   const md = modal({ title: "Your messages", wide: true, body: h("div", { class: "ms" }, tabs, body) });
   paint();
@@ -94,6 +150,25 @@ export function playEffect(effect, row, stage) {
   if (effect === "gentle") anim(bubble, "fx-gentle", 2200);
   if (effect === "shake") anim(bubble, "fx-shake", 900);
   if (effect === "rainbow") anim(bubble, "fx-rainbow", 3000);
+  const RAIN = { snow: [["❄️", "❅", "❆"], "fall"], stars: [["⭐", "✨", "🌟", "💫"], "fall"], money: [["💸", "💵", "💰", "🪙"], "fall"], fire: [["🔥", "🔥", "✨"], "rise"], bubbles: [["🫧", "🫧", "○"], "rise"],
+    kisses: [["💋", "💋", "😘"], "rise"], butterflies: [["🦋", "🦋", "🌼"], "rise"], petals: [["🌸", "🌺", "💮"], "fall"], rockets: [["🚀", "🚀", "✨"], "rise"], party: [["🥳", "🎉", "🎊", "🎈"], "fall"] };
+  if (RAIN[effect]) {
+    const [parts, way] = RAIN[effect], l = layer("fx-fall");
+    for (let i = 0; i < 30; i++) l.append(h("i", { class: way === "rise" ? "fx-heart" : "fx-drop", text: parts[i % parts.length], style: `left:${Math.random() * 100}%;--d:${Math.random() * 1}s;--t:${2 + Math.random() * 1.8}s;--s:${0.7 + Math.random() * 1.1};--r:${Math.random() * 360 - 180}deg` }));
+    if (effect === "party") { const COL = ["#ff4fa3", "#ffd23f", "#2ee6a6", "#1f8bff", "#9b5cff"]; for (let i = 0; i < 40; i++) l.append(h("i", { class: "fx-cf", style: `left:${Math.random() * 100}%;--c:${COL[i % 5]};--d:${Math.random() * 0.8}s;--t:${1.8 + Math.random() * 1.4}s;--r:${Math.random() * 720 - 360}deg` })); anim(bubble, "fx-bounce", 1200); }
+    setTimeout(() => l.remove(), 5000);
+  }
+  if (effect === "thunder") { const l = layer("fx-flash"); setTimeout(() => l.remove(), 900); if (stage) anim(stage, "fx-quake", 420); anim(bubble, "fx-shake", 900); }
+  if (effect === "disco") { const l = layer("fx-disco"); anim(bubble, "fx-rainbow", 2600); setTimeout(() => l.remove(), 2600); }
+  if (effect === "zoom") anim(bubble, "fx-zoom", 900);
+  if (effect === "glitch") anim(bubble, "fx-glitch", 1300);
+  if (effect === "bounce") anim(bubble, "fx-bounce", 1200);
+  if (effect === "spin") anim(bubble, "fx-spin", 1000);
+  if (effect === "ghost") anim(bubble, "fx-ghost", 2600);
+  if (effect === "typewriter") {
+    const t = bubble.querySelector(".bubble-text");
+    if (t) { const full = t.textContent; t.textContent = ""; t.classList.add("fx-typing"); let i = 0; const iv = setInterval(() => { t.textContent = [...full].slice(0, ++i).join(""); if (i >= [...full].length) { clearInterval(iv); t.classList.remove("fx-typing"); } }, Math.max(25, Math.min(90, 1600 / [...full].length))); }
+  }
   if (effect === "confetti" || effect === "hearts" || effect === "balloons") {
     const l = layer("fx-fall");
     const COL = ["#ff4fa3", "#ffd23f", "#2ee6a6", "#1f8bff", "#9b5cff", "#ff8a3d"];

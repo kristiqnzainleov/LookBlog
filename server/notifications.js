@@ -84,7 +84,7 @@ function notify(recipientId, type, actor, extra = {}) {
     db.notifications = db.notifications.filter((x) => !drop.has(x.id));
   }
   save("notifications");
-  sendTo([recipientId], { type: "notification", notification: view(n), unread: unreadCount(recipientId) });
+  sendTo([recipientId], { type: "notification", notification: view(n), unread: unreadCount(recipientId), sound: actor.msgSound || null }); // (their own sound, if they picked one)
 }
 
 function unreadCount(userId) {

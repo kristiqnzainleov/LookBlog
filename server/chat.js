@@ -282,6 +282,7 @@ function messageViewFull(msg, me) {
     notes: notesView(msg, me),
     poll: msg.poll ? chatPollView(msg.poll, me, chat) : null,
     style: msg.system ? null : msgStyleOf(msg.userId),
+    sound: msg.system ? null : findUser(msg.userId)?.msgSound || null,
     effect: msg.effect || null,
     hypes: (msg.hypes || []).length,
     hypedByMe: (msg.hypes || []).includes(me.id),
@@ -300,7 +301,8 @@ function messageViewFull(msg, me) {
 }
 
 /* ---------- How my messages look (my own style, everyone sees it) and send effects ---------- */
-const MSG_EFFECTS = ["slam", "loud", "gentle", "ink", "confetti", "hearts", "fireworks", "balloons", "spotlight", "lasers", "shake", "rainbow"];
+const MSG_EFFECTS = ["slam", "loud", "gentle", "ink", "confetti", "hearts", "fireworks", "balloons", "spotlight", "lasers", "shake", "rainbow",
+  "snow", "stars", "money", "fire", "bubbles", "kisses", "butterflies", "petals", "rockets", "party", "thunder", "disco", "zoom", "glitch", "typewriter", "bounce", "spin", "ghost"];
 function msgStyleOf(userId) { const u = findUser(userId); return u?.msgStyle || null; }
 
 /* ---------- Polls in chats and groups ---------- */

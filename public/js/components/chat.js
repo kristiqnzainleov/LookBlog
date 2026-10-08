@@ -579,6 +579,76 @@ async function openViewOnce(msg, chat, row) {
 }
 
 // Like Instagram: pull a message to the right to answer it (finger or mouse)
+// Hold a message (or right-click it): it lifts up, gets bigger, everything behind it blurs,
+// and its reactions and options show around it
+function holdForMenu(row, bubble, tools, msg, chat) {
+  if (msg.system) return;
+  let t = null, start = null;
+  const cancel = () => { clearTimeout(t); t = null; start = null; };
+  bubble.addEventListener("pointerdown", (e) => {
+    if (e.button || e.target.closest("a, button, video, input, .lb-player, .cpoll, .game-bubble")) return;
+    start = { x: e.clientX, y: e.clientY };
+    t = setTimeout(() => { t = null; bubble._held = Date.now(); navigator.vibrate?.(12); openMsgMenu(row, bubble, tools, msg, chat); }, 430);
+  });
+  // (letting go after the hold isn't a tap)
+  bubble.addEventListener("click", (e) => { if (Date.now() - (bubble._held || 0) < 700) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+  bubble.addEventListener("pointermove", (e) => { if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) cancel(); });
+  bubble.addEventListener("pointerup", cancel); bubble.addEventListener("pointercancel", cancel); bubble.addEventListener("pointerleave", cancel);
+  bubble.addEventListener("contextmenu", (e) => { if (e.target.closest("a, video, input")) return; e.preventDefault(); cancel(); openMsgMenu(row, bubble, tools, msg, chat); });
+}
+function openMsgMenu(row, bubble, tools, msg, chat) {
+  if (document.querySelector(".mm-overlay")) return;
+  const from = bubble.getBoundingClientRect();
+  const close = () => {
+    overlay.classList.add("out");
+    row.classList.remove("mm-lifted");
+    removeEventListener("keydown", onKey);
+    overlay.style.pointerEvents = "auto"; // (it stays a moment, invisible, so the tap doesn't land on what's under it)
+    setTimeout(() => overlay.remove(), 420);
+  };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  // Reactions on top
+  const reacts = chat.member !== false ? h("div", { class: "mm-reacts" }, ...QUICK.map((e) => {
+    const b = h("button", { type: "button", class: "mm-react" + (msg.reactions?.mine === e ? " on" : ""), text: e, "aria-label": `React ${e}` });
+    b.addEventListener("click", () => { react(msg, chat, e); close(); });
+    return b;
+  }), (() => { const m = h("button", { type: "button", class: "mm-react more", "aria-label": "More reactions" }, h("span", { text: "＋" })); m.addEventListener("click", () => { close(); setTimeout(() => openEmojiPicker(bubble, (e) => react(msg, chat, e)), 200); }); return m; })()) : null;
+  // The message itself, bigger
+  const copy = bubble.cloneNode(true);
+  copy.classList.add("mm-bubble");
+  copy.classList.remove("fx-ink");
+  copy.style.width = from.width + "px";
+  // Its options (the same as its little menu), plus copy
+  const actions = h("div", { class: "mm-actions" });
+  const add = (icn, label, fn, danger = false) => {
+    const b = h("button", { type: "button", class: "mm-action" + (danger ? " danger" : "") }, h("span", { class: "mm-label", text: label }), h("span", { class: "mm-ic" }, icn));
+    b.addEventListener("click", () => { close(); setTimeout(fn, 120); });
+    actions.append(b);
+  };
+  for (const b of tools.querySelectorAll("button")) {
+    if (b.classList.contains("quick-react") || b.getAttribute("aria-label") === "More reactions") continue;
+    const label = (b.getAttribute("aria-label") || b.getAttribute("title") || "").replace(/ \(.*\)$/, "");
+    if (!label) continue;
+    const ic = h("span", {}, ...[...b.childNodes].map((n) => n.cloneNode(true)));
+    const del = b.classList.contains("msg-del");
+    add(ic, del ? "Delete" : label, () => { b.click(); if (del) setTimeout(() => b.click(), 30); }, del);
+  }
+  if (msg.text) add(h("span", { text: "📋" }), "Copy text", () => navigator.clipboard?.writeText(msg.text).then(() => toast("Copied.")).catch(() => {}));
+  const stack = h("div", { class: "mm-stack" + (msg.mine ? " mine" : "") }, reacts, copy, actions);
+  const overlay = h("div", { class: "mm-overlay", role: "dialog", "aria-label": "Message options" }, stack);
+  // (letting go of the hold isn't a tap: only a new tap on the blur closes it)
+  let fresh = false;
+  overlay.addEventListener("pointerdown", () => { fresh = true; });
+  overlay.addEventListener("click", (e) => { if (fresh && (e.target === overlay || e.target === stack)) close(); });
+  for (const b of [...actions.children, ...(reacts?.children || [])]) b.addEventListener("click", (e) => { if (!fresh) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+  document.body.append(overlay);
+  addEventListener("keydown", onKey);
+  row.classList.add("mm-lifted");
+  // It grows out of where the message was
+  const to = copy.getBoundingClientRect();
+  copy.animate([{ transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width})` }, { transform: "none" }], { duration: 260, easing: "cubic-bezier(.2, 1.1, .3, 1)" });
+}
+
 // Swipe to reply: someone else's message to the right, my own (on the right side) to the left
 function swipeToReply(row, msg) {
   const dir = msg.mine ? -1 : 1;
@@ -775,6 +845,7 @@ function messageEl(msg, chat, onRemoved) {
   );
   row._msg = msg;
   if (chat.canSend) swipeToReply(row, msg);
+  holdForMenu(row, bubble, tools, msg, chat);
   // Phones have no hover: tap a message to show its menu
   bubble.addEventListener("click", (e) => {
     if (!matchMedia("(hover: none), (max-width: 640px)").matches || e.target.closest("a, video, button, .lb-player")) return;

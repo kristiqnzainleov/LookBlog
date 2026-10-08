@@ -44,6 +44,40 @@ export function sfx(kind) {
   } catch {}
 }
 
+// People's own message sounds: one of these, or an MP3 they uploaded
+export const SOUND_PRESETS = [["pop", "🫧", "Pop"], ["chime", "🎐", "Chime"], ["bubble", "💭", "Bubble"], ["coin", "🪙", "Coin"], ["laser", "🔫", "Laser"], ["bell", "🔔", "Bell"],
+  ["drop", "💧", "Drop"], ["whoosh", "💨", "Whoosh"], ["harp", "🎼", "Harp"], ["game", "🎮", "Level up"], ["retro", "👾", "Retro"], ["kiss", "💋", "Kiss"], ["boing", "🤪", "Boing"],
+  ["twinkle", "✨", "Twinkle"], ["bass", "🔊", "Bass"], ["magic", "🪄", "Magic"]];
+export function playPreset(k) {
+  const c = engine(); if (!c) return;
+  const T = (o) => tone(c, o);
+  try {
+    if (k === "pop") T({ from: 600, to: 1400, dur: 0.08, vol: 0.08 });
+    if (k === "chime") [1046, 1318, 1568].forEach((f, i) => T({ from: f, to: f, at: i * 0.09, dur: 0.35, vol: 0.05, type: "triangle" }));
+    if (k === "bubble") { T({ from: 300, to: 900, dur: 0.12, vol: 0.06 }); T({ from: 500, to: 1300, at: 0.1, dur: 0.1, vol: 0.05 }); }
+    if (k === "coin") { T({ from: 988, to: 988, dur: 0.08, vol: 0.05, type: "square" }); T({ from: 1319, to: 1319, at: 0.08, dur: 0.3, vol: 0.05, type: "square" }); }
+    if (k === "laser") T({ from: 2000, to: 200, dur: 0.25, vol: 0.05, type: "sawtooth" });
+    if (k === "bell") [880, 1760, 2640].forEach((f, i) => T({ from: f, to: f, dur: 0.9, vol: 0.05 / (i + 1) }));
+    if (k === "drop") T({ from: 1400, to: 500, dur: 0.18, vol: 0.07 });
+    if (k === "whoosh") T({ from: 200, to: 1200, dur: 0.35, vol: 0.04, type: "sawtooth" });
+    if (k === "harp") [523, 659, 784, 1046, 1318].forEach((f, i) => T({ from: f, to: f, at: i * 0.06, dur: 0.4, vol: 0.04, type: "triangle" }));
+    if (k === "game") [523, 659, 784, 1046].forEach((f, i) => T({ from: f, to: f, at: i * 0.07, dur: 0.12, vol: 0.045, type: "square" }));
+    if (k === "retro") [440, 330, 660].forEach((f, i) => T({ from: f, to: f, at: i * 0.08, dur: 0.1, vol: 0.045, type: "square" }));
+    if (k === "kiss") { T({ from: 1800, to: 900, dur: 0.06, vol: 0.06 }); T({ from: 2200, to: 1200, at: 0.12, dur: 0.06, vol: 0.05 }); }
+    if (k === "boing") T({ from: 150, to: 600, dur: 0.4, vol: 0.07, type: "triangle" });
+    if (k === "twinkle") [1568, 2093, 1760, 2349].forEach((f, i) => T({ from: f, to: f, at: i * 0.07, dur: 0.18, vol: 0.035 }));
+    if (k === "bass") { T({ from: 120, to: 50, dur: 0.4, vol: 0.18 }); }
+    if (k === "magic") [784, 988, 1175, 1568, 1976].forEach((f, i) => T({ from: f, to: f * 1.02, at: i * 0.05, dur: 0.3, vol: 0.03, type: "triangle" }));
+  } catch {}
+}
+const soundCache = new Map();
+export function playMsgSound(snd, force = false) {
+  if (!snd || (!force && soundsOff())) return false;
+  if (snd.preset) { playPreset(snd.preset); return true; }
+  if (!snd.url) return false;
+  try { let a = soundCache.get(snd.url); if (!a) { a = new Audio(snd.url); soundCache.set(snd.url, a); } a.currentTime = 0; a.volume = 0.7; a.play().catch(() => {}); return true; } catch { return false; }
+}
+
 // Sounds for things that happen while you're on LookBlog: notifications, and every new message someone sends you
 export function setupAlertSounds(me) {
   const wake = () => { engine(); removeEventListener("pointerdown", wake); removeEventListener("keydown", wake); };
@@ -51,10 +85,12 @@ export function setupAlertSounds(me) {
   addEventListener("keydown", wake);
   let last = 0;
   const play = (kind) => { if (Date.now() - last < 700) return; last = Date.now(); sfx(kind); }; // a burst of things = one sound
-  on("notification", () => play("notify"));
+  // (if the person picked their own sound, that's the one you hear)
+  const playFrom = (snd, kind) => { if (Date.now() - last < 700) return; last = Date.now(); if (!playMsgSound(snd)) sfx(kind); };
+  on("notification", (ev) => (ev?.sound ? playFrom(ev.sound, "notify") : play("notify")));
   on("message", (ev) => {
     const m = ev.message;
     if (!m || m.mine || m.system || m.author?.username === me?.username) return;
-    play("message");
+    if (m.sound) playFrom(m.sound, "message"); else play("message");
   });
 }

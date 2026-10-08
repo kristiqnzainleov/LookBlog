@@ -21,6 +21,8 @@ export const NAME_FONTS = [["", "Default"], ["display", "Bold"], ["serif", "Eleg
   ["blocky", "Blocky"], ["comic", "Comic"], ["classic", "Classic"], ["neon", "Neon"], ["fancy", "Fancy"], ["spooky", "Spooky"], ["techno", "Techno"]];
 // 🎮 Gamer fonts (lookalikes of game lettering)
 export const GAMER_FONTS = [["minecraft", "Minecraft"], ["fortnite", "Fortnite"], ["valorant", "Valorant"], ["cod", "Call of Duty"], ["arcade", "Arcade"], ["glitch", "Glitch"], ["esports", "Esports"], ["terminal", "Terminal"]];
+// ✨ More fonts (all of them write in Cyrillic too)
+export const MORE_FONTS = [["bubbles", "Bubbles"], ["wetpaint", "Wet paint"], ["puddles", "Puddles"], ["beastly", "Beastly"], ["moonrocks", "Moon rocks"], ["microbe", "Microbe"], ["dirt", "Dirt"], ["spray", "Spray paint"], ["vinyl", "Vinyl"], ["iso", "3D Iso"], ["maze", "Maze"], ["burned", "Burned"], ["distressed", "Distressed"], ["gems", "Gemstones"], ["storm", "Storm"], ["fade80", "80s fade"], ["doodle", "Doodle"], ["hatch", "Hatched"], ["pixels", "Pixels"], ["scribble", "Scribble"], ["lines", "Lines"], ["fax", "Broken fax"], ["monoone", "Heavy"], ["comfortaa", "Comfortaa"], ["amatic", "Amatic"], ["neucha", "Neucha"], ["marck", "Marck"], ["badscript", "Bad script"], ["yeseva", "Yeseva"], ["poiret", "Poiret"], ["ruslan", "Ruslan"], ["underdog", "Underdog"], ["kelly", "Kelly slab"], ["stalinist", "Soviet"], ["seymour", "Seymour"], ["philosopher", "Philosopher"], ["pangolin", "Pangolin"], ["jura", "Jura"], ["daysone", "Days one"], ["forum", "Forum"], ["kurale", "Kurale"], ["oranienbaum", "Oranienbaum"], ["montalt", "Montserrat alt"], ["play", "Play"], ["prosto", "Prosto"], ["ubuntu", "Ubuntu"]];
 export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"], ["shadow", "3D"]];
 export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"], ["xmas", "🎄 Candy cane"], ["steel", "Steel"], ["forest", "Forest"]];
 export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradient"], ["aurora", "Aurora"], ["stars", "Stars"], ["grid", "Grid"], ["dots", "Dots"], ["waves", "Waves"],
@@ -118,7 +120,9 @@ export function loadFonts() {
   fontsLoaded = true;
   document.head.append(h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Space+Mono:wght@700&family=Pacifico&family=Fredoka:wght@600&display=swap" }),
     h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lobster&family=Permanent+Marker&family=Press+Start+2P&family=Orbitron:wght@800&family=Caveat:wght@700&family=Righteous&family=Bungee&family=Bangers&family=Cinzel:wght@700&family=Monoton&family=Great+Vibes&family=Creepster&family=Audiowide&display=swap" }),
-    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@700&family=Luckiest+Guy&family=Teko:wght@600&family=Black+Ops+One&family=Silkscreen:wght@700&family=Rubik+Glitch&family=Russo+One&family=VT323&display=swap" }));
+    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@700&family=Luckiest+Guy&family=Teko:wght@600&family=Black+Ops+One&family=Silkscreen:wght@700&family=Rubik+Glitch&family=Russo+One&family=VT323&display=swap" }),
+    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Rubik+Bubbles&family=Rubik+Wet+Paint&family=Rubik+Puddles&family=Rubik+Beastly&family=Rubik+Moonrocks&family=Rubik+Microbe&family=Rubik+Dirt&family=Rubik+Spray+Paint&family=Rubik+Vinyl&family=Rubik+Iso&family=Rubik+Maze&family=Rubik+Burned&family=Rubik+Distressed&family=Rubik+Gemstones&family=Rubik+Storm&family=Rubik+80s+Fade&family=Rubik+Doodle+Shadow&family=Rubik+Marker+Hatch&family=Rubik+Pixels&family=Rubik+Scribble&family=Rubik+Lines&family=Rubik+Broken+Fax&family=Rubik+Mono+One&display=swap" }),
+    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Amatic+SC:wght@700&family=Neucha&family=Marck+Script&family=Bad+Script&family=Yeseva+One&family=Poiret+One&family=Ruslan+Display&family=Underdog&family=Kelly+Slab&family=Stalinist+One&family=Seymour+One&family=Philosopher:wght@700&family=Pangolin&family=Jura:wght@700&family=Days+One&family=Forum&family=Kurale:wght@700&family=Oranienbaum&family=Montserrat+Alternates:wght@700&family=Play:wght@700&family=Prosto+One&family=Ubuntu:wght@700&display=swap" }));
 }
 // A custom gradient is saved as "grad:#aaaaaa,#bbbbbb@90" (colours, then the direction in degrees)
 const parseGrad = (c) => { const [cols, deg] = c.slice(5).split("@"); return { cols: cols.split(","), deg: Number(deg) || 90 }; };
@@ -312,7 +316,7 @@ export function openLookEditor(onSaved, opts = {}) {
     return b;
   }));
   const fonts = chip(NAME_FONTS, "font");
-  const gamerFonts = chip(GAMER_FONTS, "font");
+  const gamerFonts = chip([...GAMER_FONTS, ...MORE_FONTS], "font");
   const effects = chip(NAME_EFFECTS, "effect");
   const accentCustom = h("input", { type: "color", class: "look-custom", "aria-label": "Any accent colour" });
   accentCustom.addEventListener("input", () => { cur.accent = accentCustom.value; paint(); });
@@ -342,7 +346,7 @@ export function openLookEditor(onSaved, opts = {}) {
     b.addEventListener("click", () => { cur.deco = v; paint(); });
     return b;
   }));
-  const bioFonts = h("div", { class: "look-chips" }, ...[...NAME_FONTS, ...GAMER_FONTS].map(([v, label]) => {
+  const bioFonts = h("div", { class: "look-chips" }, ...[...NAME_FONTS, ...GAMER_FONTS, ...MORE_FONTS].map(([v, label]) => {
     const b = h("button", { type: "button", class: "look-chip", dataset: { v, nf: v }, text: label });
     b.addEventListener("click", () => { cur.bioFont = v; paint(); });
     return b;
