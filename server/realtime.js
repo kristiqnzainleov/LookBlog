@@ -17,16 +17,17 @@ const clients = new Set();
 const connections = new Map(); // userId -> number of open tabs
 const offlineTimers = new Map();
 const OFFLINE_GRACE_MS = 8000; // a quick reload shouldn't flash "offline"
-const PING_ONLINE_MS = 75 * 1000; // online: a tab pinged within this time
+const PING_ONLINE_MS = 150 * 1000; // online: a tab pinged within this time (tabs in the background ping more slowly)
 
 function write(event, filter = null) {
   const data = `data: ${JSON.stringify(event)}\n\n`;
   for (const c of clients) if (!filter || filter.has(c.userId)) c.res.write(data);
 }
 
+// Online, idle (LookBlog is open but in the background, or nobody's touched it for a while) or offline
 function presence(userId) {
-  const u = findUser(userId);
-  return { online: isOnline(userId), lastSeen: u?.lastSeen || null };
+  const u = findUser(userId), online = isOnline(userId);
+  return { online, idle: online && Boolean(u?.idle), lastSeen: u?.lastSeen || null };
 }
 function isOnline(userId) {
   if (store.enabled) { const u = findUser(userId); return Boolean(u?.pingAt && Date.now() - u.pingAt < PING_ONLINE_MS); }
@@ -34,7 +35,15 @@ function isOnline(userId) {
 }
 
 function announce(user, online) {
-  broadcast({ type: "presence", username: user.username, online, lastSeen: user.lastSeen || null });
+  broadcast({ type: "presence", username: user.username, online, idle: online && Boolean(user.idle), lastSeen: user.lastSeen || null });
+}
+// A tab says whether I'm idle; others hear when it changes
+function setIdle(me, idle) {
+  idle = Boolean(idle);
+  if (Boolean(me.idle) === idle) return;
+  me.idle = idle;
+  save("users");
+  if (isOnline(me.id)) announce(me, true);
 }
 function countHour(me) {
   // When people are around, by hour (for "when your audience is online")
@@ -85,10 +94,12 @@ function realtimeInfo(me) {
   return { mode: "supabase", url: SB_URL.replace(/^http/, "ws") + "/realtime/v1/websocket", key: SB_PUBLIC_KEY, topics: [topicOf(me), ALL_TOPIC] };
 }
 // My tab is open: POST /api/ping (every ~30 seconds)
-function ping(me) {
+function ping(me, idle = false) {
   const was = isOnline(me.id);
   me.pingAt = Date.now();
-  if (!was) { countHour(me); announce(me, true); }
+  const idleChanged = Boolean(me.idle) !== Boolean(idle);
+  me.idle = Boolean(idle);
+  if (!was) { countHour(me); announce(me, true); } else if (idleChanged) announce(me, true);
   save("users");
 }
 // People whose tabs stopped pinging are offline now
@@ -149,4 +160,4 @@ if (!store.enabled) setInterval(() => {
 
 if (store.enabled) require("./ticker").every(sweepOffline, 20 * 1000);
 
-module.exports = { handleEvents, broadcast, sendTo, isOnline, presence, realtimeInfo, ping, sweepOffline, flushRealtime };
+module.exports = { handleEvents, broadcast, sendTo, isOnline, presence, realtimeInfo, ping, setIdle, sweepOffline, flushRealtime };

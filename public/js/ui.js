@@ -251,10 +251,12 @@ export function lastSeenText(online, lastSeen) {
   return "Offline";
 }
 export function presenceDot(user) {
-  return h("span", { class: "presence-dot" + (user.online ? " online" : ""), "data-presence-dot": user.username, title: user.online ? "Online" : lastSeenText(false, user.lastSeen) });
+  const idle = user.online && user.idle;
+  return h("span", { class: "presence-dot" + (idle ? " idle" : user.online ? " online" : ""), "data-presence-dot": user.username, title: idle ? "Idle" : user.online ? "Online" : lastSeenText(false, user.lastSeen) });
 }
 export function presenceText(user) {
-  return h("span", { class: "presence-text" + (user.online ? " online" : ""), "data-presence-text": user.username, "data-last-seen": user.lastSeen || "", text: lastSeenText(user.online, user.lastSeen) });
+  const idle = user.online && user.idle;
+  return h("span", { class: "presence-text" + (idle ? " idle" : user.online ? " online" : ""), "data-presence-text": user.username, "data-last-seen": user.lastSeen || "", text: idle ? "Idle" : lastSeenText(user.online, user.lastSeen) });
 }
 // An avatar with a green dot when the person is online
 export function avatarWithPresence(user, size = 42) {

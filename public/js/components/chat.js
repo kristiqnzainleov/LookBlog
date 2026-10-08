@@ -920,6 +920,38 @@ function openNicknames(chat, refresh) {
 }
 
 /* ---------- Group members and adding people ---------- */
+// The people in a group, in a panel from the right (like Discord): online first, then idle, then offline.
+// On a phone, pull the chat to the left to open it.
+function membersDrawer(chat, manage) {
+  document.querySelector(".md-wrap")?.remove();
+  const people = (chat.members || []).filter((u) => u.username);
+  const state3 = (u) => (u.online ? (u.idle ? 1 : 0) : 2);
+  const groups = [["Online", people.filter((u) => state3(u) === 0)], ["Idle", people.filter((u) => state3(u) === 1)], ["Offline", people.filter((u) => state3(u) === 2)]];
+  const row = (u) => {
+    const b = h("button", { type: "button", class: "md-row" + (u.online ? "" : " off") }, avatarWithPresence(u, 36),
+      h("span", { class: "md-who" }, h("b", {}, u.nickname || u.name, tick(u, 13), u.isOwner ? h("span", { class: "md-crown", title: "Owner", text: "👑" }) : null),
+        u.groupStatus ? h("small", { class: "muted", text: `${u.groupStatus.emoji || "💬"} ${u.groupStatus.text || ""}` }) : h("small", { class: "muted", text: "@" + u.username })));
+    b.addEventListener("click", () => import("./mini-profile.js").then((m) => m.miniProfile(u.username, b, { extra: { nickname: u.nickname, groupStatus: u.groupStatus } })));
+    return b;
+  };
+  const panel = h("aside", { class: "md-panel", role: "dialog", "aria-label": "People in this group" },
+    h("div", { class: "md-head" }, h("b", { text: `People · ${people.length}` }),
+      manage ? h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Manage", onclick: () => { close(); manage(); } }) : null,
+      h("button", { type: "button", class: "icon-btn", "aria-label": "Close", onclick: () => close() }, icon("close"))),
+    h("div", { class: "md-list" }, ...groups.filter(([, l]) => l.length).flatMap(([t, l]) => [h("p", { class: "md-sec", text: `${t} — ${l.length}` }), ...l.map(row)])));
+  const wrap = h("div", { class: "md-wrap" }, h("div", { class: "md-shade" }), panel);
+  const close = () => { wrap.classList.add("out"); setTimeout(() => wrap.remove(), 220); removeEventListener("keydown", esc); };
+  const esc = (e) => { if (e.key === "Escape") close(); };
+  wrap.querySelector(".md-shade").addEventListener("click", close);
+  addEventListener("keydown", esc);
+  // pull it back to the right to close it
+  let sx = null;
+  panel.addEventListener("touchstart", (e) => { sx = e.touches[0].clientX; }, { passive: true });
+  panel.addEventListener("touchmove", (e) => { if (sx == null) return; const dx = e.touches[0].clientX - sx; if (dx > 0) { panel.style.transition = "none"; panel.style.transform = `translateX(${dx}px)`; } }, { passive: true });
+  panel.addEventListener("touchend", (e) => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; panel.style.transition = ""; panel.style.transform = ""; if (dx > 80) close(); });
+  document.body.append(wrap);
+}
+
 function openMembers(chat, refresh) {
   const list = h("div", { class: "conn-list" });
   const search = h("input", { type: "search", class: "text-input", placeholder: "Add someone by name or @username", autocomplete: "off" });
@@ -1098,6 +1130,23 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   }
   const typingTick = setInterval(paintTyping, 1000);
   const el = h("section", { class: "convo" }, head, pinBar, list, typingBar, footer);
+  // In a group: pull the chat to the left for the people in it (like Discord)
+  {
+    let st = null;
+    el.addEventListener("touchstart", (e) => {
+      if (chat?.kind !== "group") return;
+      const t = e.touches[0];
+      if (e.target.closest(".msg.mine, input, textarea, .convo-tray, .convo-input, .lb-player") && t.clientX < innerWidth - 28) return;
+      st = { x: t.clientX, y: t.clientY, go: false };
+    }, { passive: true });
+    el.addEventListener("touchmove", (e) => {
+      if (!st) return;
+      const t = e.touches[0], dx = t.clientX - st.x, dy = t.clientY - st.y;
+      if (!st.go) { if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { st = null; return; } if (dx > -16) return; st.go = true; }
+      st.dx = dx;
+    }, { passive: true });
+    el.addEventListener("touchend", () => { if (st?.go && st.dx < -70) membersDrawer(chat, () => openMembers(chat, refresh)); st = null; });
+  }
   // Hold (or right-click) anywhere on the chat's background: theme, wallpaper and photo
   const chatOptions = () => chat && openChatOptions(chat, { onTheme: (t) => applyTheme(el, t), onWallpaper: (wp) => applyWallpaper(el, wp), onPhoto: () => refresh(), onVanish: () => paintHead() });
   onHold(list, chatOptions, { ignore: ".bubble, a, button, input, textarea, video, audio, img, .game" });
@@ -1222,7 +1271,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
         h("button", { class: "icon-btn call-start", title: "Video call", "aria-label": "Video call", onclick: () => startCall(chat, true) }, icon("video")));
     }
     if (chat.kind === "group" && embedded) {
-      tools.append(h("button", { class: "icon-btn", title: "Members", "aria-label": "Members", onclick: () => openMembers(chat, refresh) }, icon("group")));
+      tools.append(h("button", { class: "icon-btn", title: "Members", "aria-label": "Members", onclick: () => membersDrawer(chat, () => openMembers(chat, refresh)) }, icon("group")));
     } else if (chat.kind === "group") {
       tools.append(h("button", { class: "btn btn-xs btn-outline-light", onclick: () => openMembers(chat, refresh) }, icon("userPlus"), h("span", { text: chat.member ? "People" : "Members" })));
       if (chat.isOwner) tools.append(h("button", { class: "btn btn-xs btn-outline-light", onclick: () => openGroupSettings(chat, () => refresh()) }, icon("edit"), h("span", { text: "Settings" })));
@@ -1238,11 +1287,11 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       }
     }
     // On a phone: calls stay in the bar, everything else goes in a ⋯ menu (so the name has room)
-    if (matchMedia("(max-width: 640px)").matches) {
+    if (matchMedia("(max-width: 640px)").matches || chat.kind === "group") {
       const keep = [...tools.children].filter((b) => b.classList.contains("call-start"));
       const rest = [...tools.children].filter((b) => !keep.includes(b));
       if (rest.length > 1) {
-        const moreBtn = h("button", { class: "icon-btn convo-more", title: "More", "aria-label": "More options" }, h("span", { class: "nick-ic", text: "⋯" }));
+        const moreBtn = h("button", { class: "icon-btn convo-more always", title: "More", "aria-label": "More options" }, h("span", { class: "nick-ic", text: "⋯" }));
         const hold = h("div", { hidden: true }, ...rest);
         moreBtn.addEventListener("click", () => {
           const sheet = modal({ title: "Chat", body: h("div", { class: "convo-menu" }, ...rest.map((b) => {

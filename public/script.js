@@ -300,49 +300,7 @@ resetForm.addEventListener("submit", async (e) => {
   }
 });
 
-/* ---------- Sign in with Google ---------- */
-// Uses Google's sign-in window. The server checks the answer with Google, then logs you in
-// (or makes your account the first time).
-let googleClient = null;
-function googleNote(text) {
-  const n = $("googleNote");
-  n.textContent = text;
-  n.hidden = false;
-  clearTimeout(googleNote.t);
-  googleNote.t = setTimeout(() => (n.hidden = true), 6000);
-}
-async function startGoogle(btn) {
-  const label = btn.lastChild.textContent;
-  try {
-    if (!googleClient) {
-      const { clientId } = await api("/api/auth/google/config");
-      if (!clientId) return googleNote("Sign in with Google isn’t set up on this server yet. Use your email for now.");
-      if (!window.google?.accounts?.oauth2) {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement("script");
-          s.src = "https://accounts.google.com/gsi/client";
-          s.onload = resolve; s.onerror = () => reject(new Error("load"));
-          document.head.append(s);
-        });
-      }
-      googleClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: "openid email profile",
-        callback: async (resp) => {
-          if (resp.error || !resp.access_token) return googleNote("Google sign-in was cancelled.");
-          btn.lastChild.textContent = " Signing in…";
-          try {
-            const r = await api("/api/auth/google", { method: "POST", body: JSON.stringify({ accessToken: resp.access_token }) });
-            if (r.needCode) { btn.lastChild.textContent = label; return askCode(r.ticket, r.name); }
-            location.assign(r.isNew ? "/feed?welcome=google" : "/feed");
-          } catch (err) { googleNote(err.error || "Couldn’t sign in with Google."); btn.lastChild.textContent = label; }
-        },
-      });
-    }
-    googleClient.requestAccessToken();
-  } catch { googleNote("Couldn’t open Google sign-in. Check your connection."); }
-}
-document.querySelectorAll(".google-btn").forEach((b) => b.addEventListener("click", () => startGoogle(b)));
+/* (Signing in with Google was removed: email or username and a password) */
 
 /* ---------- 2-step verification code ---------- */
 let codeTicket = null;

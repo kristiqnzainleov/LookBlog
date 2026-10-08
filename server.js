@@ -109,7 +109,11 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/ice") return sendJSON(res, 200, { iceServers: await iceServers() });
   // Where my browser listens for live updates, and "my tab is open"
   if (req.method === "GET" && url.pathname === "/api/realtime") return sendJSON(res, 200, store.enabled ? realtimeInfo(me) : { mode: "sse" });
-  if (req.method === "POST" && url.pathname === "/api/ping") { if (store.enabled) ping(me); return sendJSON(res, 200, { ok: true }); }
+  if (req.method === "POST" && url.pathname === "/api/ping") {
+    const idle = url.searchParams.get("idle") === "1";
+    if (store.enabled) ping(me, idle); else require("./server/realtime").setIdle(me, idle);
+    return sendJSON(res, 200, { ok: true });
+  }
   // Online uploads go straight to storage
   if (store.enabled && req.method === "POST" && url.pathname === "/api/upload/start") return startUpload(req, res, me, await readJSON(req));
   if (store.enabled && req.method === "POST" && url.pathname === "/api/upload/finish") return finishUpload(req, res, me, await readJSON(req));

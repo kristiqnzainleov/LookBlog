@@ -413,6 +413,8 @@ async function handleAuth(req, res, url, { port }) {
 
   /* ---------- Sign in with Google ---------- */
   // GET /api/auth/google/config → which Google app to use (null = not set up)
+  // Signing in with Google is turned off
+  if (route === "GET /api/auth/google/config" || route === "POST /api/auth/google") throw httpError(410, "Signing in with Google isn’t available. Use your email or username and password.");
   if (route === "GET /api/auth/google/config") {
     sendJSON(res, 200, { clientId: process.env.GOOGLE_CLIENT_ID || null });
     return true;

@@ -32,13 +32,15 @@ function handle(ev) {
   if (ev.type === "presence") {
     const name = CSS.escape(ev.username);
     document.querySelectorAll(`[data-presence-dot="${name}"]`).forEach((el) => {
-      el.classList.toggle("online", ev.online);
-      el.title = lastSeenText(ev.online, ev.lastSeen);
+      el.classList.toggle("online", ev.online && !ev.idle);
+      el.classList.toggle("idle", Boolean(ev.idle));
+      el.title = ev.idle ? "Idle" : lastSeenText(ev.online, ev.lastSeen);
     });
     document.querySelectorAll(`[data-presence-text="${name}"]`).forEach((el) => {
-      el.classList.toggle("online", ev.online);
+      el.classList.toggle("online", ev.online && !ev.idle);
+      el.classList.toggle("idle", Boolean(ev.idle));
       el.dataset.lastSeen = ev.lastSeen || "";
-      el.textContent = lastSeenText(ev.online, ev.lastSeen);
+      el.textContent = ev.idle ? "Idle" : lastSeenText(ev.online, ev.lastSeen);
     });
   }
   if (ev.type === "post:edited") repaintPost(ev);
@@ -53,17 +55,27 @@ export async function connect() {
     try { const r = await fetch("/api/realtime", { credentials: "same-origin" }); if (r.ok) info = await r.json(); else if (r.status === 401) return; } catch {}
     if (!info) await new Promise((ok) => setTimeout(ok, wait));
   }
+  // "I'm here" (and whether I'm idle: LookBlog is in the background, or I haven't touched it for 5 minutes)
+  let lastActive = Date.now(), sentIdle = null;
+  const isIdle = () => document.visibilityState !== "visible" || Date.now() - lastActive > 5 * 60 * 1000;
+  const ping = (force = false) => {
+    const idle = isIdle();
+    if (!force && info.mode !== "supabase" && idle === sentIdle) return; // (locally the live connection already says I'm online)
+    sentIdle = idle;
+    fetch("/api/ping" + (idle ? "?idle=1" : ""), { method: "POST", headers: { "X-LookBlog": "1" }, credentials: "same-origin", keepalive: true }).catch(() => {});
+  };
+  const active = () => { const was = isIdle(); lastActive = Date.now(); if (was && !isIdle()) ping(true); };
+  for (const ev of ["pointerdown", "keydown", "scroll", "touchstart", "mousemove"]) addEventListener(ev, active, { passive: true, capture: true });
+  document.addEventListener("visibilitychange", () => ping(true));
+  setInterval(() => ping(info.mode === "supabase"), 30 * 1000);
   if (info.mode !== "supabase") {
     const es = new EventSource("/api/events");
     es.onmessage = (e) => { let ev; try { ev = JSON.parse(e.data); } catch { return; } handle(ev); };
+    ping(true);
     return;
   }
   listenSupabase(info);
-  // "I'm here": keeps me online for others
-  const ping = () => fetch("/api/ping", { method: "POST", headers: { "X-LookBlog": "1" }, credentials: "same-origin" }).catch(() => {});
-  ping();
-  setInterval(() => { if (document.visibilityState === "visible") ping(); }, 30 * 1000);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") ping(); });
+  ping(true);
 }
 
 // A tiny Supabase Realtime client (Phoenix channels over a WebSocket): join my topics, hear "lb" broadcasts.

@@ -6310,3 +6310,28 @@ body[data-page="messages"] .messenger { height: 100dvh !important; will-change: 
 /* ---------- Someone else's profile: no bottom menu ---------- */
 body:has(.view[data-other-profile]) .dock { display: none !important; }
 body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }
+/* idle: LookBlog is open but you're away (a yellow moon) */
+.presence-dot.idle { background: #f5b301; box-shadow: 0 0 0 3px rgba(245, 179, 1, 0.18); -webkit-mask: radial-gradient(circle at 30% 30%, transparent 32%, #000 34%); mask: radial-gradient(circle at 30% 30%, transparent 32%, #000 34%); }
+.presence-text.idle { color: #f5b301; }
+.presence-text.idle::before { content: "🌙 "; }
+/* the ⋯ menu in a group, on every screen */
+.convo-more.always { display: grid !important; }
+@media (min-width: 641px) { .convo-menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } .convo-menu-row { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border-radius: 16px; border: 1px solid var(--line); background: var(--card-2, rgba(255,255,255,0.04)); color: var(--paper); font: 700 0.8rem var(--body); cursor: pointer; } .convo-menu-row:hover { border-color: var(--pink); } .convo-menu-ic { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: rgba(255, 255, 255, 0.06); border: none; color: inherit; font-size: 1.2rem; pointer-events: none; } .convo-menu-ic svg { width: 20px; height: 20px; } .convo-menu-ic small { display: none; } }
+/* ---------- People in a group, from the right (like Discord) ---------- */
+.md-wrap { position: fixed; inset: 0; z-index: 880; }
+.md-shade { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); animation: mmIn 0.2s ease; }
+.md-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(320px, 86vw); display: flex; flex-direction: column; background: #151314; border-left: 1px solid var(--line); box-shadow: -20px 0 50px rgba(0, 0, 0, 0.5); animation: mdIn 0.24s cubic-bezier(.2, 1, .3, 1); transition: transform 0.22s ease; }
+.md-wrap.out .md-panel { transform: translateX(100%); }
+.md-wrap.out .md-shade { opacity: 0; transition: opacity 0.2s; }
+@keyframes mdIn { from { transform: translateX(100%); } }
+.md-head { display: flex; align-items: center; gap: 8px; padding: 14px 12px 10px 16px; border-bottom: 1px solid var(--line); }
+.md-head b { flex: 1; font: 800 1rem var(--display); }
+.md-list { flex: 1; overflow-y: auto; padding: 6px 8px calc(16px + env(safe-area-inset-bottom)); }
+.md-sec { margin: 12px 8px 4px; font: 800 0.68rem var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.md-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border: none; border-radius: 12px; background: none; color: var(--paper); text-align: left; cursor: pointer; }
+.md-row:hover { background: rgba(255, 255, 255, 0.05); }
+.md-row.off { opacity: 0.5; }
+.md-who { display: flex; flex-direction: column; min-width: 0; }
+.md-who b { display: flex; align-items: center; gap: 4px; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.md-who small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.74rem; }
+.md-crown { font-size: 0.8rem; }
