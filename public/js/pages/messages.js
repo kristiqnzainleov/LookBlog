@@ -38,7 +38,7 @@ export function messagesPage(view, m) {
   const newBtn = h("button", { class: "icon-btn", "aria-label": "New message", title: "New message" }, icon("edit"));
   newBtn.addEventListener("click", openNewMessage);
   const inbox = h("aside", { class: "inbox" },
-    h("header", { class: "inbox-head" }, h("h1", { text: "Messages" }), newBtn),
+    h("header", { class: "inbox-head" }, backToFeed(), h("h1", { text: "Messages" }), newBtn),
     notesRow(),
     listEl,
     h("a", { class: "inbox-groups", href: "/groups" }, icon("group"), h("span", { text: "Find public groups" })),
@@ -48,6 +48,43 @@ export function messagesPage(view, m) {
   const pane = h("div", { class: "convo-pane" });
   const messenger = h("div", { class: "messenger" + (openId ? " has-open" : "") }, inbox, pane);
   view.append(messenger);
+
+  // Pull the window to the right to go back to the Feed. (Inside an open chat on a phone, pull from the left edge to go back to the list.)
+  let sw = null;
+  messenger.addEventListener("touchstart", (e) => {
+    const t = e.touches[0], edge = t.clientX < 28;
+    const inChat = messenger.classList.contains("has-open") && matchMedia("(max-width: 760px)").matches;
+    if (!edge && (inChat || e.target.closest(".msg, input, textarea, select, .notes-row, .convo-tray, .instants-pile, .lb-player, .mini-profile"))) return;
+    sw = { x: t.clientX, y: t.clientY, dx: 0, go: false, inChat };
+  }, { passive: true });
+  messenger.addEventListener("touchmove", (e) => {
+    if (!sw) return;
+    const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
+    if (!sw.go) {
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { sw = null; return; } // scrolling up or down
+      if (dx < 14) return;
+      sw.go = true;
+    }
+    sw.dx = Math.max(0, dx);
+    messenger.style.transition = "none";
+    messenger.style.transform = `translateX(${sw.dx}px)`;
+    messenger.style.opacity = String(Math.max(0.35, 1 - sw.dx / (innerWidth * 1.4)));
+  }, { passive: true });
+  const swipeEnd = () => {
+    if (!sw) return;
+    const { dx, go, inChat } = sw; sw = null;
+    if (!go) return;
+    messenger.style.transition = "transform 0.22s ease, opacity 0.22s ease";
+    if (dx > Math.min(120, innerWidth * 0.28)) {
+      messenger.style.transform = "translateX(100%)"; messenger.style.opacity = "0";
+      setTimeout(() => {
+        if (inChat) { messenger.style.transform = ""; messenger.style.opacity = ""; (messenger.querySelector(".convo-back") || messenger.querySelector(".gv-top .icon-btn"))?.click(); }
+        else navigate("/feed");
+      }, 210);
+    } else { messenger.style.transform = ""; messenger.style.opacity = ""; }
+  };
+  messenger.addEventListener("touchend", swipeEnd);
+  messenger.addEventListener("touchcancel", swipeEnd);
 
   // Hold a chat (or right-click it) for its theme, wallpaper and photo
   function holdForWallpaper(c, item) {
@@ -129,4 +166,11 @@ function watchInboxTyping(listEl) {
     item.classList.add("is-typing");
     timers.set(ev.chatId, setTimeout(back, 3500));
   });
+}
+
+// ← back to the Feed (the top bar is hidden on Messages)
+function backToFeed() {
+  const b = h("button", { class: "icon-btn inbox-back", "aria-label": "Back to the Feed", title: "Back to the Feed" }, icon("back"));
+  b.addEventListener("click", () => navigate("/feed"));
+  return b;
 }

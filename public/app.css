@@ -6298,3 +6298,15 @@ body[data-page="messages"] .view { padding-bottom: 0 !important; }
 .gi-members { font-size: 0.78rem; color: var(--muted); }
 .gi-join { margin-top: 8px; width: 100%; }
 .gi-card.gone { padding: 14px; }
+/* ---------- Messages: no top bar (← goes back to the Feed); the window fills the screen ---------- */
+body[data-page="messages"] { --topbar: 0px; }
+body[data-page="messages"] .topbar { display: none; }
+body[data-page="messages"] .view { padding-top: 0 !important; }
+body[data-page="messages"] .messenger { height: 100dvh !important; will-change: transform; }
+@media (min-width: 761px) { body[data-page="messages"] .messenger { border-top: none !important; } }
+.inbox-head { display: flex; align-items: center; gap: 8px; }
+.inbox-head h1 { flex: 1; min-width: 0; }
+.inbox-back { flex-shrink: 0; }
+/* ---------- Someone else's profile: no bottom menu ---------- */
+body:has(.view[data-other-profile]) .dock { display: none !important; }
+body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }

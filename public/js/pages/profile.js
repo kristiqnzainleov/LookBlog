@@ -144,6 +144,8 @@ export async function profilePage(view, m, params) {
   }
   document.title = `${profile.name} (@${profile.username}) / Look Blog`;
   title.textContent = profile.name;
+  // On someone else's profile the bottom menu steps away (it covered their badges)
+  if (!profile.isMe) view.dataset.otherProfile = "1";
   // Counts live in the tabs below (Posts 12 · Shorts 2 · Videos 3)
   const tabCount = { post: profile.textPosts ?? profile.posts, short: profile.shorts || 0, video: profile.videos || 0, series: profile.series || 0, movie: profile.movies || 0, song: profile.songs || 0 };
   const postsCount = h("span", { class: "tab-n", text: count(tabCount.post) });
