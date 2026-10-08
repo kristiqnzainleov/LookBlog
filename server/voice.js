@@ -79,9 +79,10 @@ async function parseVideo(url) {
     const id = u.searchParams.get("v");
     return id && yt.test(id) ? { provider: "youtube", id, kind: "video" } : null;
   }
-  if (host.endsWith("tiktok.com")) {
+  // (exactly tiktok.com or one of its subdomains: not "eviltiktok.com"), and only https on the normal port
+  if ((host === "tiktok.com" || host.endsWith(".tiktok.com")) && u.protocol === "https:" && !u.port && !u.username && !u.password) {
     let m = u.pathname.match(/\/video\/(\d{8,25})/) || u.pathname.match(/\/player\/v1\/(\d{8,25})/);
-    if (!m && (host === "vm.tiktok.com" || host === "vt.tiktok.com" || u.pathname.startsWith("/t/"))) {
+    if (!m && (host === "vm.tiktok.com" || host === "vt.tiktok.com" || (host === "tiktok.com" && u.pathname.startsWith("/t/")))) {
       // A short share link: follow it to the real one
       try {
         const r = await fetch(u.href, { redirect: "manual", headers: { "User-Agent": "Mozilla/5.0 LookBlog" }, signal: AbortSignal.timeout(6000) });

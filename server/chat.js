@@ -302,7 +302,8 @@ function messageViewFull(msg, me) {
 
 /* ---------- How my messages look (my own style, everyone sees it) and send effects ---------- */
 const MSG_EFFECTS = ["slam", "loud", "gentle", "ink", "confetti", "hearts", "fireworks", "balloons", "spotlight", "lasers", "shake", "rainbow",
-  "snow", "stars", "money", "fire", "bubbles", "kisses", "butterflies", "petals", "rockets", "party", "thunder", "disco", "zoom", "glitch", "typewriter", "bounce", "spin", "ghost"];
+  "snow", "stars", "money", "fire", "bubbles", "kisses", "butterflies", "petals", "rockets", "party", "thunder", "disco", "zoom", "glitch", "typewriter", "bounce", "spin", "ghost",
+  "cash", "pizza", "cats", "dogs", "skulls", "clowns", "eyes", "hundred", "goats", "aliens", "crowns", "diamonds", "rain", "matrix", "magic", "heartbeat", "flip", "drop", "tornado", "jelly", "explode"];
 function msgStyleOf(userId) { const u = findUser(userId); return u?.msgStyle || null; }
 
 /* ---------- Polls in chats and groups ---------- */

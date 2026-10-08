@@ -2170,7 +2170,8 @@ async function handleSocial(req, res, url, me) {
   // POST /api/me/msg-sound { url } (an audio file I uploaded) · { preset } (one of LookBlog's) · {} = the normal sound
   if (m === "POST" && a === "me" && b === "msg-sound" && parts.length === 2) {
     const body = await readJSON(req);
-    const PRESETS = ["pop", "chime", "bubble", "coin", "laser", "bell", "drop", "whoosh", "harp", "game", "retro", "kiss", "boing", "twinkle", "bass", "magic"];
+    const PRESETS = ["pop", "chime", "bubble", "coin", "laser", "bell", "drop", "whoosh", "harp", "game", "retro", "kiss", "boing", "twinkle", "bass", "magic",
+      "cash", "coins", "airhorn", "quack", "doorbell", "drum", "alarm", "heartbeat", "tada", "phone"];
     const old = me.msgSound?.url;
     if (body.url) {
       const snd = ownedMedia(body.url, me.id, "audio");

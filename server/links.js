@@ -27,6 +27,21 @@ async function safeUrl(raw) {
   if (!ips.length || ips.some(privateIp)) return null;
   return u;
 }
+// Fetch a page, connecting only to an address that was checked (the DNS answer can't change in between: no "DNS rebinding")
+function safeGet(u) {
+  const mod = u.protocol === "https:" ? require("https") : require("http");
+  const lookup = (host, opts, cb) => dns.lookup(host, { all: true }).then((list) => {
+    const ok = list.filter((x) => !privateIp(x.address));
+    if (!list.length || ok.length !== list.length) return cb(new Error("blocked address"));
+    if (opts && opts.all) return cb(null, ok);
+    cb(null, ok[0].address, ok[0].family);
+  }, cb);
+  return new Promise((resolve, reject) => {
+    const req = mod.get(u, { lookup, timeout: 6000, headers: { "User-Agent": "Mozilla/5.0 (compatible; LookBlogPreview/1.0)", Accept: "text/html" } }, (res) => resolve(res));
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+  });
+}
 const decode = (s) => String(s || "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n)).trim();
 function meta(html, ...names) {
   for (const n of names) {
@@ -45,25 +60,25 @@ async function preview(raw) {
   let res, html = "";
   // Follow up to 3 redirects, checking each address
   for (let i = 0; i < 4; i++) {
-    res = await fetch(u, { redirect: "manual", signal: AbortSignal.timeout(6000), headers: { "User-Agent": "Mozilla/5.0 (compatible; LookBlogPreview/1.0)", Accept: "text/html" } });
-    if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
-      u = await safeUrl(new URL(res.headers.get("location"), u).href);
+    try { res = await safeGet(u); } catch { throw httpError(400, "That link can’t be previewed."); }
+    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+      res.resume();
+      u = await safeUrl(new URL(res.headers.location, u).href);
       if (!u) throw httpError(400, "That link can’t be previewed.");
       continue;
     }
     break;
   }
-  if (!res.ok || !String(res.headers.get("content-type") || "").includes("html")) throw httpError(400, "No preview for that link.");
-  const reader = res.body.getReader();
-  let size = 0;
-  while (size < 400000) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.length;
-    html += Buffer.from(value).toString("utf8");
-    if (/<\/head>/i.test(html)) break;
-  }
-  reader.cancel().catch(() => {});
+  if (res.statusCode < 200 || res.statusCode >= 300 || !String(res.headers["content-type"] || "").includes("html")) { res.resume(); throw httpError(400, "No preview for that link."); }
+  // Read the top of the page only (up to 400 KB, or until </head>)
+  html = await new Promise((resolve) => {
+    let buf = "", size = 0;
+    const done = () => { res.destroy(); resolve(buf); };
+    res.on("data", (c) => { size += c.length; buf += c.toString("utf8"); if (size > 400000 || /<\/head>/i.test(buf)) done(); });
+    res.on("end", () => resolve(buf));
+    res.on("error", () => resolve(buf));
+    setTimeout(done, 6000).unref?.();
+  });
   const title = meta(html, "og:title", "twitter:title") || decode((html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1]);
   let image = meta(html, "og:image", "twitter:image", "og:image:url");
   if (image) { try { image = new URL(image, u).href; if (!/^https?:/.test(image)) image = ""; } catch { image = ""; } }

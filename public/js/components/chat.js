@@ -1381,7 +1381,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const chatGif = gifButton((g) => sendGif(g));
     inputRow.insertBefore(chatGif, text);
     // On a phone the row is just ＋ · text · mic/send; ＋ opens the other tools above
-    const trayBtn = h("button", { type: "button", class: "tool-btn tray-btn", "aria-label": "More: photos, GIFs, polls…", "aria-expanded": "false" }, h("span", { text: "＋" }));
+    const trayBtn = h("button", { type: "button", class: "tool-btn tray-btn", "aria-label": "More: stickers, sounds, polls…", title: "More: stickers, sounds, polls…", "aria-expanded": "false" }, h("span", { text: "＋" }));
     inputRow.prepend(trayBtn);
     const form = h("form", { class: "convo-form", novalidate: true }, replyBar, picker.previews, inputRow, recBar, err);
     trayBtn.addEventListener("click", () => { const open = form.classList.toggle("tray-open"); trayBtn.setAttribute("aria-expanded", String(open)); });
@@ -1440,6 +1440,23 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       sfx("send"); add(message); toBottom();
     }));
     inputRow.insertBefore(pollBtn, camBtn);
+    // The tools: the main ones stay in the row (on a computer); the rest live in a panel that ＋ opens.
+    // On a phone the row is just ＋ · text · mic / send, and every tool is in the panel.
+    const tray = h("div", { class: "convo-tray", role: "group", "aria-label": "More things to send" });
+    form.insertBefore(tray, inputRow);
+    const tile = (b, label) => h("div", { class: "tray-tile" }, b, h("small", { text: label }));
+    for (const [b, l] of [[stickerBtn, "Stickers"], [soundBtn, "Sounds"], [songBtn, "Song"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
+    const MAIN = [[picker.button, "Photo"], [emojiBtn, "Emoji"], [chatGif, "GIF"], [fxBtn, "Style & effects"]], mainTiles = new Map();
+    const layoutTools = () => {
+      const phone = matchMedia("(max-width: 640px)").matches;
+      MAIN.forEach(([b, l], i) => {
+        if (phone) { const t = mainTiles.get(b) || tile(b, l); mainTiles.set(b, t); t.prepend(b); tray.insertBefore(t, tray.children[i] || null); }
+        else { inputRow.insertBefore(b, text); mainTiles.get(b)?.remove(); }
+      });
+    };
+    layoutTools();
+    matchMedia("(max-width: 640px)").addEventListener?.("change", layoutTools);
+    tray.addEventListener("click", (e) => { if (e.target.closest(".tool-btn") && !e.target.closest(".vo-btn")) { form.classList.remove("tray-open"); trayBtn.setAttribute("aria-expanded", "false"); } });
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (send.disabled) return;

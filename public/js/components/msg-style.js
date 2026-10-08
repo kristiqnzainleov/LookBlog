@@ -21,7 +21,11 @@ export const EFFECTS = [["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["ge
   ["fireworks", "🎆", "Fireworks"], ["balloons", "🎈", "Balloons"], ["spotlight", "🔦", "Spotlight"], ["lasers", "🌈", "Lasers"], ["shake", "🫨", "Shake"], ["rainbow", "🦄", "Rainbow"],
   ["party", "🥳", "Party"], ["snow", "❄️", "Snow"], ["stars", "⭐", "Stars"], ["money", "💸", "Money"], ["fire", "🔥", "Fire"], ["bubbles", "🫧", "Bubbles"], ["kisses", "💋", "Kisses"],
   ["butterflies", "🦋", "Butterflies"], ["petals", "🌸", "Petals"], ["rockets", "🚀", "Rockets"], ["thunder", "⚡", "Thunder"], ["disco", "🪩", "Disco"], ["zoom", "🔍", "Zoom in"],
-  ["glitch", "👾", "Glitch"], ["typewriter", "⌨️", "Typewriter"], ["bounce", "🏀", "Bounce"], ["spin", "🌀", "Spin"], ["ghost", "👻", "Ghost"]];
+  ["glitch", "👾", "Glitch"], ["typewriter", "⌨️", "Typewriter"], ["bounce", "🏀", "Bounce"], ["spin", "🌀", "Spin"], ["ghost", "👻", "Ghost"],
+  ["cash", "🤑", "Cash (with sound)"], ["pizza", "🍕", "Pizza"], ["cats", "🐱", "Cats"], ["dogs", "🐶", "Dogs"], ["skulls", "💀", "Dead 💀"], ["clowns", "🤡", "Clowns"],
+  ["eyes", "👀", "Eyes"], ["hundred", "💯", "100"], ["goats", "🐐", "GOAT"], ["aliens", "👽", "Aliens"], ["crowns", "👑", "Crowns"], ["diamonds", "💎", "Diamonds"],
+  ["rain", "🌧️", "Rain"], ["matrix", "💻", "Matrix"], ["magic", "🪄", "Magic"], ["heartbeat", "💓", "Heartbeat"], ["flip", "🔄", "Flip"], ["drop", "⬇️", "Drop in"],
+  ["tornado", "🌪️", "Tornado"], ["jelly", "🍮", "Jelly"], ["explode", "💣", "Explode"]];
 const colorOf = (k) => (k === "black" ? "#0d0c0c" : /^#/.test(k || "") ? k : NAME_COLORS.find(([x]) => x === k)?.[1] || "");
 
 // Paint a message bubble in its sender's style
@@ -171,7 +175,10 @@ export function playEffect(effect, row, stage) {
   if (effect === "shake") anim(bubble, "fx-shake", 900);
   if (effect === "rainbow") anim(bubble, "fx-rainbow", 3000);
   const RAIN = { snow: [["❄️", "❅", "❆"], "fall"], stars: [["⭐", "✨", "🌟", "💫"], "fall"], money: [["💸", "💵", "💰", "🪙"], "fall"], fire: [["🔥", "🔥", "✨"], "rise"], bubbles: [["🫧", "🫧", "○"], "rise"],
-    kisses: [["💋", "💋", "😘"], "rise"], butterflies: [["🦋", "🦋", "🌼"], "rise"], petals: [["🌸", "🌺", "💮"], "fall"], rockets: [["🚀", "🚀", "✨"], "rise"], party: [["🥳", "🎉", "🎊", "🎈"], "fall"] };
+    kisses: [["💋", "💋", "😘"], "rise"], butterflies: [["🦋", "🦋", "🌼"], "rise"], petals: [["🌸", "🌺", "💮"], "fall"], rockets: [["🚀", "🚀", "✨"], "rise"], party: [["🥳", "🎉", "🎊", "🎈"], "fall"],
+    cash: [["💵", "💸", "💰", "🤑"], "fall"], pizza: [["🍕", "🍕", "🧀"], "fall"], cats: [["🐱", "😺", "😻", "🐈"], "fall"], dogs: [["🐶", "🐕", "🦴"], "fall"], skulls: [["💀", "☠️", "💀"], "fall"],
+    clowns: [["🤡", "🤡", "🎈"], "rise"], eyes: [["👀", "👁️", "👀"], "fall"], hundred: [["💯", "💯", "🔥"], "rise"], goats: [["🐐", "🐐", "🏆"], "fall"], aliens: [["👽", "🛸", "👾"], "fall"],
+    crowns: [["👑", "👑", "✨"], "fall"], diamonds: [["💎", "💎", "✨"], "fall"], rain: [["💧", "💧", "💧", "🌧️"], "fall"], magic: [["✨", "🪄", "⭐", "💫"], "rise"] };
   if (RAIN[effect]) {
     const [parts, way] = RAIN[effect], l = layer("fx-fall");
     for (let i = 0; i < 30; i++) l.append(h("i", { class: way === "rise" ? "fx-heart" : "fx-drop", text: parts[i % parts.length], style: `left:${Math.random() * 100}%;--d:${Math.random() * 1}s;--t:${2 + Math.random() * 1.8}s;--s:${0.7 + Math.random() * 1.1};--r:${Math.random() * 360 - 180}deg` }));
@@ -185,6 +192,25 @@ export function playEffect(effect, row, stage) {
   if (effect === "bounce") anim(bubble, "fx-bounce", 1200);
   if (effect === "spin") anim(bubble, "fx-spin", 1000);
   if (effect === "ghost") anim(bubble, "fx-ghost", 2600);
+  if (effect === "cash" || effect === "money") import("./sfx.js").then((m) => { if (!m.soundsOff()) m.playPreset("cash"); }).catch(() => {});
+  if (effect === "party") import("./sfx.js").then((m) => { if (!m.soundsOff()) m.playPreset("tada"); }).catch(() => {});
+  if (effect === "rain") { const l = layer("fx-dim"); setTimeout(() => l.remove(), 3500); }
+  if (effect === "matrix") {
+    const l = layer("fx-matrix");
+    for (let i = 0; i < 22; i++) l.append(h("i", { class: "fx-code", text: Array.from({ length: 14 }, () => (Math.random() < 0.5 ? "0" : "1")).join("\n"), style: `left:${(i / 22) * 100}%;--d:${Math.random() * 0.8}s;--t:${1.6 + Math.random() * 1.4}s` }));
+    setTimeout(() => l.remove(), 4000);
+  }
+  if (effect === "heartbeat") anim(bubble, "fx-heartbeat", 1800);
+  if (effect === "flip") anim(bubble, "fx-flip", 900);
+  if (effect === "drop") anim(bubble, "fx-dropin", 900);
+  if (effect === "tornado") anim(bubble, "fx-tornado", 1300);
+  if (effect === "jelly") anim(bubble, "fx-jelly", 1100);
+  if (effect === "explode") {
+    anim(bubble, "fx-explode", 900);
+    const l = layer("fx-fw");
+    for (let i = 0; i < 26; i++) { const a = (i / 26) * Math.PI * 2; l.append(h("i", { class: "fx-spark", style: `left:${cx}px;top:${cy}px;--c:${["#ff8a3d", "#ffd23f", "#ff4757"][i % 3]};--dx:${Math.cos(a) * 160}px;--dy:${Math.sin(a) * 160}px;--d:0s` })); }
+    setTimeout(() => l.remove(), 1800);
+  }
   if (effect === "typewriter") {
     const t = bubble.querySelector(".bubble-text");
     if (t) { const full = t.textContent; t.textContent = ""; t.classList.add("fx-typing"); let i = 0; const iv = setInterval(() => { t.textContent = [...full].slice(0, ++i).join(""); if (i >= [...full].length) { clearInterval(iv); t.classList.remove("fx-typing"); } }, Math.max(25, Math.min(90, 1600 / [...full].length))); }

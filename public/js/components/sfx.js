@@ -47,7 +47,17 @@ export function sfx(kind) {
 // People's own message sounds: one of these, or an MP3 they uploaded
 export const SOUND_PRESETS = [["pop", "🫧", "Pop"], ["chime", "🎐", "Chime"], ["bubble", "💭", "Bubble"], ["coin", "🪙", "Coin"], ["laser", "🔫", "Laser"], ["bell", "🔔", "Bell"],
   ["drop", "💧", "Drop"], ["whoosh", "💨", "Whoosh"], ["harp", "🎼", "Harp"], ["game", "🎮", "Level up"], ["retro", "👾", "Retro"], ["kiss", "💋", "Kiss"], ["boing", "🤪", "Boing"],
-  ["twinkle", "✨", "Twinkle"], ["bass", "🔊", "Bass"], ["magic", "🪄", "Magic"]];
+  ["twinkle", "✨", "Twinkle"], ["bass", "🔊", "Bass"], ["magic", "🪄", "Magic"],
+  ["cash", "💰", "Cash (ka-ching)"], ["coins", "🪙", "Coins falling"], ["airhorn", "📯", "Air horn"], ["quack", "🦆", "Quack"], ["doorbell", "🛎️", "Doorbell"],
+  ["drum", "🥁", "Ba-dum-tss"], ["alarm", "🚨", "Alarm"], ["heartbeat", "💓", "Heartbeat"], ["tada", "🎉", "Ta-da"], ["phone", "📱", "Phone"]];
+// A short burst of noise (for coins, cymbals, the "cha" of a cash register)
+function noise(c, { at = 0, dur = 0.1, vol = 0.05, hp = 3000 }) {
+  const b = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = b; f.type = "highpass"; f.frequency.value = hp; g.gain.value = vol;
+  src.connect(f); f.connect(g); g.connect(c.destination); src.start(c.currentTime + at);
+}
 export function playPreset(k) {
   const c = engine(); if (!c) return;
   const T = (o) => tone(c, o);
@@ -68,6 +78,16 @@ export function playPreset(k) {
     if (k === "twinkle") [1568, 2093, 1760, 2349].forEach((f, i) => T({ from: f, to: f, at: i * 0.07, dur: 0.18, vol: 0.035 }));
     if (k === "bass") { T({ from: 120, to: 50, dur: 0.4, vol: 0.18 }); }
     if (k === "magic") [784, 988, 1175, 1568, 1976].forEach((f, i) => T({ from: f, to: f * 1.02, at: i * 0.05, dur: 0.3, vol: 0.03, type: "triangle" }));
+    if (k === "cash") { noise(c, { dur: 0.09, vol: 0.06, hp: 2500 }); T({ from: 2637, to: 2637, at: 0.08, dur: 0.5, vol: 0.05 }); T({ from: 3520, to: 3520, at: 0.11, dur: 0.6, vol: 0.04 }); T({ from: 5274, to: 5274, at: 0.11, dur: 0.4, vol: 0.015 }); }
+    if (k === "coins") for (let i = 0; i < 7; i++) { const f = 2000 + Math.random() * 1800; T({ from: f, to: f, at: i * 0.07 + Math.random() * 0.03, dur: 0.12, vol: 0.03 }); noise(c, { at: i * 0.07, dur: 0.03, vol: 0.02, hp: 5000 }); }
+    if (k === "airhorn") for (let i = 0; i < 2; i++) [466, 470, 932].forEach((f) => T({ from: f, to: f * 0.98, at: i * 0.32, dur: 0.26, vol: 0.035, type: "sawtooth" }));
+    if (k === "quack") { T({ from: 520, to: 380, dur: 0.16, vol: 0.06, type: "sawtooth" }); T({ from: 500, to: 360, at: 0.2, dur: 0.14, vol: 0.05, type: "sawtooth" }); }
+    if (k === "doorbell") { T({ from: 659, to: 659, dur: 0.6, vol: 0.06, type: "triangle" }); T({ from: 523, to: 523, at: 0.45, dur: 0.8, vol: 0.06, type: "triangle" }); }
+    if (k === "drum") { T({ from: 180, to: 60, dur: 0.15, vol: 0.12 }); T({ from: 160, to: 55, at: 0.18, dur: 0.15, vol: 0.12 }); noise(c, { at: 0.36, dur: 0.5, vol: 0.05, hp: 6000 }); }
+    if (k === "alarm") for (let i = 0; i < 3; i++) T({ from: 880, to: 1320, at: i * 0.2, dur: 0.18, vol: 0.04, type: "square" });
+    if (k === "heartbeat") [0, 0.18, 0.7, 0.88].forEach((at, i) => T({ from: i % 2 ? 50 : 65, to: 40, at, dur: 0.14, vol: 0.2 }));
+    if (k === "tada") { [523, 659, 784].forEach((f, i) => T({ from: f, to: f, at: i * 0.07, dur: 0.12, vol: 0.04, type: "triangle" })); [1046, 1318, 1568].forEach((f) => T({ from: f, to: f, at: 0.25, dur: 0.6, vol: 0.035, type: "triangle" })); }
+    if (k === "phone") for (let i = 0; i < 8; i++) T({ from: i % 2 ? 480 : 440, to: i % 2 ? 480 : 440, at: i * 0.05, dur: 0.05, vol: 0.04 });
   } catch {}
 }
 const soundCache = new Map();

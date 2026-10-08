@@ -12,6 +12,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const sha256 = (v) => crypto.createHash("sha256").update(v).digest("hex");
 
 /* ---------- Passwords ---------- */
+// Online (https) the log-in cookies only ever travel over https
+const SECURE = process.env.VERCEL || process.env.NODE_ENV === "production" ? ["Secure"] : [];
+
 function hashPassword(password) {
   const salt = crypto.randomBytes(16);
   const hash = crypto.scryptSync(password, salt, 64);
@@ -34,7 +37,7 @@ function startSession(user, remember) {
   const token = crypto.randomBytes(32).toString("hex");
   db.sessions[sha256(token)] = { userId: user.id, expires: Date.now() + SESSION_MS };
   save("sessions");
-  const cookie = [`lb_session=${token}`, "HttpOnly", "Path=/", "SameSite=Lax"];
+  const cookie = [`lb_session=${token}`, "HttpOnly", "Path=/", "SameSite=Lax", ...SECURE];
   if (remember) cookie.push(`Max-Age=${SESSION_MS / 1000}`);
   return cookie.join("; ");
 }
@@ -50,8 +53,8 @@ function newSession(user) {
   return token;
 }
 const userOfToken = (t) => { const s = t && db.sessions[sha256(t)]; const u = s && s.expires > Date.now() ? findUser(s.userId) : null; return u && !u.banned ? u : null; };
-const sessionCookie = (t) => `lb_session=${t}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_MS / 1000}`;
-const accountsCookie = (list) => list.length ? `lb_accounts=${list.join(".")}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_MS / 1000}` : "lb_accounts=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0";
+const sessionCookie = (t) => `lb_session=${t}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_MS / 1000}${SECURE.length ? "; Secure" : ""}`;
+const accountsCookie = (list) => list.length ? `lb_accounts=${list.join(".")}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_MS / 1000}${SECURE.length ? "; Secure" : ""}` : "lb_accounts=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0";
 function otherTokens(req) {
   const current = parseCookies(req).lb_session;
   const me = userOfToken(current);

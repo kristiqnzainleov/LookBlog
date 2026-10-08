@@ -288,6 +288,14 @@ async function handle(req, res) {
       return res;
     };
   }
+  // Security headers on every answer: no framing by other sites (clickjacking), no plugins,
+  // no guessing file types, and no full addresses leaked to other sites
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Content-Security-Policy", "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), display-capture=(self), geolocation=(self), payment=()");
+  if (req.headers["x-forwarded-proto"] === "https") res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const p = url.pathname;
   try {

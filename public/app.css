@@ -6150,3 +6150,36 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
 .bubble[data-mbd="double"] { border: 5px double currentColor !important; }
 .bubble[data-mbd="rainbow"] { border: 3px solid transparent !important; background-image: linear-gradient(var(--ms-bg, var(--card-2)), var(--ms-bg, var(--card-2))), linear-gradient(90deg, #ff4757, #ff8a3d, #ffd23f, #2ee6a6, #4cc9ff, #9b5cff) !important; background-origin: border-box; background-clip: padding-box, border-box; }
 .bubble[data-mbd="glowing"] { border: 2px solid #fff !important; box-shadow: 0 0 12px rgba(255, 255, 255, 0.6); }
+/* ---------- The message box: tidy on every screen ---------- */
+.convo-input .tray-btn { display: grid; place-items: center; font-size: 1.35rem; font-weight: 300; color: var(--pink); transition: transform 0.2s; }
+.convo-form.tray-open .tray-btn { transform: rotate(45deg); }
+.convo-tray { display: none; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; margin-bottom: 8px; padding: 10px; border-radius: 20px; background: var(--ink); border: 1.5px solid var(--line); }
+.convo-form.tray-open .convo-tray { display: grid; animation: trayIn 0.18s ease-out; }
+.tray-tile { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 2px; border-radius: 14px; color: var(--muted); font: 600 0.72rem var(--body); text-align: center; }
+.tray-tile:hover { background: rgba(255, 255, 255, 0.04); color: var(--paper); }
+.tray-tile .tool-btn { display: grid !important; place-items: center; width: 46px; height: 46px; }
+.tray-tile small { line-height: 1.1; }
+.convo-input { gap: 6px; }
+.convo-input textarea { min-width: 120px; }
+@media (max-width: 640px) {
+  .convo-form.tray-open .convo-input { flex-wrap: nowrap; }
+  .convo-form.tray-open .convo-input textarea { order: 0; flex-basis: auto; }
+  .convo-form.tray-open .convo-input .tray-btn, .convo-form.tray-open .convo-input .mic-btn, .convo-form.tray-open .convo-input .send-btn { order: 0; }
+  .convo-tray { grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 8px; }
+  .tray-tile .tool-btn { width: 44px; height: 44px; }
+}
+/* more send effects */
+.fx-dim { background: linear-gradient(rgba(20, 30, 50, 0.35), rgba(20, 30, 50, 0.15)); animation: fxFade 0.5s ease; }
+.fx-matrix .fx-code { position: absolute; top: -60%; white-space: pre; font: 700 14px/1.1 ui-monospace, monospace; color: #39ff14; text-shadow: 0 0 6px #39ff14; animation: fxFall var(--t) linear var(--d) forwards; opacity: 0; font-style: normal; }
+.fx-heartbeat { animation: fxBeat 0.9s ease-in-out 2; }
+@keyframes fxBeat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.18); } 30% { transform: scale(1); } 45% { transform: scale(1.12); } }
+.fx-flip { animation: fxFlip 0.85s ease; }
+@keyframes fxFlip { from { transform: perspective(500px) rotateY(180deg); opacity: 0.2; } to { transform: perspective(500px) rotateY(0); opacity: 1; } }
+.fx-dropin { animation: fxDropIn 0.85s cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes fxDropIn { from { transform: translateY(-300px) rotate(-10deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.fx-tornado { animation: fxTornado 1.2s ease-out; }
+@keyframes fxTornado { 0% { transform: rotate(-1080deg) scale(0.1); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.fx-jelly { animation: fxJelly 1s ease; }
+@keyframes fxJelly { 0%, 100% { transform: scale(1, 1); } 25% { transform: scale(1.25, 0.75); } 40% { transform: scale(0.8, 1.2); } 55% { transform: scale(1.1, 0.9); } 70% { transform: scale(0.95, 1.05); } }
+.fx-explode { animation: fxExplode 0.8s ease-out; }
+@keyframes fxExplode { 0% { transform: scale(0.2); filter: brightness(3); } 40% { transform: scale(1.25); } 100% { transform: none; filter: none; } }
