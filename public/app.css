@@ -6267,3 +6267,10 @@ body[data-page="messages"] .view { padding-bottom: 0 !important; }
 .mp-btns { display: flex; gap: 8px; margin-top: 12px; }
 .mp-btns .btn { flex: 1; }
 .mp-btns .btn { white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-left: 10px; padding-right: 10px; }
+/* ---------- Messages & groups on a computer: the whole screen, edge to edge ---------- */
+@media (min-width: 761px) {
+  body[data-page="messages"] .view { max-width: none !important; width: 100% !important; margin: 0 !important; padding: var(--topbar) 0 0 !important; }
+  body[data-page="messages"] .messenger { height: calc(100dvh - var(--topbar)) !important; max-width: none !important; width: 100% !important; margin: 0 !important; border-radius: 0 !important; border: none !important; border-top: 1px solid var(--line) !important; box-shadow: none !important; }
+  body[data-page="messages"] .messenger.group-open::before, body[data-page="messages"] .messenger::before { border-radius: 0 !important; }
+  body[data-page="messages"] .dock { display: none; }
+}
