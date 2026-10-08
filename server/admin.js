@@ -14,7 +14,7 @@ const isOwner = (u) => Boolean(u) && (u.panel ? u.role === "owner" : OWNERS().in
 const isAdmin = (u) => Boolean(u) && (u.panel || isOwner(u) || Boolean(u.admin));
 const TEAM = { id: "team", blocked: [] };
 
-const VERIFY_TYPES = ["creator", "musician", "singer", "dj", "band", "artist", "photographer", "filmmaker", "actor", "dancer", "comedian", "writer", "journalist", "gamer", "streamer", "athlete", "chef", "fashion", "designer", "developer", "business", "public-figure", "organization", "other"];
+const VERIFY_TYPES = ["creator", "musician", "singer", "rapper", "dj", "band", "artist", "photographer", "filmmaker", "actor", "dancer", "comedian", "writer", "journalist", "gamer", "streamer", "athlete", "chef", "fashion", "designer", "developer", "business", "public-figure", "organization", "other"];
 
 const now = () => new Date().toISOString();
 const clip = (t, n) => String(t || "").trim().slice(0, n);

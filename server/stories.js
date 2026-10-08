@@ -44,6 +44,9 @@ function storyView(s, me) {
     taggedMe: (s.tags || []).includes(me.id),
     canRepost: live(s) && s.userId !== me.id && (s.tags || []).includes(me.id) && !repostedBy(s, me),
     comments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).length,
+    // The newest comments, shown right on the story
+    latestComments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).slice(-3)
+      .map((c) => { const u = findUser(c.userId); return { id: c.id, name: u.name, username: u.username, avatar: u.avatar, text: c.text || (c.gif ? "GIF" : ""), byOwner: c.userId === s.userId }; }),
     repostOf: s.repostOf ? (() => { const o = findUser(s.repostOf.userId); return o ? { username: o.username, name: o.name } : null; })() : null,
   };
   if (s.userId === me.id) {

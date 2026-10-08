@@ -2,6 +2,7 @@
 const GLYPHS = {
  "creator": "<path d=\"m8 12.3 2.7 2.7L16.2 9.4\"/>",
  "musician": "<path d=\"M10.5 15.5V8.3l5-1.3v7\"/><circle cx=\"9\" cy=\"15.6\" r=\"1.6\"/><circle cx=\"14\" cy=\"14.1\" r=\"1.6\"/>",
+ "rapper": "<rect x=\"10.4\" y=\"6.6\" width=\"3.2\" height=\"5.6\" rx=\"1.6\"/><path d=\"M8.8 11.2a3.2 3.2 0 0 0 6.4 0M12 14.4v2.4M10.2 16.8h3.6\"/>",
  "singer": "<rect x=\"10.3\" y=\"6.8\" width=\"3.4\" height=\"6\" rx=\"1.7\"/><path d=\"M8.6 11.5a3.4 3.4 0 0 0 6.8 0M12 15v2\"/>",
  "dj": "<path d=\"M7.5 14v-1.8a4.5 4.5 0 0 1 9 0V14\"/><rect x=\"6.8\" y=\"13\" width=\"2.4\" height=\"3.6\" rx=\"1\"/><rect x=\"14.8\" y=\"13\" width=\"2.4\" height=\"3.6\" rx=\"1\"/>",
  "band": "<path d=\"M13.6 7.4 16.4 7l-.4 2.8M16 7.4l-4.6 4.6\"/><circle cx=\"9.6\" cy=\"14.4\" r=\"2.6\"/>",
@@ -30,6 +31,7 @@ export const VERIFY_TYPES = [
   ["creator", "Creator", "✨", "#ff4fa3"],
   ["musician", "Musician", "🎵", "#a66bff"],
   ["singer", "Singer", "🎤", "#d36bff"],
+  ["rapper", "Rapper", "🎙️", "#ffb000"],
   ["dj", "DJ / Producer", "🎧", "#6b8bff"],
   ["band", "Band", "🎸", "#8f5cff"],
   ["artist", "Artist", "🎨", "#ff9f43"],

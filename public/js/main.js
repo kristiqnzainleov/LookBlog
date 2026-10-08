@@ -240,12 +240,11 @@ function setupMenu() {
 
 
   connect();
-  // Phones: the bottom menu steps aside while you scroll down and comes back when you scroll up
+  // The bottom menu steps aside while you scroll down and comes back when you scroll up (phones and computers)
   {
     let lastY = scrollY, moved = 0;
     addEventListener("scroll", () => {
       const y = scrollY, d = y - lastY; lastY = y;
-      if (!matchMedia("(max-width: 640px)").matches) return document.body.classList.remove("dock-away");
       moved = Math.sign(d) === Math.sign(moved) ? moved + d : d;
       if (y < 40 || moved < -18) document.body.classList.remove("dock-away");
       else if (moved > 28) document.body.classList.add("dock-away");

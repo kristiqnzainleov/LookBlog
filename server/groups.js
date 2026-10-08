@@ -280,15 +280,16 @@ async function handleGroupRoutes(req, res, me, chat, parts, helpers) {
     const names = [...new Set((await readJSON(req)).usernames || [])].slice(0, 20);
     let inv = (chat.invites || []).find((i) => i.by === me.id && !i.maxUses && i.expiresAt && new Date(i.expiresAt).getTime() > Date.now() + 86400000);
     if (!inv) inv = makeInvite(chat, me, { days: 7 });
-    const sent = [];
+    const sent = [], chats = {};
     for (const n of names) {
       const u = findByUsername(String(n));
       if (!u || u.id === me.id || chat.members.includes(u.id)) continue;
       notify(u.id, "invite", me, { text: chat.description || chat.name, chatId: chat.id, group: chat.name, code: inv.code });
-      helpers.dmInvite?.(me, u, chat, inv.code);
+      const dmId = helpers.dmInvite?.(me, u, chat, inv.code);
+      if (dmId) chats[u.username] = dmId;
       sent.push(u.username);
     }
-    sendJSON(res, 200, { sent, invite: inviteView(inv) });
+    sendJSON(res, 200, { sent, chats, invite: inviteView(inv) });
     return true;
   }
 

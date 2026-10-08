@@ -86,6 +86,7 @@ function unread(chat, me) {
 function preview(msg) {
   if (!msg) return "";
   if (msg.poll) return `📊 Poll: ${msg.poll.question}`;
+  if (msg.groupInvite) return `📨 Invite to ${findChat(msg.groupInvite.chatId)?.name || "a group"}`;
   if (msg.unlockAt && Date.now() < new Date(msg.unlockAt).getTime()) return "⏳ A time capsule";
   if (msg.game) return `${gameDef(msg.game.type)?.emoji || "🎮"} Started a game of ${gameDef(msg.game.type)?.name || "something"}`;
   if (msg.viewOnce) return msg.viewOnce.gone || (msg.media ? msg.media.kind : "text") === "text" ? "👁 View-once message" : msg.media?.kind === "video" ? "👁 View-once video" : "👁 View-once photo";
@@ -285,6 +286,7 @@ function messageViewFull(msg, me) {
     reactions: reactionsView(msg, me),
     notes: notesView(msg, me),
     poll: msg.poll ? chatPollView(msg.poll, me, chat) : null,
+    groupInvite: msg.groupInvite ? groupInviteView(msg.groupInvite, me) : null,
     style: msg.system ? null : msgStyleOf(msg.userId),
     sound: msg.system ? null : findUser(msg.userId)?.msgSound || null,
     effect: msg.effect || null,
@@ -477,18 +479,28 @@ function deleteChannelMessages(chat, channelId) {
   save("messages");
 }
 // An invite sent as a direct message (only between people who follow each other)
+// A group invite goes to the chat between the two of you, as a card with a Join button (it opens that chat)
 function dmInvite(me, user, group, code) {
-  if (!mutual(me, user)) return;
+  const { blockedBetween } = require("./social");
+  if (blockedBetween(me, user)) return null;
   let dm = db.chats.find((ch) => ch.kind === "dm" && ch.members.includes(me.id) && ch.members.includes(user.id));
   if (!dm) {
     dm = { id: crypto.randomUUID(), kind: "dm", members: [me.id, user.id], createdAt: new Date().toISOString(), lastAt: new Date().toISOString(), reads: {} };
     db.chats.push(dm);
   }
-  const msg = { id: crypto.randomUUID(), chatId: dm.id, userId: me.id, text: `📨 Join ${group.name} on LookBlog: /invite/${code}`, media: null, postId: null, replyTo: null, mentions: [], createdAt: new Date().toISOString() };
+  const msg = { id: crypto.randomUUID(), chatId: dm.id, userId: me.id, text: "", groupInvite: { chatId: group.id, code }, media: null, postId: null, replyTo: null, mentions: [], createdAt: new Date().toISOString() };
   db.messages.push(msg);
   dm.lastAt = msg.createdAt;
   save("messages"); save("chats");
   deliver(dm, msg);
+  return dm.id;
+}
+function groupInviteView(gi, me) {
+  const g = findChat(gi.chatId);
+  if (!g) return { gone: true };
+  const inv = (g.invites || []).find((i) => i.code === gi.code);
+  const expired = !inv || (inv.expiresAt && new Date(inv.expiresAt).getTime() < Date.now()) || (inv.maxUses && (inv.uses || 0) >= inv.maxUses);
+  return { chatId: g.id, code: gi.code, name: g.name, description: (g.description || "").slice(0, 120), cover: g.cover || null, color: g.color || null, members: g.members.length, member: g.members.includes(me.id), expired: Boolean(expired) };
 }
 
 // Which text channel a group message belongs to (older messages had none: they live in the first one)

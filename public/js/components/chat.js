@@ -197,6 +197,27 @@ function paintReactions(messageId, reactions, chat) {
   row.querySelector(".reactions").replaceWith(reactionsEl(msg, chat));
 }
 
+/* ---------- A group invite, as a card ---------- */
+function groupInviteCard(gi) {
+  if (gi.gone) return h("div", { class: "gi-card gone" }, h("b", { text: "📨 This group doesn’t exist anymore." }));
+  const go = h("button", { type: "button", class: "btn btn-primary btn-sm gi-join", text: gi.member ? "Open the group" : gi.expired ? "Invite expired" : "Join group", disabled: !gi.member && gi.expired });
+  go.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (gi.member) return navigate(`/messages/${gi.chatId}`);
+    go.disabled = true; go.textContent = "Joining…";
+    try { await api(`/api/invites/${encodeURIComponent(gi.code)}/accept`, { method: "POST" }); emit("chats:changed"); toast(`🎉 You joined ${gi.name}!`); navigate(`/messages/${gi.chatId}`); }
+    catch (err) { toast(err.error || "Couldn’t join."); go.disabled = false; go.textContent = "Join group"; }
+  });
+  return h("div", { class: "gi-card", style: gi.color ? `--gc:${gi.color}` : "" },
+    h("div", { class: "gi-top", style: gi.cover ? `background-image:url("${gi.cover}")` : "" }),
+    h("div", { class: "gi-body" },
+      h("small", { class: "gi-label", text: "📨 Invite to a group" }),
+      h("b", { class: "gi-name", text: gi.name }),
+      gi.description ? h("p", { class: "gi-desc", text: gi.description }) : null,
+      h("span", { class: "gi-members", text: `${gi.members} ${gi.members === 1 ? "member" : "members"}` }),
+      go));
+}
+
 /* ---------- Polls in chats ---------- */
 function chatPollEl(msg, chat) {
   const p = msg.poll;
@@ -717,6 +738,7 @@ function messageEl(msg, chat, onRemoved) {
   }
   const media = msg.game ? gameView(chat.id, msg.id, msg.game)
     : msg.poll ? chatPollEl(msg, chat)
+    : msg.groupInvite ? groupInviteCard(msg.groupInvite)
     : msg.media?.gif ? h("img", { class: "msg-gif", src: msg.media.url, alt: "GIF" })
     : msg.media?.sticker ? h("img", { class: "sticker-img", src: msg.media.url, alt: "Sticker" })
     : msg.media?.kind === "sound" ? soundChip(msg.media)
@@ -730,7 +752,7 @@ function messageEl(msg, chat, onRemoved) {
   const call = chat.kind === "dm" && !msg.media && !msg.post ? callNoteText(msg.text, msg.mine, chat.other.name) : null;
   const onlyEmoji = msg.text && !msg.media && !msg.post && /^(\p{Extended_Pictographic}|\p{Emoji_Component}|\u200D|\uFE0F|\s){1,24}$/u.test(msg.text) && [...msg.text.replace(/\s/g, "")].length <= 12;
   const quote = msg.replyTo ? replyQuote(msg.replyTo) : null;
-  const bubble = h("div", { class: "bubble" + (msg.game ? " game-bubble" : "") + (msg.poll ? " poll-bubble" : "") + (onlyEmoji && !quote && !msg.storyReply && !msg.noteReply ? " emoji-only" : "") + (msg.media?.kind === "audio" ? " voice-bubble" : "") + (msg.media?.sticker ? " sticker-bubble" : "") + (msg.storyReply?.reaction || msg.instantReply?.reaction ? " story-react" : "") },
+  const bubble = h("div", { class: "bubble" + (msg.game ? " game-bubble" : "") + (msg.poll ? " poll-bubble" : "") + (msg.groupInvite ? " invite-bubble" : "") + (onlyEmoji && !quote && !msg.storyReply && !msg.noteReply ? " emoji-only" : "") + (msg.media?.kind === "audio" ? " voice-bubble" : "") + (msg.media?.sticker ? " sticker-bubble" : "") + (msg.storyReply?.reaction || msg.instantReply?.reaction ? " story-react" : "") },
     chat.kind === "group" && !msg.mine ? h("a", { class: "bubble-name", href: profileHref(msg.author.username), style: roleColor(chat, msg.author.username) }, shownName(msg.author), tick(msg.author, 13)) : null,
     quote,
     msg.storyReply ? h("div", { class: "note-quote story-quote" },

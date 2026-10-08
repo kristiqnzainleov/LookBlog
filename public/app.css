@@ -6274,3 +6274,27 @@ body[data-page="messages"] .view { padding-bottom: 0 !important; }
   body[data-page="messages"] .messenger.group-open::before, body[data-page="messages"] .messenger::before { border-radius: 0 !important; }
   body[data-page="messages"] .dock { display: none; }
 }
+/* the bottom menu on a computer: it slides down out of the way while you scroll down */
+@media (min-width: 641px) {
+  .dock { transition: transform 0.3s cubic-bezier(.2, .8, .2, 1), opacity 0.3s; }
+  body.dock-away .dock { transform: translate(-50%, calc(100% + 40px)); opacity: 0; pointer-events: none; }
+}
+/* the newest comments, floating on the story */
+.sv-cmts { position: absolute; left: 12px; right: 70px; bottom: calc(var(--foot-h, 120px) + 8px); z-index: 4; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 0; border: none; background: none; text-align: left; cursor: pointer; -webkit-mask: linear-gradient(transparent, #000 22%); mask: linear-gradient(transparent, #000 22%); }
+.sv-cmts[hidden] { display: none; }
+.sv-cmt { display: flex; align-items: flex-start; gap: 7px; max-width: 100%; padding: 6px 10px 6px 6px; border-radius: 16px; background: rgba(0, 0, 0, 0.42); backdrop-filter: blur(8px); color: #fff; font-size: 0.84rem; line-height: 1.3; animation: svCmtIn 0.3s ease-out; }
+.sv-cmt span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
+.sv-cmt b { font-weight: 800; }
+.sv-cmt-more { padding: 2px 8px; color: rgba(255, 255, 255, 0.85); font-weight: 700; font-size: 0.75rem; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
+@keyframes svCmtIn { from { opacity: 0; transform: translateY(8px); } }
+/* a group invite in a chat */
+.bubble.invite-bubble { padding: 0 !important; overflow: hidden; min-width: min(280px, 70vw); max-width: 320px; }
+.gi-card { display: flex; flex-direction: column; color: var(--paper); }
+.gi-top { height: 72px; background: linear-gradient(120deg, var(--gc, var(--pink)), #9b5cff); background-size: cover; background-position: center; }
+.gi-body { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px 14px; background: var(--card-2); }
+.gi-label { color: var(--muted); font-weight: 700; font-size: 0.72rem; }
+.gi-name { font: 800 1.05rem var(--display); }
+.gi-desc { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.35; }
+.gi-members { font-size: 0.78rem; color: var(--muted); }
+.gi-join { margin-top: 8px; width: 100%; }
+.gi-card.gone { padding: 14px; }

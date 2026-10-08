@@ -147,11 +147,28 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     if (s.repostOf) who.append(h("a", { class: "sv-repost", href: profileHref(s.repostOf.username), text: "🔁 @" + s.repostOf.username,
       onclick: (e) => { e.preventDefault(); close(); navigate(profileHref(s.repostOf.username)); } }));
     paintFoot(s);
+    paintCommentsOnStory(s);
     frame.style.setProperty("--foot-h", foot.offsetHeight + "px");
     if (!s.mine && !s.seen) { s.seen = true; api(`/api/stories/${s.id}/view`, { method: "POST" }).catch(() => {}); }
     group().unseen = group().stories.some((x) => !x.seen);
     paintBars(0);
     timer = requestAnimationFrame(tickTime);
+  }
+  // The newest comments float on the story itself (tap them to see all and write one)
+  const onStory = h("button", { type: "button", class: "sv-cmts", "aria-label": "Comments" });
+  frame.append(onStory);
+  onStory.addEventListener("click", (e) => { e.stopPropagation(); const s = story(); if (s) showComments(s); });
+  function paintCommentsOnStory(s) {
+    const list = s.latestComments || [];
+    onStory.hidden = !list.length;
+    onStory.replaceChildren(...list.map((c) => h("div", { class: "sv-cmt" }, avatar(c, 24), h("span", {}, h("b", { text: c.name + (c.byOwner ? " ✦" : "") }), " ", c.text))),
+      s.comments > list.length ? h("small", { class: "sv-cmt-more", text: `View all ${s.comments} comments` }) : null);
+    frame.style.setProperty("--foot-h", foot.offsetHeight + "px");
+    // (above the story's own words, if it has some)
+    requestAnimationFrame(() => {
+      const fr = frame.getBoundingClientRect(), cap = caption.textContent.trim() ? caption.getBoundingClientRect() : null;
+      onStory.style.bottom = cap && cap.height ? `${Math.round(fr.bottom - cap.top + 8)}px` : "";
+    });
   }
   // Comments: they stay on the story; everyone who can see it sees them
   function commentsBtn(s) {
@@ -167,6 +184,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     const gifBtn = h("button", { type: "button", class: "sv-gif sc-gif", title: "GIF", "aria-label": "Comment with a GIF" }, h("span", { text: "GIF" }));
     const paintList = (comments) => {
       s.comments = comments.length;
+      s.latestComments = comments.slice(-3).map((c) => ({ id: c.id, name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : ""), byOwner: c.byOwner }));
+      if (story() === s) paintCommentsOnStory(s);
       frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(comments.length); });
       list.replaceChildren(...(comments.length ? comments.map((c) => {
         const like = h("button", { type: "button", class: "sc-like" + (c.liked ? " on" : ""), "aria-label": "Like" }, h("span", { text: c.liked ? "❤️" : "🤍" }), h("small", { text: c.likes ? String(c.likes) : "" }));
@@ -333,6 +352,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     if (!s || ev.id !== s.id) return;
     s.comments = ev.count;
     frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(ev.count); });
+    api(`/api/stories/${s.id}/comments`).then((r) => { s.latestComments = r.comments.slice(-3).map((c) => ({ id: c.id, name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : ""), byOwner: c.byOwner })); if (story() === s) paintCommentsOnStory(s); }).catch(() => {});
   });
   function close() {
     if (closed) return;

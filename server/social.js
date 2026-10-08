@@ -2006,7 +2006,7 @@ async function handleSocial(req, res, url, me) {
       }
       if (mine && mine.status === "rejected" && Date.now() - new Date(mine.createdAt).getTime() < 30 * 86400000) throw httpError(400, "You can apply again 30 days after your last application.");
       const body = await readJSON(req);
-      const CATS = ["creator", "musician", "singer", "dj", "band", "artist", "photographer", "filmmaker", "actor", "dancer", "comedian", "writer", "journalist", "gamer", "streamer", "athlete", "chef", "fashion", "designer", "developer", "business", "public-figure", "organization", "other"];
+      const CATS = ["creator", "musician", "singer", "rapper", "dj", "band", "artist", "photographer", "filmmaker", "actor", "dancer", "comedian", "writer", "journalist", "gamer", "streamer", "athlete", "chef", "fashion", "designer", "developer", "business", "public-figure", "organization", "other"];
       const fullName = clean(body.fullName).slice(0, 80);
       const category = CATS.includes(body.category) ? body.category : null;
       const about = clean(body.about).slice(0, 1000);

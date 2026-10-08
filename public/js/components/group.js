@@ -45,9 +45,12 @@ export function openInvite(chat) {
       b.addEventListener("click", async () => {
         b.disabled = true;
         try {
-          await api(`/api/groups/${chat.id}/invite-people`, { method: "POST", body: { usernames: [u.username] } });
+          const r = await api(`/api/groups/${chat.id}/invite-people`, { method: "POST", body: { usernames: [u.username] } });
           sent.add(u.username);
           b.textContent = "Invited ✓"; b.className = "btn btn-xs btn-following";
+          // The invite is in your chat with them: open it
+          const dm = r.chats?.[u.username];
+          if (dm) { toast(`📨 Invite sent to ${u.name}.`); md.close(); navigate(`/messages/${dm}`); }
         } catch (err) { toast(err.error || "Couldn’t invite them."); b.disabled = false; }
       });
       return h("div", { class: "conn-row" }, avatar(u, 40), h("div", { class: "who" }, h("b", {}, u.name, tick(u, 14)), h("span", { class: "muted", text: "@" + u.username })), b);
@@ -62,7 +65,7 @@ export function openInvite(chat) {
     timer = setTimeout(() => (q ? api(`/api/users/lookup?q=${encodeURIComponent(q)}`).then(({ users }) => paint(users)).catch(() => {}) : loadDefault()), 200);
   });
   loadDefault();
-  modal({ title: `Invite people to ${chat.name}`, body: h("div", { class: "create-form" },
+  const md = modal({ title: `Invite people to ${chat.name}`, body: h("div", { class: "create-form" },
     search, list,
     h("b", { class: "vis-label", text: "Or send a link" }),
     h("div", { class: "invite-row" }, link, copy),
