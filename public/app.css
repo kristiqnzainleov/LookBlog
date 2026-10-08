@@ -5818,3 +5818,28 @@ body.bass-boost .vd-music-btn [data-bass-name] { color: #fff !important; text-sh
   .lb-who b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; line-height: 1.25; }
   .lb-who small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+/* Pickers that open from inside a window (a note, a post, a chat window…) sit above it */
+.emoji-panel, .mention-box, .pic-menu, .sticker-panel, .gif-panel, .snd-panel { z-index: 950; }
+/* ---------- Phones: the bottom menu (a tab bar: icon + name, the page you're on in pink) ---------- */
+@media (max-width: 640px) {
+  .dock {
+    left: 0; right: 0; bottom: 0; transform: none; width: 100%;
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 0;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    border-radius: 22px 22px 0 0; border: none; border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(18, 16, 17, 0.86); backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
+    transition: transform 0.28s cubic-bezier(.2, .8, .2, 1);
+  }
+  body.dock-away .dock { transform: translateY(110%); }
+  .nav-link { flex-direction: column; justify-content: center; gap: 3px; padding: 5px 0 3px; border-radius: 14px; min-width: 0; color: #8f8790; background: none !important; -webkit-tap-highlight-color: transparent; }
+  .nav-link span { display: block; font: 600 0.62rem/1 var(--body); letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .nav-link svg { width: 22px; height: 22px; padding: 4px 14px; box-sizing: content-box; border-radius: 999px; transition: background 0.2s, transform 0.15s; }
+  .nav-link:active svg { transform: scale(0.88); }
+  .nav-link.active { color: var(--pink); background: none; }
+  .nav-link.active svg { background: color-mix(in srgb, var(--pink) 18%, transparent); stroke-width: 2.3; }
+  .nav-link.active span { font-weight: 800; }
+  .view { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  /* the floating buttons sit above the menu */
+  .fab, .msgs-cam, .scroll-top { bottom: calc(84px + env(safe-area-inset-bottom)) !important; }
+}
