@@ -278,9 +278,10 @@ export function actions(p, { onDeleted, big = false } = {}) {
       if (!scope) { if (++tries < 20) return requestAnimationFrame(place); return; }
       let media = scope.querySelector(".reel-frame, .media-grid, .lb-player, .video-card .thumb") || (scope.classList.contains("watch-main") ? document.querySelector(".watch-stage .lb-player") : null);
       // A post with only words: the photos sit on the post's text (in a little space under it)
+      // A post with only words: the photos get their own little space under the text (not on top of it)
       if (!media) {
-        const text = scope.querySelector(".post-text, .chain-card, .poll");
-        if (text) { media = h("div", { class: "fa-text-host" }); text.before(media); media.append(text); }
+        const text = [...scope.querySelectorAll(".post-text, .chain-card, .poll")].pop();
+        if (text) { media = h("div", { class: "fa-zone" }); text.after(media); }
       }
       if (media) {
         media.classList.add("fa-host");
@@ -530,9 +531,9 @@ export function withReason(el, p) {
 }
 
 /* ---------- Mutuals who liked, reposted or gave a Cool (like Instagram) ---------- */
-const FA_BADGE = { like: "❤️", repost: "🔁", cool: "😎" };
-const FA_VERB = { like: "liked it", repost: "reposted it", cool: "gave it a Cool" };
-const faMain = (did) => ["repost", "cool", "like"].find((k) => did.includes(k)) || "like";
+const FA_BADGE = { like: "❤️", repost: "🔁", cool: "😎", dislike: "👎" };
+const FA_VERB = { like: "liked it", repost: "reposted it", cool: "gave it a Cool", dislike: "disliked it" };
+const faMain = (did) => ["repost", "cool", "like", "dislike"].find((k) => did.includes(k)) || "like";
 const faTitle = (u) => { const v = u.did.map((d) => FA_VERB[d]); return `${u.name} ${v.length > 1 ? v.slice(0, -1).join(", ") + " and " + v.at(-1) : v[0]}`; };
 // No photo or video: a line under the post
 function friendsRow(p) {
@@ -546,7 +547,7 @@ function friendsRow(p) {
     const tail = rest > 0 ? [" and ", h("b", { text: `${rest} other${rest === 1 ? "" : "s"}` })] : [];
     row.replaceChildren(
       h("span", { class: "fa-stack" }, ...f.people.slice(0, 3).map((u) => h("a", { class: "fa-av", href: profileHref(u.username), title: faTitle(u) }, avatar(u, 22), h("i", { class: "fa-badge", text: FA_BADGE[faMain(u.did)] })))),
-      h("span", { class: "fa-text" }, ...(did === "like" ? ["Liked by ", who, ...tail] : [who, ...tail, did === "repost" ? " reposted" : " gave it a Cool 😎"])));
+      h("span", { class: "fa-text" }, ...(did === "like" ? ["Liked by ", who, ...tail] : [who, ...tail, did === "repost" ? " reposted" : did === "dislike" ? " disliked it" : " gave it a Cool 😎"])));
   };
   row.paint();
   return row;
@@ -617,7 +618,7 @@ function flyFriend(bar, user, did) {
   // From the bottom of the photo or video (or from the button, if the post has none)
   const m = bar._media?.isConnected ? bar._media.getBoundingClientRect() : null;
   const onMedia = m && m.width && m.bottom > 60 && m.top < innerHeight - 60;
-  const btn = bar.querySelector(did === "repost" ? ".act-repost" : did === "cool" ? ".act-cool" : ".act-like") || bar;
+  const btn = bar.querySelector(did === "repost" ? ".act-repost" : did === "cool" ? ".act-cool" : did === "dislike" ? ".act-dislike" : ".act-like") || bar;
   const r = onMedia ? m : btn.getBoundingClientRect();
   if (!r.width || r.bottom < 0 || r.top > innerHeight || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const x = onMedia ? r.left + Math.min(r.width - 40, 46 + Math.random() * Math.min(120, r.width / 3)) : r.left + r.width / 2;
@@ -627,7 +628,7 @@ function flyFriend(bar, user, did) {
     avatar(user, 38), h("i", { class: "fa-badge", text: FA_BADGE[did] || "❤️" }));
   document.body.append(el);
   for (let i = 0; i < 4; i++) {
-    const t = h("span", { class: "fa-bit", style: `left:${x}px;top:${y}px;--dx:${(Math.random() - 0.5) * 90}px;--d:${i * 0.12}s`, "aria-hidden": "true", text: did === "repost" ? ["✨", "🔁"][i % 2] : did === "cool" ? ["😎", "✨", "🔥"][i % 3] : ["❤️", "💖", "💗"][i % 3] });
+    const t = h("span", { class: "fa-bit", style: `left:${x}px;top:${y}px;--dx:${(Math.random() - 0.5) * 90}px;--d:${i * 0.12}s`, "aria-hidden": "true", text: did === "repost" ? ["✨", "🔁"][i % 2] : did === "cool" ? ["😎", "✨", "🔥"][i % 3] : did === "dislike" ? ["👎", "💨", "😬"][i % 3] : ["❤️", "💖", "💗"][i % 3] });
     document.body.append(t);
     setTimeout(() => t.remove(), 1700);
   }

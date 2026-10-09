@@ -6801,3 +6801,12 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 .view[data-stst="gradient"] .profile .stats > * { background: linear-gradient(135deg, var(--pink), #9b5cff) !important; color: #fff !important; border: none !important; }
 .view[data-stst="gradient"] .profile .stats > * * { color: #fff !important; }
 .view[data-stst="outline"] .profile .stats > * { background: transparent !important; border: 2px solid currentColor !important; }
+/* Text posts: the friends' photos sit in their own space under the words, with a gap */
+.fa-zone { position: relative; height: 60px; margin-top: 14px; }
+.fa-zone:not(:has(> .fa-bubbles:not([hidden]))) { display: none; }
+.fa-zone > .fa-bubbles { padding: 6px 4px; }
+.fa-fly.dislike { box-shadow: 0 0 0 2.5px #8a93a6, 0 0 18px rgba(138, 147, 166, 0.55); }
+.fa-fly.cool { box-shadow: 0 0 0 2.5px #ffd23f, 0 0 18px rgba(255, 210, 63, 0.55); }
+/* Each photo's little icon stays visible (the earlier photo sits on top of the next one) */
+.fa-bub { margin-left: -4px; }
+.fa-bub:nth-child(1) { z-index: 5; } .fa-bub:nth-child(2) { z-index: 4; } .fa-bub:nth-child(3) { z-index: 3; } .fa-bub:nth-child(4) { z-index: 2; }

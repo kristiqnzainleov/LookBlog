@@ -322,7 +322,7 @@ const lastOpen = new Map(); // "postId:userId" → when they last opened it
 function stats(p) {
   return { likes: p.likes.length, dislikes: p.dislikes.length, views: (p.views ?? p.viewedBy.length), comments: p.commentCount, reposts: p.reposts.length, cools: p.cools.length, shares: p.shares || 0 };
 }
-// My mutuals (we follow each other) who liked, reposted or gave a Cool to this — like Instagram's bubbles on a reel
+// My mutuals (we follow each other) who liked, disliked, reposted or gave a Cool to this — like Instagram's bubbles on a reel
 const isMutual = (u, me) => (me.following || []).includes(u.id) && (u.following || []).includes(me.id) && !blockedBetween(u, me);
 function friendActs(p, me) {
   if (!(me.following || []).length) return null;
@@ -336,6 +336,7 @@ function friendActs(p, me) {
   for (const r of [...p.reposts].reverse()) add(r.userId, "repost");
   for (const id of [...(p.cools || [])].reverse()) add(id, "cool");
   for (const id of [...p.likes].reverse()) add(id, "like");
+  for (const id of [...p.dislikes].reverse()) add(id, "dislike");
   const people = [...seen.values()].filter(Boolean);
   if (!people.length) return null;
   return { people: people.slice(0, 6), count: people.length };
@@ -884,7 +885,7 @@ async function handleSocial(req, res, url, me) {
     if (!post) throw httpError(404, "This post doesn’t exist anymore.");
     if (post.film) throw httpError(400, "Movies are rated with stars instead.");
     const { reaction } = await readJSON(req);
-    const hadLike = post.likes.includes(me.id);
+    const hadLike = post.likes.includes(me.id), hadDislike = post.dislikes.includes(me.id);
     post.likes = post.likes.filter((id) => id !== me.id);
     post.dislikes = post.dislikes.filter((id) => id !== me.id);
     if (reaction === "like") post.likes.push(me.id);
@@ -896,6 +897,7 @@ async function handleSocial(req, res, url, me) {
     save("posts");
     sendStats(post);
     if (reaction === "like" && !hadLike) sendFriendAct(post, me, "like");
+    if (reaction === "dislike" && !hadDislike) sendFriendAct(post, me, "dislike");
     sendJSON(res, 200, { ...stats(post), reaction: reaction === "like" || reaction === "dislike" ? reaction : null });
     return true;
   }
