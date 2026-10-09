@@ -476,3 +476,15 @@ a { color: inherit; }
   /* the log-in / sign-up window fills the phone nicely */
   .modal-card { width: 100%; }
 }
+/* ---------- Phones: log in / sign up as a sheet from the bottom ---------- */
+@media (max-width: 640px) {
+  .overlay { align-items: flex-end !important; padding: 0 !important; }
+  .overlay .modal-wrap { max-width: none; width: 100%; max-height: 94dvh; padding: 0; filter: none; transform: translateY(100%); opacity: 1; transition: transform 0.32s cubic-bezier(0.2, 1, 0.3, 1); }
+  .overlay.open .modal-wrap { transform: translateY(0); }
+  .overlay .modal-card { border-radius: 26px 26px 0 0; border: none; border-top: 3px solid var(--pink); box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.6); }
+  .overlay .modal-body { padding: 14px 22px calc(22px + env(safe-area-inset-bottom)); }
+  .overlay .modal-body::before { content: ""; display: block; width: 44px; height: 5px; margin: 0 auto 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.22); }
+  .modal-card h2 { font-size: 1.7rem !important; line-height: 1.1; margin-bottom: 18px; }
+  .modal-card .field input, .modal-card input[type="text"], .modal-card input[type="email"], .modal-card input[type="password"] { height: 50px; font-size: 16px; }
+  .modal-card .btn { height: 52px; border-radius: 999px; font-size: 1.02rem; }
+}

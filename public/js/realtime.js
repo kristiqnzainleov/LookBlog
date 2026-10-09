@@ -55,9 +55,10 @@ export async function connect() {
     try { const r = await fetch("/api/realtime", { credentials: "same-origin" }); if (r.ok) info = await r.json(); else if (r.status === 401) return; } catch {}
     if (!info) await new Promise((ok) => setTimeout(ok, wait));
   }
-  // "I'm here" (and whether I'm idle: LookBlog is in the background, or I haven't touched it for 5 minutes)
+  // "I'm here" (and whether I'm idle: LookBlog is in the background)
   let lastActive = Date.now(), sentIdle = null;
-  const isIdle = () => document.visibilityState !== "visible" || Date.now() - lastActive > 5 * 60 * 1000;
+  // idle = LookBlog is open but in the background (another tab or app)
+  const isIdle = () => document.visibilityState !== "visible";
   const ping = (force = false) => {
     const idle = isIdle();
     if (!force && info.mode !== "supabase" && idle === sentIdle) return; // (locally the live connection already says I'm online)
@@ -67,6 +68,8 @@ export async function connect() {
   const active = () => { const was = isIdle(); lastActive = Date.now(); if (was && !isIdle()) ping(true); };
   for (const ev of ["pointerdown", "keydown", "scroll", "touchstart", "mousemove"]) addEventListener(ev, active, { passive: true, capture: true });
   document.addEventListener("visibilitychange", () => ping(true));
+  // Closing LookBlog: offline right away (so people see "Active … ago", not "Idle")
+  addEventListener("pagehide", () => { try { navigator.sendBeacon?.("/api/ping?gone=1", new Blob(["{}"], { type: "application/json" })) || fetch("/api/ping?gone=1", { method: "POST", headers: { "X-LookBlog": "1" }, keepalive: true }); } catch {} });
   setInterval(() => ping(info.mode === "supabase"), 30 * 1000);
   if (info.mode !== "supabase") {
     const es = new EventSource("/api/events");

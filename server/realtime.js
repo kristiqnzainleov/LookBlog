@@ -17,7 +17,7 @@ const clients = new Set();
 const connections = new Map(); // userId -> number of open tabs
 const offlineTimers = new Map();
 const OFFLINE_GRACE_MS = 8000; // a quick reload shouldn't flash "offline"
-const PING_ONLINE_MS = 150 * 1000; // online: a tab pinged within this time (tabs in the background ping more slowly)
+const PING_ONLINE_MS = 100 * 1000; // online: a tab pinged within this time (tabs in the background ping more slowly)
 
 function write(event, filter = null) {
   const data = `data: ${JSON.stringify(event)}\n\n`;
@@ -36,6 +36,15 @@ function isOnline(userId) {
 
 function announce(user, online) {
   broadcast({ type: "presence", username: user.username, online, idle: online && Boolean(user.idle), lastSeen: user.lastSeen || null });
+}
+// Closed LookBlog: offline straight away (unless another tab is still open: it pings again and I'm back)
+function goOffline(me) {
+  if (!store.enabled) return; // (locally the live connection closing does this)
+  if (!me.pingAt) return;
+  me.lastSeen = new Date().toISOString();
+  me.pingAt = 0; me.idle = false; me.offlineSaid = true;
+  save("users");
+  announce(me, false);
 }
 // A tab says whether I'm idle; others hear when it changes
 function setIdle(me, idle) {
@@ -160,4 +169,4 @@ if (!store.enabled) setInterval(() => {
 
 if (store.enabled) require("./ticker").every(sweepOffline, 20 * 1000);
 
-module.exports = { handleEvents, broadcast, sendTo, isOnline, presence, realtimeInfo, ping, setIdle, sweepOffline, flushRealtime };
+module.exports = { handleEvents, broadcast, sendTo, isOnline, presence, realtimeInfo, ping, setIdle, goOffline, sweepOffline, flushRealtime };

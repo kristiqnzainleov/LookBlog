@@ -86,7 +86,9 @@ function servePublic(res, relPath) {
 
 async function handleApi(req, res, url) {
   // Every write must carry this header. Other sites can't add it without permission, which blocks CSRF.
-  if (req.method !== "GET" && req.headers["x-lookblog"] !== "1") {
+  // (the one exception: "I closed LookBlog", sent as a beacon, which can't carry headers; it can only mark me offline)
+  const goneBeacon = req.method === "POST" && url.pathname === "/api/ping" && url.searchParams.get("gone") === "1";
+  if (req.method !== "GET" && req.headers["x-lookblog"] !== "1" && !goneBeacon) {
     return sendJSON(res, 403, { error: "Missing request header." });
   }
 
@@ -110,6 +112,8 @@ async function handleApi(req, res, url) {
   // Where my browser listens for live updates, and "my tab is open"
   if (req.method === "GET" && url.pathname === "/api/realtime") return sendJSON(res, 200, store.enabled ? realtimeInfo(me) : { mode: "sse" });
   if (req.method === "POST" && url.pathname === "/api/ping") {
+    // Closed the tab: offline now (a beacon can't add our header, so this one is allowed without it; it only logs me out of "online")
+    if (url.searchParams.get("gone") === "1") { require("./server/realtime").goOffline(me); return sendJSON(res, 200, { ok: true }); }
     const idle = url.searchParams.get("idle") === "1";
     if (store.enabled) ping(me, idle); else require("./server/realtime").setIdle(me, idle);
     return sendJSON(res, 200, { ok: true });

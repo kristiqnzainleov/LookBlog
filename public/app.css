@@ -6389,3 +6389,32 @@ body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }
 @media (min-width: 641px) { .page-profile .profile-top { margin-top: -96px !important; } }
 @media (max-width: 640px) { .page-profile .profile-top { margin-top: -64px !important; } .page-profile .profile-banner { height: 210px; } }
 .notes-row .note-bubble.empty { top: -22px !important; transform: translateX(-50%) !important; left: 50% !important; }
+/* ---------- Profiles: one simple rule for the width (fixes names sticking out) ---------- */
+.page-profile .profile > *:not(.profile-banner):not(.pfx) { max-width: none; margin-left: 0; margin-right: 0; }
+.page-profile .profile-top { max-width: none; margin-left: 0 !important; margin-right: 0 !important; }
+.page-profile .profile { --pf-pad: max(16px, calc((100% - 1040px) / 2)); padding-left: var(--pf-pad) !important; padding-right: var(--pf-pad) !important; }
+.page-profile .profile > .profile-banner { margin-left: calc(-1 * var(--pf-pad)); margin-right: calc(-1 * var(--pf-pad)); width: auto; }
+.page-profile .profile-top, .page-profile .profile h2, .page-profile .profile .handle, .page-profile .profile .bio, .page-profile .profile .joined, .page-profile .profile .stats { padding-left: 8px !important; padding-right: 8px !important; }
+.page-profile .profile h2 { overflow-wrap: anywhere; line-height: 1.08; font-size: clamp(1.9rem, 4vw, 3rem); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+@media (max-width: 640px) { .page-profile .profile h2 { font-size: clamp(1.7rem, 8.5vw, 2.3rem); } }
+.nl { -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+/* names in a post: cut with … instead of running off the card */
+.post-head .name { display: inline-block; min-width: 0; max-width: 100%; vertical-align: bottom; }
+/* ---------- Phones: photo posts ---------- */
+@media (max-width: 640px) {
+  .post { padding: 14px 12px 10px !important; gap: 10px !important; }
+  .post .post-avatar .avatar { --size: 38px !important; width: 38px !important; height: 38px !important; }
+  /* the photo uses the whole width of the card (not squeezed beside the avatar) */
+  .post .post-body > .media-grid, .post .post-body > .video-card, .post .post-body > .link-card, .post .post-body > .chain-card, .post .post-body > .poll { margin-left: -48px; width: calc(100% + 48px); }
+  .media-grid.n1 img, .media-grid.n1 video { max-height: 72vh; width: 100%; object-fit: cover; }
+  .media-grid.n1 { max-height: 72vh; }
+  /* the buttons: one tidy row you can swipe */
+  .post .post-actions { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; gap: 6px !important; margin-left: -48px; width: calc(100% + 48px); padding-bottom: 2px; }
+  .post .post-actions::-webkit-scrollbar { display: none; }
+  .post .post-actions .act { flex-shrink: 0; padding: 7px 10px; }
+  .post .post-actions .act-label { display: none; }
+}
+/* idle: one moon (the dot), not two */
+.presence-text.idle::before { content: none !important; }
+.page-profile .profile .profile-banner { width: 100vw !important; max-width: none !important; margin-left: calc(50% - 50vw) !important; margin-right: 0 !important; }
+.page-profile .profile { overflow: hidden; }
