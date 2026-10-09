@@ -1218,6 +1218,8 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   let stick = true;
   list.addEventListener("scroll", () => { stick = atBottom(); }, { passive: true });
   list.addEventListener("load", () => { if (stick) list.scrollTop = list.scrollHeight; }, true);
+  // When the keyboard opens (or closes) the list gets shorter (or taller): stay on the newest message, no jump
+  if ("ResizeObserver" in window) { let lastH = 0; new ResizeObserver(() => { const h0 = list.clientHeight; if (h0 !== lastH) { if (stick) list.scrollTop = list.scrollHeight; lastH = h0; } }).observe(list); }
 
   function add(msg, { prepend = false } = {}) {
     if (ids.has(msg.id)) return;

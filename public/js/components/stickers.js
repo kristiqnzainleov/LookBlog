@@ -22,6 +22,21 @@ export async function makeSticker() {
 
 // Tabs: "Mine" (your own stickers, usable anywhere) and "This group" (the group's stickers, only in that group).
 // onSend(sticker, kind) — kind is "mine" or "group".
+const touchy = () => matchMedia("(hover: none), (max-width: 640px)").matches;
+const REMOVE_HINT = () => (touchy() ? "Hold one to remove it" : "Right-click to remove");
+// On a phone there's no right-click: holding a sticker does the same
+document.addEventListener("pointerdown", (e) => {
+  const b = e.target.closest?.(".sticker-panel .sticker-grid > button, .sticker-panel .sticker-grid > .sticker-item");
+  // (Android already turns a long press into a right-click; iPhone doesn't)
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (!b || e.pointerType !== "touch" || !ios) return;
+  let fired = false;
+  const t = setTimeout(() => { fired = true; navigator.vibrate?.(10); b.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })); }, 520);
+  const stop = () => { clearTimeout(t); b.removeEventListener("pointerup", stop); b.removeEventListener("pointercancel", stop); b.removeEventListener("pointerleave", stop); };
+  b.addEventListener("pointerup", stop); b.addEventListener("pointercancel", stop); b.addEventListener("pointerleave", stop);
+  b.addEventListener("click", (ev) => { if (fired) { ev.preventDefault(); ev.stopImmediatePropagation(); } }, { capture: true, once: true });
+}, true);
+
 export function openStickers(anchor, onSend, { group = null, canManageGroup = false } = {}) {
   if (panel) return closeStickers();
   let tab = "mine";
@@ -43,7 +58,7 @@ export function openStickers(anchor, onSend, { group = null, canManageGroup = fa
   if (group) paintTabs();
 
   function paintGroup(list) {
-    hint.textContent = canManageGroup ? "Right-click to remove" : "";
+    hint.textContent = canManageGroup ? REMOVE_HINT() : "";
     const add = canManageGroup ? h("button", { type: "button", class: "sticker-new", title: "Add a sticker to this group" }, icon("plus"), h("span", { text: "Add" })) : null;
     add?.addEventListener("click", async () => {
       closeStickers();
@@ -75,7 +90,7 @@ export function openStickers(anchor, onSend, { group = null, canManageGroup = fa
   }
 
   function paint(stickers) {
-    hint.textContent = "Right-click to remove";
+    hint.textContent = REMOVE_HINT();
     const create = h("button", { type: "button", class: "sticker-new", title: "Make a sticker from a photo" }, icon("plus"), h("span", { text: "Make one" }));
     create.addEventListener("click", async () => {
       closeStickers();
