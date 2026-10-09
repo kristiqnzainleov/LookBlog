@@ -317,6 +317,30 @@ function starsView(map, me) {
 function stats(p) {
   return { likes: p.likes.length, dislikes: p.dislikes.length, views: p.viewedBy.length, comments: p.commentCount, reposts: p.reposts.length, cools: p.cools.length, shares: p.shares || 0 };
 }
+// People I follow who liked or reposted this (like Instagram's "Liked by …"): the newest few, and how many in all
+function friendActs(p, me) {
+  const follow = new Set(me.following || []);
+  if (!follow.size) return null;
+  const seen = new Map();
+  const add = (id, did) => {
+    if (id === me.id || id === p.userId || !follow.has(id) || seen.has(id)) return;
+    const u = findUser(id);
+    if (u && !blockedBetween(u, me)) seen.set(id, { name: u.name, username: u.username, avatar: u.avatar, did });
+  };
+  for (const r of [...p.reposts].reverse()) add(r.userId, "repost");
+  for (const id of [...p.likes].reverse()) add(id, "like");
+  if (!seen.size) return null;
+  return { people: [...seen.values()].slice(0, 3), count: seen.size };
+}
+// Someone liked or reposted: the people who follow them (and the post's author) see their photo fly up from it
+function sendFriendAct(post, me, did) {
+  if (post.userId === me.id) return; // liking my own post isn't news
+  const user = { name: me.name, username: me.username, avatar: me.avatar };
+  const fans = db.users.filter((u) => u.id !== me.id && (u.following || []).includes(me.id) && !blockedBetween(u, me)).slice(0, 5000).map((u) => u.id);
+  if (fans.length) sendTo(fans, { type: "friend-act", id: post.id, did, user, row: true });
+  const author = findUser(post.userId);
+  if (author && author.id !== me.id && !fans.includes(author.id) && !blockedBetween(author, me)) sendTo([author.id], { type: "friend-act", id: post.id, did, user, row: false });
+}
 function postView(p, me) {
   return {
     id: p.id,
@@ -347,6 +371,7 @@ function postView(p, me) {
     ...stats(p),
     reaction: p.likes.includes(me.id) ? "like" : p.dislikes.includes(me.id) ? "dislike" : null,
     reposted: p.reposts.some((r) => r.userId === me.id),
+    friends: friendActs(p, me),
     cooled: p.cools.includes(me.id),
     mentions: usernamesOf(p.mentions),
     editedAt: p.editedAt || null,
@@ -853,6 +878,7 @@ async function handleSocial(req, res, url, me) {
     if (!post) throw httpError(404, "This post doesn’t exist anymore.");
     if (post.film) throw httpError(400, "Movies are rated with stars instead.");
     const { reaction } = await readJSON(req);
+    const hadLike = post.likes.includes(me.id);
     post.likes = post.likes.filter((id) => id !== me.id);
     post.dislikes = post.dislikes.filter((id) => id !== me.id);
     if (reaction === "like") post.likes.push(me.id);
@@ -863,6 +889,7 @@ async function handleSocial(req, res, url, me) {
     save("users");
     save("posts");
     sendStats(post);
+    if (reaction === "like" && !hadLike) sendFriendAct(post, me, "like");
     sendJSON(res, 200, { ...stats(post), reaction: reaction === "like" || reaction === "dislike" ? reaction : null });
     return true;
   }
@@ -880,6 +907,7 @@ async function handleSocial(req, res, url, me) {
     sendStats(post);
     if (repost && !had) broadcast({ type: "repost", id: post.id, by: me.username, byId: me.id, authorId: post.userId });
     if (repost && !had) notify(post.userId, "repost", me, { postId: post.id });
+    if (repost && !had) sendFriendAct(post, me, "repost");
     sendJSON(res, 200, { ...stats(post), reposted: Boolean(repost) });
     return true;
   }

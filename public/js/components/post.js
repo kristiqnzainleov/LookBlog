@@ -8,7 +8,7 @@ import { chainEl } from "./chain.js";
 import { openReport } from "./report.js";
 import { makeEditable, postTextEl, editedLabel, liveTitle } from "./edit-post.js";
 import { api } from "../api.js";
-import { emit, state } from "../state.js";
+import { emit, state, on } from "../state.js";
 import { profileHref, postHref } from "../router.js";
 
 export const watchHref = (id) => `/watch/${encodeURIComponent(id)}`;
@@ -265,6 +265,17 @@ export function actions(p, { onDeleted, big = false } = {}) {
   const bar = p.film
     ? h("div", { class: "post-actions" + (big ? " big" : "") }, starsChip, comments, share, views)
     : h("div", { class: "post-actions" + (big ? " big" : "") }, cool, like, dislike, repost, comments, share, views);
+  // "Liked by Desi and 2 others you follow" — and live, their photo flies up from the post
+  if (!p.film) {
+    bar.dataset.post = p.id;
+    bar._p = p;
+    const row = friendsRow(p);
+    bar._friends = row;
+    queueMicrotask(() => {
+      const info = bar.closest(".reel-item")?.querySelector(".reel-info");
+      if (info) info.prepend(row); else bar.before(row);
+    });
+  }
   // Double-tap on the post likes it (and never takes a like back)
   if (!p.film) bar.likeOnce = () => { if (p.reaction !== "like") react("like", like); };
   if (!p.mine) {
@@ -499,6 +510,55 @@ export function withReason(el, p) {
   (el.querySelector(".post-head") || el.querySelector(".tile-text h3") || el.firstChild)?.after(why);
   return el;
 }
+
+/* ---------- Friends who liked or reposted (like Instagram) ---------- */
+function friendsRow(p) {
+  const row = h("div", { class: "fa-row" });
+  row.paint = () => {
+    const f = p.friends;
+    row.hidden = !f?.people?.length;
+    if (row.hidden) return row.replaceChildren();
+    const first = f.people[0], rest = f.count - 1;
+    const who = (u) => h("a", { href: profileHref(u.username), text: u.name });
+    const tail = rest > 0 ? [" and ", h("b", { text: `${rest} other${rest === 1 ? "" : "s"}` }), " you follow"] : [];
+    row.replaceChildren(
+      h("span", { class: "fa-stack" }, ...f.people.map((u) => h("a", { class: "fa-av", href: profileHref(u.username), title: `${u.name} ${u.did === "repost" ? "reposted" : "liked"} this` }, avatar(u, 22), h("i", { class: "fa-badge " + u.did, text: u.did === "repost" ? "🔁" : "❤️" })))),
+      h("span", { class: "fa-text" }, ...(first.did === "repost" ? [who(first), ...tail, " reposted"] : ["Liked by ", who(first), ...tail])));
+  };
+  row.paint();
+  return row;
+}
+// Their photo with a heart (or a repost sign) flies up from the post, with little hearts around it
+function flyFriend(bar, user, did) {
+  const btn = bar.querySelector(did === "repost" ? ".act-repost" : ".act-like") || bar;
+  const r = btn.getBoundingClientRect();
+  if (!r.width || r.bottom < 0 || r.top > innerHeight || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const x = r.left + r.width / 2, y = r.top;
+  const sway = (Math.random() - 0.5) * 70;
+  const el = h("span", { class: "fa-fly " + did, style: `left:${x}px;top:${y}px;--sway:${sway}px`, "aria-hidden": "true" },
+    avatar(user, 38), h("i", { class: "fa-badge", text: did === "repost" ? "🔁" : "❤️" }));
+  document.body.append(el);
+  for (let i = 0; i < 4; i++) {
+    const t = h("span", { class: "fa-bit", style: `left:${x}px;top:${y}px;--dx:${(Math.random() - 0.5) * 90}px;--d:${i * 0.12}s`, "aria-hidden": "true", text: did === "repost" ? ["✨", "🔁"][i % 2] : ["❤️", "💖", "💗"][i % 3] });
+    document.body.append(t);
+    setTimeout(() => t.remove(), 1700);
+  }
+  setTimeout(() => el.remove(), 2300);
+}
+on("friend-act", (ev) => {
+  for (const bar of document.querySelectorAll(`.post-actions[data-post="${CSS.escape(ev.id)}"]`)) {
+    if (!bar.isConnected) continue;
+    flyFriend(bar, ev.user, ev.did);
+    const p = bar._p;
+    if (!ev.row || !p) continue;
+    const f = p.friends || { people: [], count: 0 };
+    const had = f.people.some((u) => u.username === ev.user.username);
+    f.people = [{ ...ev.user, did: ev.did }, ...f.people.filter((u) => u.username !== ev.user.username)].slice(0, 3);
+    if (!had) f.count++;
+    p.friends = f;
+    bar._friends?.paint();
+  }
+});
 
 /* ---------- Double-tap a post to like it (like Instagram) ---------- */
 // Buttons, links, fields and video players keep their own double-click.

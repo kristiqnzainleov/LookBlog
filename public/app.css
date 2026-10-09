@@ -6556,3 +6556,84 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
   .sticker-panel:not(.gif-panel):not(.snd-panel) { left: 8px !important; right: 8px !important; width: auto !important; }
   .sticker-panel .sticker-grid img { -webkit-touch-callout: none; user-select: none; }
 }
+
+/* ── Profile looks on the full-page profile ── */
+/* The page background (aurora, stars, grid…) shows through the profile instead of being hidden behind it */
+.view.page-profile[data-pbg] .profile { background: transparent !important; }
+.view.page-profile[data-pbg]::before { border-radius: 0; }
+/* Card frames: drawn over the edges of the profile (on top of the banner too) */
+.page-profile .profile[data-frame] { position: relative; }
+.page-profile .profile[data-frame]::after { content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none; box-shadow: var(--pf-frame); }
+.page-profile .profile[data-frame="neon"] { --pf-frame: inset 0 0 0 2px var(--pink), inset 0 0 26px color-mix(in srgb, var(--pink) 45%, transparent); }
+.page-profile .profile[data-frame="glass"] { --pf-frame: inset 0 0 0 1px rgba(255, 255, 255, 0.22), inset 0 0 40px rgba(255, 255, 255, 0.06); }
+.page-profile .profile[data-frame="gold"] { --pf-frame: inset 0 0 0 3px #d4a72c, inset 0 0 0 6px #6b5214, inset 0 0 34px rgba(255, 210, 63, 0.3); }
+.page-profile .profile[data-frame="pixel"] { --pf-frame: inset 0 0 0 4px #39ff14, inset 0 0 0 8px #0b3d0b; }
+.page-profile .profile[data-frame="comic"] { --pf-frame: inset 0 0 0 4px #000, inset 0 0 0 8px var(--pink); }
+.page-profile .profile[data-frame="holo"] { animation: none; border: none !important; background-image: none !important; }
+.page-profile .profile[data-frame="holo"]::after { box-shadow: none; padding: 3px; background: linear-gradient(120deg, #ff4fa3, #ffd23f, #2ee6a6, #4cc9ff, #9b5cff, #ff4fa3) 0 0 / 300% 300%; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: holoShift 6s linear infinite; }
+.page-profile .profile[data-frame]:not([data-frame="neon"]):not([data-frame="glass"]):not([data-frame="gold"]):not([data-frame="pixel"]):not([data-frame="comic"]):not([data-frame="holo"]) { --pf-frame: inset 0 0 0 2px var(--pink), inset 0 0 22px color-mix(in srgb, var(--pink) 35%, transparent); }
+/* A ring around a shaped photo (hexagon, heart, star…) follows the shape */
+.profile-avatar[data-shape="hex"] { --clip: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
+.profile-avatar[data-shape="heart"] { --clip: polygon(50% 95%, 8% 55%, 2% 30%, 15% 10%, 35% 6%, 50% 20%, 65% 6%, 85% 10%, 98% 30%, 92% 55%); }
+.profile-avatar[data-shape="star"] { --clip: polygon(50% 0, 63% 33%, 98% 35%, 71% 57%, 80% 92%, 50% 72%, 20% 92%, 29% 57%, 2% 35%, 37% 33%); }
+.profile-avatar[data-shape="diamond"] { --clip: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.profile-avatar[data-shape="octagon"] { --clip: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+.profile-avatar[data-shape="pentagon"] { --clip: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); }
+.profile-avatar[data-shape="shield"] { --clip: polygon(50% 0, 100% 12%, 100% 55%, 50% 100%, 0 55%, 0 12%); }
+.profile-avatar[data-shape="flower"] { --clip: polygon(50% 0, 61% 20%, 85% 15%, 80% 39%, 100% 50%, 80% 61%, 85% 85%, 61% 80%, 50% 100%, 39% 80%, 15% 85%, 20% 61%, 0 50%, 20% 39%, 15% 15%, 39% 20%); }
+.profile-avatar[data-shape="squircle"] { --rad: 30%; }
+.profile-avatar[data-shape="blob"] { --rad: 58% 42% 63% 37% / 45% 58% 42% 55%; }
+.profile-avatar[data-shape="leaf"] { --rad: 0 60% 0 60%; }
+.profile-avatar[data-shape="drop"] { --rad: 50% 0 50% 50%; }
+.profile-avatar[data-shape][data-ring]::before { display: block !important; content: ""; position: absolute; inset: -7px; z-index: 0; pointer-events: none; background: var(--ring); clip-path: var(--clip, none); border-radius: var(--rad, 0); }
+.profile-avatar[data-shape][data-ring] > .avatar { position: relative; z-index: 1; }
+.profile-avatar[data-shape][data-ring] { filter: none !important; }
+.profile-avatar[data-shape][data-ring] > .avatar { box-shadow: none !important; }
+.profile-avatar[data-shape][data-ring="spin"]::before, .profile-avatar[data-shape][data-ring="galaxy"]::before, .profile-avatar[data-shape][data-ring="fire"]::before, .profile-avatar[data-shape][data-ring="disco"]::before { background-size: 200% 200%; animation: holoShift 4s linear infinite; }
+/* The status and song line up with the name */
+.page-profile .profile > .pf-status-slot, .page-profile .profile > .pf-song-slot { padding-left: 8px !important; padding-right: 8px !important; }
+/* Phones, my own profile: the ⋯ button sits beside the photo, not alone on a row */
+@media (max-width: 640px) {
+  .page-profile .profile-top:has(> .profile-avatar.editable) { display: flex !important; flex-direction: row !important; align-items: flex-end !important; justify-content: space-between; gap: 12px; }
+  .page-profile .profile-top:has(> .profile-avatar.editable) > .profile-btns { width: auto; flex: 0 0 auto; margin: 0 0 6px auto; }
+}
+/* The preview in "Customize" is small: Big / Huge names are scaled to fit it */
+.look-preview[data-nsz="big"] .look-preview-b { font-size: 1.75rem !important; }
+.look-preview[data-nsz="huge"] .look-preview-b { font-size: 2.15rem !important; }
+.look-preview .look-preview-b { max-width: 100%; overflow-wrap: anywhere; }
+
+/* ── Friends who liked / reposted (like Instagram) ── */
+.fa-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; font-size: 0.86rem; color: var(--muted); min-width: 0; }
+.fa-row[hidden] { display: none !important; }
+.fa-stack { display: inline-flex; flex: 0 0 auto; padding-left: 6px; }
+.fa-av { position: relative; display: inline-flex; margin-left: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--card); animation: faIn .35s cubic-bezier(.3, 1.6, .5, 1) both; }
+.fa-av:nth-child(2) { animation-delay: .06s; } .fa-av:nth-child(3) { animation-delay: .12s; }
+.fa-av .avatar { border: none !important; }
+.fa-badge { position: absolute; right: -4px; bottom: -3px; font-style: normal; font-size: 9px; line-height: 1; width: 14px; height: 14px; display: grid; place-items: center; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 1.5px var(--card); }
+.fa-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fa-text a { color: var(--text); font-weight: 700; text-decoration: none; }
+.fa-text a:hover { text-decoration: underline; }
+.fa-text b { color: var(--text); }
+@keyframes faIn { from { transform: scale(0.3); opacity: 0; } to { transform: none; opacity: 1; } }
+/* On a short it sits over the video, like on Instagram reels */
+.reel-info .fa-row { margin: 0 0 8px; color: rgba(255, 255, 255, 0.85); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.reel-info .fa-row .fa-text a, .reel-info .fa-row .fa-text b { color: #fff; }
+.reel-info .fa-av { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6); }
+.reel-info .fa-badge { background: #000; box-shadow: none; }
+/* Live: their photo floats up from the post */
+.fa-fly { position: fixed; z-index: 9999; pointer-events: none; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; box-shadow: 0 0 0 2.5px #fff, 0 6px 20px rgba(0, 0, 0, 0.45); animation: faFly 2.2s cubic-bezier(.2, .7, .3, 1) forwards; }
+.fa-fly.like { box-shadow: 0 0 0 2.5px #ff3b6b, 0 0 18px rgba(255, 59, 107, 0.6); }
+.fa-fly.repost { box-shadow: 0 0 0 2.5px #2ee6a6, 0 0 18px rgba(46, 230, 166, 0.55); }
+.fa-fly .avatar { border: none !important; }
+.fa-fly .fa-badge { width: 18px; height: 18px; font-size: 11px; right: -5px; bottom: -4px; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+@keyframes faFly {
+  0% { transform: translate(0, 10px) scale(0.2); opacity: 0; }
+  14% { transform: translate(calc(var(--sway) * 0.2), -20px) scale(1.15); opacity: 1; }
+  30% { transform: translate(calc(var(--sway) * -0.4), -60px) scale(1); }
+  55% { transform: translate(calc(var(--sway) * 0.7), -110px) scale(1); opacity: 1; }
+  80% { transform: translate(calc(var(--sway) * -0.2), -150px) scale(0.92); opacity: 0.85; }
+  100% { transform: translate(var(--sway), -190px) scale(0.8); opacity: 0; }
+}
+.fa-bit { position: fixed; z-index: 9998; pointer-events: none; font-size: 15px; margin: -8px 0 0 -8px; opacity: 0; animation: faBit 1.5s ease-out var(--d) forwards; }
+@keyframes faBit { 0% { transform: translate(0, 0) scale(0.4); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(var(--dx), -130px) scale(1.1) rotate(20deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fa-fly, .fa-bit { display: none; } }
