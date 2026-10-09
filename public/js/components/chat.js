@@ -1527,8 +1527,8 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     // In the ＋ panel: my message style & effects, a song, a poll, the camera, view once
     for (const [b, l] of [[fxBtn, "Style & effects"], [songBtn, "Song"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
     // In the row: stickers and sounds always; photo, emoji and GIF too on a computer (on a phone those are in ＋)
-    const ROW = [stickerBtn, soundBtn];
-    const MAIN = [[picker.button, "Photo"], [emojiBtn, "Emoji"], [chatGif, "GIF"]], mainTiles = new Map();
+    const ROW = [emojiBtn, stickerBtn, soundBtn];
+    const MAIN = [[picker.button, "Photo"], [chatGif, "GIF"]], mainTiles = new Map();
     const layoutTools = () => {
       const phone = matchMedia("(max-width: 640px)").matches;
       MAIN.forEach(([b, l], i) => {
