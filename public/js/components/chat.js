@@ -1341,7 +1341,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     });
     text.addEventListener("blur", () => { if (typingOn) { typingOn = false; lastTyping = 0; sayTyping(true); } });
     text.form?.addEventListener?.("submit", () => { typingOn = false; lastTyping = 0; });
-    attachMentions(text, { people: () => (chat.kind === "group" ? (chat.members || []).filter((u) => !u.isMe) : chat.other ? [chat.other] : []), everyone: () => chat.kind === "group" && chat.perms?.includes("mention_everyone") });
+    attachMentions(text, { people: () => (chat.kind === "group" ? (chat.members || []).filter((u) => !u.isMe) : chat.other ? [chat.other] : []), everyone: () => chat.kind === "group" });
     const err = h("p", { class: "form-error", role: "alert", hidden: true });
     const showErr = (m) => { err.textContent = m; err.hidden = !m; };
     const send = h("button", { type: "submit", class: "send-btn", "aria-label": "Send", disabled: true }, icon("send"));
@@ -1525,10 +1525,10 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     form.insertBefore(tray, inputRow);
     const tile = (b, label) => h("div", { class: "tray-tile" }, b, h("small", { text: label }));
     // In the ＋ panel: my message style & effects, a song, a poll, the camera, view once
-    for (const [b, l] of [[fxBtn, "Style & effects"], [songBtn, "Song"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
-    // In the row: stickers and sounds always; photo, emoji and GIF too on a computer (on a phone those are in ＋)
-    const ROW = [emojiBtn, stickerBtn, soundBtn];
-    const MAIN = [[picker.button, "Photo"], [chatGif, "GIF"]], mainTiles = new Map();
+    for (const [b, l] of [[fxBtn, "Style & effects"], [soundBtn, "Sounds"], [songBtn, "Music"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
+    // In the row: emoji, GIFs and stickers always; the photo button too on a computer (on a phone it's in ＋)
+    const ROW = [emojiBtn, chatGif, stickerBtn];
+    const MAIN = [[picker.button, "Photo"]], mainTiles = new Map();
     const layoutTools = () => {
       const phone = matchMedia("(max-width: 640px)").matches;
       MAIN.forEach(([b, l], i) => {
@@ -1540,6 +1540,11 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     layoutTools();
     matchMedia("(max-width: 640px)").addEventListener?.("change", layoutTools);
     tray.addEventListener("click", (e) => { if (e.target.closest(".tool-btn") && !e.target.closest(".vo-btn")) { form.classList.remove("tray-open"); trayBtn.setAttribute("aria-expanded", "false"); } });
+    // The mic and the send button share a place: mic while the box is empty, send once you write (or add something)
+    const swapMicSend = () => { const has = Boolean(text.value.trim()) || picker.items().length > 0; inputRow.classList.toggle("has-text", has); };
+    text.addEventListener("input", swapMicSend);
+    new MutationObserver(swapMicSend).observe(picker.previews, { childList: true });
+    swapMicSend();
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (send.disabled) return;
@@ -1553,7 +1558,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
         add(message);
         toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
-        text.value = "";
+        text.value = ""; inputRow.classList.remove("has-text");
         text.style.height = "";
         picker.clear();
       } catch (ex) { showErr(ex.error || "Couldn’t send that."); }

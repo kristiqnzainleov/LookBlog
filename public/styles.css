@@ -488,3 +488,15 @@ a { color: inherit; }
   .modal-card .field input, .modal-card input[type="text"], .modal-card input[type="email"], .modal-card input[type="password"] { height: 50px; font-size: 16px; }
   .modal-card .btn { height: 52px; border-radius: 999px; font-size: 1.02rem; }
 }
+/* ---------- Phones: the big LookBlog logo stays on top while you log in / sign up ---------- */
+@media (max-width: 640px) {
+  body:has(.overlay.open) .home-logo { position: fixed; z-index: 101; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; height: calc(100dvh - min(560px, 72dvh) - 24px); display: flex !important; align-items: center; justify-content: center; pointer-events: none; animation: logoUp 0.35s cubic-bezier(.2, 1, .3, 1); }
+  body:has(.overlay.open) .logo-big { font-size: clamp(4rem, 21vw, 5.6rem) !important; line-height: 0.95; text-align: center; }
+  body:has(.overlay.open) .home-cta { visibility: hidden; }
+  .overlay .modal-wrap { max-height: min(560px, 72dvh) !important; }
+  @keyframes logoUp { from { transform: translateY(30px) scale(0.9); opacity: 0.5; } }
+}
+@media (max-width: 640px) {
+  .overlay.open { background: rgba(10, 9, 9, 0) !important; backdrop-filter: none !important; }
+  body:has(.overlay.open) .footer { visibility: hidden; }
+}

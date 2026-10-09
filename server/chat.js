@@ -777,11 +777,14 @@ async function handleChat(req, res, url, me) {
       chat.lastAt = msg.createdAt;
       chat.reads = { ...(chat.reads || {}), [me.id]: msg.createdAt };
       save("messages");
+      // @someone pings them (a notification), @everyone pings the whole group (anyone in it can use it)
+      const pinged = new Set(msg.mentions.filter((id) => id !== me.id && chat.members.includes(id)));
+      if (chat.kind === "group" && /(^|\s)@(everyone|here)\b/i.test(text)) {
+        rateLimit("everyone:" + me.id + ":" + chat.id, 6, 10 * 60 * 1000, "You’ve pinged everyone a lot. Try again in a few minutes.");
+        chat.members.forEach((id) => id !== me.id && pinged.add(id)); msg.everyone = true; save("messages");
+      }
       save("chats");
       deliver(chat, msg);
-      // @someone pings them (a notification), @everyone pings the whole group
-      const pinged = new Set(msg.mentions.filter((id) => id !== me.id && chat.members.includes(id)));
-      if (chat.kind === "group" && /(^|\s)@(everyone|here)\b/i.test(text) && can(chat, me, "mention_everyone")) { chat.members.forEach((id) => id !== me.id && pinged.add(id)); msg.everyone = true; save("messages"); }
       for (const id of pinged) notify(id, "chat-mention", me, { chatId: chat.id, group: chat.kind === "group" ? chat.name : null, text: text || "mentioned you" });
       sendJSON(res, 201, { message: messageView(msg, me) });
       return true;

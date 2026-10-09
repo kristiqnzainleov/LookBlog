@@ -6443,3 +6443,14 @@ body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }
   .convo-input textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .emoji-panel { left: 6px !important; right: 6px !important; width: auto !important; }
 }
+/* ---------- The message box: roomier; mic ⇄ send in one place ---------- */
+.convo-input:not(.has-text) .send-btn { display: none !important; }
+.convo-input.has-text .mic-btn { display: none !important; }
+@media (max-width: 640px) {
+  .convo-input { gap: 4px !important; padding: 4px 6px !important; }
+  .convo-input > .tool-btn, .convo-input .row-tool, .convo-input .tray-btn, .convo-input .mic-btn { width: 36px !important; height: 36px !important; min-width: 36px; flex: 0 0 36px !important; }
+  .convo-input > .tool-btn svg { width: 20px !important; height: 20px !important; }
+  .convo-input .send-btn { width: 38px !important; height: 38px !important; min-width: 38px; flex: 0 0 38px !important; }
+  /* the box sits right at the bottom (no extra gap under it) */
+  .convo-foot { padding-top: 6px !important; padding-bottom: max(6px, env(safe-area-inset-bottom)) !important; min-height: 0 !important; }
+}

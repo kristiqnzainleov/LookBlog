@@ -108,6 +108,13 @@ export function richText(text, mentions = []) {
   let last = 0, m;
   while ((m = re.exec(text))) {
     const start = m.index + m[1].length;
+    // @everyone / @here: a highlighted tag
+    if (/^(everyone|here)$/i.test(m[2])) {
+      frag.append(text.slice(last, start));
+      frag.append(Object.assign(document.createElement("span"), { className: "mention mention-all", textContent: "@" + m[2] }));
+      last = start + m[2].length + 1;
+      continue;
+    }
     if (!known.has(m[2].toLowerCase())) continue;
     frag.append(text.slice(last, start));
     const a = document.createElement("a");
