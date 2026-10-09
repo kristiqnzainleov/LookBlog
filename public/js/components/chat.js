@@ -19,6 +19,8 @@ import { attachMentions } from "./mentions.js";
 import { openSoundPicker, soundChip, playSound } from "./sounds.js";
 import { sfx } from "./sfx.js";
 import { styleBubble, playEffect, inkBubble, openMsgStyle, EFFECTS, SECRET_FX, PERSISTENT, secretBubble } from "./msg-style.js";
+// On a phone, focusing the box opens the keyboard (and moves the screen): only when the keyboard is already up
+const softFocus = (el) => { if (!matchMedia("(hover: none), (max-width: 640px)").matches || document.activeElement === el) el.focus(); };
 import { applyWallpaper, applyTheme, onHold, openChatOptions, openVanishPicker, vanishLabel } from "./wallpaper.js";
 
 export function chatPic(c, size = 44) {
@@ -1211,7 +1213,11 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   let chat = null, more = null, loadingMore = false;
 
   const atBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 80;
-  const toBottom = () => (list.scrollTop = list.scrollHeight);
+  const toBottom = () => { list.scrollTop = list.scrollHeight; stick = true; };
+  // Photos and GIFs that finish loading later don't push the chat away from the newest message
+  let stick = true;
+  list.addEventListener("scroll", () => { stick = atBottom(); }, { passive: true });
+  list.addEventListener("load", () => { if (stick) list.scrollTop = list.scrollHeight; }, true);
 
   function add(msg, { prepend = false } = {}) {
     if (ids.has(msg.id)) return;
@@ -1361,7 +1367,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       replyBar.replaceChildren(icon("replyArrow"),
         h("div", { class: "rb-text" }, h("b", { text: m.mine ? "Replying to yourself" : `Replying to ${m.author.name}` }), h("span", { text: what })),
         cancel);
-      text.focus();
+      softFocus(text);
     };
     startReply = setReply;
     text.addEventListener("keydown", (e) => { if (e.key === "Escape" && replying) { e.stopPropagation(); setReply(null); } });
@@ -1474,7 +1480,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       voBtn.setAttribute("aria-pressed", String(viewOnce));
       text.placeholder = viewOnce ? "View-once message…" : text.dataset.ph || text.placeholder;
       toast(viewOnce ? "View once is on: they can open your messages one time." : "View once is off.");
-      text.focus();
+      softFocus(text);
     });
     text.dataset.ph = text.placeholder;
     inputRow.insertBefore(voBtn, text);
@@ -1563,10 +1569,10 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
         picker.clear();
       } catch (ex) { showErr(ex.error || "Couldn’t send that."); }
       update();
-      text.focus();
+      softFocus(text);
     });
     footer.append(form);
-    setTimeout(() => text.focus(), 50);
+    setTimeout(() => softFocus(text), 50);
   }
 
   async function refresh() {

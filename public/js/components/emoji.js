@@ -88,7 +88,9 @@ export function insertAtCursor(field, text) {
   const end = field.selectionEnd ?? field.value.length;
   field.value = field.value.slice(0, start) + text + field.value.slice(end);
   const pos = start + text.length;
-  field.focus();
-  field.setSelectionRange(pos, pos);
+  // On a phone don't pop the keyboard open just for an emoji (it pushes the whole chat up)
+  const touch = matchMedia("(hover: none), (max-width: 640px)").matches;
+  if (!touch || document.activeElement === field) { field.focus(); field.setSelectionRange(pos, pos); }
+  else try { field.setSelectionRange(pos, pos); } catch {}
   field.dispatchEvent(new Event("input", { bubbles: true }));
 }

@@ -6492,3 +6492,11 @@ body:has(.mm-overlay) .convo-list { overflow: hidden !important; }
 body:has(.gif-sheet) .convo-list, body:has(.pick-sheet) .convo-list { overflow: hidden !important; touch-action: none; }
 body:has(.gif-sheet) .messenger, body:has(.pick-sheet) .messenger { pointer-events: none; }
 body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-events: auto; }
+/* ---------- Phones: the messages page is pinned in place (sending anything, or the keyboard, doesn't move it) ---------- */
+@media (max-width: 760px) {
+  html:has(body[data-page="messages"]), body[data-page="messages"] { overflow: hidden !important; height: 100%; overscroll-behavior: none; }
+  body[data-page="messages"] { position: fixed; inset: 0; width: 100%; }
+  body[data-page="messages"] .view { position: fixed; inset: 0; height: var(--vvh, 100dvh); overflow: hidden; }
+  body[data-page="messages"] .messenger { height: var(--vvh, 100dvh) !important; }
+  .convo-list { overscroll-behavior: contain; overflow-anchor: auto; }
+}

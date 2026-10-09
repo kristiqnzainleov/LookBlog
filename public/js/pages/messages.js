@@ -49,6 +49,20 @@ export function messagesPage(view, m) {
   const messenger = h("div", { class: "messenger" + (openId ? " has-open" : "") }, inbox, pane);
   view.append(messenger);
 
+  // Phones: the chat window never moves. It's exactly as tall as what you can see (the keyboard included),
+  // and the page itself can't be scrolled or pushed up.
+  const vv = window.visualViewport;
+  const fit = () => {
+    if (!vv) return;
+    document.documentElement.style.setProperty("--vvh", Math.round(vv.height) + "px");
+    if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0);
+  };
+  vv?.addEventListener("resize", fit);
+  vv?.addEventListener("scroll", fit);
+  addEventListener("scroll", fit, { passive: true });
+  fit();
+  const unfit = () => { vv?.removeEventListener("resize", fit); vv?.removeEventListener("scroll", fit); removeEventListener("scroll", fit); document.documentElement.style.removeProperty("--vvh"); };
+
   // Pull the window to the right to go back to the Feed. (Inside an open chat on a phone, pull from the left edge to go back to the list.)
   let sw = null;
   messenger.addEventListener("touchstart", (e) => {
@@ -143,7 +157,7 @@ export function messagesPage(view, m) {
   loadList();
   const offMsg = on("message", loadList);
   const offChanged = on("chats:changed", loadList);
-  return () => { stopped = true; convo?.stop(); offMsg(); offChanged(); };
+  return () => { stopped = true; unfit(); convo?.stop(); offMsg(); offChanged(); };
 }
 messagesPage.navName = () => "messages";
 messagesPage.layout = "full";
