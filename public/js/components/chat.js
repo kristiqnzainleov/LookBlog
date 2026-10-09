@@ -1561,33 +1561,37 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       showErr("");
       send.disabled = true;
       closeEmojiPicker();
-      // Still uploading: show it in the chat right away, then send it as soon as it's up
+      // What's being sent (the box is emptied at once, so nothing is shown twice and nothing jumps when it's done)
+      const msgText = text.value, replyId = replying?.id || null, vo = viewOnce, fx = armedFx, fxIn = unlockIn;
       let pending = null;
       if (picker.busy()) {
+        // Still uploading: it's in the chat right away, and sent the moment it's up
         const it = picker.items()[0];
         const local = it?.file ? URL.createObjectURL(it.file) : null;
         pending = h("div", { class: "msg mine pending" }, h("div", { class: "msg-stack" }, h("div", { class: "bubble" },
           local && it.kind === "image" ? h("img", { class: "pending-img", src: local, alt: "" }) : null,
-          text.value.trim() ? h("p", { class: "bubble-text", text: text.value }) : null,
+          local && it.kind === "video" ? h("video", { class: "pending-img", src: local, muted: true, playsInline: true, preload: "metadata" }) : null,
+          msgText.trim() ? h("p", { class: "bubble-text", text: msgText }) : null,
           h("span", { class: "pending-tag", text: "Sending…" }))));
         list.append(pending); toBottom();
+        form.classList.add("sending");
+        text.value = ""; text.style.height = ""; inputRow.classList.remove("has-text"); setReply(null);
         const t0 = Date.now();
         while (picker.busy() && Date.now() - t0 < 120000) await new Promise((ok) => setTimeout(ok, 120));
         if (local) setTimeout(() => URL.revokeObjectURL(local), 5000);
-        if (!picker.media().length && !text.value.trim()) { pending.remove(); update(); return; }
+        if (!picker.media().length && !msgText.trim()) { pending.remove(); form.classList.remove("sending"); picker.clear(); update(); return; }
       }
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}), ...(armedFx ? { effect: armedFx, ...(unlockIn ? { unlockIn } : {}) } : {}) } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, text: msgText, media: picker.media()[0] || null, replyTo: replyId, ...(vo ? { viewOnce: true } : {}), ...(fx ? { effect: fx, ...(fxIn ? { unlockIn: fxIn } : {}) } : {}) } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         armFx(null);
-        setReply(null);
+        if (!pending) { setReply(null); text.value = ""; text.style.height = ""; inputRow.classList.remove("has-text"); }
         pending?.remove();
         add(message);
         toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
-        text.value = ""; inputRow.classList.remove("has-text");
-        text.style.height = "";
         picker.clear();
-      } catch (ex) { pending?.remove(); showErr(ex.error || "Couldn’t send that."); }
+      } catch (ex) { pending?.remove(); if (pending && !text.value) text.value = msgText; showErr(ex.error || "Couldn’t send that."); }
+      form.classList.remove("sending");
       update();
       softFocus(text);
     });

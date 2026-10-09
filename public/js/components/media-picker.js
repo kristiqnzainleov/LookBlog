@@ -116,11 +116,14 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
     const opt = (ic, title, sub, fn) => { const b = h("button", { type: "button", class: "att-opt" }, h("span", { class: "att-ic", text: ic }), h("span", { class: "att-txt" }, h("b", { text: title }), h("small", { text: sub }))); b.addEventListener("click", () => { close(); setTimeout(fn, 60); }); return b; };
     const imgs = IMAGE_TYPES.join(","), vids = VIDEO_TYPES.join(",");
     const opts = [
-      accept !== "video" || true ? opt("🖼️", "Photo library", accept === "image" ? "Pick photos from your gallery" : "Pick photos or videos from your gallery", () => input.click()) : null,
+      // The gallery: "image/*"/"video/*" only (no camera, no files), so Android opens its photo picker straight away
+      opt("🖼️", "Photo library", accept === "image" ? "Pick photos from your gallery" : "Pick photos or videos from your gallery",
+        () => pickWith({ accept: accept === "image" ? "image/*" : accept === "video" ? "video/*" : "image/*,video/*", multiple: accept !== "video" && max > 1 })),
       accept !== "video" ? opt("📷", "Take a photo", "Use the camera now", () => pickWith({ accept: "image/*", capture: "environment" })) : null,
       accept !== "image" ? opt("🎥", "Record a video", "Use the camera now", () => pickWith({ accept: "video/*", capture: "environment" })) : null,
       opt("🤳", "Selfie", "The front camera", () => pickWith({ accept: accept === "video" ? "video/*" : "image/*", capture: "user" })),
-      opt("📁", "Files", "Choose from your files", () => pickWith({ accept: accept === "image" ? imgs : accept === "video" ? vids : imgs + "," + vids, multiple: accept !== "video" && max > 1 })),
+      // Files: the file browser (not the gallery)
+      opt("📁", "Files", "Choose from your files", () => pickWith({ accept: "*/*", multiple: accept !== "video" && max > 1 })),
     ].filter(Boolean);
     const cancel = h("button", { type: "button", class: "att-cancel", text: "Cancel" });
     const card = h("div", { class: "att-card" }, h("i", { class: "att-grab" }), h("p", { class: "att-title", text: label }), ...opts, cancel);

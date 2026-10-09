@@ -6538,3 +6538,4 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 .pending-tag { display: inline-flex; align-items: center; gap: 6px; margin: 4px 6px 2px; font-size: 0.72rem; font-weight: 700; }
 .pending-tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; animation: spin 0.8s linear infinite; }
 .msg.pending { justify-content: flex-end; margin-left: auto; }
+.convo-form.sending .picker-previews { display: none !important; }
