@@ -1,5 +1,5 @@
 // A post card (used in every feed), plus reactions and view counting.
-import { h, icon, avatar, timeEl, count, duration, toast, confirmClick, spinner, richText, tick } from "../ui.js";
+import { h, icon, avatar, timeEl, count, duration, toast, confirmClick, spinner, richText, tick, openPhotos } from "../ui.js";
 import { openShare } from "./share.js";
 import { createPlayer } from "./player.js";
 import { visibilityBadge } from "./visibility.js";
@@ -332,6 +332,16 @@ function imageGrid(images) {
     if (images.length === 1 && m.width && m.height) img.style.aspectRatio = `${m.width} / ${m.height}`;
     grid.append(h("a", { href: m.url, target: "_blank", rel: "noopener", class: "media-cell" }, img));
   }
+  // Tap a photo (or hold it): see it big, here on LookBlog
+  const urls = images.map((m) => m.url);
+  [...grid.querySelectorAll(".media-cell")].forEach((cell, i) => {
+    let t = null, held = false;
+    cell.addEventListener("click", (e) => { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); if (held) { held = false; return; } openPhotos(urls, i); });
+    cell.addEventListener("contextmenu", (e) => e.preventDefault());
+    cell.addEventListener("pointerdown", (e) => { if (e.pointerType !== "touch") return; held = false; t = setTimeout(() => { held = true; navigator.vibrate?.(10); openPhotos(urls, i); }, 380); });
+    const stop = () => clearTimeout(t);
+    cell.addEventListener("pointerup", stop); cell.addEventListener("pointercancel", stop); cell.addEventListener("pointermove", (e) => { if (Math.abs(e.movementY) + Math.abs(e.movementX) > 6) stop(); });
+  });
   return grid;
 }
 

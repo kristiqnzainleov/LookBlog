@@ -500,3 +500,9 @@ a { color: inherit; }
   .overlay.open { background: rgba(10, 9, 9, 0) !important; backdrop-filter: none !important; }
   body:has(.overlay.open) .footer { visibility: hidden; }
 }
+/* the LookBlog logo bigger than "Look around." on phones */
+@media (max-width: 640px) {
+  .logo-big { font-size: clamp(5rem, 27vw, 7rem) !important; line-height: 0.92; }
+  .home { gap: 22px !important; }
+  body:has(.overlay.open) .logo-big { font-size: clamp(5rem, 26vw, 6.6rem) !important; }
+}

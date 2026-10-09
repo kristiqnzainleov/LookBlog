@@ -411,3 +411,68 @@ export function visibleRect(el) {
   const alt = form?.querySelector(".convo-input .tray-btn") || form?.querySelector(".convo-input") || el.closest("form, .composer, .create-form");
   return alt ? alt.getBoundingClientRect() : r;
 }
+
+// A sheet from the bottom can be pulled down to close it (from its top, or from anywhere when its list is scrolled to the top)
+export function swipeDownToClose(sheet, onClose, { scroller = null } = {}) {
+  let st = null;
+  sheet.addEventListener("touchstart", (e) => {
+    const t = e.touches[0], sc = scroller?.() || null;
+    if (e.target.closest("input, textarea, select")) return;
+    if (sc && sc.contains(e.target) && sc.scrollTop > 0) return;
+    st = { y: t.clientY, x: t.clientX, dy: 0, go: false };
+  }, { passive: true });
+  sheet.addEventListener("touchmove", (e) => {
+    if (!st) return;
+    const t = e.touches[0], dy = t.clientY - st.y, dx = t.clientX - st.x;
+    if (!st.go) { if (Math.abs(dx) > Math.abs(dy) || dy < 8) { if (dy < -4 || Math.abs(dx) > 12) st = null; return; } st.go = true; }
+    st.dy = Math.max(0, dy);
+    sheet.style.transition = "none";
+    sheet.style.transform = `translateY(${st.dy}px)`;
+  }, { passive: true });
+  const end = () => {
+    if (!st) return;
+    const { dy, go } = st; st = null;
+    if (!go) return;
+    sheet.style.transition = "transform 0.22s ease";
+    if (dy > Math.min(120, sheet.offsetHeight * 0.25)) { sheet.style.transform = "translateY(110%)"; setTimeout(() => { sheet.style.transform = ""; sheet.style.transition = ""; onClose(); }, 200); }
+    else { sheet.style.transform = ""; setTimeout(() => { sheet.style.transition = ""; }, 230); }
+  };
+  sheet.addEventListener("touchend", end);
+  sheet.addEventListener("touchcancel", end);
+}
+
+// A photo, big (tap a post's photo, or hold it). Swipe between several, pull down or tap to close.
+export function openPhotos(urls, start = 0) {
+  document.querySelector(".pv-wrap")?.remove();
+  let i = start;
+  const img = h("img", { class: "pv-img", alt: "" });
+  const count = h("span", { class: "pv-count" });
+  const show = () => { img.src = urls[i]; count.textContent = urls.length > 1 ? `${i + 1} / ${urls.length}` : ""; };
+  const closeBtn = h("button", { type: "button", class: "pv-close", "aria-label": "Close" }, icon("close"));
+  const prev = h("button", { type: "button", class: "pv-nav l", "aria-label": "Previous", text: "‹", hidden: urls.length < 2 });
+  const next = h("button", { type: "button", class: "pv-nav r", "aria-label": "Next", text: "›", hidden: urls.length < 2 });
+  const stage = h("div", { class: "pv-stage" }, img);
+  const wrap = h("div", { class: "pv-wrap", role: "dialog", "aria-label": "Photo" }, stage, closeBtn, prev, next, count);
+  const close = () => { wrap.classList.add("out"); setTimeout(() => wrap.remove(), 180); removeEventListener("keydown", key); document.body.classList.remove("no-scroll"); };
+  const go = (d) => { i = (i + d + urls.length) % urls.length; show(); };
+  const key = (e) => { if (e.key === "Escape") close(); if (e.key === "ArrowLeft") go(-1); if (e.key === "ArrowRight") go(1); };
+  closeBtn.addEventListener("click", close);
+  prev.addEventListener("click", (e) => { e.stopPropagation(); go(-1); });
+  next.addEventListener("click", (e) => { e.stopPropagation(); go(1); });
+  stage.addEventListener("click", (e) => { if (e.target === stage) close(); });
+  // swipe left / right between photos, down to close
+  let s = null;
+  wrap.addEventListener("touchstart", (e) => { if (e.touches.length === 1) s = { x: e.touches[0].clientX, y: e.touches[0].clientY }; else s = null; }, { passive: true });
+  wrap.addEventListener("touchmove", (e) => { if (!s || e.touches.length > 1) return; const dy = e.touches[0].clientY - s.y; if (dy > 0 && Math.abs(dy) > Math.abs(e.touches[0].clientX - s.x)) { img.style.transform = `translateY(${dy}px) scale(${Math.max(0.8, 1 - dy / 1200)})`; wrap.style.background = `rgba(0,0,0,${Math.max(0.3, 0.94 - dy / 500)})`; } }, { passive: true });
+  wrap.addEventListener("touchend", (e) => {
+    if (!s) return;
+    const t = e.changedTouches[0], dx = t.clientX - s.x, dy = t.clientY - s.y; s = null;
+    img.style.transform = ""; wrap.style.background = "";
+    if (dy > 110 && Math.abs(dy) > Math.abs(dx)) return close();
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) && urls.length > 1) go(dx < 0 ? 1 : -1);
+  });
+  addEventListener("keydown", key);
+  document.body.classList.add("no-scroll");
+  document.body.append(wrap);
+  show();
+}

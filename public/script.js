@@ -332,3 +332,34 @@ if (new URLSearchParams(location.search).has("deleted")) {
   history.replaceState(null, "", "/");
   setTimeout(() => googleNote("Your account was deleted. Thanks for being part of LookBlog."), 400);
 }
+
+/* ---------- Phones: pull the log-in / sign-up sheet down to close it ---------- */
+(function () {
+  if (!matchMedia("(max-width: 640px)").matches) return;
+  document.querySelectorAll(".overlay .modal-wrap").forEach((sheet) => {
+    let st = null;
+    sheet.addEventListener("touchstart", (e) => {
+      if (e.target.closest("input, textarea, select, button, a")) return;
+      if (sheet.scrollTop > 0) return;
+      st = { y: e.touches[0].clientY, dy: 0, go: false };
+    }, { passive: true });
+    sheet.addEventListener("touchmove", (e) => {
+      if (!st) return;
+      const dy = e.touches[0].clientY - st.y;
+      if (!st.go) { if (dy < 8) { if (dy < -4) st = null; return; } st.go = true; }
+      st.dy = Math.max(0, dy);
+      sheet.style.transition = "none";
+      sheet.style.transform = "translateY(" + st.dy + "px)";
+    }, { passive: true });
+    const end = () => {
+      if (!st) return;
+      const dy = st.dy, go = st.go; st = null;
+      if (!go) return;
+      sheet.style.transition = "transform 0.22s ease";
+      if (dy > 110) { sheet.style.transform = "translateY(110%)"; setTimeout(() => { closeModals(); sheet.style.transform = ""; sheet.style.transition = ""; }, 200); }
+      else { sheet.style.transform = ""; setTimeout(() => { sheet.style.transition = ""; }, 230); }
+    };
+    sheet.addEventListener("touchend", end);
+    sheet.addEventListener("touchcancel", end);
+  });
+})();

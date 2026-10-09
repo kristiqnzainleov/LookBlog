@@ -6454,3 +6454,17 @@ body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }
   /* the box sits right at the bottom (no extra gap under it) */
   .convo-foot { padding-top: 6px !important; padding-bottom: max(6px, env(safe-area-inset-bottom)) !important; min-height: 0 !important; }
 }
+/* ---------- A photo, big ---------- */
+.media-cell img { -webkit-touch-callout: none; -webkit-user-drag: none; user-select: none; }
+.media-cell { -webkit-touch-callout: none; cursor: zoom-in; }
+.pv-wrap { position: fixed; inset: 0; z-index: 965; background: rgba(0, 0, 0, 0.94); display: flex; align-items: center; justify-content: center; animation: mmIn 0.18s ease-out; touch-action: pinch-zoom; }
+.pv-wrap.out { animation: mmOut 0.18s ease-in forwards; }
+.pv-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 50px 0; }
+.pv-img { max-width: 100vw; max-height: calc(100dvh - 100px); object-fit: contain; transition: transform 0.15s; animation: apPop 0.25s cubic-bezier(.2, 1.2, .4, 1); -webkit-touch-callout: default; }
+.pv-close { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; width: 42px; height: 42px; border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.14); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.pv-close svg { width: 20px; height: 20px; }
+.pv-nav { position: absolute; top: 50%; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.14); color: #fff; font-size: 1.8rem; line-height: 1; cursor: pointer; }
+.pv-nav.l { left: 12px; } .pv-nav.r { right: 12px; }
+.pv-count { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: rgba(255, 255, 255, 0.8); font-weight: 700; }
+@media (max-width: 640px) { .pv-nav { display: none; } }
+.pv-wrap { background: #000; }

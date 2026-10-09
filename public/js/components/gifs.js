@@ -1,6 +1,6 @@
 // GIF picker: LookBlog's own animated GIFs and the ones people uploaded, all searchable,
 // plus your own collection ("Yours"). Upload a GIF once with a few tags and anyone can find it.
-import { h, icon, toast, spinner, visibleRect } from "../ui.js";
+import { h, icon, toast, spinner, visibleRect, swipeDownToClose } from "../ui.js";
 import { api, upload } from "../api.js";
 
 let panel = null, onClosed = null;
@@ -37,6 +37,7 @@ export function openGifs(anchor, onPick, { onClose = null } = {}) {
     h("header", { class: "gif-head" }, h("div", { class: "gif-search-wrap" }, icon("search"), search), h("div", { class: "gif-tabs" }, tabSearch, tabMine), moods),
     grid, foot, brand);
   document.body.append(panel);
+  if (sheet) swipeDownToClose(panel, () => closeGifs(), { scroller: () => grid });
 
   // On a phone it's a sheet from the bottom; on a computer it sits next to the button (and grows upwards)
   const place = () => {
