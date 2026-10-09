@@ -219,7 +219,9 @@ async function handleGroupRoutes(req, res, me, chat, parts, helpers) {
     if (!chat.members.includes(me.id)) throw httpError(403, "Join the group first.");
     const body = await readJSON(req);
     const text = String(body.text || "").trim().replace(/\s+/g, " ").slice(0, 60);
-    const emoji = typeof body.emoji === "string" && body.emoji.length <= 16 && /\p{Extended_Pictographic}/u.test(body.emoji) ? body.emoji : "";
+    // Up to 5 emoji (only emoji)
+    const parts5 = typeof body.emoji === "string" ? [...new Intl.Segmenter("en", { granularity: "grapheme" }).segment(body.emoji.replace(/\s+/g, ""))].map((x) => x.segment) : [];
+    const emoji = parts5.length && parts5.slice(0, 5).every((g) => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(g)) ? parts5.slice(0, 5).join("") : "";
     chat.memberStatus = chat.memberStatus || {};
     if (text || emoji) chat.memberStatus[me.id] = { emoji, text }; else delete chat.memberStatus[me.id];
     save("chats");

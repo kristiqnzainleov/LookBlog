@@ -1470,6 +1470,8 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     inputRow.prepend(trayBtn);
     const form = h("form", { class: "convo-form", novalidate: true }, replyBar, picker.previews, inputRow, recBar, err);
     trayBtn.addEventListener("click", () => { const open = form.classList.toggle("tray-open"); trayBtn.setAttribute("aria-expanded", String(open)); });
+    // Something was attached: close the ＋ panel so the preview has room
+    new MutationObserver(() => { if (picker.items().length) { form.classList.remove("tray-open"); trayBtn.setAttribute("aria-expanded", "false"); } }).observe(picker.previews, { childList: true });
     inputRow.addEventListener("click", (e) => { const b = e.target.closest(".tool-btn"); if (b && b !== trayBtn && !b.classList.contains("mic-btn") && form.classList.contains("tray-open")) { form.classList.remove("tray-open"); trayBtn.setAttribute("aria-expanded", "false"); } });
     // View once: the next messages can be opened one time only (tap again to turn it off)
     let viewOnce = false;

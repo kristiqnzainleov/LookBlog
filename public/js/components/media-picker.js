@@ -81,7 +81,39 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
   const label = accept === "video" ? "Add video" : accept === "image" ? "Add photo" : "Add photo or video";
   const button = h("button", { type: "button", class: "tool-btn", title: label, "aria-label": label },
     icon(accept === "video" ? "video" : "image"), input);
-  button.addEventListener("click", (e) => { if (e.target !== input) input.click(); });
+  button.addEventListener("click", (e) => {
+    if (e.target === input) return;
+    // On a phone: LookBlog's own choice first (library, camera…), not straight to the browser's menu
+    if (matchMedia("(hover: none), (max-width: 640px)").matches) { e.preventDefault(); return attachSheet(); }
+    input.click();
+  });
+  // A one-off file input (camera, video camera, files) that hands what you pick to the picker
+  const pickWith = (attrs) => {
+    const tmp = h("input", { type: "file", hidden: true, ...attrs });
+    tmp.addEventListener("change", () => { add([...tmp.files]); tmp.remove(); });
+    document.body.append(tmp);
+    tmp.click();
+  };
+  function attachSheet() {
+    document.querySelector(".att-wrap")?.remove();
+    const opt = (ic, title, sub, fn) => { const b = h("button", { type: "button", class: "att-opt" }, h("span", { class: "att-ic", text: ic }), h("span", { class: "att-txt" }, h("b", { text: title }), h("small", { text: sub }))); b.addEventListener("click", () => { close(); setTimeout(fn, 60); }); return b; };
+    const imgs = IMAGE_TYPES.join(","), vids = VIDEO_TYPES.join(",");
+    const opts = [
+      accept !== "video" || true ? opt("🖼️", "Photo library", accept === "image" ? "Pick photos from your gallery" : "Pick photos or videos from your gallery", () => input.click()) : null,
+      accept !== "video" ? opt("📷", "Take a photo", "Use the camera now", () => pickWith({ accept: "image/*", capture: "environment" })) : null,
+      accept !== "image" ? opt("🎥", "Record a video", "Use the camera now", () => pickWith({ accept: "video/*", capture: "environment" })) : null,
+      opt("🤳", "Selfie", "The front camera", () => pickWith({ accept: accept === "video" ? "video/*" : "image/*", capture: "user" })),
+      opt("📁", "Files", "Choose from your files", () => pickWith({ accept: accept === "image" ? imgs : accept === "video" ? vids : imgs + "," + vids, multiple: accept !== "video" && max > 1 })),
+    ].filter(Boolean);
+    const cancel = h("button", { type: "button", class: "att-cancel", text: "Cancel" });
+    const card = h("div", { class: "att-card" }, h("i", { class: "att-grab" }), h("p", { class: "att-title", text: label }), ...opts, cancel);
+    const wrap = h("div", { class: "att-wrap" }, card);
+    const close = () => { wrap.classList.add("out"); setTimeout(() => wrap.remove(), 200); };
+    cancel.addEventListener("click", close);
+    wrap.addEventListener("click", (e) => { if (e.target === wrap) close(); });
+    import("../ui.js").then((m) => m.swipeDownToClose?.(card, close));
+    document.body.append(wrap);
+  }
   input.addEventListener("change", () => {
     add([...input.files]);
     input.value = "";

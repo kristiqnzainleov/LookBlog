@@ -235,12 +235,21 @@ export function groupView(chatId, { onBack } = {}) {
   }
   function editMyStatus() {
     const st = chat.myStatus || {};
-    const emojiBtn = h("button", { type: "button", class: "look-emo", text: st.emoji || "🙂" });
+    // Up to 5 emoji: tap them in one after another; ⌫ takes the last one back
     let emoji = st.emoji || "";
-    emojiBtn.addEventListener("click", () => import("./emoji.js").then(({ openEmojiPicker }) => openEmojiPicker(emojiBtn, (e) => { emoji = e; emojiBtn.textContent = e; })));
+    const graphemes = (x) => [...new Intl.Segmenter("en", { granularity: "grapheme" }).segment(x)].map((g) => g.segment);
+    const emojiBtn = h("button", { type: "button", class: "look-emo st-emojis", title: "Add emoji (up to 5)" });
+    const paintEmoji = () => { emojiBtn.textContent = emoji || "🙂 ＋"; back.hidden = !emoji; };
+    const back = h("button", { type: "button", class: "look-emo st-back", title: "Remove the last emoji", text: "⌫" });
+    back.addEventListener("click", () => { emoji = graphemes(emoji).slice(0, -1).join(""); paintEmoji(); });
+    emojiBtn.addEventListener("click", () => import("./emoji.js").then(({ openEmojiPicker }) => openEmojiPicker(emojiBtn, (e) => {
+      if (graphemes(emoji).length >= 5) return toast("Up to 5 emoji.");
+      emoji += e; paintEmoji();
+    }, { keepOpen: true })));
+    paintEmoji();
     const input = h("input", { type: "text", class: "text-input", maxlength: 60, placeholder: "Your status in this group", value: st.text || "" });
     const quick = h("div", { class: "look-chips" }, ...[["🎮", "Gaming"], ["📚", "Studying"], ["💼", "Working"], ["😴", "Sleeping"], ["🎧", "Listening to music"], ["🚫", "Busy"]].map(([e, t]) =>
-      h("button", { type: "button", class: "look-chip", text: `${e} ${t}`, onclick: () => { emoji = e; emojiBtn.textContent = e; input.value = t; } })));
+      h("button", { type: "button", class: "look-chip", text: `${e} ${t}`, onclick: () => { emoji = e; paintEmoji(); input.value = t; } })));
     const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save" });
     const clear = h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Clear status" });
     const go = async (body) => {
@@ -249,7 +258,7 @@ export function groupView(chatId, { onBack } = {}) {
     };
     save.addEventListener("click", () => go({ emoji, text: input.value }));
     clear.addEventListener("click", () => go({}));
-    const m = modal({ title: `Your status in ${chat.name}`, body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "Only in this group — every group can have its own." }), h("div", { class: "st-row" }, emojiBtn, input), quick, save, clear) });
+    const m = modal({ title: `Your status in ${chat.name}`, body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "Only in this group — every group can have its own." }), h("div", { class: "st-row" }, emojiBtn, back, input), quick, save, clear) });
   }
 
   /* ---------- Channels ---------- */
