@@ -1354,6 +1354,12 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const picker = createPicker({ accept: "both", max: 1, onChange: update, onError: showErr });
     // You can press send while the photo is still going up: it's sent the moment it's ready
     function update() { send.disabled = !text.value.trim() && !picker.items().length; }
+    // Phones: send on the touch itself, without taking the focus from the box. Otherwise the keyboard closes
+    // mid-tap, the whole screen jumps and the tap can miss the button.
+    send.addEventListener("touchstart", (e) => { if (send.disabled) return; e.preventDefault(); send.classList.add("pressed"); }, { passive: false });
+    send.addEventListener("touchend", (e) => { if (!send.classList.contains("pressed")) return; e.preventDefault(); send.classList.remove("pressed"); if (!send.disabled) form.requestSubmit(); }, { passive: false });
+    send.addEventListener("touchcancel", () => send.classList.remove("pressed"));
+    send.addEventListener("mousedown", (e) => e.preventDefault());
 
     text.addEventListener("input", () => { text.style.height = "auto"; text.style.height = Math.min(text.scrollHeight, 160) + "px"; update(); });
     text.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
