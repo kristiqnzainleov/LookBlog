@@ -6546,3 +6546,8 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
   body[data-page="messages"] .messenger { transition: none !important; }
   .convo-input textarea { font-size: 16px !important; } /* (smaller would make iPhone zoom in when you start typing) */
 }
+@media (max-width: 760px) {
+  /* the window moves with a transform (smooth), and never scrolls on its own */
+  body[data-page="messages"] .view { top: 0 !important; transform: translateY(var(--vvtop, 0px)); will-change: transform, height; }
+  body[data-page="messages"] .convo-foot, body[data-page="messages"] .convo-head { overflow-anchor: none; }
+}

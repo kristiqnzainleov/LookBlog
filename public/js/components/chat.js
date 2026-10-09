@@ -1353,6 +1353,13 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const send = h("button", { type: "submit", class: "send-btn", "aria-label": "Send", disabled: true }, icon("send"));
     const picker = createPicker({ accept: "both", max: 1, onChange: update, onError: showErr });
     // You can press send while the photo is still going up: it's sent the moment it's ready
+    // Phones: tapping the box opens the keyboard without the phone scrolling the page to it (the cause of the jump)
+    text.addEventListener("touchend", (e) => {
+      if (document.activeElement === text || !matchMedia("(hover: none), (max-width: 760px)").matches) return;
+      e.preventDefault();
+      text.focus({ preventScroll: true });
+      const end = text.value.length; try { text.setSelectionRange(end, end); } catch {}
+    }, { passive: false });
     function update() { send.disabled = !text.value.trim() && !picker.items().length; }
     // Phones: send on the touch itself, without taking the focus from the box. Otherwise the keyboard closes
     // mid-tap, the whole screen jumps and the tap can miss the button.

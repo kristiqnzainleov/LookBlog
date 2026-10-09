@@ -53,16 +53,27 @@ export function messagesPage(view, m) {
   // and the page itself can't be scrolled or pushed up.
   const vv = window.visualViewport;
   // (the window follows the part of the screen you can see, above the keyboard; it never fights the phone)
-  let raf = 0;
+  let raf = 0, follow = 0;
+  const apply = () => {
+    const root = document.documentElement.style;
+    root.setProperty("--vvh", Math.round(vv.height) + "px");
+    root.setProperty("--vvtop", Math.round(vv.offsetTop) + "px");
+  };
   const fit = () => {
     if (!vv) return;
     cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => {
-      const root = document.documentElement.style;
-      root.setProperty("--vvh", Math.round(vv.height) + "px");
-      root.setProperty("--vvtop", Math.round(vv.offsetTop) + "px");
-    });
+    raf = requestAnimationFrame(apply);
   };
+  // While the keyboard slides in or out, follow it on every frame (no jump at the end)
+  const track = () => {
+    if (!vv) return;
+    const until = performance.now() + 900;
+    cancelAnimationFrame(follow);
+    const step = () => { apply(); if (performance.now() < until) follow = requestAnimationFrame(step); };
+    step();
+  };
+  document.addEventListener("focusin", (e) => { if (e.target.matches?.("textarea, input")) track(); });
+  document.addEventListener("focusout", (e) => { if (e.target.matches?.("textarea, input")) track(); });
   vv?.addEventListener("resize", fit);
   vv?.addEventListener("scroll", fit);
   fit();
