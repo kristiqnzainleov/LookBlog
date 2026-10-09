@@ -274,9 +274,14 @@ export function actions(p, { onDeleted, big = false } = {}) {
     bar._p = p;
     let tries = 0;
     const place = () => {
-      const scope = bar.closest(".reel-item, .post, .detail, .watch-main");
+      const scope = bar.closest(".reel-item, .post, .detail, .watch-main, .video-modal");
       if (!scope) { if (++tries < 20) return requestAnimationFrame(place); return; }
-      const media = scope.querySelector(".reel-frame, .media-grid, .lb-player, .video-card .thumb") || (scope.classList.contains("watch-main") ? document.querySelector(".watch-stage .lb-player") : null);
+      let media = scope.querySelector(".reel-frame, .media-grid, .lb-player, .video-card .thumb") || (scope.classList.contains("watch-main") ? document.querySelector(".watch-stage .lb-player") : null);
+      // A post with only words: the photos sit on the post's text (in a little space under it)
+      if (!media) {
+        const text = scope.querySelector(".post-text, .chain-card, .poll");
+        if (text) { media = h("div", { class: "fa-text-host" }); text.before(media); media.append(text); }
+      }
       if (media) {
         media.classList.add("fa-host");
         bar._friends = friendBubbles(p, media);
@@ -549,8 +554,9 @@ function friendsRow(p) {
 // On a photo or video: round photos with what they did, that you can drag anywhere on it (remembered)
 let faPos = { x: 0, y: 1 };
 try { const v = JSON.parse(localStorage.getItem("lb-fa-pos") || "null"); if (v && v.x >= 0 && v.x <= 1 && v.y >= 0 && v.y <= 1) faPos = v; } catch {}
-function friendBubbles(p, host) {
+export function friendBubbles(p, host) {
   const box = h("div", { class: "fa-bubbles", "aria-label": "Friends who reacted" });
+  box._p = p;
   const setPos = (pos) => { box.style.setProperty("--fx", pos.x); box.style.setProperty("--fy", pos.y); };
   setPos(faPos);
   box.paint = (fresh) => {
@@ -641,6 +647,8 @@ on("friend-act", (ev) => {
     p.friends = f;
     bar._friends?.paint(ev.user.username);
   }
+  // Also on a photo that's open big
+  for (const b of document.querySelectorAll(".lightbox .fa-bubbles")) if (b._p?.id === ev.id) b.paint(ev.user.username);
 });
 
 /* ---------- Double-tap a post to like it (like Instagram) ---------- */

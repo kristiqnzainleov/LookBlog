@@ -2,7 +2,7 @@
 // arrows (or swipe) for the next photo, Esc to close.
 import { h, icon } from "../ui.js";
 
-export function openLightbox(urls, start = 0) {
+export function openLightbox(urls, start = 0, { overlay = null } = {}) {
   let i = start, scale = 1, x = 0, y = 0;
   const img = h("img", { class: "lb-img", alt: "", draggable: "false" });
   const stage = h("div", { class: "lb-stage" }, img);
@@ -13,8 +13,12 @@ export function openLightbox(urls, start = 0) {
   const zoomIn = h("button", { type: "button", class: "lb-tool", "aria-label": "Zoom in", text: "+" });
   const zoomOut = h("button", { type: "button", class: "lb-tool", "aria-label": "Zoom out", text: "−" });
   const zoomLabel = h("span", { class: "lb-zoom", text: "100%" });
+  // Behind the photo: the photo itself, big and blurred (not plain black)
+  const bg = h("div", { class: "lb-bg", "aria-hidden": "true" });
+  // Things shown on the photo (friends' bubbles): a layer the size of the photo, hidden while zoomed
+  const layer = h("div", { class: "lb-layer" });
   const box = h("div", { class: "lightbox", role: "dialog", "aria-modal": "true", "aria-label": "Photo" },
-    stage, close, prev, next,
+    bg, stage, layer, close, prev, next,
     h("div", { class: "lb-bar" }, counter, h("span", { class: "lb-spacer" }), zoomOut, zoomLabel, zoomIn));
   document.body.append(box);
   document.body.classList.add("no-scroll");
@@ -26,6 +30,14 @@ export function openLightbox(urls, start = 0) {
     zoomLabel.textContent = Math.round(scale * 100) + "%";
     box.classList.toggle("zoomed", scale > 1);
   };
+  const fitLayer = () => {
+    if (scale !== 1 || !img.naturalWidth) return;
+    const r = img.getBoundingClientRect();
+    Object.assign(layer.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+  };
+  img.addEventListener("load", () => requestAnimationFrame(fitLayer));
+  addEventListener("resize", fitLayer);
+  if (overlay) Promise.resolve(overlay(layer)).then((el) => el && layer.append(el));
   const clampPan = () => {
     const r = img.getBoundingClientRect();
     const w = (r.width / scale) * scale, hh = (r.height / scale) * scale;
@@ -49,6 +61,7 @@ export function openLightbox(urls, start = 0) {
     i = (n + urls.length) % urls.length;
     scale = 1; x = y = 0;
     img.src = urls[i];
+    bg.style.backgroundImage = `url("${String(urls[i]).replace(/"/g, "%22")}")`;
     apply(false);
     counter.textContent = urls.length > 1 ? `${i + 1} / ${urls.length}` : "";
     prev.hidden = next.hidden = urls.length < 2;
@@ -118,6 +131,7 @@ export function openLightbox(urls, start = 0) {
   document.addEventListener("keydown", onKey);
   function shut() {
     document.removeEventListener("keydown", onKey);
+    removeEventListener("resize", fitLayer);
     box.classList.remove("open");
     document.body.classList.remove("no-scroll");
     setTimeout(() => box.remove(), 200);

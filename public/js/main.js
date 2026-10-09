@@ -196,7 +196,9 @@ function setupMenu() {
     e.preventDefault();
     const group = a.closest(".media-grid");
     const links = group ? [...group.querySelectorAll("a.media-cell")] : [a];
-    openLightbox(links.map((l) => l.getAttribute("href")), links.indexOf(a));
+    // A post's photo: the mutuals who liked / reposted / gave a Cool show on it there too
+    const pbar = a.classList.contains("media-cell") ? [...(a.closest(".post, .detail")?.querySelectorAll(".post-actions[data-post]") || [])].find((b) => b._p) : null;
+    openLightbox(links.map((l) => l.getAttribute("href")), links.indexOf(a), pbar?._p?.friends ? { overlay: (host) => import("./components/post.js").then((m) => m.friendBubbles(pbar._p, host)) } : {});
     // Opening a post's photo big is a view of that post (every time)
     const pid = a.classList.contains("media-cell") && (a.closest(".post[data-id]")?.dataset.id || location.pathname.match(/^\/post\/([^/?#]+)/)?.[1]);
     if (pid) import("./components/post.js").then((m) => m.sendView(decodeURIComponent(pid), { open: true }));

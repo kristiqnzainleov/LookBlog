@@ -6658,3 +6658,14 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 /* Above a video's controls, and above a short's caption */
 .lb-player > .fa-bubbles { padding-bottom: 84px; }
 .reel-frame > .fa-bubbles { padding-bottom: 130px; padding-top: 60px; }
+/* Photo opened big: the background is the photo itself, blurred (not black) */
+.lightbox { background: rgba(12, 10, 12, 0.35) !important; backdrop-filter: blur(26px) saturate(1.2); -webkit-backdrop-filter: blur(26px) saturate(1.2); }
+.lb-bg { position: absolute; inset: -60px; z-index: 0; pointer-events: none; background: center / cover no-repeat; filter: blur(40px) brightness(0.55) saturate(1.3); transform: scale(1.15); transition: background-image .25s; }
+.lightbox .lb-stage { z-index: 1; }
+.lightbox .lb-close, .lightbox .lb-nav, .lightbox .lb-bar { z-index: 3; }
+.lb-layer { position: fixed; z-index: 2; pointer-events: none; }
+.lb-layer .fa-bubbles { pointer-events: auto; }
+.lightbox.zoomed .lb-layer { display: none; }
+/* Text posts: the bubbles sit on the post's words, with a little room under them */
+.fa-text-host { position: relative; }
+.fa-text-host:has(> .fa-bubbles:not([hidden])) { padding-bottom: 56px; }
