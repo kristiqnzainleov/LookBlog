@@ -9,6 +9,7 @@ import { createPicker } from "./media-picker.js";
 import { createPlayer } from "./player.js";
 import { startRecording, voicePlayer } from "./voice.js";
 
+let dropOwner = null; // the chat that takes files dropped on the page
 // Files sent in chats: what each ending is, and how they look
 const FILE_TYPES = {
   pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -38,7 +39,20 @@ function audioFileCard(m) {
   return h("div", { class: "file-card audio-card" },
     h("div", { class: "fc-row" }, h("span", { class: "fc-ic", text: "🎵" }), h("span", { class: "fc-text" }, h("b", { text: m.name || "Audio" }), h("small", { class: "muted", text: [m.duration ? fmtLen(m.duration) : "", m.size ? fileSize(m.size) : ""].filter(Boolean).join(" · ") })),
       h("a", { class: "fc-dl", href: m.url, target: "_blank", rel: "noopener", download: m.name || "", title: "Download", text: "⬇" })),
-    h("audio", { controls: true, preload: "metadata", src: m.url }));
+    voicePlayer(m));
+}
+// The real shape of a song (64 bars), worked out in the browser before it's sent
+async function audioPeaks(file) {
+  try {
+    if (file.size > 30 * 1024 * 1024) return null;
+    const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 1, 44100);
+    const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+    const data = buf.getChannelData(0), n = 64, step = Math.floor(data.length / n) || 1;
+    const out = [];
+    for (let i = 0; i < n; i++) { let m = 0; for (let j = i * step, e = Math.min(data.length, j + step); j < e; j += 16) m = Math.max(m, Math.abs(data[j])); out.push(m); }
+    const top = Math.max(...out) || 1;
+    return out.map((x) => Math.round((x / top) * 100) / 100);
+  } catch { return null; }
 }
 const fmtLen = (d) => `${Math.floor(d / 60)}:${String(Math.floor(d % 60)).padStart(2, "0")}`;
 import { openStickers, closeStickers } from "./stickers.js";
@@ -1499,8 +1513,9 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       list.append(pend); toBottom();
       try {
         const duration = audio ? await audioLength(f) : null;
+        const peaks = audio ? await audioPeaks(f) : null;
         const { url } = await upload(f, (x) => { pct.textContent = `Uploading… ${Math.round(x * 100)}%`; });
-        await sendExtra({ media: { url, file: true, name: file.name, size: file.size, ...(duration ? { duration } : {}) } }, "file");
+        await sendExtra({ media: { url, file: true, name: file.name, size: file.size, ...(duration ? { duration } : {}), ...(peaks ? { peaks } : {}) } }, "file");
       } catch (err) { showErr(err.error || "Couldn’t send the file."); }
       pend.remove();
     };
@@ -1508,6 +1523,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const takeFiles = (files) => {
       const media = files.filter((f) => /^(image\/(jpeg|png|gif|webp)|video\/(mp4|quicktime|webm))$/.test(f.type));
       if (media.length) picker.add(media.slice(0, 1));
+      if (media.length > 1) showErr("One photo or video at a time — the first one is added.");
       for (const f of files) if (!media.includes(f)) sendFile(f);
     };
     const onPaste = (e) => {
@@ -1522,12 +1538,25 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       text.focus();
     };
     addEventListener("paste", onPaste);
-    requestAnimationFrame(() => {
-      const dropZone = list.parentElement || form.parentElement;
-      dropZone?.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); dropZone.classList.add("drop-on"); } });
-      dropZone?.addEventListener("dragleave", (e) => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove("drop-on"); });
-      dropZone?.addEventListener("drop", (e) => { const files = [...(e.dataTransfer?.files || [])]; dropZone.classList.remove("drop-on"); if (!files.length) return; e.preventDefault(); takeFiles(files); });
-    });
+    // Drag files anywhere over the chat: "Drop to send" covers it, and they go into this chat
+    // (the newest chat on screen takes them, so a file never opens in the browser instead)
+    const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+    const dropCover = h("div", { class: "drop-cover", hidden: true }, h("div", { class: "drop-card" }, h("span", { class: "drop-ic", text: "📎" }), h("b", { text: "Drop to send" }), h("small", { text: "Photos, videos, sounds and documents" })));
+    let dragDepth = 0;
+    const mineNow = () => { if (!form.isConnected) { stopDrops(); return false; } return dropOwner === form; };
+    const onEnter = (e) => { if (!hasFiles(e) || !mineNow()) return; e.preventDefault(); dragDepth++; if (!dropCover.isConnected) (list.parentElement || form.parentElement)?.append(dropCover); dropCover.hidden = false; };
+    const onOver = (e) => { if (!hasFiles(e) || !mineNow()) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; };
+    const onLeave = (e) => { if (!hasFiles(e) || !mineNow()) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dropCover.hidden = true; };
+    const onDrop = (e) => {
+      if (!hasFiles(e) || !mineNow()) return;
+      e.preventDefault();
+      dragDepth = 0; dropCover.hidden = true;
+      const files = [...(e.dataTransfer?.files || [])];
+      if (files.length) takeFiles(files);
+    };
+    const stopDrops = () => { removeEventListener("dragenter", onEnter); removeEventListener("dragover", onOver); removeEventListener("dragleave", onLeave); removeEventListener("drop", onDrop); };
+    addEventListener("dragenter", onEnter); addEventListener("dragover", onOver); addEventListener("dragleave", onLeave); addEventListener("drop", onDrop);
+    requestAnimationFrame(() => { dropOwner = form; form.addEventListener("focusin", () => { dropOwner = form; }); });
     const fileInput = h("input", { type: "file", hidden: true, multiple: true, accept: ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.mp3,.wav,.m4a,.ogg,.flac,.aac,audio/*" });
     fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; files.forEach(sendFile); });
     const fileBtn = h("button", { type: "button", class: "tool-btn", "aria-label": "Send a file", title: "Send a document or a sound file" }, h("span", { class: "tool-emoji", text: "📎" }), fileInput);

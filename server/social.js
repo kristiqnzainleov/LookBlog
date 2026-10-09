@@ -540,7 +540,8 @@ function buildMedia(item, me) {
   if (m.kind === "file") return { ...out, name: fileName(), size: Math.max(0, Math.round(Number(item.size) || 0)) };
   if (m.kind === "audio" && item.file === true) {
     const d = Number(item.duration);
-    return { ...out, file: true, name: fileName(), size: Math.max(0, Math.round(Number(item.size) || 0)), ...(Number.isFinite(d) && d > 0 ? { duration: Math.round(d * 10) / 10 } : {}) };
+    const peaks = Array.isArray(item.peaks) ? item.peaks.slice(0, 64).map((x) => Math.max(0, Math.min(1, Math.round(Number(x) * 100) / 100 || 0))) : null;
+    return { ...out, file: true, name: fileName(), size: Math.max(0, Math.round(Number(item.size) || 0)), ...(Number.isFinite(d) && d > 0 ? { duration: Math.round(d * 10) / 10 } : {}), ...(peaks?.length ? { peaks } : {}) };
   }
   // NSFW: the photo (or the video's first frame) was checked when it was picked; sensitive ones are blurred for others
   if (item.nsfw === true) out.nsfw = true;

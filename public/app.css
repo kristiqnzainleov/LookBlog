@@ -6846,3 +6846,12 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .vm-local .create-hint { margin: 0; }
 .vm-thumb-local { display: grid; place-items: center; font-size: 1.6rem; background: linear-gradient(135deg, #2b2440, #3d1f33) !important; }
 .vd-now.vd-local { background: color-mix(in srgb, #4cc9ff 18%, var(--card-2)); }
+/* Dragging files over a chat */
+.drop-cover { position: absolute; inset: 8px; z-index: 40; display: grid; place-items: center; border-radius: 20px; border: 3px dashed var(--pink); background: color-mix(in srgb, var(--bg, #0d0c0c) 80%, transparent); backdrop-filter: blur(6px); pointer-events: none; }
+.drop-cover[hidden] { display: none; }
+.drop-card { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.drop-card b { font-size: 1.3rem; }
+.drop-card small { color: var(--muted); }
+.drop-ic { font-size: 2.6rem; animation: dropBob 1s ease-in-out infinite alternate; }
+@keyframes dropBob { to { transform: translateY(-6px); } }
+.convo { position: relative; }
