@@ -31,7 +31,6 @@ export function openStickers(anchor, onSend, { group = null, canManageGroup = fa
   panel = h("div", { class: "sticker-panel", role: "dialog", "aria-label": "Stickers" },
     h("header", { class: "sp-head" }, group ? tabs : h("b", { text: "Your stickers" }), hint), grid);
   document.body.append(panel);
-  phoneSheet(panel, () => closeStickers(), grid);
   const place = () => {
     if (!panel) return;
     const a = visibleRect(anchor);

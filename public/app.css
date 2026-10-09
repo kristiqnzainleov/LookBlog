@@ -6486,3 +6486,9 @@ body:has(.mm-overlay) .convo-list { overflow: hidden !important; }
 .pv-img.zoomed { transform: scale(2.2); cursor: zoom-out; }
 .pv-close { z-index: 3; font-size: 1.25rem; font-weight: 700; line-height: 1; background: rgba(255, 255, 255, 0.2) !important; border: 1px solid rgba(255, 255, 255, 0.25); }
 .pv-close:hover { background: rgba(255, 255, 255, 0.32) !important; }
+/* ---------- A sheet is open (GIFs, sounds…): the chat behind stays still ---------- */
+.gif-panel, .pick-sheet, .gif-panel .gif-grid, .pick-sheet .snd-list, .emoji-panel .emoji-grid, .sticker-panel .sticker-grid { overscroll-behavior: contain; }
+.gif-sheet, .pick-sheet { touch-action: pan-y; }
+body:has(.gif-sheet) .convo-list, body:has(.pick-sheet) .convo-list { overflow: hidden !important; touch-action: none; }
+body:has(.gif-sheet) .messenger, body:has(.pick-sheet) .messenger { pointer-events: none; }
+body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-events: auto; }

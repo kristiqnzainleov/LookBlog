@@ -59,7 +59,6 @@ export function openEmojiPicker(anchor, onPick, { keepOpen = false } = {}) {
 
   document.body.append(panel);
   openPanel = panel;
-  phoneSheet(panel, () => closeEmojiPicker(), grid);
   // Place above the anchor when there's room, otherwise below
   const a = visibleRect(anchor);
   const w = Math.min(340, innerWidth - 16);
