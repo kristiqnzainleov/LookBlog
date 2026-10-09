@@ -456,3 +456,23 @@ a { color: inherit; }
 .google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; }
 #loginCard .google-btn { margin: 6px 0 4px; }
 .g-note { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 2000; max-width: min(460px, calc(100vw - 32px)); padding: 12px 18px; border-radius: 14px; background: #1a1919; border: 1px solid var(--pink, #ff4fa3); color: #f5f0eb; font: 500 0.92rem "Golos Text", sans-serif; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); }
+
+/* ---------- Phones: a centred, balanced start page ---------- */
+@media (max-width: 640px) {
+  .home { min-height: calc(100dvh - 90px); display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 30px; padding: 32px 20px 24px !important; text-align: center; }
+  .home-logo { justify-content: center !important; width: 100%; }
+  .logo-big { font-size: clamp(3.6rem, 17vw, 4.8rem) !important; }
+  .logo-big .line { display: block !important; }
+  .logo-big .line + .line { margin: 0.02em 0 0 !important; }
+  .home-cta { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: stretch; }
+  .headline { font-size: clamp(2rem, 9.5vw, 2.6rem) !important; margin: 0 0 6px !important; line-height: 1.05; }
+  .join { font-size: clamp(1.25rem, 6vw, 1.55rem) !important; margin: 0 0 22px !important; color: var(--muted); }
+  .cta-buttons, .have-account { max-width: none !important; width: 100%; }
+  .home-cta .btn { height: 52px; font-size: 1.02rem; border-radius: 999px; }
+  .legal { font-size: 0.78rem; margin: 12px 4px 0; text-align: center; }
+  .have-account { margin-top: 26px !important; padding-top: 22px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+  .have-account p { margin: 0 0 12px !important; font-size: 0.98rem; font-weight: 700; }
+  .footer { justify-content: center; text-align: center; gap: 6px 14px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); font-size: 0.78rem; }
+  /* the log-in / sign-up window fills the phone nicely */
+  .modal-card { width: 100%; }
+}

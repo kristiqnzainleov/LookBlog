@@ -877,7 +877,8 @@ function messageEl(msg, chat, onRemoved) {
   }
   // Phones have no hover: tap a message to show its menu
   bubble.addEventListener("click", (e) => {
-    if (!matchMedia("(hover: none), (max-width: 640px)").matches || e.target.closest("a, video, button, .lb-player")) return;
+    // (on phones the options open by holding the message instead)
+    if (true || !matchMedia("(hover: none), (max-width: 640px)").matches || e.target.closest("a, video, button, .lb-player")) return;
     const open = row.classList.contains("show-tools");
     document.querySelectorAll(".msg.show-tools").forEach((x) => x.classList.remove("show-tools"));
     if (!open) row.classList.add("show-tools");

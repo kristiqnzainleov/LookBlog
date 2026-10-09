@@ -6361,3 +6361,31 @@ body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }
 .ap-initials { width: 100% !important; height: 100% !important; display: grid !important; place-items: center; font: 900 clamp(4rem, 22vw, 8rem) var(--display) !important; border-radius: 50%; }
 .ap-name { margin-top: 10px; font: 800 1.5rem var(--display); color: #fff; }
 .ap-handle { color: rgba(255, 255, 255, 0.7); margin-bottom: 6px; }
+/* ---------- Profiles: the whole page, edge to edge (no black around the card) ---------- */
+.view.page-profile { max-width: none !important; width: 100% !important; padding-left: 0 !important; padding-right: 0 !important; padding-top: var(--topbar) !important; }
+.page-profile > .column-head { position: absolute; top: calc(var(--topbar) + 14px); left: 14px; z-index: 6; margin: 0; padding: 0; background: none; border: none; }
+.page-profile > .column-head .head-text { display: none; }
+.page-profile > .column-head .icon-btn { background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(8px); border-color: rgba(255, 255, 255, 0.15); }
+.page-profile .profile { border-radius: 0 !important; border-left: none !important; border-right: none !important; border-top: none !important; margin: 0 0 8px !important; box-shadow: none; }
+.page-profile .profile-banner { border-radius: 0 !important; height: clamp(180px, 26vw, 340px); }
+/* what's inside stays a comfortable width, in the middle */
+.page-profile .profile > *:not(.profile-banner):not(.pfx) { max-width: 1040px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+.page-profile .profile-top { max-width: 1040px; margin-left: auto !important; margin-right: auto !important; }
+.page-profile .view > div > :not(.profile), .page-profile > div > :not(.profile) { max-width: 1040px; margin-left: auto; margin-right: auto; padding-left: 16px; padding-right: 16px; box-sizing: border-box; }
+.view.page-profile[data-pbg]::before { border-radius: 0 !important; }
+.pf-body > :not(.profile) { max-width: 1040px; margin-left: auto !important; margin-right: auto !important; width: auto; }
+@media (max-width: 640px) { .pf-body > :not(.profile) { margin-left: 12px !important; margin-right: 12px !important; } }
+/* ---------- Phones: the chat never slides sideways ---------- */
+@media (max-width: 640px), (hover: none) {
+  .msg-tools { display: none !important; }
+  .convo-list { overflow-x: hidden; overflow-x: clip; touch-action: pan-y; }
+  .messenger, .convo, .convo-pane { overflow-x: clip; }
+}
+/* the note bubble sits above the photo, not on it */
+.notes-row { padding-top: 34px !important; }
+/* ---------- Profiles: big, full width ---------- */
+.page-profile .profile-top { padding-left: 24px; padding-right: 24px; }
+.page-profile .profile h2 { font-size: clamp(2.2rem, 4.2vw, 3.2rem); }
+@media (min-width: 641px) { .page-profile .profile-top { margin-top: -96px !important; } }
+@media (max-width: 640px) { .page-profile .profile-top { margin-top: -64px !important; } .page-profile .profile-banner { height: 210px; } }
+.notes-row .note-bubble.empty { top: -22px !important; transform: translateX(-50%) !important; left: 50% !important; }

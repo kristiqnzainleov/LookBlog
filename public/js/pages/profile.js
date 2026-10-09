@@ -132,7 +132,7 @@ export async function profilePage(view, m, params) {
   const title = h("h1", { text: "Profile" });
   const sub = h("span", { class: "head-sub" });
   view.append(h("header", { class: "column-head" }, h("div", { class: "head-row" }, back, h("div", { class: "head-text" }, title, sub))));
-  const body = h("div");
+  const body = h("div", { class: "pf-body" });
   view.append(body);
 
   let profile;
@@ -313,7 +313,7 @@ export async function profilePage(view, m, params) {
     bioEl.addEventListener("click", (e) => { if (!e.target.closest("a")) startEdit(); });
     bioEl.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startEdit(); } });
   }
-  const AVATAR = matchMedia("(max-width: 640px)").matches ? 104 : 144;
+  const AVATAR = matchMedia("(max-width: 640px)").matches ? 120 : 180;
   const avatarWrap = h("div", { class: "profile-avatar", style: `--av:${AVATAR}px` }, avatar({ ...profile, live: profile.liveNow }, AVATAR));
   paintAccent();
   // Streaming right now: a big red "LIVE — Watch" button under the name
