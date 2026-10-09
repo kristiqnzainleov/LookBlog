@@ -267,23 +267,25 @@ export function actions(p, { onDeleted, big = false } = {}) {
   const bar = p.film
     ? h("div", { class: "post-actions" + (big ? " big" : "") }, starsChip, comments, share, views)
     : h("div", { class: "post-actions" + (big ? " big" : "") }, cool, like, dislike, repost, comments, share, views);
-  // "Liked by Desi and 2 others you follow" — and live, their photo flies up from the post
+  // My mutuals who liked / reposted / gave a Cool: round photos on the photo or video (you can move them),
+  // or a "Liked by …" line on posts with no photo. Live, their photo flies up from the post.
   if (!p.film) {
     bar.dataset.post = p.id;
     bar._p = p;
-    const row = friendsRow(p);
-    bar._friends = row;
-    // It sits on the photo or video itself (on a short: over the video, above the caption)
     let tries = 0;
     const place = () => {
       const scope = bar.closest(".reel-item, .post, .detail, .watch-main");
       if (!scope) { if (++tries < 20) return requestAnimationFrame(place); return; }
-      const info = scope.classList.contains("reel-item") ? scope.querySelector(".reel-info") : null;
-      const media = info ? null : scope.querySelector(".media-grid, .lb-player, .video-card .thumb") || (scope.classList.contains("watch-main") ? document.querySelector(".watch-stage .lb-player") : null);
-      if (info) info.prepend(row);
-      else if (media) { media.classList.add("fa-host"); row.classList.add("on-media"); media.append(row); }
-      else bar.before(row);
-      bar._media = media || info?.closest(".reel-frame") || null;
+      const media = scope.querySelector(".reel-frame, .media-grid, .lb-player, .video-card .thumb") || (scope.classList.contains("watch-main") ? document.querySelector(".watch-stage .lb-player") : null);
+      if (media) {
+        media.classList.add("fa-host");
+        bar._friends = friendBubbles(p, media);
+        media.append(bar._friends);
+      } else {
+        bar._friends = friendsRow(p);
+        bar.before(bar._friends);
+      }
+      bar._media = media;
     };
     requestAnimationFrame(place);
   }
@@ -522,39 +524,104 @@ export function withReason(el, p) {
   return el;
 }
 
-/* ---------- Friends who liked or reposted (like Instagram) ---------- */
+/* ---------- Mutuals who liked, reposted or gave a Cool (like Instagram) ---------- */
+const FA_BADGE = { like: "❤️", repost: "🔁", cool: "😎" };
+const FA_VERB = { like: "liked it", repost: "reposted it", cool: "gave it a Cool" };
+const faMain = (did) => ["repost", "cool", "like"].find((k) => did.includes(k)) || "like";
+const faTitle = (u) => { const v = u.did.map((d) => FA_VERB[d]); return `${u.name} ${v.length > 1 ? v.slice(0, -1).join(", ") + " and " + v.at(-1) : v[0]}`; };
+// No photo or video: a line under the post
 function friendsRow(p) {
   const row = h("div", { class: "fa-row" });
   row.paint = () => {
     const f = p.friends;
     row.hidden = !f?.people?.length;
     if (row.hidden) return row.replaceChildren();
-    const first = f.people[0], rest = f.count - 1;
-    const who = (u) => h("a", { href: profileHref(u.username), text: u.name });
-    const tail = rest > 0 ? [" and ", h("b", { text: `${rest} other${rest === 1 ? "" : "s"}` }), " you follow"] : [];
+    const first = f.people[0], rest = f.count - 1, did = faMain(first.did);
+    const who = h("a", { href: profileHref(first.username), text: first.name });
+    const tail = rest > 0 ? [" and ", h("b", { text: `${rest} other${rest === 1 ? "" : "s"}` })] : [];
     row.replaceChildren(
-      h("span", { class: "fa-stack" }, ...f.people.map((u) => h("a", { class: "fa-av", href: profileHref(u.username), title: `${u.name} ${u.did === "repost" ? "reposted" : "liked"} this` }, avatar(u, 22), h("i", { class: "fa-badge " + u.did, text: u.did === "repost" ? "🔁" : "❤️" })))),
-      h("span", { class: "fa-text" }, ...(first.did === "repost" ? [who(first), ...tail, " reposted"] : ["Liked by ", who(first), ...tail])));
+      h("span", { class: "fa-stack" }, ...f.people.slice(0, 3).map((u) => h("a", { class: "fa-av", href: profileHref(u.username), title: faTitle(u) }, avatar(u, 22), h("i", { class: "fa-badge", text: FA_BADGE[faMain(u.did)] })))),
+      h("span", { class: "fa-text" }, ...(did === "like" ? ["Liked by ", who, ...tail] : [who, ...tail, did === "repost" ? " reposted" : " gave it a Cool 😎"])));
   };
   row.paint();
   return row;
+}
+// On a photo or video: round photos with what they did, that you can drag anywhere on it (remembered)
+let faPos = { x: 0, y: 1 };
+try { const v = JSON.parse(localStorage.getItem("lb-fa-pos") || "null"); if (v && v.x >= 0 && v.x <= 1 && v.y >= 0 && v.y <= 1) faPos = v; } catch {}
+function friendBubbles(p, host) {
+  const box = h("div", { class: "fa-bubbles", "aria-label": "Friends who reacted" });
+  const setPos = (pos) => { box.style.setProperty("--fx", pos.x); box.style.setProperty("--fy", pos.y); };
+  setPos(faPos);
+  box.paint = (fresh) => {
+    const f = p.friends;
+    box.hidden = !f?.people?.length;
+    if (box.hidden) return box.replaceChildren();
+    const shown = f.people.slice(0, 4);
+    box.replaceChildren(...shown.map((u) => {
+      const main = faMain(u.did);
+      return h("a", { class: "fa-bub" + (fresh === u.username ? " fresh" : ""), href: profileHref(u.username), title: faTitle(u), draggable: "false" },
+        avatar(u, 36),
+        h("i", { class: "fa-badge " + main, text: FA_BADGE[main] }),
+        u.did.length > 1 ? h("i", { class: "fa-badge two", text: FA_BADGE[u.did.find((d) => d !== main)] }) : null);
+    }), f.count > shown.length ? h("span", { class: "fa-bub more", text: "+" + (f.count - shown.length) }) : null);
+  };
+  // Drag them around (a short tap still opens the person's profile)
+  let drag = null, moved = false;
+  box.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+    const hr = host.getBoundingClientRect(), br = box.getBoundingClientRect();
+    drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: e.clientX - br.left, oy: e.clientY - br.top, hr, bw: br.width, bh: br.height };
+    moved = false;
+  });
+  box.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    if (!moved) {
+      if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+      moved = true;
+      try { box.setPointerCapture(drag.id); } catch {}
+      box.classList.add("dragging");
+    }
+    e.preventDefault();
+    const { hr, bw, bh } = drag;
+    const fx = hr.width > bw ? Math.min(1, Math.max(0, (e.clientX - drag.ox - hr.left) / (hr.width - bw))) : 0;
+    const fy = hr.height > bh ? Math.min(1, Math.max(0, (e.clientY - drag.oy - hr.top) / (hr.height - bh))) : 0;
+    faPos = { x: Math.round(fx * 1000) / 1000, y: Math.round(fy * 1000) / 1000 };
+    setPos(faPos);
+  });
+  const end = () => {
+    if (!drag) return;
+    drag = null;
+    if (!moved) return;
+    box.classList.remove("dragging");
+    try { localStorage.setItem("lb-fa-pos", JSON.stringify(faPos)); } catch {}
+    // Every other post's bubbles move there too
+    document.querySelectorAll(".fa-bubbles").forEach((b) => { b.style.setProperty("--fx", faPos.x); b.style.setProperty("--fy", faPos.y); });
+  };
+  box.addEventListener("pointerup", end);
+  box.addEventListener("pointercancel", end);
+  // After a drag, the finger lifting isn't a tap on someone
+  box.addEventListener("click", (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+  box.addEventListener("dblclick", (e) => e.stopPropagation());
+  box.paint();
+  return box;
 }
 // Their photo with a heart (or a repost sign) flies up from the post, with little hearts around it
 function flyFriend(bar, user, did) {
   // From the bottom of the photo or video (or from the button, if the post has none)
   const m = bar._media?.isConnected ? bar._media.getBoundingClientRect() : null;
   const onMedia = m && m.width && m.bottom > 60 && m.top < innerHeight - 60;
-  const btn = bar.querySelector(did === "repost" ? ".act-repost" : ".act-like") || bar;
+  const btn = bar.querySelector(did === "repost" ? ".act-repost" : did === "cool" ? ".act-cool" : ".act-like") || bar;
   const r = onMedia ? m : btn.getBoundingClientRect();
   if (!r.width || r.bottom < 0 || r.top > innerHeight || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const x = onMedia ? r.left + Math.min(r.width - 40, 46 + Math.random() * Math.min(120, r.width / 3)) : r.left + r.width / 2;
   const y = onMedia ? Math.min(r.bottom, innerHeight) - 46 : r.top;
   const sway = (Math.random() - 0.5) * 70;
   const el = h("span", { class: "fa-fly " + did, style: `left:${x}px;top:${y}px;--sway:${sway}px`, "aria-hidden": "true" },
-    avatar(user, 38), h("i", { class: "fa-badge", text: did === "repost" ? "🔁" : "❤️" }));
+    avatar(user, 38), h("i", { class: "fa-badge", text: FA_BADGE[did] || "❤️" }));
   document.body.append(el);
   for (let i = 0; i < 4; i++) {
-    const t = h("span", { class: "fa-bit", style: `left:${x}px;top:${y}px;--dx:${(Math.random() - 0.5) * 90}px;--d:${i * 0.12}s`, "aria-hidden": "true", text: did === "repost" ? ["✨", "🔁"][i % 2] : ["❤️", "💖", "💗"][i % 3] });
+    const t = h("span", { class: "fa-bit", style: `left:${x}px;top:${y}px;--dx:${(Math.random() - 0.5) * 90}px;--d:${i * 0.12}s`, "aria-hidden": "true", text: did === "repost" ? ["✨", "🔁"][i % 2] : did === "cool" ? ["😎", "✨", "🔥"][i % 3] : ["❤️", "💖", "💗"][i % 3] });
     document.body.append(t);
     setTimeout(() => t.remove(), 1700);
   }
@@ -564,23 +631,21 @@ on("friend-act", (ev) => {
   for (const bar of document.querySelectorAll(`.post-actions[data-post="${CSS.escape(ev.id)}"]`)) {
     if (!bar.isConnected) continue;
     flyFriend(bar, ev.user, ev.did);
-    // On a playing video the row is hidden; it shows for a moment when someone new likes it
-    const md = bar._media;
-    if (md) { md.classList.add("fa-live"); clearTimeout(md._faT); md._faT = setTimeout(() => md.classList.remove("fa-live"), 3500); }
     const p = bar._p;
-    if (!ev.row || !p) continue;
+    if (!p) continue;
     const f = p.friends || { people: [], count: 0 };
-    const had = f.people.some((u) => u.username === ev.user.username);
-    f.people = [{ ...ev.user, did: ev.did }, ...f.people.filter((u) => u.username !== ev.user.username)].slice(0, 3);
-    if (!had) f.count++;
+    const old = f.people.find((u) => u.username === ev.user.username);
+    const did = old ? [...new Set([ev.did, ...old.did])] : [ev.did];
+    if (!old) f.count++;
+    f.people = [{ ...ev.user, did }, ...f.people.filter((u) => u.username !== ev.user.username)].slice(0, 6);
     p.friends = f;
-    bar._friends?.paint();
+    bar._friends?.paint(ev.user.username);
   }
 });
 
 /* ---------- Double-tap a post to like it (like Instagram) ---------- */
 // Buttons, links, fields and video players keep their own double-click.
-const NO_TAP = "button, a, input, textarea, select, video, audio, .lb-player, .post-actions, .poll, .replies, .comments, .composer, [contenteditable]";
+const NO_TAP = ".fa-bubbles, button, a, input, textarea, select, video, audio, .lb-player, .post-actions, .poll, .replies, .comments, .composer, [contenteditable]";
 export function likeBurst(x, y) {
   const el = h("span", { class: "like-burst", style: `left:${x}px;top:${y}px` }, "❤️");
   document.body.append(el);

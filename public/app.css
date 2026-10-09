@@ -6637,13 +6637,24 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 .fa-bit { position: fixed; z-index: 9998; pointer-events: none; font-size: 15px; margin: -8px 0 0 -8px; opacity: 0; animation: faBit 1.5s ease-out var(--d) forwards; }
 @keyframes faBit { 0% { transform: translate(0, 0) scale(0.4); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(var(--dx), -130px) scale(1.1) rotate(20deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .fa-fly, .fa-bit { display: none; } }
-/* Friends who liked / reposted: on the photo or video itself */
+/* Mutuals who reacted: round photos on the photo or video, draggable (like Instagram) */
 .fa-host { position: relative; }
-.fa-row.on-media { position: absolute; left: 10px; bottom: 10px; z-index: 3; margin: 0; max-width: calc(100% - 20px); padding: 4px 10px 4px 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: rgba(255, 255, 255, 0.88); font-size: 0.8rem; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); animation: faIn .35s cubic-bezier(.3, 1.6, .5, 1) both; }
-.fa-row.on-media .fa-text a, .fa-row.on-media .fa-text b { color: #fff; }
-.fa-row.on-media .fa-av { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7); }
-.fa-row.on-media .fa-badge { background: #111; box-shadow: none; }
-/* On a video the controls are at the bottom: it goes to the top instead */
-.lb-player > .fa-row.on-media, .thumb > .fa-row.on-media { bottom: auto; top: 10px; }
-.lb-player:not(.paused) > .fa-row.on-media { opacity: 0; transition: opacity .3s; }
-.lb-player:not(.paused):hover > .fa-row.on-media, .lb-player:not(.paused).fa-live > .fa-row.on-media { opacity: 1; }
+.fa-bubbles { position: absolute; z-index: 6; left: calc(var(--fx, 0) * 100%); top: calc(var(--fy, 1) * 100%); transform: translate(calc(var(--fx, 0) * -100%), calc(var(--fy, 1) * -100%)); margin: 0; padding: 10px; display: flex; align-items: center; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.fa-bubbles[hidden] { display: none !important; }
+.fa-bubbles.dragging { cursor: grabbing; }
+.fa-bubbles.dragging .fa-bub { transform: scale(1.08); }
+.fa-bub { position: relative; display: inline-flex; width: 40px; height: 40px; flex: 0 0 auto; border-radius: 50%; margin-left: -10px; padding: 2px; background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); -webkit-touch-callout: none; transition: transform .15s; animation: faIn .4s cubic-bezier(.3, 1.6, .5, 1) both; text-decoration: none; }
+.fa-bub:first-child { margin-left: 0; }
+.fa-bub:nth-child(2) { animation-delay: .05s; } .fa-bub:nth-child(3) { animation-delay: .1s; } .fa-bub:nth-child(4) { animation-delay: .15s; }
+.fa-bub .avatar { width: 36px !important; height: 36px !important; border: none !important; border-radius: 50% !important; pointer-events: none; }
+.fa-bub .avatar img { pointer-events: none; -webkit-user-drag: none; }
+.fa-bub .fa-badge { right: -3px; bottom: -3px; width: 18px; height: 18px; font-size: 10.5px; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+.fa-bub .fa-badge.two { right: auto; left: -3px; }
+.fa-bub.more { align-items: center; justify-content: center; width: 40px; background: rgba(0, 0, 0, 0.65); color: #fff; font-weight: 800; font-size: 0.8rem; backdrop-filter: blur(6px); box-shadow: 0 0 0 2px #fff, 0 4px 14px rgba(0, 0, 0, 0.45); }
+.fa-bub.fresh { animation: faPop .6s cubic-bezier(.3, 1.8, .5, 1) both; }
+@keyframes faPop { 0% { transform: scale(0.2); } 60% { transform: scale(1.25); } 100% { transform: none; } }
+.fa-bub:hover { transform: translateY(-2px) scale(1.06); z-index: 2; }
+@media (max-width: 640px) { .fa-bub { width: 36px; height: 36px; } .fa-bub .avatar { width: 32px !important; height: 32px !important; } .fa-bubbles { padding: 8px; } }
+/* Above a video's controls, and above a short's caption */
+.lb-player > .fa-bubbles { padding-bottom: 84px; }
+.reel-frame > .fa-bubbles { padding-bottom: 130px; padding-top: 60px; }

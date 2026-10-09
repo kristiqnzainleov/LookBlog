@@ -318,29 +318,30 @@ const lastOpen = new Map(); // "postId:userId" → when they last opened it
 function stats(p) {
   return { likes: p.likes.length, dislikes: p.dislikes.length, views: (p.views ?? p.viewedBy.length), comments: p.commentCount, reposts: p.reposts.length, cools: p.cools.length, shares: p.shares || 0 };
 }
-// People I follow who liked or reposted this (like Instagram's "Liked by …"): the newest few, and how many in all
+// My mutuals (we follow each other) who liked, reposted or gave a Cool to this — like Instagram's bubbles on a reel
+const isMutual = (u, me) => (me.following || []).includes(u.id) && (u.following || []).includes(me.id) && !blockedBetween(u, me);
 function friendActs(p, me) {
-  const follow = new Set(me.following || []);
-  if (!follow.size) return null;
+  if (!(me.following || []).length) return null;
   const seen = new Map();
   const add = (id, did) => {
-    if (id === me.id || id === p.userId || !follow.has(id) || seen.has(id)) return;
+    if (id === me.id || id === p.userId) return;
+    if (seen.has(id)) { const x = seen.get(id); if (x && !x.did.includes(did)) x.did.push(did); return; }
     const u = findUser(id);
-    if (u && !blockedBetween(u, me)) seen.set(id, { name: u.name, username: u.username, avatar: u.avatar, did });
+    seen.set(id, u && isMutual(u, me) ? { name: u.name, username: u.username, avatar: u.avatar, did: [did] } : null);
   };
   for (const r of [...p.reposts].reverse()) add(r.userId, "repost");
+  for (const id of [...(p.cools || [])].reverse()) add(id, "cool");
   for (const id of [...p.likes].reverse()) add(id, "like");
-  if (!seen.size) return null;
-  return { people: [...seen.values()].slice(0, 3), count: seen.size };
+  const people = [...seen.values()].filter(Boolean);
+  if (!people.length) return null;
+  return { people: people.slice(0, 6), count: people.length };
 }
-// Someone liked or reposted: the people who follow them (and the post's author) see their photo fly up from it
+// Someone liked, reposted or gave a Cool: their mutuals see their photo fly up from the post
 function sendFriendAct(post, me, did) {
-  if (post.userId === me.id) return; // liking my own post isn't news
+  if (post.userId === me.id) return; // my own post isn't news
   const user = { name: me.name, username: me.username, avatar: me.avatar };
-  const fans = db.users.filter((u) => u.id !== me.id && (u.following || []).includes(me.id) && !blockedBetween(u, me)).slice(0, 5000).map((u) => u.id);
-  if (fans.length) sendTo(fans, { type: "friend-act", id: post.id, did, user, row: true });
-  const author = findUser(post.userId);
-  if (author && author.id !== me.id && !fans.includes(author.id) && !blockedBetween(author, me)) sendTo([author.id], { type: "friend-act", id: post.id, did, user, row: false });
+  const mutuals = db.users.filter((u) => u.id !== me.id && isMutual(u, me)).slice(0, 5000).map((u) => u.id);
+  if (mutuals.length) sendTo(mutuals, { type: "friend-act", id: post.id, did, user });
 }
 function postView(p, me) {
   return {
@@ -924,6 +925,7 @@ async function handleSocial(req, res, url, me) {
     if (cool) post.cools.push(me.id);
     save("posts");
     sendStats(post);
+    if (cool && !had) sendFriendAct(post, me, "cool");
     if (cool && !had) notify(post.userId, "cool", me, { postId: post.id });
     sendJSON(res, 200, { ...stats(post), cooled: Boolean(cool) });
     return true;
