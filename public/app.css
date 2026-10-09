@@ -6418,3 +6418,16 @@ body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }
 .presence-text.idle::before { content: none !important; }
 .page-profile .profile .profile-banner { width: 100vw !important; max-width: none !important; margin-left: calc(50% - 50vw) !important; margin-right: 0 !important; }
 .page-profile .profile { overflow: hidden; }
+/* ---------- Profile banner: the whole picture ---------- */
+.page-profile .profile .profile-banner:not(.empty) { height: auto !important; min-height: 140px; max-height: 70vh; background-size: cover; background-position: center; }
+.page-profile .profile .profile-banner.fit-whole { position: relative; background-size: contain !important; background-repeat: no-repeat; background-color: #111; }
+.page-profile .profile .profile-banner.fit-whole::before { content: ""; position: absolute; inset: -30px; background: var(--bn) center / cover; filter: blur(28px) brightness(0.6); z-index: -1; }
+.page-profile .profile .profile-banner.fit-whole { isolation: isolate; overflow: hidden; }
+/* ---------- Profile badges: same size, lined up with the rest ---------- */
+.page-profile .special-badges, .page-profile .role-badges, .page-profile .badge-strip, .page-profile .profile .add-roles, .page-profile .hl-row { padding-left: 8px !important; padding-right: 8px !important; margin-left: 0 !important; }
+.badge-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px !important; }
+.badge-strip .badge-dot, .badge-strip .medal { width: 42px !important; height: 42px !important; min-width: 42px; display: grid !important; place-items: center; font-size: 1.25rem !important; border-radius: 50%; padding: 0 !important; box-sizing: border-box; }
+.badge-strip .badge-dot img, .badge-strip .badge-dot svg { width: 24px; height: 24px; }
+.badge-strip .badge-dot.has-img img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.badge-strip .badge-label { margin-right: 4px; }
+.badge-strip .badge-all { height: 36px; }

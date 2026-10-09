@@ -157,6 +157,7 @@ export async function profilePage(view, m, params) {
 
   const banner = h("div", { class: "profile-banner" + (profile.banner ? "" : " empty") });
   if (profile.banner) banner.style.backgroundImage = `url("${profile.banner}")`;
+  fitBanner(banner, profile.banner);
 
   const followersEl = h("b", { dataset: { followers: profile.username }, text: count(profile.followers) });
   const followingEl = h("b", { dataset: { following: profile.username }, text: count(profile.following) });
@@ -621,7 +622,7 @@ export async function profilePage(view, m, params) {
 
   let bannerRemove = null, avatarRemove = null;
   function paintPictures() {
-    banner.style.backgroundImage = profile.banner ? `url("${profile.banner}")` : "";
+    banner.style.backgroundImage = profile.banner ? `url("${profile.banner}")` : ""; fitBanner(banner, profile.banner);
     banner.classList.toggle("empty", !profile.banner);
     avatarWrap.querySelector(".avatar")?.replaceWith(avatar(profile, AVATAR));
     if (bannerRemove) bannerRemove.hidden = !profile.banner;
@@ -1019,7 +1020,7 @@ export async function profilePage(view, m, params) {
     nameEl.firstChild.textContent = ev.name;
     paintBio();
     avatarWrap.querySelector(".avatar")?.replaceWith(avatar(profile, AVATAR));
-    banner.style.backgroundImage = ev.banner ? `url("${ev.banner}")` : "";
+    banner.style.backgroundImage = ev.banner ? `url("${ev.banner}")` : ""; fitBanner(banner, ev.banner);
     banner.classList.toggle("empty", !ev.banner);
   });
 
@@ -1027,3 +1028,20 @@ export async function profilePage(view, m, params) {
 }
 profilePage.navName = (m) => (isMe(decodeURIComponent(m[1])) ? "profile" : "");
 profilePage.layout = "wide";
+
+// The banner is shown whole: as tall as the picture really is (for the width of the screen).
+// A very tall one is limited, and then it's shown whole on a blurred copy of itself.
+function fitBanner(el, url) {
+  el.style.removeProperty("aspect-ratio"); el.classList.remove("fit-whole");
+  el.style.removeProperty("--bn");
+  if (!url) return;
+  const img = new Image();
+  img.onload = () => {
+    const r = img.naturalWidth / img.naturalHeight;
+    if (!r) return;
+    el.style.setProperty("--bn", `url("${url}")`);
+    if (r >= 1.6) { el.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`; }
+    else { el.style.aspectRatio = "16 / 10"; el.classList.add("fit-whole"); }
+  };
+  img.src = url;
+}
