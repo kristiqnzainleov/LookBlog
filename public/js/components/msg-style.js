@@ -9,14 +9,18 @@ import { playPreset, SOUND_PRESETS, playMsgSound } from "./sfx.js";
 
 const COLORS = [["", "Default", ""], ["black", "Black", "#0d0c0c"], ...NAME_COLORS.map(([k, v]) => [k, k[0].toUpperCase() + k.slice(1), v])];
 const LIGHT = new Set(["gold", "lime", "mint", "teal", "sky", "lilac", "white", "candy", "peach", "ice", "pastel", "beach", "steel", "coffee", "neon", "aurora"]);
-const SHAPES = [["", "Normal"], ["round", "Round"], ["square", "Square"], ["pill", "Pill"], ["speech", "Speech"], ["leaf", "Leaf"], ["comic", "💥 Comic"], ["ticket", "🎟 Ticket"], ["sketch", "✏️ Sketch"], ["cloud", "☁️ Cloud"]];
-const FGS = [["", "Auto", ""], ["white", "White", "#ffffff"], ["black", "Black", "#111111"], ["gold", "Gold", "#ffd23f"], ["pink", "Pink", "#ff4fa3"], ["mint", "Mint", "#2ee6a6"], ["sky", "Sky", "#4cc9ff"], ["lilac", "Lilac", "#d6a4ff"]];
+const SHAPES = [["", "Normal"], ["round", "Round"], ["square", "Square"], ["pill", "Pill"], ["speech", "Speech"], ["leaf", "Leaf"], ["comic", "💥 Comic"], ["ticket", "🎟 Ticket"], ["sketch", "✏️ Sketch"], ["cloud", "☁️ Cloud"], ["blob", "🫧 Blob"], ["tag", "🏷 Tag"], ["stamp", "📮 Stamp"], ["bolt", "⚡ Bolt"]];
+const FGS = [["", "Auto", ""], ["white", "White", "#ffffff"], ["black", "Black", "#111111"], ["gold", "Gold", "#ffd23f"], ["pink", "Pink", "#ff4fa3"], ["mint", "Mint", "#2ee6a6"], ["sky", "Sky", "#4cc9ff"], ["lilac", "Lilac", "#d6a4ff"], ["red", "Red", "#ff4757"], ["orange", "Orange", "#ff8a3d"], ["lime", "Lime", "#b6f23a"], ["cyan", "Cyan", "#19d3c5"]];
 const SIZES = [["small", "Small"], ["", "Normal"], ["big", "Big"], ["huge", "Huge"]];
-const TEXTFX = [["", "None"], ["shadow", "Shadow"], ["outline", "Outline"], ["neon", "💡 Neon"], ["rainbow", "🌈 Rainbow"], ["metal", "🥇 Gold metal"], ["gradient", "🎨 Gradient"]];
-const PATTERNS = [["", "None"], ["dots", "• Dots"], ["stripes", "▤ Stripes"], ["stars", "⭐ Stars"], ["hearts", "💗 Hearts"], ["grid", "▦ Grid"], ["waves", "〰️ Waves"], ["sparkle", "✨ Sparkle"]];
-const BORDERS = [["", "None"], ["solid", "Solid"], ["dashed", "Dashed"], ["double", "Double"], ["rainbow", "🌈 Rainbow"], ["glowing", "✨ Glowing"]];
+const TEXTFX = [["", "None"], ["shadow", "Shadow"], ["outline", "Outline"], ["neon", "💡 Neon"], ["rainbow", "🌈 Rainbow"], ["metal", "🥇 Gold metal"], ["gradient", "🎨 Gradient"], ["fire", "🔥 Fire"], ["ice", "🧊 Ice"], ["chrome", "🪞 Chrome"], ["glitch", "📺 Glitch"], ["retro", "🕹 Retro 3D"], ["typewriter", "⌨️ Typewriter"]];
+const PATTERNS = [["", "None"], ["dots", "• Dots"], ["stripes", "▤ Stripes"], ["stars", "⭐ Stars"], ["hearts", "💗 Hearts"], ["grid", "▦ Grid"], ["waves", "〰️ Waves"], ["sparkle", "✨ Sparkle"], ["zigzag", "⚡ Zigzag"], ["checker", "🏁 Checker"], ["confetti", "🎉 Confetti"], ["paws", "🐾 Paws"], ["bubbles", "🫧 Bubbles"]];
+const BORDERS = [["", "None"], ["solid", "Solid"], ["dashed", "Dashed"], ["double", "Double"], ["rainbow", "🌈 Rainbow"], ["glowing", "✨ Glowing"], ["dotted", "⋯ Dotted"], ["gold", "🥇 Gold"], ["neon", "💡 Neon"]];
 const GLOWS = [["", "None"], ["glow", "✨ Glow"], ["outline", "Outline"], ["shadow", "3D"], ["neon", "💡 Neon"], ["shimmer", "🪩 Shimmer"], ["pulse", "💓 Pulse"],
-  ["glass", "🧊 Glass"], ["fire", "🔥 Fire"], ["ice", "❄️ Frost"], ["gradient", "🌈 Moving colours"]];
+  ["glass", "🧊 Glass"], ["fire", "🔥 Fire"], ["ice", "❄️ Frost"], ["gradient", "🌈 Moving colours"], ["aurora", "🌌 Aurora"], ["golden", "👑 Golden"], ["disco", "🪩 Disco"], ["float", "🎈 Floating"]];
+// How a message appears when it's sent / arrives
+const ENTERS = [["", "Normal"], ["pop", "💥 Pop"], ["slide", "➡️ Slide"], ["bounce", "🏀 Bounce"], ["zoom", "🔍 Zoom"], ["flip", "🔄 Flip"], ["drop", "⬇️ Drop"], ["spin", "🌀 Spin"], ["jelly", "🍮 Jelly"]];
+// A little emoji stuck on the corner of every message
+const STICKERS = ["", "🔥", "💖", "✨", "👑", "🐢", "🌸", "⭐", "🎀", "💎", "🍓", "🦋", "😎", "🎧", "⚡", "🌙", "🍀", "👻", "🐱", "🍕", "🚀", "💀", "🌈", "🧸"];
 export const EFFECTS = [["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["gentle", "🌙", "Gentle"], ["confetti", "🎉", "Confetti"], ["hearts", "💕", "Hearts"],
   ["fireworks", "🎆", "Fireworks"], ["balloons", "🎈", "Balloons"], ["spotlight", "🔦", "Spotlight"], ["lasers", "🌈", "Lasers"], ["shake", "🫨", "Shake"], ["rainbow", "🦄", "Rainbow"],
   ["party", "🥳", "Party"], ["snow", "❄️", "Snow"], ["stars", "⭐", "Stars"], ["money", "💸", "Money"], ["fire", "🔥", "Fire"], ["bubbles", "🫧", "Bubbles"], ["kisses", "💋", "Kisses"],
@@ -48,6 +52,9 @@ export function styleBubble(bubble, style) {
   if (style.pattern) bubble.dataset.mpat = style.pattern;
   if (style.border) bubble.dataset.mbd = style.border;
   if (style.glow) bubble.dataset.mg = style.glow;
+  if (style.enter) bubble.dataset.men = style.enter;
+  bubble.querySelector(":scope > .ms-stk")?.remove();
+  if (style.sticker) bubble.append(h("span", { class: "ms-stk", "aria-hidden": "true", text: style.sticker }));
   if (style.font) {
     const t = bubble.querySelector(".bubble-text");
     if (t) { t.classList.add("nl"); t.dataset.nf = style.font; loadFonts(); }
@@ -79,7 +86,7 @@ export function openMsgStyle({ onEffect = null, armed = null } = {}) {
       const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save my style" });
       const rnd = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "🎲 Surprise me" });
       const pick = (list) => list[Math.floor(Math.random() * list.length)][0];
-      rnd.addEventListener("click", () => { cur = { bg: pick(COLORS.slice(1)), font: pick([...NAME_FONTS.slice(1), ...MORE_FONTS]), shape: pick(SHAPES), glow: pick(GLOWS), textfx: Math.random() < 0.4 ? pick(TEXTFX) : "", pattern: Math.random() < 0.4 ? pick(PATTERNS) : "", border: Math.random() < 0.3 ? pick(BORDERS) : "" }; for (const k of Object.keys(cur)) if (!cur[k]) delete cur[k]; paint(); });
+      rnd.addEventListener("click", () => { cur = { bg: pick(COLORS.slice(1)), font: pick([...NAME_FONTS.slice(1), ...MORE_FONTS]), shape: pick(SHAPES), glow: pick(GLOWS), textfx: Math.random() < 0.4 ? pick(TEXTFX) : "", pattern: Math.random() < 0.4 ? pick(PATTERNS) : "", border: Math.random() < 0.3 ? pick(BORDERS) : "", enter: Math.random() < 0.5 ? pick(ENTERS) : "", sticker: Math.random() < 0.4 ? STICKERS[1 + Math.floor(Math.random() * (STICKERS.length - 1))] : "" }; for (const k of Object.keys(cur)) if (!cur[k]) delete cur[k]; paint(); });
       const clear = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "↺ Plain" });
       clear.addEventListener("click", () => { cur = {}; paint(); });
       save.addEventListener("click", async () => {
@@ -97,6 +104,8 @@ export function openMsgStyle({ onEffect = null, armed = null } = {}) {
         h("b", { class: "look-label", text: "Pattern on the bubble" }), chips(PATTERNS, "pattern", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
         h("b", { class: "look-label", text: "Border" }), chips(BORDERS, "border", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
         h("b", { class: "look-label", text: "Effect on the bubble" }), chips(GLOWS, "glow", ([k, l]) => h("button", { type: "button", class: "ms-chip", text: l })),
+        h("b", { class: "look-label", text: "How it appears" }), chips(ENTERS, "enter", ([k, l]) => { const b = h("button", { type: "button", class: "ms-chip", text: l }); b.addEventListener("click", () => setTimeout(() => preview.querySelectorAll(".ms-row.mine .bubble").forEach((x) => { x.style.animation = "none"; void x.offsetWidth; x.style.animation = ""; }), 0)); return b; }),
+        h("b", { class: "look-label", text: "Sticker on the corner" }), chips(STICKERS.map((e) => [e]), "sticker", ([e]) => h("button", { type: "button", class: "ms-chip ms-stk-chip", text: e || "⊘" })),
         save);
       loadFonts();
     } else if (tab === "sound") {

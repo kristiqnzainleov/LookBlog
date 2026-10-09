@@ -201,8 +201,8 @@ const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide",
   "bubbles", "wetpaint", "puddles", "beastly", "moonrocks", "microbe", "dirt", "spray", "vinyl", "iso", "maze", "burned", "distressed", "gems", "storm", "fade80", "doodle", "hatch", "pixels", "scribble", "lines", "fax", "monoone", "comfortaa", "amatic", "neucha", "marck", "badscript", "yeseva", "poiret", "ruslan", "underdog", "kelly", "stalinist", "seymour", "philosopher", "pangolin", "jura", "daysone", "forum", "kurale", "oranienbaum", "montalt", "play", "prosto", "ubuntu"];
 // A custom gradient: 2–4 colours and a direction, e.g. "grad:#ff0000,#00ff88@90"
 const GRAD = /^grad:#[0-9a-f]{6}(,#[0-9a-f]{6}){1,3}@\d{1,3}$/i;
-const NAME_EFFECTS = ["glow", "shine", "shadow"];
-const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white", "xmas", "steel", "forest", "fire", "ice", "galaxy", "candy", "toxic", "pastel", "disco"];
+const NAME_EFFECTS = ["glow", "shine", "shadow", "outline", "chrome", "retro", "fire", "ice", "neonsign"];
+const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white", "xmas", "steel", "forest", "fire", "ice", "galaxy", "candy", "toxic", "pastel", "disco", "lava", "chrome", "royal", "mintice", "sunrise", "rose"];
 const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora", "snow", "candy", "shell", "pinstripe", "hearts", "matrix", "sunrays", "hexagons", "zigzag", "plaid", "circuit", "bokeh", "confetti"];
 const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono", "xmas", "winter", "forest", "turtle", "business", "halloween", "beach", "love", "matrix", "coffee", "pirate", "spring"];
 const PROFILE_FX = ["snow", "hearts", "sparkles", "stars", "sakura", "confetti", "bubbles", "fire", "leaves", "money",
@@ -237,6 +237,10 @@ function cleanLook(b) {
   if (typeof b.cursor === "string" && b.cursor.length <= 16 && EMOJI_ONE.test(b.cursor)) out.cursor = b.cursor; // an emoji pointer on my profile
   if (["card", "note", "terminal", "neon", "quote", "bubble"].includes(b.bioStyle)) out.bioStyle = b.bioStyle; // how my bio looks
   if (["big", "huge"].includes(b.nameSize)) out.nameSize = b.nameSize; // my name, bigger
+  if (["kenburns", "pan", "shimmer", "hue", "pulse", "glitch"].includes(b.bannerAnim)) out.bannerAnim = b.bannerAnim; // my banner moves
+  if (["underline", "highlight", "wavy", "box", "sparkle", "glowline"].includes(b.nameDeco)) out.nameDeco = b.nameDeco; // a line under my name
+  if (["fade", "slide", "zoom", "flip", "drop", "blur"].includes(b.intro)) out.intro = b.intro; // how my profile opens
+  if (["glass", "neon", "minimal", "bold", "gradient", "outline"].includes(b.statStyle)) out.statStyle = b.statStyle; // how my numbers look
   // Up to 3 badges shown next to my name
   if (Array.isArray(b.featured)) { const f = [...new Set(b.featured.map(String).filter((x) => /^[\w:-]{1,40}$/.test(x)))].slice(0, 3); if (f.length) out.featured = f; }
   // A status under my name: an emoji and a few words
@@ -2195,13 +2199,15 @@ async function handleSocial(req, res, url, me) {
     const st = {};
     if (NAME_COLORS.includes(body.bg) || /^#[0-9a-f]{6}$/i.test(body.bg || "") || body.bg === "black") st.bg = String(body.bg).toLowerCase();
     if (NAME_FONTS.includes(body.font)) st.font = body.font;
-    if (["round", "square", "pill", "speech", "leaf", "comic", "ticket", "sketch", "cloud"].includes(body.shape)) st.shape = body.shape;
-    if (["white", "black", "gold", "pink", "mint", "sky", "lilac"].includes(body.fg)) st.fg = body.fg; // the words' colour
+    if (["round", "square", "pill", "speech", "leaf", "comic", "ticket", "sketch", "cloud", "blob", "tag", "stamp", "bolt"].includes(body.shape)) st.shape = body.shape;
+    if (["white", "black", "gold", "pink", "mint", "sky", "lilac", "red", "orange", "lime", "cyan"].includes(body.fg)) st.fg = body.fg; // the words' colour
     if (["small", "big", "huge"].includes(body.size)) st.size = body.size;
-    if (["shadow", "outline", "neon", "rainbow", "metal", "gradient"].includes(body.textfx)) st.textfx = body.textfx;
-    if (["dots", "stripes", "stars", "hearts", "grid", "waves", "sparkle"].includes(body.pattern)) st.pattern = body.pattern;
-    if (["solid", "dashed", "double", "rainbow", "glowing"].includes(body.border)) st.border = body.border;
-    if (["glow", "outline", "shadow", "neon", "shimmer", "pulse", "glass", "fire", "ice", "gradient"].includes(body.glow)) st.glow = body.glow;
+    if (["shadow", "outline", "neon", "rainbow", "metal", "gradient", "fire", "ice", "chrome", "glitch", "retro", "typewriter"].includes(body.textfx)) st.textfx = body.textfx;
+    if (["dots", "stripes", "stars", "hearts", "grid", "waves", "sparkle", "zigzag", "checker", "confetti", "paws", "bubbles"].includes(body.pattern)) st.pattern = body.pattern;
+    if (["solid", "dashed", "double", "rainbow", "glowing", "dotted", "gold", "neon"].includes(body.border)) st.border = body.border;
+    if (["glow", "outline", "shadow", "neon", "shimmer", "pulse", "glass", "fire", "ice", "gradient", "aurora", "golden", "disco", "float"].includes(body.glow)) st.glow = body.glow;
+    if (["pop", "slide", "bounce", "zoom", "flip", "drop", "spin", "jelly"].includes(body.enter)) st.enter = body.enter; // how it appears
+    if (typeof body.sticker === "string" && body.sticker.length <= 16 && EMOJI_ONE.test(body.sticker)) st.sticker = body.sticker; // an emoji on the corner
     me.msgStyle = Object.keys(st).length ? st : null;
     save("users");
     sendJSON(res, 200, { msgStyle: me.msgStyle });

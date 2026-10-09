@@ -23,9 +23,15 @@ export const NAME_FONTS = [["", "Default"], ["display", "Bold"], ["serif", "Eleg
 export const GAMER_FONTS = [["minecraft", "Minecraft"], ["fortnite", "Fortnite"], ["valorant", "Valorant"], ["cod", "Call of Duty"], ["arcade", "Arcade"], ["glitch", "Glitch"], ["esports", "Esports"], ["terminal", "Terminal"]];
 // ✨ More fonts (all of them write in Cyrillic too)
 export const MORE_FONTS = [["bubbles", "Bubbles"], ["wetpaint", "Wet paint"], ["puddles", "Puddles"], ["beastly", "Beastly"], ["moonrocks", "Moon rocks"], ["microbe", "Microbe"], ["dirt", "Dirt"], ["spray", "Spray paint"], ["vinyl", "Vinyl"], ["iso", "3D Iso"], ["maze", "Maze"], ["burned", "Burned"], ["distressed", "Distressed"], ["gems", "Gemstones"], ["storm", "Storm"], ["fade80", "80s fade"], ["doodle", "Doodle"], ["hatch", "Hatched"], ["pixels", "Pixels"], ["scribble", "Scribble"], ["lines", "Lines"], ["fax", "Broken fax"], ["monoone", "Heavy"], ["comfortaa", "Comfortaa"], ["amatic", "Amatic"], ["neucha", "Neucha"], ["marck", "Marck"], ["badscript", "Bad script"], ["yeseva", "Yeseva"], ["poiret", "Poiret"], ["ruslan", "Ruslan"], ["underdog", "Underdog"], ["kelly", "Kelly slab"], ["stalinist", "Soviet"], ["seymour", "Seymour"], ["philosopher", "Philosopher"], ["pangolin", "Pangolin"], ["jura", "Jura"], ["daysone", "Days one"], ["forum", "Forum"], ["kurale", "Kurale"], ["oranienbaum", "Oranienbaum"], ["montalt", "Montserrat alt"], ["play", "Play"], ["prosto", "Prosto"], ["ubuntu", "Ubuntu"]];
-export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"], ["shadow", "3D"]];
+export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"], ["shadow", "3D"], ["outline", "Outline"], ["chrome", "🪞 Chrome"], ["retro", "🕹 Retro"], ["fire", "🔥 Fire"], ["ice", "🧊 Ice"], ["neonsign", "💡 Neon sign"]];
 export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"], ["xmas", "🎄 Candy cane"], ["steel", "Steel"], ["forest", "Forest"],
-  ["fire", "🔥 Fire"], ["ice", "🧊 Ice"], ["galaxy", "🌌 Galaxy"], ["candy", "🍬 Candy"], ["toxic", "☢️ Toxic"], ["pastel", "Pastel"], ["disco", "🪩 Disco"]];
+  ["fire", "🔥 Fire"], ["ice", "🧊 Ice"], ["galaxy", "🌌 Galaxy"], ["candy", "🍬 Candy"], ["toxic", "☢️ Toxic"], ["pastel", "Pastel"], ["disco", "🪩 Disco"],
+  ["lava", "🌋 Lava"], ["chrome", "🪞 Chrome"], ["royal", "👑 Royal"], ["mintice", "🌿 Mint"], ["sunrise", "🌅 Sunrise"], ["rose", "🌹 Rose"]];
+// New: the banner moves, a line under the name, how the profile opens, and how the numbers look
+export const BANNER_ANIMS = [["", "Still"], ["kenburns", "🎥 Slow zoom"], ["pan", "↔️ Pan"], ["shimmer", "✨ Shimmer"], ["hue", "🌈 Colour shift"], ["pulse", "💓 Pulse"], ["glitch", "📺 Glitch"]];
+export const NAME_DECOS = [["", "None"], ["underline", "Underline"], ["highlight", "🖍 Marker"], ["wavy", "〰️ Wavy"], ["box", "▢ Box"], ["sparkle", "✨ Sparkles"], ["glowline", "💡 Glow line"]];
+export const INTROS = [["", "None"], ["fade", "Fade in"], ["slide", "⬆️ Slide up"], ["zoom", "🔍 Zoom"], ["flip", "🔄 Flip"], ["drop", "⬇️ Drop"], ["blur", "🌫 Blur in"]];
+export const STAT_STYLES = [["", "Normal"], ["glass", "🧊 Glass"], ["neon", "💡 Neon"], ["minimal", "Minimal"], ["bold", "Bold"], ["gradient", "🎨 Gradient"], ["outline", "Outline"]];
 export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradient"], ["aurora", "Aurora"], ["stars", "Stars"], ["grid", "Grid"], ["dots", "Dots"], ["waves", "Waves"],
   ["snow", "❄️ Snow"], ["candy", "🍬 Candy cane"], ["shell", "🐢 Shell"], ["pinstripe", "💼 Pinstripe"], ["hearts", "💗 Hearts"], ["matrix", "💻 Matrix"], ["sunrays", "☀️ Sun rays"],
   ["hexagons", "⬡ Hexagons"], ["zigzag", "〰️ Zigzag"], ["plaid", "🧣 Plaid"], ["circuit", "🔌 Circuit"], ["bokeh", "✨ Bokeh"], ["confetti", "🎊 Confetti"]];
@@ -171,6 +177,7 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
   if (bio) { if (look?.bioStyle) bio.dataset.bs = look.bioStyle; else delete bio.dataset.bs; }
   if (view) {
     if (look?.nameSize) view.dataset.nsz = look.nameSize; else delete view.dataset.nsz;
+    for (const [k, attr] of [["bannerAnim", "ban"], ["nameDeco", "ndeco"], ["intro", "intro"], ["statStyle", "stst"]]) { if (look?.[k]) view.dataset[attr] = look[k]; else delete view.dataset[attr]; }
     // An emoji instead of the mouse pointer on my profile
     view.style.cursor = look?.cursor ? `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><text x='2' y='26' font-size='24'>${look.cursor}</text></svg>`)}") 6 6, auto` : "";
   }
@@ -279,7 +286,7 @@ export function openLookEditor(onSaved, opts = {}) {
   const paint = () => {
     applyLook(previewWrap.querySelector(".look-preview-b"), cur);
     applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner, fxBox: previewWrap, statusSlot: previewStatus, card: previewWrap }, cur);
-    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"], [photoAnims, "photoAnim"], [bioStyles, "bioStyle"], [nameSizes, "nameSize"], [cursors, "cursor"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
+    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"], [photoAnims, "photoAnim"], [bioStyles, "bioStyle"], [nameSizes, "nameSize"], [cursors, "cursor"], [bannerAnims, "bannerAnim"], [nameDecos, "nameDeco"], [intros, "intro"], [statStyles, "statStyle"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
     songLabel.textContent = songObj ? `🎵 ${songObj.title} · ${songObj.artist?.name || ""}` : "No song";
     songClear.hidden = !songObj;
     previewWrap.style.setProperty("--accent", cur.accent || "#ff4fa3");
@@ -407,6 +414,10 @@ export function openLookEditor(onSaved, opts = {}) {
   const photoAnims = pickRow(PHOTO_ANIMS, "photoAnim");
   const bioStyles = pickRow(BIO_STYLES, "bioStyle");
   const nameSizes = pickRow(NAME_SIZES, "nameSize");
+  const bannerAnims = pickRow(BANNER_ANIMS, "bannerAnim");
+  const nameDecos = pickRow(NAME_DECOS, "nameDeco");
+  const intros = pickRow(INTROS, "intro");
+  const statStyles = pickRow(STAT_STYLES, "statStyle");
   const cursors = h("div", { class: "look-chips" }, ...CURSORS.map((e) => { const b = h("button", { type: "button", class: "look-emo", dataset: { v: e, cursor: e }, text: e || "🖱" }); b.addEventListener("click", () => { cur.cursor = e; paint(); }); return b; }));
   // One-tap themes
   let themeGroup = 0;
@@ -450,6 +461,7 @@ export function openLookEditor(onSaved, opts = {}) {
     h("p", { class: "look-label", text: "🎮 Gamer fonts" }), gamerFonts,
     h("p", { class: "look-label", text: "Name effect" }), effects,
     h("p", { class: "look-label", text: "Name animation" }), anims,
+    h("p", { class: "look-label", text: "✨ Line under your name" }), nameDecos,
     h("p", { class: "look-label", text: "Emoji next to your name" }), emojis,
     h("p", { class: "look-label", text: "🏅 Badges next to your name" }), h("p", { class: "create-hint", text: "Pick up to 3 of your badges to show off." }), featBox,
     h("p", { class: "look-label", text: "Profile accent colour" }), h("p", { class: "create-hint", text: "Buttons, tabs and highlights on your profile." }), accents,
@@ -467,6 +479,9 @@ export function openLookEditor(onSaved, opts = {}) {
     h("p", { class: "look-label", text: "Profile song" }), h("p", { class: "create-hint", text: "People can play it from your profile." }), h("div", { class: "song-now" }, songLabel, songClear), songSearch, songResults,
     h("p", { class: "look-label", text: "Bio font" }), bioFonts,
     h("p", { class: "look-label", text: "Bio style" }), bioStyles,
+    h("p", { class: "look-label", text: "✨ Banner movement" }), h("p", { class: "create-hint", text: "Your banner (picture or colours) slowly moves." }), bannerAnims,
+    h("p", { class: "look-label", text: "✨ How your profile opens" }), h("p", { class: "create-hint", text: "What people see the moment they open your profile." }), intros,
+    h("p", { class: "look-label", text: "✨ Followers & numbers style" }), statStyles,
     h("p", { class: "look-label", text: "Banner colours" }), h("p", { class: "create-hint", text: state.me.banner ? "Shown when you remove your banner picture." : "For your banner (you don’t have a banner picture)." }), banners,
     save, reset) });
   const store = async (look) => {
@@ -480,10 +495,9 @@ export function openLookEditor(onSaved, opts = {}) {
       onSaved?.(r.look, r.look?.song ? songObj : null);
     } catch (err) { toast(err.error || "Couldn’t save it."); save.disabled = reset.disabled = false; }
   };
-  save.addEventListener("click", () => store({ color: cur.color || null, font: cur.font || null, effect: cur.effect || null, accent: cur.accent || null,
-    ring: cur.ring || null, bg: cur.bg || null, banner: cur.banner || null, emoji: cur.emoji || null,
-    fx: cur.fx || null, deco: cur.deco || null, bioFont: cur.bioFont || null, status: cur.status || null, song: songObj?.id || null,
-    shape: cur.shape || null, anim: cur.anim || null, frame: cur.frame || null, trail: cur.trail || null, featured: cur.featured?.length ? cur.featured : null }));
+  const KEYS = ["color", "font", "effect", "accent", "ring", "bg", "banner", "emoji", "fx", "deco", "bioFont", "status", "shape", "anim", "frame", "trail",
+    "photoAnim", "bioStyle", "nameSize", "cursor", "bannerAnim", "nameDeco", "intro", "statStyle"];
+  save.addEventListener("click", () => store({ ...Object.fromEntries(KEYS.map((k) => [k, cur[k] || null])), song: songObj?.id || null, featured: cur.featured?.length ? cur.featured : null }));
   reset.addEventListener("click", () => store({}));
   paint();
   paintGrad();
