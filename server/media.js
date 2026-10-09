@@ -29,9 +29,26 @@ const TYPES = {
   "audio/x-wav": { ext: "wav", kind: "audio", max: 20 * MB, check: (b) => ascii(b, 0, "RIFF") && ascii(b, 8, "WAVE") },
   "audio/wave": { ext: "wav", kind: "audio", max: 20 * MB, check: (b) => ascii(b, 0, "RIFF") && ascii(b, 8, "WAVE") },
   "audio/mpeg": { ext: "mp3", kind: "audio", max: 40 * MB, check: (b) => ascii(b, 0, "ID3") || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) },
+  "audio/flac": { ext: "flac", kind: "audio", max: 50 * MB, check: (b) => ascii(b, 0, "fLaC") },
+  "audio/aac": { ext: "aac", kind: "audio", max: 40 * MB, check: (b) => b[0] === 0xff && (b[1] & 0xf6) === 0xf0 },
+  // Documents sent in chats (always downloaded, never opened as a web page)
+  "application/pdf": { ext: "pdf", kind: "file", max: 50 * MB, check: (b) => ascii(b, 0, "%PDF") },
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": { ext: "docx", kind: "file", max: 50 * MB, check: (b) => startsWith(b, [0x50, 0x4b, 0x03, 0x04]) },
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { ext: "xlsx", kind: "file", max: 50 * MB, check: (b) => startsWith(b, [0x50, 0x4b, 0x03, 0x04]) },
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": { ext: "pptx", kind: "file", max: 50 * MB, check: (b) => startsWith(b, [0x50, 0x4b, 0x03, 0x04]) },
+  "application/msword": { ext: "doc", kind: "file", max: 50 * MB, check: (b) => startsWith(b, [0xd0, 0xcf, 0x11, 0xe0]) },
+  "application/vnd.ms-excel": { ext: "xls", kind: "file", max: 50 * MB, check: (b) => startsWith(b, [0xd0, 0xcf, 0x11, 0xe0]) },
+  "application/vnd.ms-powerpoint": { ext: "ppt", kind: "file", max: 50 * MB, check: (b) => startsWith(b, [0xd0, 0xcf, 0x11, 0xe0]) },
+  "application/zip": { ext: "zip", kind: "file", max: 50 * MB, check: (b) => startsWith(b, [0x50, 0x4b, 0x03, 0x04]) || startsWith(b, [0x50, 0x4b, 0x05, 0x06]) },
+  "text/plain": { ext: "txt", kind: "file", max: 10 * MB, check: (b) => b.length > 0 && !b.includes(0) },
+  "text/csv": { ext: "csv", kind: "file", max: 10 * MB, check: (b) => b.length > 0 && !b.includes(0) },
 };
-const CONTENT_TYPE = Object.fromEntries(Object.entries(TYPES).map(([type, t]) => [t.ext, type]));
-const NAME_RE = /^[0-9a-f-]{36}\.(jpg|png|gif|webp|mp4|mov|webm|weba|ogg|m4a|mp3|wav)$/;
+// Other names browsers use for the same types
+for (const [alias, real] of [["audio/mp3", "audio/mpeg"], ["audio/x-m4a", "audio/mp4"], ["audio/x-flac", "audio/flac"], ["application/x-zip-compressed", "application/zip"]]) TYPES[alias] = TYPES[real];
+const CONTENT_TYPE = Object.fromEntries(Object.entries(TYPES).reverse().map(([type, t]) => [t.ext, type]));
+const NAME_RE = /^[0-9a-f-]{36}\.(jpg|png|gif|webp|mp4|mov|webm|weba|ogg|m4a|mp3|wav|flac|aac|pdf|docx|xlsx|pptx|doc|xls|ppt|zip|txt|csv)$/;
+const WHAT = { image: "photo", video: "video", audio: "sound", file: "file" };
+const TYPES_HINT = "Use a photo (JPG, PNG, GIF, WebP), a video (MP4, MOV, WebM), a sound (MP3, M4A, OGG, WAV, FLAC) or a document (PDF, Word, Excel, PowerPoint, TXT, CSV, ZIP).";
 
 /* ---------- Online: files live in Supabase Storage (bucket "media") ----------
    The browser asks for an upload address (POST /api/upload/start), sends the file straight to Supabase,
@@ -43,14 +60,14 @@ const sbHeaders = () => ({ apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` });
 const publicUrl = (name) => `${SB_URL}/storage/v1/object/public/media/${name}`;
 const sign = (text) => crypto.createHmac("sha256", SB_KEY).update(text).digest("base64url");
 const limitOf = (t) => (store.enabled ? Math.min(t.max, ONLINE_MAX) : t.max);
-const tooBigFor = (t) => httpError(413, t.kind === "image" ? `Photos can be up to ${limitOf(t) / MB} MB.` : t.kind === "audio" ? `Sounds can be up to ${limitOf(t) / MB} MB.` : `Videos can be up to ${limitOf(t) / MB} MB.`);
+const tooBigFor = (t) => httpError(413, `${{ image: "Photos", video: "Videos", audio: "Sounds", file: "Files" }[t.kind]} can be up to ${limitOf(t) / MB} MB.`);
 
 // POST /api/upload/start { type, size } -> { uploadUrl, name, ticket }
 async function startUpload(req, res, me, body) {
   rateLimit("upload:" + me.id, 60, 10 * 60 * 1000, "You’re uploading a lot. Take a short break.");
   const type = String(body.type || "").split(";")[0].trim().toLowerCase();
   const t = TYPES[type];
-  if (!t) throw httpError(415, "Use a JPG, PNG, GIF or WebP photo, an MP4, MOV or WebM video, or a sound (MP3, M4A, OGG, WAV).");
+  if (!t) throw httpError(415, TYPES_HINT);
   const size = Number(body.size) || 0;
   if (!size) throw httpError(400, "That file is empty.");
   if (size > limitOf(t)) throw tooBigFor(t);
@@ -71,7 +88,7 @@ async function finishUpload(req, res, me, body) {
   const head = r.ok ? Buffer.from(await r.arrayBuffer()).subarray(0, 16) : Buffer.alloc(0);
   const size = Number(String(r.headers.get("content-range") || "").split("/")[1]) || Number(r.headers.get("content-length")) || 0;
   const bad = !r.ok ? httpError(400, "The file didn’t arrive. Try again.") : size > limitOf(t) ? tooBigFor(t)
-    : !t.check(head) ? httpError(415, `That file doesn’t look like a real ${t.kind === "image" ? "photo" : t.kind === "audio" ? "recording" : "video"}.`) : null;
+    : !t.check(head) ? httpError(415, `That file doesn’t look like a real ${WHAT[t.kind]}.`) : null;
   if (bad) { removeObject(name); throw bad; }
   db.uploads[name] = { ownerId: me.id, kind: t.kind, size, createdAt: new Date().toISOString() };
   save("uploads");
@@ -89,9 +106,9 @@ async function handleUpload(req, res, me) {
   rateLimit("upload:" + me.id, 60, 10 * 60 * 1000, "You’re uploading a lot. Take a short break.");
   const type = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
   const t = TYPES[type];
-  if (!t) throw httpError(415, "Use a JPG, PNG, GIF or WebP photo, an MP4, MOV or WebM video, or a sound (MP3, M4A, OGG, WAV).");
+  if (!t) throw httpError(415, TYPES_HINT);
   const declared = Number(req.headers["content-length"] || 0);
-  const tooBig = httpError(413, t.kind === "image" ? "Photos can be up to 15 MB." : "Videos can be up to 500 MB.");
+  const tooBig = tooBigFor(t);
   if (declared > t.max) throw tooBig;
 
   const id = crypto.randomUUID();
@@ -120,7 +137,7 @@ async function handleUpload(req, res, me) {
       out.on("error", reject);
     });
     if (size === 0) throw httpError(400, "That file is empty.");
-    if (!t.check(head)) throw httpError(415, `That file doesn’t look like a real ${t.kind === "image" ? "photo" : t.kind === "audio" ? "recording" : "video"}.`);
+    if (!t.check(head)) throw httpError(415, `That file doesn’t look like a real ${WHAT[t.kind]}.`);
   } catch (err) {
     out.destroy();
     fs.rm(tmp, { force: true }, () => {});
@@ -194,6 +211,8 @@ function serveMedia(req, res, name) {
     "Accept-Ranges": "bytes",
     "Cache-Control": "private, max-age=31536000, immutable",
     "X-Content-Type-Options": "nosniff",
+    // Documents are always downloaded (never shown as a page on our site); PDFs may open in the browser's own viewer
+    ...(db.uploads[name].kind === "file" ? { "Content-Disposition": /\.pdf$/.test(name) ? "inline" : "attachment", "Content-Security-Policy": "sandbox" } : {}),
   };
 
   const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");

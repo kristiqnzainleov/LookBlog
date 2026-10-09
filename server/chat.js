@@ -93,7 +93,7 @@ function preview(msg) {
   if (msg.text) return msg.text.slice(0, 120);
   if (msg.media?.sticker) return "Sent a sticker";
   if (msg.media?.gif) return "Sent a GIF";
-  if (msg.media) return msg.media.kind === "audio" ? "🎤 Voice message" : msg.media.kind === "video" ? "Sent a video" : "Sent a photo";
+  if (msg.media) return msg.media.kind === "file" ? `📎 ${msg.media.name || "File"}` : msg.media.kind === "audio" ? (msg.media.file ? `🎵 ${msg.media.name || "Audio"}` : "🎤 Voice message") : msg.media.kind === "video" ? "Sent a video" : "Sent a photo";
   if (msg.postId) return "Shared a post";
   if (msg.commentId) return "Shared a reply";
   if (msg.songId) return "🎵 Sent a song";
@@ -762,7 +762,7 @@ async function handleChat(req, res, url, me) {
       if (msg.effect === "selfdestruct") { const at = Date.now() + 60000; if (!msg.expiresAt || new Date(msg.expiresAt).getTime() > at) msg.expiresAt = new Date(at).toISOString(); }
       // View once: the others can open it one time, then it's gone (like Instagram)
       if (body.viewOnce) {
-        if (post || commentRef || songRef || media?.sticker || media?.gif || media?.kind === "audio" || media?.shared) throw httpError(400, "View once works for text, photos and videos.");
+        if (post || commentRef || songRef || media?.sticker || media?.gif || media?.kind === "audio" || media?.kind === "file" || media?.shared) throw httpError(400, "View once works for text, photos and videos.");
         // "replay": each person can open it twice (like Instagram's "Allow replay")
         msg.viewOnce = { openedBy: [], ...(body.viewOnce === "replay" ? { max: 2, opens: {} } : {}) };
       }

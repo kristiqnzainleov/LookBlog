@@ -89,7 +89,7 @@ function imageSize(file) {
   createPicker({ accept: "image" | "video" | "both", max, maxVideoSeconds, onChange })
   Returns { button, previews, open(), items(), media(), busy(), clear() }
 */
-export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null, onChange = () => {}, onError = () => {} } = {}) {
+export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null, onChange = () => {}, onError = () => {}, onOther = null } = {}) {
   const types = accept === "image" ? IMAGE_TYPES : accept === "video" ? VIDEO_TYPES : [...IMAGE_TYPES, ...VIDEO_TYPES];
   const input = h("input", { type: "file", accept: types.join(","), multiple: accept !== "video" && max > 1, hidden: true });
   const previews = h("div", { class: "picker-previews" });
@@ -149,6 +149,7 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
   async function add(files) {
     for (const file of files) {
       const kind = IMAGE_TYPES.includes(file.type) ? "image" : VIDEO_TYPES.includes(file.type) ? "video" : null;
+      if (!kind && onOther) { onOther(file); continue; } // a document or a sound (chats send those themselves)
       if (!kind || !types.includes(file.type)) { onError("Use a JPG, PNG, GIF or WebP photo, or an MP4, MOV or WebM video."); continue; }
       if (kind === "video" && items.length) { onError("Add up to 4 photos, or one video."); continue; }
       if (kind === "image" && items.some((i) => i.kind === "video")) { onError("Add up to 4 photos, or one video."); continue; }

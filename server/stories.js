@@ -214,7 +214,7 @@ async function handleStories(req, res, url, me) {
     const body = await readJSON(req);
     if (!body.media) throw httpError(400, "Add a photo or a video.");
     const media = buildMedia(body.media, me);
-    if (media.kind === "audio") throw httpError(400, "Add a photo or a video.");
+    if (media.kind === "audio" || media.kind === "file") throw httpError(400, "Add a photo or a video.");
     if (media.kind === "video" && media.duration && media.duration > 60.5) throw httpError(400, "Story videos can be up to 60 seconds.");
     const text = clean(body.text);
     if (chars(text) > 120) throw httpError(400, "Keep the text under 120 characters.");

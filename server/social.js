@@ -535,6 +535,13 @@ function buildMedia(item, me) {
   const m = ownedMedia(item && item.url, me.id);
   if (!m) throw httpError(400, "One of the files couldn’t be found. Try uploading it again.");
   const out = { url: m.url, kind: m.kind };
+  // A document or a sound file sent in a chat: its name and size (shown on the card)
+  const fileName = () => String(item.name || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 120) || "File";
+  if (m.kind === "file") return { ...out, name: fileName(), size: Math.max(0, Math.round(Number(item.size) || 0)) };
+  if (m.kind === "audio" && item.file === true) {
+    const d = Number(item.duration);
+    return { ...out, file: true, name: fileName(), size: Math.max(0, Math.round(Number(item.size) || 0)), ...(Number.isFinite(d) && d > 0 ? { duration: Math.round(d * 10) / 10 } : {}) };
+  }
   // NSFW: the photo (or the video's first frame) was checked when it was picked; sensitive ones are blurred for others
   if (item.nsfw === true) out.nsfw = true;
   if (item.sensitive === true) out.sensitive = true; // violence, weapons… (also found by the photo check)
@@ -564,7 +571,7 @@ function validatePost(body, me) {
   const title = clean(body.title);
   const raw = Array.isArray(body.media) ? body.media.slice(0, 5) : [];
   const media = raw.map((m) => buildMedia(m, me));
-  if (media.some((m) => m.kind === "audio")) throw httpError(400, "Voice messages are for chats.");
+  if (media.some((m) => m.kind === "audio" || m.kind === "file")) throw httpError(400, "Sounds and documents are for chats.");
   const videos = media.filter((m) => m.kind === "video");
   const images = media.filter((m) => m.kind === "image");
 

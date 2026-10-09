@@ -8,6 +8,39 @@ import { openHref, nsfwWrap } from "./post.js";
 import { createPicker } from "./media-picker.js";
 import { createPlayer } from "./player.js";
 import { startRecording, voicePlayer } from "./voice.js";
+
+// Files sent in chats: what each ending is, and how they look
+const FILE_TYPES = {
+  pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  txt: "text/plain", csv: "text/csv", zip: "application/zip",
+  mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", ogg: "audio/ogg", flac: "audio/flac", aac: "audio/aac",
+};
+const fileIcon = (name) => { const e = (String(name).split(".").pop() || "").toLowerCase(); return e === "pdf" ? "📕" : /^docx?$/.test(e) ? "📝" : /^(xlsx?|csv)$/.test(e) ? "📊" : /^pptx?$/.test(e) ? "📽️" : e === "zip" ? "🗜️" : e === "txt" ? "📃" : "📎"; };
+const fileSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(n >= 10485760 ? 0 : 1) + " MB" : n >= 1024 ? Math.round(n / 1024) + " KB" : (n || 0) + " B");
+function audioLength(file) {
+  return new Promise((ok) => {
+    const a = new Audio(), u = URL.createObjectURL(file);
+    const done = (d) => { URL.revokeObjectURL(u); ok(Number.isFinite(d) && d > 0 ? d : null); };
+    a.preload = "metadata"; a.onloadedmetadata = () => done(a.duration); a.onerror = () => done(null);
+    setTimeout(() => done(null), 4000); a.src = u;
+  });
+}
+function fileCard(m) {
+  const ext = (String(m.name).split(".").pop() || "").toUpperCase().slice(0, 5);
+  return h("a", { class: "file-card", href: m.url, target: "_blank", rel: "noopener", download: m.name || "", title: "Open or download" },
+    h("span", { class: "fc-ic", text: fileIcon(m.name) }),
+    h("span", { class: "fc-text" }, h("b", { text: m.name || "File" }), h("small", { class: "muted", text: [ext, m.size ? fileSize(m.size) : ""].filter(Boolean).join(" · ") })),
+    h("span", { class: "fc-dl", "aria-hidden": "true", text: "⬇" }));
+}
+function audioFileCard(m) {
+  return h("div", { class: "file-card audio-card" },
+    h("div", { class: "fc-row" }, h("span", { class: "fc-ic", text: "🎵" }), h("span", { class: "fc-text" }, h("b", { text: m.name || "Audio" }), h("small", { class: "muted", text: [m.duration ? fmtLen(m.duration) : "", m.size ? fileSize(m.size) : ""].filter(Boolean).join(" · ") })),
+      h("a", { class: "fc-dl", href: m.url, target: "_blank", rel: "noopener", download: m.name || "", title: "Download", text: "⬇" })),
+    h("audio", { controls: true, preload: "metadata", src: m.url }));
+}
+const fmtLen = (d) => `${Math.floor(d / 60)}:${String(Math.floor(d % 60)).padStart(2, "0")}`;
 import { openStickers, closeStickers } from "./stickers.js";
 import { gifButton, closeGifs, openGifs, gifBody } from "./gifs.js";
 import { startCall } from "./call.js";
@@ -353,7 +386,7 @@ function openTrending(chat, channelId, jump) {
     try {
       const { messages } = await api(`/api/chats/${chat.id}/trending?period=${period}${channelId ? "&channelId=" + encodeURIComponent(channelId) : ""}`);
       list.replaceChildren(...(messages.length ? messages.map((m, i) => {
-        const what = m.text || (m.media?.gif ? "GIF" : m.media?.kind === "image" ? "📷 Photo" : m.media?.kind === "video" ? "🎬 Video" : m.media?.kind === "audio" ? "🎤 Voice message" : m.post ? "📝 Shared a post" : "Message");
+        const what = m.text || (m.media?.gif ? "GIF" : m.media?.kind === "image" ? "📷 Photo" : m.media?.kind === "video" ? "🎬 Video" : m.media?.kind === "file" ? "📎 " + (m.media.name || "File") : m.media?.kind === "audio" ? (m.media.file ? "🎵 " + (m.media.name || "Audio") : "🎤 Voice message") : m.post ? "📝 Shared a post" : "Message");
         const row = h("button", { type: "button", class: "ht-row" + (i < 3 ? " top" : "") },
           h("span", { class: "ht-rank", text: i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "#" + (i + 1) }),
           avatar(m.author, 34),
@@ -744,6 +777,8 @@ function messageEl(msg, chat, onRemoved) {
     : msg.media?.gif ? h("img", { class: "msg-gif", src: msg.media.url, alt: "GIF" })
     : msg.media?.sticker ? h("img", { class: "sticker-img", src: msg.media.url, alt: "Sticker" })
     : msg.media?.kind === "sound" ? soundChip(msg.media)
+    : msg.media?.kind === "file" ? fileCard(msg.media)
+    : msg.media?.kind === "audio" && msg.media.file ? audioFileCard(msg.media)
     : msg.media?.kind === "audio" ? voicePlayer(msg.media)
     : msg.media
     ? sensitive(msg, msg.media.kind === "image"
@@ -754,7 +789,7 @@ function messageEl(msg, chat, onRemoved) {
   const call = chat.kind === "dm" && !msg.media && !msg.post ? callNoteText(msg.text, msg.mine, chat.other.name) : null;
   const onlyEmoji = msg.text && !msg.media && !msg.post && /^(\p{Extended_Pictographic}|\p{Emoji_Component}|\u200D|\uFE0F|\s){1,24}$/u.test(msg.text) && [...msg.text.replace(/\s/g, "")].length <= 12;
   const quote = msg.replyTo ? replyQuote(msg.replyTo) : null;
-  const bubble = h("div", { class: "bubble" + (msg.game ? " game-bubble" : "") + (msg.poll ? " poll-bubble" : "") + (msg.groupInvite ? " invite-bubble" : "") + (onlyEmoji && !quote && !msg.storyReply && !msg.noteReply ? " emoji-only" : "") + (msg.media?.kind === "audio" ? " voice-bubble" : "") + (msg.media?.sticker ? " sticker-bubble" : "") + (msg.storyReply?.reaction || msg.instantReply?.reaction ? " story-react" : "") },
+  const bubble = h("div", { class: "bubble" + (msg.game ? " game-bubble" : "") + (msg.poll ? " poll-bubble" : "") + (msg.groupInvite ? " invite-bubble" : "") + (onlyEmoji && !quote && !msg.storyReply && !msg.noteReply ? " emoji-only" : "") + (msg.media?.kind === "audio" && !msg.media.file ? " voice-bubble" : "") + (msg.media?.kind === "file" || msg.media?.file ? " file-bubble" : "") + (msg.media?.sticker ? " sticker-bubble" : "") + (msg.storyReply?.reaction || msg.instantReply?.reaction ? " story-react" : "") },
     chat.kind === "group" && !msg.mine ? h("a", { class: "bubble-name", href: profileHref(msg.author.username), style: roleColor(chat, msg.author.username) }, shownName(msg.author), tick(msg.author, 13)) : null,
     quote,
     msg.storyReply ? h("div", { class: "note-quote story-quote" },
@@ -1353,7 +1388,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const err = h("p", { class: "form-error", role: "alert", hidden: true });
     const showErr = (m) => { err.textContent = m; err.hidden = !m; };
     const send = h("button", { type: "submit", class: "send-btn", "aria-label": "Send", disabled: true }, icon("send"));
-    const picker = createPicker({ accept: "both", max: 1, onChange: update, onError: showErr });
+    const picker = createPicker({ accept: "both", max: 1, onChange: update, onError: showErr, onOther: (f) => sendFile(f) });
     // You can press send while the photo is still going up: it's sent the moment it's ready
     // Phones: tapping the box opens the keyboard without the phone scrolling the page to it (the cause of the jump)
     text.addEventListener("touchend", (e) => {
@@ -1379,7 +1414,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       replying = m;
       replyBar.hidden = !m;
       if (!m) return replyBar.replaceChildren();
-      const what = m.text || (m.media?.gif ? "GIF" : m.media?.sticker ? "Sticker" : m.media ? (m.media.kind === "audio" ? "🎤 Voice message" : m.media.kind === "video" ? "Video" : "Photo") : m.post ? "Shared post" : "Message");
+      const what = m.text || (m.media?.gif ? "GIF" : m.media?.sticker ? "Sticker" : m.media ? (m.media.kind === "file" ? "📎 " + (m.media.name || "File") : m.media.kind === "audio" ? (m.media.file ? "🎵 " + (m.media.name || "Audio") : "🎤 Voice message") : m.media.kind === "video" ? "Video" : "Photo") : m.post ? "Shared post" : "Message");
       const cancel = h("button", { type: "button", class: "tool-icon", "aria-label": "Cancel reply" }, icon("close"));
       cancel.addEventListener("click", () => { setReply(null); text.focus(); });
       replyBar.replaceChildren(icon("replyArrow"),
@@ -1449,6 +1484,54 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
         if (chat.kind === "dm") refresh().catch(() => {});
       } catch (ex) { showErr(ex.error || `Couldn’t send the ${what}.`); }
     };
+    // Documents and sound files (PDF, Word, Excel, MP3, WAV…): sent as their own message, with a card to open or play them
+    const sendFile = async (file) => {
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const type = FILE_TYPES[ext] || (/^audio\/(mpeg|mp3|wav|x-wav|wave|mp4|x-m4a|ogg|flac|x-flac|aac)$/.test(file.type) ? file.type : "");
+      if (!type) return showErr("You can send photos, videos, sounds (MP3, WAV, M4A, OGG, FLAC) and documents (PDF, Word, Excel, PowerPoint, TXT, CSV, ZIP).");
+      if (file.size > 50 * 1024 * 1024) return showErr("Files can be up to 50 MB.");
+      showErr("");
+      const f = file.type === type ? file : new File([file], file.name, { type });
+      const audio = type.startsWith("audio/");
+      // While it uploads: a card in the chat with how far it is
+      const pct = h("small", { class: "muted", text: "Uploading… 0%" });
+      const pend = h("div", { class: "msg mine pending" }, h("div", { class: "bubble file-bubble" }, h("div", { class: "file-card" }, h("span", { class: "fc-ic", text: audio ? "🎵" : fileIcon(file.name) }), h("span", { class: "fc-text" }, h("b", { text: file.name }), pct))));
+      list.append(pend); toBottom();
+      try {
+        const duration = audio ? await audioLength(f) : null;
+        const { url } = await upload(f, (x) => { pct.textContent = `Uploading… ${Math.round(x * 100)}%`; });
+        await sendExtra({ media: { url, file: true, name: file.name, size: file.size, ...(duration ? { duration } : {}) } }, "file");
+      } catch (err) { showErr(err.error || "Couldn’t send the file."); }
+      pend.remove();
+    };
+    // Files from anywhere: Ctrl+V (a copied picture or file), dropping them on the chat, or the 📎 button
+    const takeFiles = (files) => {
+      const media = files.filter((f) => /^(image\/(jpeg|png|gif|webp)|video\/(mp4|quicktime|webm))$/.test(f.type));
+      if (media.length) picker.add(media.slice(0, 1));
+      for (const f of files) if (!media.includes(f)) sendFile(f);
+    };
+    const onPaste = (e) => {
+      if (!form.isConnected) return removeEventListener("paste", onPaste);
+      const files = [...(e.clipboardData?.files || [])];
+      if (!files.length) return;
+      // Only for this chat: the box, or nothing else being typed in
+      const t = e.target;
+      if (t !== text && t.closest?.("input, textarea, [contenteditable]")) return;
+      e.preventDefault();
+      takeFiles(files);
+      text.focus();
+    };
+    addEventListener("paste", onPaste);
+    requestAnimationFrame(() => {
+      const dropZone = list.parentElement || form.parentElement;
+      dropZone?.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); dropZone.classList.add("drop-on"); } });
+      dropZone?.addEventListener("dragleave", (e) => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove("drop-on"); });
+      dropZone?.addEventListener("drop", (e) => { const files = [...(e.dataTransfer?.files || [])]; dropZone.classList.remove("drop-on"); if (!files.length) return; e.preventDefault(); takeFiles(files); });
+    });
+    const fileInput = h("input", { type: "file", hidden: true, multiple: true, accept: ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.mp3,.wav,.m4a,.ogg,.flac,.aac,audio/*" });
+    fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; files.forEach(sendFile); });
+    const fileBtn = h("button", { type: "button", class: "tool-btn", "aria-label": "Send a file", title: "Send a document or a sound file" }, h("span", { class: "tool-emoji", text: "📎" }), fileInput);
+    fileBtn.addEventListener("click", (e) => { if (e.target !== fileInput) fileInput.click(); });
     // Sounds: mine, this group's, built-in
     const soundBtn = h("button", { type: "button", class: "tool-btn", "aria-label": "Send a sound", title: "Send a sound" }, h("span", { class: "tool-emoji", text: "🔊" }));
     soundBtn.addEventListener("click", () => openSoundPicker(soundBtn, { group: chat.kind === "group" ? chat : null, builtin: chat.kind === "group", onPick: (b) => sendExtra(b, "sound") }));
@@ -1551,7 +1634,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     form.insertBefore(tray, inputRow);
     const tile = (b, label) => h("div", { class: "tray-tile" }, b, h("small", { text: label }));
     // In the ＋ panel: my message style & effects, a song, a poll, the camera, view once
-    for (const [b, l] of [[fxBtn, "Style & effects"], [soundBtn, "Sounds"], [songBtn, "Music"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
+    for (const [b, l] of [[fileBtn, "File"], [fxBtn, "Style & effects"], [soundBtn, "Sounds"], [songBtn, "Music"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
     // In the row: emoji, GIFs and stickers always; the photo button too on a computer (on a phone it's in ＋)
     const ROW = [emojiBtn, chatGif, stickerBtn];
     const MAIN = [[picker.button, "Photo"]], mainTiles = new Map();
@@ -1700,7 +1783,23 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   }
   list.addEventListener("scroll", () => { if (list.scrollTop < 60) loadOlder(); });
 
-  const markRead = () => chat?.member && api(`/api/chats/${chatId}/read`, { method: "POST" }).then(() => emit("chats:changed")).catch(() => {});
+  // "Seen" only when you really look: the chat is open on the screen and LookBlog is the window you're in.
+  // In a background tab (or another app in front) it waits, and becomes "Seen" the moment you come back to it.
+  let readPending = false;
+  const canSee = () => document.visibilityState === "visible" && document.hasFocus() && list.isConnected && list.offsetParent !== null;
+  const markRead = () => {
+    if (!chat?.member) return;
+    if (!canSee()) { readPending = true; return; }
+    readPending = false;
+    api(`/api/chats/${chatId}/read`, { method: "POST" }).then(() => emit("chats:changed")).catch(() => {});
+  };
+  const lookedBack = () => {
+    if (!list.isConnected) { document.removeEventListener("visibilitychange", lookedBack); removeEventListener("focus", lookedBack); return; }
+    if (readPending) setTimeout(() => readPending && markRead(), 400); // a moment on the screen, not a flash
+  };
+  document.addEventListener("visibilitychange", lookedBack);
+  addEventListener("focus", lookedBack);
+  list.addEventListener("pointerdown", lookedBack);
 
   (async () => {
     try {
@@ -1718,6 +1817,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       toBottom();
       markRead();
     } catch (err) {
+      if (!err?.error) console.error(err);
       list.replaceChildren(empty("Couldn’t open this conversation.", err.error || ""));
     }
   })();

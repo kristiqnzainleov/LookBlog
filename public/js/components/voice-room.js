@@ -45,7 +45,7 @@ export async function joinVoice(chat, channel) {
   room = { chat, channel, stream: mic, mic, ice, audioBox, peers: new Map(), muted: false, deaf: false, video: null, people: [], ended: false, needsTap: false };
   watchMicEnd();
   let others, joined;
-  setupMusic({ send: (b) => post(b), changed: () => paintDock() });
+  setupMusic({ send: (b) => post(b), changed: () => paintDock(), local: LOCAL_API });
   try { joined = await post({ kind: "join" }); others = joined.participants; }
   catch (err) { mic.getTracks().forEach((t) => t.stop()); audioBox.remove(); room = null; return toast(err.error || "Couldn’t join the voice channel."); }
   buildDock();
@@ -70,6 +70,7 @@ export async function joinVoice(chat, channel) {
 
 export async function leaveVoice(silent) {
   if (!room) return;
+  stopLocal(true);
   const r = room;
   room = null;
   reactBar?.remove(); reactBar = null;
@@ -111,7 +112,7 @@ function peer(username) {
   const spk = audioPrefs().speakerId;
   if (spk && audio.setSinkId) audio.setSinkId(spk).catch(() => {});
   room.peers.set(username, p);
-  for (const t of room.stream.getAudioTracks()) pc.addTrack(t, room.stream);
+  pc.addTrack(outTrack(), room.stream);
   if (room.video) pc.addTrack(room.video.track, room.stream);
   // Perfect negotiation: either side may (re)negotiate; the "polite" one gives way on collisions.
   // The connection details (ICE candidates) go inside the offer/answer itself, in one message:
@@ -180,6 +181,98 @@ function wakeAudio() {
 addEventListener("pointerdown", wakeAudio, true);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") wakeAudio(); });
 
+/* ---------- Music from my computer (MP3, WAV…): streamed live to the channel, never uploaded or saved ----------
+   The song is mixed with my microphone in the browser and goes out as my voice does (WebRTC), at music quality.
+   Nothing leaves my computer except the sound itself; when I stop, it's my microphone again. */
+let local = null; // { files, i, el, url, gain, hear, micSrc, dest, paused }
+const LOCAL_VOL_KEY = "lb_vc_local_vol";
+let localVol = 0.8;
+try { const v = Number(localStorage.getItem(LOCAL_VOL_KEY)); if (v >= 0 && v <= 1 && localStorage.getItem(LOCAL_VOL_KEY) != null) localVol = v; } catch {}
+const outTrack = () => (local ? local.dest.stream.getAudioTracks()[0] : room.mic.getAudioTracks()[0]);
+async function sendOutTrack() {
+  if (!room) return;
+  const t = outTrack();
+  for (const p of room.peers.values()) {
+    const sender = p.pc.getSenders().find((x) => x.track?.kind === "audio") || p.pc.getSenders().find((x) => !x.track);
+    if (!sender) continue;
+    if (sender.track !== t) await sender.replaceTrack(t).catch(() => {});
+    // Music needs more than a voice does
+    try { const prm = sender.getParameters(); prm.encodings = prm.encodings?.length ? prm.encodings : [{}]; if (local) prm.encodings[0].maxBitrate = 128000; else delete prm.encodings[0].maxBitrate; await sender.setParameters(prm); } catch {}
+  }
+  relay.setMic(local ? local.dest.stream : room.mic);
+}
+const AUDIO_FILE = /\.(mp3|wav|m4a|aac|ogg|oga|flac|opus|webm)$/i;
+function localTitle(f) { return String(f?.name || "").replace(/\.[^.]+$/, "").slice(0, 100) || "A song"; }
+async function playLocal(files) {
+  if (!room) return toast("Join a voice channel first.");
+  files = [...files].filter((f) => f.type.startsWith("audio/") || AUDIO_FILE.test(f.name));
+  if (!files.length) return toast("Pick a sound file (MP3, WAV, M4A, OGG, FLAC).");
+  const ctx = audioEngine();
+  if (!local) {
+    const el = new Audio();
+    el.preload = "auto";
+    const dest = ctx.createMediaStreamDestination();
+    const src = ctx.createMediaElementSource(el);
+    const gain = ctx.createGain(); gain.gain.value = localVol;
+    const hear = ctx.createGain(); hear.gain.value = room.deaf ? 0 : 1;
+    src.connect(gain); gain.connect(dest); gain.connect(hear); hear.connect(ctx.destination);
+    const micSrc = ctx.createMediaStreamSource(room.mic); micSrc.connect(dest);
+    local = { files: [], i: -1, el, url: null, src, gain, hear, micSrc, dest, paused: false };
+    el.addEventListener("ended", () => nextLocal());
+    el.addEventListener("error", () => { toast("Couldn’t play that file."); nextLocal(); });
+    await sendOutTrack();
+  }
+  const start = local.files.length;
+  local.files.push(...files);
+  if (local.i < 0 || local.el.ended) await startLocal(start);
+  else toast(files.length === 1 ? `Added to your queue: ${localTitle(files[0])}` : `${files.length} songs added to your queue`);
+  dispatchEvent(new Event("lb-local-music"));
+}
+async function startLocal(i) {
+  if (!local) return;
+  if (i >= local.files.length) return stopLocal();
+  local.i = i;
+  if (local.url) URL.revokeObjectURL(local.url);
+  local.url = URL.createObjectURL(local.files[i]);
+  local.el.src = local.url;
+  local.paused = false;
+  try { await audioEngine().resume(); await local.el.play(); } catch {}
+  post({ kind: "localmusic", title: localTitle(local.files[i]) }).catch(() => {});
+  dispatchEvent(new Event("lb-local-music")); paintDock();
+}
+const nextLocal = () => local && startLocal(local.i + 1);
+function pauseLocal(v) {
+  if (!local) return;
+  local.paused = v;
+  if (v) local.el.pause(); else local.el.play().catch(() => {});
+  post({ kind: "localmusic", title: v ? null : localTitle(local.files[local.i]), paused: v }).catch(() => {});
+  dispatchEvent(new Event("lb-local-music")); paintDock();
+}
+function stopLocal(quiet) {
+  if (!local) return;
+  const l = local;
+  local = null;
+  l.el.pause(); l.el.removeAttribute("src");
+  if (l.url) URL.revokeObjectURL(l.url);
+  for (const n of [l.src, l.gain, l.hear, l.micSrc]) try { n.disconnect(); } catch {}
+  if (room) { sendOutTrack(); if (!quiet) post({ kind: "localmusic", title: null }).catch(() => {}); }
+  dispatchEvent(new Event("lb-local-music")); paintDock();
+}
+function setLocalVolume(v) {
+  localVol = Math.max(0, Math.min(1, v));
+  if (local) local.gain.gain.value = localVol;
+  try { localStorage.setItem(LOCAL_VOL_KEY, String(localVol)); } catch {}
+}
+const localState = () => local && { title: localTitle(local.files[local.i]), paused: local.paused, pos: local.el.currentTime || 0, dur: local.el.duration || 0, queue: local.files.slice(local.i + 1).map(localTitle), volume: localVol };
+const LOCAL_API = { play: playLocal, pause: pauseLocal, next: nextLocal, stop: () => stopLocal(), volume: setLocalVolume, state: localState, getVolume: () => localVol, seek: (t) => { if (local) local.el.currentTime = t; } };
+// Someone in my channel plays music from their computer
+on("voice:localmusic", (ev) => {
+  if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
+  room.localNow = room.localNow || {};
+  if (ev.title) room.localNow[ev.username] = { name: ev.name, title: ev.title }; else delete room.localNow[ev.username];
+  paintDock();
+});
+
 /* ---------- The microphone ---------- */
 // Use another microphone (from Voice settings, or when the one in use is unplugged)
 async function switchMic() {
@@ -188,15 +281,16 @@ async function switchMic() {
   try { s = await getMic(); } catch { return toast("Couldn’t use that microphone."); }
   if (!room) return s.getTracks().forEach((t) => t.stop());
   const track = s.getAudioTracks()[0];
-  for (const p of room.peers.values()) {
-    const sender = p.pc.getSenders().find((x) => x.track?.kind === "audio");
-    if (sender) await sender.replaceTrack(track).catch(() => {});
-  }
   const old = room.mic;
   room.mic = s;
   room.stream = s;
+  if (local) { try { local.micSrc.disconnect(); } catch {} local.micSrc = audioEngine().createMediaStreamSource(s); local.micSrc.connect(local.dest); }
+  else for (const p of room.peers.values()) {
+    const sender = p.pc.getSenders().find((x) => x.track?.kind === "audio");
+    if (sender) await sender.replaceTrack(track).catch(() => {});
+  }
   old.getTracks().forEach((t) => t.stop());
-  relay.setMic(s);
+  relay.setMic(local ? local.dest.stream : s);
   setMicOpen();
   watchLocal(s);
   watchMicEnd();
@@ -624,6 +718,7 @@ function setMuted(v) {
 }
 function setDeaf(v) {
   room.deaf = v;
+  if (local) local.hear.gain.value = v ? 0 : 1;
   setMusicDeaf(v);
   for (const p of room.peers.values()) { p.audio.muted = v; applyUserVolume(p); }
   relay.setRelayDeaf(v);
@@ -802,7 +897,7 @@ function openSoundboard(anchor) {
   boardEl.style.left = Math.max(8, Math.min(r.left, innerWidth - 300)) + "px";
   boardEl.style.bottom = innerHeight - r.top + 8 + "px";
   setTimeout(() => {
-    const away = (e) => { if (boardEl && !boardEl.contains(e.target) && !anchor.contains(e.target)) { boardEl.remove(); boardEl = null; document.removeEventListener("mousedown", away); } };
+    const away = (e) => { if (boardEl && !boardEl.contains(e.target) && !anchor.contains(e.target) && !e.target.closest?.('[aria-label="Soundboard"]')) { boardEl.remove(); boardEl = null; document.removeEventListener("mousedown", away); } };
     document.addEventListener("mousedown", away);
   });
 }
@@ -855,9 +950,17 @@ function paintDock() {
       h("span", { class: "vd-live" }, h("span", { class: "vd-dot" }), "Voice connected"),
       h("a", { class: "vd-where", href: `/messages/${room.chat.id}`, text: `${room.channel.name} / ${room.chat.name}` }),
       room.needsTap ? h("button", { type: "button", class: "vd-now vd-tap", onclick: () => wakeAudio() }, "🔊 Tap to hear everyone") : null,
+      ...Object.entries(room.localNow || {}).map(([u, x]) => h("button", { type: "button", class: "vd-now vd-local", title: u === state.me.username ? "Music from your computer" : `Music from ${x.name}'s computer`, onclick: () => openMusicPanel() }, `💻 ${u === state.me.username ? "You" : "@" + u}: ${x.title}`)),
       musicState()?.now ? (musicNeedsTap()
         ? h("button", { type: "button", class: "vd-now vd-tap", title: "Your browser paused the sound — tap to hear it", onclick: () => resumeMusic() }, "🔊 Tap to hear: " + musicState().now.title)
         : h("button", { type: "button", class: "vd-now", title: "Music", onclick: () => openMusicPanel() }, (musicState().pausedAt != null ? "⏸ " : "🎧 ") + musicState().now.title)) : null),
+    // Who's here: their photos, with 🔇 on whoever is muted (it changes the moment someone mutes)
+    room.people?.length ? h("div", { class: "vd-people" }, ...room.people.map((p) => {
+      const me = p.username === state.me.username;
+      const off = me ? room.muted || room.deaf : p.muted || p.deaf;
+      return h("span", { class: "vd-person" + (speakingNow.has(p.username) && !off ? " speaking" : "") + (off ? " off" : ""), dataset: { voiceUser: p.username }, title: `${me ? "You" : p.name}${p.deaf || (me && room.deaf) ? " · deafened" : off ? " · muted" : ""}` },
+        avatar(p, 30), off ? h("i", { class: "vd-mute", text: p.deaf || (me && room.deaf) ? "🎧" : "🔇" }) : null);
+    })) : null,
     // Row 1: the main controls (round buttons, a ring when they're on)
     h("div", { class: "vd-btns vd-main" },
       btn(room.muted ? "mute" : "mic", room.muted ? "Unmute" : "Mute", room.muted, () => setMuted(!room.muted)),
@@ -958,7 +1061,8 @@ function paintStage() {
     v.classList.toggle("mirror", Boolean(t.mine && !t.screen));
     el.classList.toggle("screen", Boolean(t.screen));
     el.classList.toggle("focused", room.focus === key);
-    el.querySelector(".vs-name").replaceChildren((t.screen ? "🖥️ " : "") + t.name, ...(t.who ? [tick(t.who, 13)] : []));
+    const off = t.mine ? room.muted || room.deaf : t.who?.muted || t.who?.deaf;
+    el.querySelector(".vs-name").replaceChildren(off ? h("span", { class: "vs-muted", title: "Muted", text: "🔇 " }) : "", (t.screen ? "🖥️ " : "") + t.name, ...(t.who ? [tick(t.who, 13)] : []));
     return el;
   });
   for (const k of [...els.keys()]) if (!keep.has(k)) els.delete(k);

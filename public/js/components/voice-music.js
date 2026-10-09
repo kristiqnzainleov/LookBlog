@@ -14,7 +14,9 @@ let audio = null, yt = null, ytBox = null, ytReady = null;
 let post = null;         // (body) => Promise, set by the voice room
 let onChange = () => {};
 
-export function setupMusic({ send, changed }) { post = send; onChange = changed || (() => {}); }
+const onLocal = (fn) => { const f = () => fn(); addEventListener("lb-local-music", f); return () => removeEventListener("lb-local-music", f); };
+let localApi = null; // music from my computer (the voice room streams it)
+export function setupMusic({ send, changed, local }) { post = send; onChange = changed || (() => {}); localApi = local || null; }
 // Who's the DJ right now (the voice room keeps this up to date)
 let djNow = null;
 export function setDj(d) { djNow = d || null; onChange(); paintBass(); }
@@ -347,7 +349,33 @@ export function openMusicPanel() {
   setTimeout(fit, 50);
   const prevChange2 = onChange;
   onChange = () => { prevChange2(); if (!body.isConnected) return; dj.paint(); djBtn.textContent = djNow ? `🎛 DJ Mode · 🎧 @${djNow.username}` : "🎛 DJ Mode"; djBtn.classList.toggle("on", Boolean(djNow)); };
-  body.append(djBtn, djWrap, now,
+  // 💻 From my computer: MP3, WAV… streamed to the channel live (nothing is uploaded or saved)
+  const lfile = h("input", { type: "file", accept: "audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus", multiple: true, hidden: true });
+  const lpick = h("button", { type: "button", class: "btn btn-sm btn-primary", text: "💻 Choose songs from your computer" });
+  lpick.addEventListener("click", () => lfile.click());
+  lfile.addEventListener("change", () => { const f = [...lfile.files]; lfile.value = ""; if (f.length) localApi?.play(f); });
+  const lnow = h("div", { class: "vm-local-now" });
+  const lvol = h("input", { type: "range", min: 0, max: 100, value: Math.round((localApi?.getVolume?.() ?? 0.8) * 100), class: "vm-vol", "aria-label": "Volume of your music" });
+  lvol.addEventListener("input", () => localApi?.volume(Number(lvol.value) / 100));
+  const paintLocal = () => {
+    const st = localApi?.state();
+    if (!st) { lnow.replaceChildren(); return; }
+    lnow.replaceChildren(
+      h("div", { class: "vm-card" }, h("div", { class: "vm-thumb vm-thumb-local", text: "💻" }),
+        h("div", { class: "vm-text" }, h("b", { text: st.title }), h("small", { class: "muted", text: `From your computer${st.queue.length ? ` · ${st.queue.length} more` : ""}` }), h("span", { class: "vm-pos vm-lpos", text: fmt(st.pos) + (st.dur ? " / " + fmt(st.dur) : "") }))),
+      h("div", { class: "vm-ctl" },
+        h("button", { type: "button", class: "btn btn-sm btn-primary", text: st.paused ? "▶ Resume" : "⏸ Pause", onclick: () => localApi.pause(!st.paused) }),
+        h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "⏭ Next", onclick: () => localApi.next() }),
+        h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "⏹ Stop", onclick: () => localApi.stop() })),
+      h("label", { class: "vm-vol-row" }, h("span", { text: "🔊 Its volume" }), lvol));
+  };
+  paintLocal();
+  const offLocal = onLocal(() => { if (!body.isConnected) return offLocal(); paintLocal(); });
+  const ltick = setInterval(() => { if (!body.isConnected) return clearInterval(ltick); const st = localApi?.state(); const el = body.querySelector(".vm-lpos"); if (st && el) el.textContent = fmt(st.pos) + (st.dur ? " / " + fmt(st.dur) : ""); }, 1000);
+  const localBox = localApi ? h("div", { class: "vm-local" }, h("b", { class: "vis-label", text: "💻 From your computer" }),
+    h("p", { class: "create-hint", text: "Play MP3, WAV, M4A or FLAC files from your computer. Everyone in the channel hears them live — they're not uploaded or saved anywhere." }),
+    lpick, lfile, lnow) : null;
+  body.append(djBtn, djWrap, now, localBox,
     h("label", { class: "vm-vol-row" }, h("span", { text: "🔊 Volume for everyone" }), vol, volLabel),
     h("p", { class: "create-hint", text: "Everyone in this voice channel hears the music and anyone can change the song, pause, skip or turn it up." }),
     h("b", { class: "vis-label", text: "YouTube" }), h("div", { class: "invite-row" }, link, playLink, queueLink),

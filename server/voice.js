@@ -179,6 +179,14 @@ async function handleVoice(req, res, me, chat, chats) {
     sendJSON(res, 200, { ok: true });
     return true;
   }
+  // Music from someone's computer: the sound goes over voice (never uploaded); this only tells the channel what's playing
+  if (body.kind === "localmusic") {
+    rateLimit("localmusic:" + me.id, 60, 10 * 60 * 1000, "Slow down a little.");
+    const title = body.title ? String(body.title).replace(/[\u0000-\u001f]/g, "").trim().slice(0, 100) : null;
+    sendTo(Object.keys(room), { type: "voice:localmusic", chatId: chat.id, channelId: channel.id, username: me.username, name: me.name, title });
+    sendJSON(res, 200, { ok: true });
+    return true;
+  }
   // Soundboard: everyone in the channel hears it
   if (body.kind === "sound") {
     rateLimit("sound:" + me.id, 20, 60 * 1000, "Easy on the sounds!");

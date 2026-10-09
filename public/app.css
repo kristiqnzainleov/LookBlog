@@ -6818,3 +6818,31 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 .convo-input .send-btn:disabled { opacity: 0.45; }
 /* "Idle": the same little yellow moon as on the photo, in front of the word */
 .presence-text.idle::before { content: "" !important; display: inline-block; width: 0.72em; height: 0.72em; margin-right: 0.35em; vertical-align: -0.04em; border-radius: 50%; background: #f5b301; -webkit-mask: radial-gradient(circle at 30% 30%, transparent 32%, #000 34%); mask: radial-gradient(circle at 30% 30%, transparent 32%, #000 34%); }
+
+/* ── Files and sound files in chats ── */
+.bubble.file-bubble { padding: 6px !important; min-width: 230px; max-width: min(340px, 78vw); }
+.file-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; background: rgba(0, 0, 0, 0.22); color: inherit; text-decoration: none; min-width: 0; }
+a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
+.fc-ic { flex: 0 0 auto; width: 40px; height: 40px; display: grid; place-items: center; font-size: 1.4rem; border-radius: 10px; background: rgba(255, 255, 255, 0.14); }
+.fc-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.fc-text b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.92rem; }
+.fc-text small { font-size: 0.75rem; opacity: 0.85; color: inherit !important; }
+.fc-dl { flex: 0 0 auto; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, 0.16); color: inherit; text-decoration: none; font-weight: 800; }
+.audio-card { flex-direction: column; align-items: stretch; }
+.audio-card .fc-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.audio-card audio { width: 100%; height: 36px; margin-top: 8px; border-radius: 999px; }
+.msg.pending .file-card { opacity: 0.75; }
+/* Dropping files on the chat */
+.drop-on { outline: 3px dashed var(--pink); outline-offset: -8px; }
+/* Voice: who's here, in the panel — 🔇 on whoever is muted */
+.vd-people { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.vd-person { position: relative; display: inline-flex; border-radius: 50%; box-shadow: 0 0 0 2px transparent; transition: box-shadow .15s, opacity .15s; }
+.vd-person.speaking { box-shadow: 0 0 0 2.5px #3ddc84; }
+.vd-person.off .avatar { opacity: 0.55; filter: grayscale(0.4); }
+.vd-mute { position: absolute; right: -4px; bottom: -4px; width: 17px; height: 17px; display: grid; place-items: center; font-style: normal; font-size: 10px; border-radius: 50%; background: #ff4757; box-shadow: 0 0 0 2px var(--card); }
+.vs-muted { font-size: 0.85em; }
+/* Voice: music from someone's computer */
+.vm-local { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin: 10px 0; border-radius: 16px; background: color-mix(in srgb, var(--pink) 8%, var(--card-2)); border: 1px solid color-mix(in srgb, var(--pink) 25%, transparent); }
+.vm-local .create-hint { margin: 0; }
+.vm-thumb-local { display: grid; place-items: center; font-size: 1.6rem; background: linear-gradient(135deg, #2b2440, #3d1f33) !important; }
+.vd-now.vd-local { background: color-mix(in srgb, #4cc9ff 18%, var(--card-2)); }

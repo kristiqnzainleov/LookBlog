@@ -30,6 +30,8 @@ export function closeEmojiPicker() {
 
 // Open the panel next to `anchor`; onPick(emoji) runs for each choice. keepOpen lets you pick several.
 export function openEmojiPicker(anchor, onPick, { keepOpen = false } = {}) {
+  // Tapping the same button again closes it
+  if (openPanel && openPanel._anchor === anchor) { closeEmojiPicker(); return null; }
   closeEmojiPicker();
   const tabs = h("div", { class: "emoji-tabs" });
   const grid = h("div", { class: "emoji-grid", role: "listbox" });
@@ -59,6 +61,7 @@ export function openEmojiPicker(anchor, onPick, { keepOpen = false } = {}) {
 
   document.body.append(panel);
   openPanel = panel;
+  panel._anchor = anchor;
   // Place above the anchor when there's room, otherwise below
   const a = visibleRect(anchor);
   const w = Math.min(340, innerWidth - 16);
