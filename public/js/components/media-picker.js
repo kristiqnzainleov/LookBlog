@@ -117,7 +117,7 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
     const imgs = IMAGE_TYPES.join(","), vids = VIDEO_TYPES.join(",");
     const opts = [
       // The gallery: "image/*"/"video/*" only (no camera, no files), so Android opens its photo picker straight away
-      opt("🖼️", "Photo library", accept === "image" ? "Pick photos from your gallery" : "Pick photos or videos from your gallery",
+      opt("🖼️", "Gallery", accept === "image" ? "Your photos" : "Your photos and videos",
         () => pickWith({ accept: accept === "image" ? "image/*" : accept === "video" ? "video/*" : "image/*,video/*", multiple: accept !== "video" && max > 1 })),
       accept !== "video" ? opt("📷", "Take a photo", "Use the camera now", () => pickWith({ accept: "image/*", capture: "environment" })) : null,
       accept !== "image" ? opt("🎥", "Record a video", "Use the camera now", () => pickWith({ accept: "video/*", capture: "environment" })) : null,
