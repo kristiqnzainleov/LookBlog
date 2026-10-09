@@ -6540,3 +6540,9 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 .msg.pending { justify-content: flex-end; margin-left: auto; }
 .convo-form.sending .picker-previews { display: none !important; }
 .send-btn.pressed { transform: scale(0.9); filter: brightness(1.2); }
+/* Phones: the chat follows the visible part of the screen (above the keyboard) instead of being pushed around */
+@media (max-width: 760px) {
+  body[data-page="messages"] .view { top: var(--vvtop, 0px) !important; bottom: auto !important; height: var(--vvh, 100dvh) !important; }
+  body[data-page="messages"] .messenger { transition: none !important; }
+  .convo-input textarea { font-size: 16px !important; } /* (smaller would make iPhone zoom in when you start typing) */
+}

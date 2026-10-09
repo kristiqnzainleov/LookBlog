@@ -52,16 +52,21 @@ export function messagesPage(view, m) {
   // Phones: the chat window never moves. It's exactly as tall as what you can see (the keyboard included),
   // and the page itself can't be scrolled or pushed up.
   const vv = window.visualViewport;
+  // (the window follows the part of the screen you can see, above the keyboard; it never fights the phone)
+  let raf = 0;
   const fit = () => {
     if (!vv) return;
-    document.documentElement.style.setProperty("--vvh", Math.round(vv.height) + "px");
-    if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0);
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const root = document.documentElement.style;
+      root.setProperty("--vvh", Math.round(vv.height) + "px");
+      root.setProperty("--vvtop", Math.round(vv.offsetTop) + "px");
+    });
   };
   vv?.addEventListener("resize", fit);
   vv?.addEventListener("scroll", fit);
-  addEventListener("scroll", fit, { passive: true });
   fit();
-  const unfit = () => { vv?.removeEventListener("resize", fit); vv?.removeEventListener("scroll", fit); removeEventListener("scroll", fit); document.documentElement.style.removeProperty("--vvh"); };
+  const unfit = () => { vv?.removeEventListener("resize", fit); vv?.removeEventListener("scroll", fit); document.documentElement.style.removeProperty("--vvh"); document.documentElement.style.removeProperty("--vvtop"); };
 
   // Pull the window to the right to go back to the Feed. (Inside an open chat on a phone, pull from the left edge to go back to the list.)
   let sw = null;
