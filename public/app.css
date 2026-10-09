@@ -6444,7 +6444,6 @@ body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }
   .emoji-panel { left: 6px !important; right: 6px !important; width: auto !important; }
 }
 /* ---------- The message box: roomier; mic ⇄ send in one place ---------- */
-.convo-input:not(.has-text) .send-btn { display: none !important; }
 .convo-input.has-text .mic-btn { display: none !important; }
 @media (max-width: 640px) {
   .convo-input { gap: 4px !important; padding: 4px 6px !important; }
@@ -6814,3 +6813,8 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 .sg-row .sg-x { margin-left: auto; flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; border: none; background: transparent; color: var(--muted); font-size: 1.15rem; line-height: 1; cursor: pointer; display: grid; place-items: center; }
 .sg-row .sg-x:hover { background: var(--card-2); color: var(--text); }
 .sg-row .sg-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* DMs too: the send arrow is always there (faded until there's something to send); the mic shows while the box is empty */
+.convo-input .send-btn:disabled { opacity: 0.45; }
+/* "Idle": the same little yellow moon as on the photo, in front of the word */
+.presence-text.idle::before { content: "" !important; display: inline-block; width: 0.72em; height: 0.72em; margin-right: 0.35em; vertical-align: -0.04em; border-radius: 50%; background: #f5b301; -webkit-mask: radial-gradient(circle at 30% 30%, transparent 32%, #000 34%); mask: radial-gradient(circle at 30% 30%, transparent 32%, #000 34%); }
