@@ -1,5 +1,5 @@
 // Your sticker collection: send one, make a new one from a photo, or remove one.
-import { h, icon, toast, spinner, visibleRect } from "../ui.js";
+import { h, icon, toast, spinner, visibleRect, phoneSheet } from "../ui.js";
 import { api, upload } from "../api.js";
 import { openStickerMaker } from "./sticker-maker.js";
 
@@ -31,6 +31,7 @@ export function openStickers(anchor, onSend, { group = null, canManageGroup = fa
   panel = h("div", { class: "sticker-panel", role: "dialog", "aria-label": "Stickers" },
     h("header", { class: "sp-head" }, group ? tabs : h("b", { text: "Your stickers" }), hint), grid);
   document.body.append(panel);
+  phoneSheet(panel, () => closeStickers(), grid);
   const place = () => {
     if (!panel) return;
     const a = visibleRect(anchor);

@@ -447,8 +447,8 @@ export function openPhotos(urls, start = 0) {
   let i = start;
   const img = h("img", { class: "pv-img", alt: "" });
   const count = h("span", { class: "pv-count" });
-  const show = () => { img.src = urls[i]; count.textContent = urls.length > 1 ? `${i + 1} / ${urls.length}` : ""; };
-  const closeBtn = h("button", { type: "button", class: "pv-close", "aria-label": "Close" }, icon("close"));
+  const show = () => { img.classList.remove("zoomed"); img.src = urls[i]; count.textContent = urls.length > 1 ? `${i + 1} / ${urls.length}` : ""; };
+  const closeBtn = h("button", { type: "button", class: "pv-close", "aria-label": "Close", text: "✕" });
   const prev = h("button", { type: "button", class: "pv-nav l", "aria-label": "Previous", text: "‹", hidden: urls.length < 2 });
   const next = h("button", { type: "button", class: "pv-nav r", "aria-label": "Next", text: "›", hidden: urls.length < 2 });
   const stage = h("div", { class: "pv-stage" }, img);
@@ -460,6 +460,11 @@ export function openPhotos(urls, start = 0) {
   prev.addEventListener("click", (e) => { e.stopPropagation(); go(-1); });
   next.addEventListener("click", (e) => { e.stopPropagation(); go(1); });
   stage.addEventListener("click", (e) => { if (e.target === stage) close(); });
+  // On the open photo the magnifier zooms in where you click (and out again)
+  img.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (img.classList.toggle("zoomed")) { const r = img.getBoundingClientRect(); img.style.transformOrigin = `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`; }
+  });
   // swipe left / right between photos, down to close
   let s = null;
   wrap.addEventListener("touchstart", (e) => { if (e.touches.length === 1) s = { x: e.touches[0].clientX, y: e.touches[0].clientY }; else s = null; }, { passive: true });
@@ -475,4 +480,12 @@ export function openPhotos(urls, start = 0) {
   document.body.classList.add("no-scroll");
   document.body.append(wrap);
   show();
+}
+
+// On a phone, a picker (stickers, sounds, emoji…) becomes a sheet from the bottom, with a handle; pull it down to close it
+export function phoneSheet(panel, close, scroller = null) {
+  if (!matchMedia("(max-width: 640px)").matches) return;
+  panel.classList.add("pick-sheet");
+  panel.prepend(h("div", { class: "gif-grab pick-grab", "aria-hidden": "true" }));
+  swipeDownToClose(panel, close, { scroller: () => (typeof scroller === "function" ? scroller() : scroller) });
 }

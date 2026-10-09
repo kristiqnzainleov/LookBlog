@@ -1,6 +1,6 @@
 // Sounds you can send: your own ("Mine", kept on your profile), the group's own soundboard sounds
 // ("This group", only inside that group), and LookBlog's built-in ones. They're kept apart on purpose.
-import { h, toast, spinner, modal, visibleRect } from "../ui.js";
+import { h, toast, spinner, modal, visibleRect, phoneSheet } from "../ui.js";
 import { api, upload } from "../api.js";
 import { BUILTIN_SOUNDS, previewSound } from "./voice-room.js";
 
@@ -48,6 +48,7 @@ export function openSoundPicker(anchor, { group = null, builtin = true, onPick }
   const tabs = h("div", { class: "snd-tabs" });
   panel = h("div", { class: "sticker-panel snd-panel", role: "dialog", "aria-label": "Sounds", style: "visibility:hidden" }, tabs, list);
   document.body.append(panel);
+  phoneSheet(panel, () => closeSoundPicker(), list);
   // Next to the button, before it's shown (it used to flash in the corner first). Above the button it hangs from
   // its bottom edge, so it grows upwards when the list loads instead of sliding down over the button.
   const place = () => {
