@@ -56,4 +56,4 @@ export async function checkImage(src) {
   } catch { return { nsfw: false, sensitive: false, scores: null }; }
 }
 // Start downloading the model early (e.g. when the composer opens)
-export const warmUp = () => { model().catch(() => {}); };
+export const warmUp = () => { model().catch(() => {}); objects().catch(() => {}); }; // (both checks, ready before the first photo)

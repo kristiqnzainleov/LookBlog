@@ -6531,3 +6531,10 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
   .convo-form .picker-previews .preview-remove { position: absolute !important; top: 4px !important; right: 4px !important; left: auto !important; bottom: auto !important; width: 24px !important; height: 24px !important; margin: 0 !important; border-radius: 50%; background: rgba(0, 0, 0, 0.65) !important; display: grid; place-items: center; }
   .convo-form .picker-previews .preview-remove svg { width: 13px; height: 13px; }
 }
+/* a photo on its way */
+.msg.pending { opacity: 0.85; }
+.msg.pending .bubble { background: var(--pink); color: var(--ink); padding: 6px; }
+.pending-img { display: block; max-width: 220px; max-height: 260px; border-radius: 14px; object-fit: cover; }
+.pending-tag { display: inline-flex; align-items: center; gap: 6px; margin: 4px 6px 2px; font-size: 0.72rem; font-weight: 700; }
+.pending-tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; animation: spin 0.8s linear infinite; }
+.msg.pending { justify-content: flex-end; margin-left: auto; }

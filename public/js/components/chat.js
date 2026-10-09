@@ -1352,7 +1352,9 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const showErr = (m) => { err.textContent = m; err.hidden = !m; };
     const send = h("button", { type: "submit", class: "send-btn", "aria-label": "Send", disabled: true }, icon("send"));
     const picker = createPicker({ accept: "both", max: 1, onChange: update, onError: showErr });
-    function update() { send.disabled = picker.busy() || (!text.value.trim() && !picker.media().length); }
+    // You can press send while the photo is still going up: it's sent the moment it's ready
+    function update() { send.disabled = !text.value.trim() && !picker.items().length; }
+
     text.addEventListener("input", () => { text.style.height = "auto"; text.style.height = Math.min(text.scrollHeight, 160) + "px"; update(); });
     text.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
     let replying = null;
@@ -1559,17 +1561,33 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       showErr("");
       send.disabled = true;
       closeEmojiPicker();
+      // Still uploading: show it in the chat right away, then send it as soon as it's up
+      let pending = null;
+      if (picker.busy()) {
+        const it = picker.items()[0];
+        const local = it?.file ? URL.createObjectURL(it.file) : null;
+        pending = h("div", { class: "msg mine pending" }, h("div", { class: "msg-stack" }, h("div", { class: "bubble" },
+          local && it.kind === "image" ? h("img", { class: "pending-img", src: local, alt: "" }) : null,
+          text.value.trim() ? h("p", { class: "bubble-text", text: text.value }) : null,
+          h("span", { class: "pending-tag", text: "Sending…" }))));
+        list.append(pending); toBottom();
+        const t0 = Date.now();
+        while (picker.busy() && Date.now() - t0 < 120000) await new Promise((ok) => setTimeout(ok, 120));
+        if (local) setTimeout(() => URL.revokeObjectURL(local), 5000);
+        if (!picker.media().length && !text.value.trim()) { pending.remove(); update(); return; }
+      }
       try {
         const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId,  text: text.value, media: picker.media()[0] || null, replyTo: replying?.id || null, ...(viewOnce ? { viewOnce: true } : {}), ...(armedFx ? { effect: armedFx, ...(unlockIn ? { unlockIn } : {}) } : {}) } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         armFx(null);
         setReply(null);
+        pending?.remove();
         add(message);
         toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
         text.value = ""; inputRow.classList.remove("has-text");
         text.style.height = "";
         picker.clear();
-      } catch (ex) { showErr(ex.error || "Couldn’t send that."); }
+      } catch (ex) { pending?.remove(); showErr(ex.error || "Couldn’t send that."); }
       update();
       softFocus(text);
     });

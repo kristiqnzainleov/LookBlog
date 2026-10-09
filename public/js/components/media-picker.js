@@ -58,6 +58,23 @@ export function inspectVideo(file) {
   });
 }
 
+// Big photos (straight from a phone camera) are made smaller before they go up: much faster to send
+async function shrinkPhoto(file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 900 * 1024) return file;
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const MAX = 2048, k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close?.();
+    const type = "image/jpeg";
+    const blob = await new Promise((ok) => c.toBlob(ok, type, 0.86));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type });
+  } catch { return file; }
+}
+
 function imageSize(file) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
@@ -158,6 +175,7 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
         }
         paintMeta(item);
       } else {
+        item.file = await shrinkPhoto(item.file);
         item.check = import("./nsfw.js").then((m) => m.checkImage(item.file)); // the checks, while it uploads
         // Not allowed (weapons, violence…): out of the post the moment it's found
         item.check.then((r) => { if (r.sensitive && items.includes(item)) { item.status = "error"; remove(item); onError(NOT_ALLOWED); } });
@@ -167,7 +185,8 @@ export function createPicker({ accept = "both", max = 4, maxVideoSeconds = null,
       item.url = res.url;
       // Sensitive (18+)? Marked, so others see it blurred
       if (item.check) {
-        const r = await item.check;
+        // (never wait long for the check: if it isn't ready a few seconds after the upload, go on)
+        const r = await Promise.race([item.check, new Promise((ok) => setTimeout(() => ok({}), 3500))]);
         if (r.sensitive || !items.includes(item)) return; // already taken out
         item.nsfw = r.nsfw;
         if (r.nsfw) { item.el?.classList.add("is-nsfw"); item.el?.append(h("span", { class: "preview-nsfw", title: "Marked as sensitive (18+): others see it blurred", text: "🔞" })); onError("This looks sensitive (18+). It will be posted blurred, and people tap to see it."); }
