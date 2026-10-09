@@ -2234,6 +2234,23 @@ async function handleSocial(req, res, url, me) {
     sendJSON(res, 200, { msgSound: me.msgSound || null });
     return true;
   }
+  // What I searched for (kept on my account, so it's the same on my phone and my computer; only I see it)
+  // GET /api/me/searches · POST { q } adds one · DELETE ?q= removes one · DELETE (no q) clears them all
+  if (a === "me" && b === "searches" && parts.length === 2) {
+    me.searches = Array.isArray(me.searches) ? me.searches : [];
+    if (m === "POST") {
+      rateLimit("search-save:" + me.id, 120, 10 * 60 * 1000, "Slow down a little.");
+      const q = clean(String((await readJSON(req)).q || "")).replace(/\s+/g, " ").slice(0, 100);
+      if (q) { me.searches = [q, ...me.searches.filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 20); save("users"); }
+    } else if (m === "DELETE") {
+      const q = url.searchParams.get("q");
+      me.searches = q == null ? [] : me.searches.filter((x) => x !== q);
+      save("users");
+    } else if (m !== "GET") return false;
+    sendJSON(res, 200, { searches: me.searches });
+    return true;
+  }
+
   // My look: POST /api/me/look { color, font, effect, accent }  (any of them; null = default)
   if (m === "POST" && a === "me" && b === "look" && parts.length === 2) {
     rateLimit("look:" + me.id, 60, 10 * 60 * 1000, "Slow down a little.");

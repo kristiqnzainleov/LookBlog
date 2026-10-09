@@ -5,12 +5,32 @@ import { api } from "../api.js";
 import { navigate, profileHref } from "../router.js";
 import { chatPic } from "./chat.js";
 
+// Your searches are kept on your account (the same on every device; only you see them)
 const RECENT_KEY = "lb-recent-searches";
-const recent = () => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); } catch { return []; } };
+let saved = null; // null until loaded from the server
+const local = () => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); } catch { return []; } };
+const recent = () => saved || local();
+let loading = null;
+function loadSearches() {
+  if (saved || loading) return loading;
+  loading = api("/api/me/searches").then(async ({ searches }) => {
+    // Searches saved only in this browser (before) move to the account once
+    const old = local().filter((q) => !searches.some((x) => x.toLowerCase() === q.toLowerCase()));
+    for (const q of old.reverse()) try { searches = (await api("/api/me/searches", { method: "POST", body: { q } })).searches; } catch {}
+    try { localStorage.removeItem(RECENT_KEY); } catch {}
+    saved = searches;
+  }).catch(() => { loading = null; });
+  return loading;
+}
 export function rememberSearch(q) {
-  q = q.trim();
+  q = String(q || "").trim().replace(/\s+/g, " ");
   if (!q) return;
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify([q, ...recent().filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 8))); } catch {}
+  saved = [q, ...recent().filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 20);
+  api("/api/me/searches", { method: "POST", body: { q } }).then((r) => { saved = r.searches; }).catch(() => {});
+}
+function forgetSearch(q) {
+  saved = recent().filter((x) => x !== q);
+  api(`/api/me/searches${q == null ? "" : "?q=" + encodeURIComponent(q)}`, { method: "DELETE" }).catch(() => {});
 }
 
 export function attachSuggestions(form, input) {
@@ -49,9 +69,12 @@ export function attachSuggestions(form, input) {
     const q = input.value.trim();
     const n = ++seq;
     if (!q) {
-      const r = recent();
-      paint([["Recent searches", r.map((t) => ({ q: t, href: `/search?q=${encodeURIComponent(t)}`, render: () => [h("span", { class: "sg-ic" }, icon("replay")), h("span", { class: "sg-text", text: t })] }))]], q);
-      if (r.length) box.querySelector(".sg-title").append(h("button", { type: "button", class: "sg-clear-btn", text: "Clear", onmousedown: (e) => { e.preventDefault(); try { localStorage.removeItem(RECENT_KEY); } catch {} close(); } }));
+      if (!saved) { await loadSearches(); if (n !== seq || input.value.trim() || document.activeElement !== input) return; }
+      const r = recent().slice(0, 10);
+      const x = (t) => h("button", { type: "button", class: "sg-x", "aria-label": `Remove “${t}”`, title: "Remove", text: "×",
+        onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); forgetSearch(t); update(); } });
+      paint([["Recent searches", r.map((t) => ({ q: t, href: `/search?q=${encodeURIComponent(t)}`, render: () => [h("span", { class: "sg-ic" }, icon("replay")), h("span", { class: "sg-text", text: t }), x(t)] }))]], q);
+      if (r.length) box.querySelector(".sg-title").append(h("button", { type: "button", class: "sg-clear-btn", text: "Clear all", onmousedown: (e) => { e.preventDefault(); forgetSearch(null); close(); } }));
       return;
     }
     let d;

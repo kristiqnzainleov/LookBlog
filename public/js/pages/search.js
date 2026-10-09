@@ -28,6 +28,12 @@ export function searchPage(view, _m, params) {
   const results = h("div", { class: "search-results" });
   view.append(h("header", { class: "column-head" }, h("div", { class: "head-row" }, form)), results);
 
+  // What you searched is remembered: when you arrive with a search, press Enter, or open a result
+  import("../components/search-suggest.js").then((m) => {
+    if (params.get("q")) m.rememberSearch(params.get("q"));
+    form.addEventListener("submit", () => m.rememberSearch(input.value));
+    results.addEventListener("click", (e) => { if (e.target.closest("a, button")) m.rememberSearch(input.value); });
+  });
   let timer, seq = 0;
   async function run(q) {
     const mine = ++seq;
