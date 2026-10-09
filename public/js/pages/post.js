@@ -70,7 +70,7 @@ export async function postPage(view, m) {
     if ((state.me.categories || []).length) bar.insertBefore(categorySelect(p), bar.querySelector(".act-views"));
     }
     // A text or photo post counts as seen when opened; videos count when played
-    if (!p.media.some((x) => x.kind === "video")) sendView(p.id);
+    if (!p.media.some((x) => x.kind === "video")) sendView(p.id, { open: true });
   }
 
   const replies = commentsSection(p, data.comments);

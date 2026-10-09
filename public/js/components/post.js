@@ -30,11 +30,12 @@ export function currentSource() {
 }
 
 /* ---------- Views: a post counts as seen once per person ---------- */
+// Seen in a feed: once. Opened (the post's page, a video played, a photo opened big): every time.
 const sent = new Set();
-export function sendView(id) {
-  if (sent.has(id)) return;
+export function sendView(id, { open = false } = {}) {
+  if (!open && sent.has(id)) return;
   sent.add(id);
-  api(`/api/posts/${id}/view`, { method: "POST", body: { source: currentSource() } }).catch(() => sent.delete(id));
+  api(`/api/posts/${id}/view`, { method: "POST", body: { source: currentSource(), open } }).catch(() => { if (!open) sent.delete(id); });
 }
 
 /* ---------- Impressions: a card was on screen (batched) ---------- */
@@ -83,7 +84,7 @@ export function trackSeen(el, id) {
 
 // Videos: seen after 2 seconds of playing; also report how they were watched (retention, skips, exit)
 export function trackPlay(video, id) {
-  let played = 0, last = null;
+  let played = 0, last = null, counted = false;
   const N = 50;
   let session = null;
   const newSession = () => ({ buckets: new Set(), skips: [], seconds: 0, completed: false, source: currentSource(), sent: false });
@@ -107,7 +108,8 @@ export function trackPlay(video, id) {
     }
     last = video.currentTime;
     if (session && Number.isFinite(d) && d > 0) session.buckets.add(Math.min(N - 1, Math.floor((video.currentTime / d) * N)));
-    if (played >= 2) sendView(id);
+    // Every time a video is opened and played for 2 seconds it's a view; watching it again from the start is one more
+    if (played >= 2 && !counted) { counted = true; sendView(id, { open: true }); }
   });
   let seekFrom = null;
   video.addEventListener("seeking", () => {
@@ -119,7 +121,7 @@ export function trackPlay(video, id) {
     if (session && seekFrom != null && Number.isFinite(d) && d > 0 && video.currentTime - seekFrom > 2) session.skips.push(seekFrom / d);
     seekFrom = null;
   });
-  video.addEventListener("ended", () => { if (session) { session.completed = true; flush(); } });
+  video.addEventListener("ended", () => { if (session) { session.completed = true; flush(); } played = 0; counted = false; });
   // Leaving the page or the video disappearing ends the session
   addEventListener("pagehide", flush);
   document.addEventListener("visibilitychange", () => document.hidden && flush());
@@ -271,10 +273,19 @@ export function actions(p, { onDeleted, big = false } = {}) {
     bar._p = p;
     const row = friendsRow(p);
     bar._friends = row;
-    queueMicrotask(() => {
-      const info = bar.closest(".reel-item")?.querySelector(".reel-info");
-      if (info) info.prepend(row); else bar.before(row);
-    });
+    // It sits on the photo or video itself (on a short: over the video, above the caption)
+    let tries = 0;
+    const place = () => {
+      const scope = bar.closest(".reel-item, .post, .detail, .watch-main");
+      if (!scope) { if (++tries < 20) return requestAnimationFrame(place); return; }
+      const info = scope.classList.contains("reel-item") ? scope.querySelector(".reel-info") : null;
+      const media = info ? null : scope.querySelector(".media-grid, .lb-player, .video-card .thumb") || (scope.classList.contains("watch-main") ? document.querySelector(".watch-stage .lb-player") : null);
+      if (info) info.prepend(row);
+      else if (media) { media.classList.add("fa-host"); row.classList.add("on-media"); media.append(row); }
+      else bar.before(row);
+      bar._media = media || info?.closest(".reel-frame") || null;
+    };
+    requestAnimationFrame(place);
   }
   // Double-tap on the post likes it (and never takes a like back)
   if (!p.film) bar.likeOnce = () => { if (p.reaction !== "like") react("like", like); };
@@ -530,10 +541,14 @@ function friendsRow(p) {
 }
 // Their photo with a heart (or a repost sign) flies up from the post, with little hearts around it
 function flyFriend(bar, user, did) {
+  // From the bottom of the photo or video (or from the button, if the post has none)
+  const m = bar._media?.isConnected ? bar._media.getBoundingClientRect() : null;
+  const onMedia = m && m.width && m.bottom > 60 && m.top < innerHeight - 60;
   const btn = bar.querySelector(did === "repost" ? ".act-repost" : ".act-like") || bar;
-  const r = btn.getBoundingClientRect();
+  const r = onMedia ? m : btn.getBoundingClientRect();
   if (!r.width || r.bottom < 0 || r.top > innerHeight || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const x = r.left + r.width / 2, y = r.top;
+  const x = onMedia ? r.left + Math.min(r.width - 40, 46 + Math.random() * Math.min(120, r.width / 3)) : r.left + r.width / 2;
+  const y = onMedia ? Math.min(r.bottom, innerHeight) - 46 : r.top;
   const sway = (Math.random() - 0.5) * 70;
   const el = h("span", { class: "fa-fly " + did, style: `left:${x}px;top:${y}px;--sway:${sway}px`, "aria-hidden": "true" },
     avatar(user, 38), h("i", { class: "fa-badge", text: did === "repost" ? "🔁" : "❤️" }));
@@ -549,6 +564,9 @@ on("friend-act", (ev) => {
   for (const bar of document.querySelectorAll(`.post-actions[data-post="${CSS.escape(ev.id)}"]`)) {
     if (!bar.isConnected) continue;
     flyFriend(bar, ev.user, ev.did);
+    // On a playing video the row is hidden; it shows for a moment when someone new likes it
+    const md = bar._media;
+    if (md) { md.classList.add("fa-live"); clearTimeout(md._faT); md._faT = setTimeout(() => md.classList.remove("fa-live"), 3500); }
     const p = bar._p;
     if (!ev.row || !p) continue;
     const f = p.friends || { people: [], count: 0 };

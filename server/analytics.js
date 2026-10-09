@@ -22,7 +22,7 @@ function postSummary(p) {
     id: p.id, type: p.type, stream: Boolean(p.stream), title: p.title || (p.text || "").slice(0, 80) || (p.type === "post" ? "Photo post" : "Untitled"),
     thumb: p.media?.[0] ? (p.media[0].kind === "image" ? p.media[0].url : p.media[0].poster || null) : null,
     createdAt: p.createdAt, visibility: p.visibility, duration: dur,
-    views: p.viewedBy.length, reach, impressions: p.impressions || 0,
+    views: (p.views ?? p.viewedBy.length), viewers: p.viewedBy.length, reach, impressions: p.impressions || 0,
     ctr: p.impressions ? Math.round((p.viewedBy.length / p.impressions) * 1000) / 10 : null,
     plays: w?.plays || 0, watchMinutes: Math.round(((w?.seconds || 0) / 60) * 10) / 10,
     avgViewSec: Math.round(avgSec * 10) / 10,
@@ -98,7 +98,7 @@ function overview(me, days) {
     comments: sum(mine.map((p) => p.commentCount)), reposts: sum(mine.map((p) => p.reposts.length)),
     shares: sum(mine.map((p) => p.shares || 0)), saves: sum(mine.map((p) => p.saves || 0)),
     impressions: sum(mine.map((p) => (range ? sum(range.map((k) => p.impDaily?.[k] || 0)) : p.impressions || 0))),
-    allTimeViews: sum(mine.map((p) => p.viewedBy.length)),
+    allTimeViews: sum(mine.map((p) => (p.views ?? p.viewedBy.length))),
   };
   totals.engagementRate = totals.allTimeViews ? Math.round(((totals.likes + totals.cools + totals.comments + totals.reposts + totals.shares) / totals.allTimeViews) * 1000) / 10 : 0;
 
@@ -132,7 +132,7 @@ function postDetail(p) {
     reachFollowers: Math.min(base.reach, p.reachFollowers || 0),
     funnel: {
       reached: base.reach,
-      viewed: p.viewedBy.length,
+      viewed: (p.views ?? p.viewedBy.length),
       engaged: new Set([...p.likes, ...p.cools, ...p.reposts.map((r) => r.userId), ...db.comments.filter((c) => c.postId === p.id).map((c) => c.userId)]).size,
       finished: w?.completes || 0,
     },

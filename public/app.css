@@ -6637,3 +6637,13 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 .fa-bit { position: fixed; z-index: 9998; pointer-events: none; font-size: 15px; margin: -8px 0 0 -8px; opacity: 0; animation: faBit 1.5s ease-out var(--d) forwards; }
 @keyframes faBit { 0% { transform: translate(0, 0) scale(0.4); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(var(--dx), -130px) scale(1.1) rotate(20deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .fa-fly, .fa-bit { display: none; } }
+/* Friends who liked / reposted: on the photo or video itself */
+.fa-host { position: relative; }
+.fa-row.on-media { position: absolute; left: 10px; bottom: 10px; z-index: 3; margin: 0; max-width: calc(100% - 20px); padding: 4px 10px 4px 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: rgba(255, 255, 255, 0.88); font-size: 0.8rem; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); animation: faIn .35s cubic-bezier(.3, 1.6, .5, 1) both; }
+.fa-row.on-media .fa-text a, .fa-row.on-media .fa-text b { color: #fff; }
+.fa-row.on-media .fa-av { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7); }
+.fa-row.on-media .fa-badge { background: #111; box-shadow: none; }
+/* On a video the controls are at the bottom: it goes to the top instead */
+.lb-player > .fa-row.on-media, .thumb > .fa-row.on-media { bottom: auto; top: 10px; }
+.lb-player:not(.paused) > .fa-row.on-media { opacity: 0; transition: opacity .3s; }
+.lb-player:not(.paused):hover > .fa-row.on-media, .lb-player:not(.paused).fa-live > .fa-row.on-media { opacity: 1; }

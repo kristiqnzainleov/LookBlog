@@ -314,8 +314,9 @@ function starsView(map, me) {
   const vals = Object.values(map || {}).filter((n) => n >= 1 && n <= 5);
   return { avg: vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null, count: vals.length, mine: (map || {})[me.id] || null };
 }
+const lastOpen = new Map(); // "postId:userId" → when they last opened it
 function stats(p) {
-  return { likes: p.likes.length, dislikes: p.dislikes.length, views: p.viewedBy.length, comments: p.commentCount, reposts: p.reposts.length, cools: p.cools.length, shares: p.shares || 0 };
+  return { likes: p.likes.length, dislikes: p.dislikes.length, views: (p.views ?? p.viewedBy.length), comments: p.commentCount, reposts: p.reposts.length, cools: p.cools.length, shares: p.shares || 0 };
 }
 // People I follow who liked or reposted this (like Instagram's "Liked by …"): the newest few, and how many in all
 function friendActs(p, me) {
@@ -436,7 +437,7 @@ function profileView(user, me) {
     textPosts: db.posts.filter((p) => p.userId === user.id && p.type === "post" && (p.visibility === "public" || user.id === me.id)).length,
     videos: db.posts.filter((p) => p.userId === user.id && p.type === "video" && !notPlainVideo(p) && (p.visibility === "public" || user.id === me.id)).length,
     shorts: db.posts.filter((p) => p.userId === user.id && p.type === "short" && (p.visibility === "public" || user.id === me.id)).length,
-    views: db.posts.filter((p) => p.userId === user.id && (p.visibility !== "private" || user.id === me.id)).reduce((n, p) => n + p.viewedBy.length, 0),
+    views: db.posts.filter((p) => p.userId === user.id && (p.visibility !== "private" || user.id === me.id)).reduce((n, p) => n + (p.views ?? p.viewedBy.length), 0),
     reposts: db.posts.filter((p) => p.visibility === "public" && p.reposts.some((r) => r.userId === user.id)).length,
     movies: db.posts.filter((p) => p.userId === user.id && p.film && (p.visibility === "public" || user.id === me.id)).length,
     series: db.playlists.filter((p) => p.userId === user.id && p.kind === "series" && ((p.visibility || "public") === "public" || user.id === me.id)).length,
@@ -733,7 +734,7 @@ async function handleSocial(req, res, url, me) {
       if (type && p.type !== type) continue;
       if (type === "video" && notPlainVideo(p)) continue;
       // Hype (only in Trending) pushes a post up the most
-      const engagement = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + (p.hypes || []).length * 4 + p.viewedBy.length * 0.15 - p.dislikes.length * 0.5;
+      const engagement = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + (p.hypes || []).length * 4 + (p.views ?? p.viewedBy.length) * 0.15 - p.dislikes.length * 0.5;
       if (engagement <= 0) continue;
       const age = (now - ms(p.createdAt)) / 3600000;
       const score = (engagement + 1) / Math.pow(age + 2, hours <= 24 ? 1.5 : 1.1);
@@ -1234,7 +1235,8 @@ async function handleSocial(req, res, url, me) {
   if (m === "POST" && a === "posts" && c === "view" && parts.length === 3) {
     const post = viewablePost(b, me);
     if (!post) throw httpError(404, "This post doesn’t exist anymore.");
-    const src = String((await readJSON(req)).source || "other").slice(0, 20);
+    const body = await readJSON(req);
+    const src = String(body.source || "other").slice(0, 20);
     // My watch history (newest first, each post once)
     if (!me.historyPaused) {
       me.history = (me.history || []).filter((x) => x.postId !== post.id);
@@ -1243,7 +1245,16 @@ async function handleSocial(req, res, url, me) {
       save("users");
     }
     if (post.userId !== me.id) markReached(post, me);
-    if (!post.viewedBy.includes(me.id)) {
+    // Every time someone opens it (the post, the video, the photo) it's a view; just seeing it in a feed counts once.
+    // (The same person opening it again within half a minute isn't counted twice: refreshing isn't a view.)
+    const first = !post.viewedBy.includes(me.id);
+    const key = post.id + ":" + me.id, now = Date.now();
+    const again = !first && body.open === true && now - (lastOpen.get(key) || 0) > 30 * 1000;
+    if (body.open === true) lastOpen.set(key, now);
+    if (lastOpen.size > 50000) lastOpen.clear();
+    if (first || again) { post.views = (post.views ?? post.viewedBy.length) + 1; save("posts"); }
+    if (again) sendStats(post);
+    if (first) {
       post.viewedBy.push(me.id);
       // For analytics: when, from where, and whether they follow the author
       post.viewLog = post.viewLog || [];
@@ -1251,7 +1262,7 @@ async function handleSocial(req, res, url, me) {
       save("posts");
       sendStats(post);
     }
-    sendJSON(res, 200, { views: post.viewedBy.length });
+    sendJSON(res, 200, { views: post.views ?? post.viewedBy.length });
     return true;
   }
 

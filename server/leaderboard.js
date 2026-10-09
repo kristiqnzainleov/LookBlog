@@ -15,7 +15,7 @@ function compute() {
   for (const u of db.users) for (const id of u.following) if (followers.has(id)) followers.set(id, followers.get(id) + 1);
   const pub = db.posts.filter((p) => p.visibility === "public");
   const by = (fn) => { const m = new Map(); for (const p of pub) m.set(p.userId, (m.get(p.userId) || 0) + fn(p)); return m; };
-  const views = by((p) => (p.type !== "post" ? p.viewedBy.length : 0));
+  const views = by((p) => (p.type !== "post" ? (p.views ?? p.viewedBy.length) : 0));
   const likes = by((p) => p.likes.length + p.cools.length);
   const plays = new Map();
   for (const s of db.songs) plays.set(s.userId, (plays.get(s.userId) || 0) + (s.plays || 0));
@@ -28,18 +28,18 @@ function compute() {
   // Trending videos and shorts (the last 7 days): the same score as the Trending feed, hype counting the most
   const trendingVideos = pub.filter((p) => (p.type === "video" || p.type === "short") && !p.film && new Date(p.createdAt).getTime() >= weekAgo).map((p) => {
     const hypes = (p.hypes || []).length;
-    const points = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + hypes * 4 + p.viewedBy.length * 0.15 - p.dislikes.length * 0.5;
+    const points = p.likes.length + p.cools.length * 1.5 + (p.commentCount || 0) * 2 + p.reposts.length * 3 + hypes * 4 + (p.views ?? p.viewedBy.length) * 0.15 - p.dislikes.length * 0.5;
     const age = (Date.now() - new Date(p.createdAt).getTime()) / 3600000;
-    return { id: p.id, points: Math.round(points * 10) / 10, score: (points + 1) / Math.pow(age + 2, 1.1), hypes, views: p.viewedBy.length, likes: p.likes.length };
+    return { id: p.id, points: Math.round(points * 10) / 10, score: (points + 1) / Math.pow(age + 2, 1.1), hypes, views: (p.views ?? p.viewedBy.length), likes: p.likes.length };
   }).filter((x) => x.points > 0).sort((a, b) => b.score - a.score).slice(0, 50);
   // Series: views on all their episodes; films: views on movies
   const postById = new Map(db.posts.map((p) => [p.id, p]));
   const series = db.playlists.filter((pl) => pl.kind === "series" && (pl.visibility || "public") === "public").map((pl) => {
     const eps = pl.videoIds.map((id) => postById.get(id)).filter((p) => p && p.visibility === "public");
     const viewers = new Set(); eps.forEach((p) => p.viewedBy.forEach((x) => viewers.add(x)));
-    return { id: pl.id, n: sum(eps.map((p) => p.viewedBy.length)), viewers: viewers.size, episodes: eps.length, likes: sum(eps.map((p) => p.likes.length)) };
+    return { id: pl.id, n: sum(eps.map((p) => (p.views ?? p.viewedBy.length))), viewers: viewers.size, episodes: eps.length, likes: sum(eps.map((p) => p.likes.length)) };
   }).filter((x) => x.episodes).sort((a, b) => b.n - a.n || b.likes - a.likes).slice(0, 50);
-  const films = pub.filter((p) => p.film).map((p) => ({ id: p.id, n: p.viewedBy.length, likes: p.likes.length })).sort((a, b) => b.n - a.n || b.likes - a.likes).slice(0, 50);
+  const films = pub.filter((p) => p.film).map((p) => ({ id: p.id, n: (p.views ?? p.viewedBy.length), likes: p.likes.length })).sort((a, b) => b.n - a.n || b.likes - a.likes).slice(0, 50);
   // Streamers: different people who watched their lives (all streams), then peak and live watch time
   const streamers = new Map();
   for (const st of db.streams || []) {

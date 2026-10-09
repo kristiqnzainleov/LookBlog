@@ -197,6 +197,9 @@ function setupMenu() {
     const group = a.closest(".media-grid");
     const links = group ? [...group.querySelectorAll("a.media-cell")] : [a];
     openLightbox(links.map((l) => l.getAttribute("href")), links.indexOf(a));
+    // Opening a post's photo big is a view of that post (every time)
+    const pid = a.classList.contains("media-cell") && (a.closest(".post[data-id]")?.dataset.id || location.pathname.match(/^\/post\/([^/?#]+)/)?.[1]);
+    if (pid) import("./components/post.js").then((m) => m.sendView(decodeURIComponent(pid), { open: true }));
   });
 
   import("./components/search-suggest.js").then((m) => m.attachSuggestions($("topSearch"), $("topSearchInput")));

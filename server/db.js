@@ -74,6 +74,7 @@ function normalize() {
     if (!Array.isArray(p.likes)) p.likes = [];
     if (!Array.isArray(p.dislikes)) p.dislikes = [];
     if (!Array.isArray(p.viewedBy)) p.viewedBy = [];
+    if (typeof p.views !== "number") p.views = p.viewedBy.length; // every opening counts (viewedBy = the different people)
     if (!Array.isArray(p.reposts)) p.reposts = []; // [{ userId, at }]
     if (!Array.isArray(p.cools)) p.cools = []; // user ids who pressed "Cool"
     if (!Array.isArray(p.mentions)) p.mentions = []; // tagged user ids

@@ -725,7 +725,7 @@ async function handleChat(req, res, url, me) {
       if (extra) media = extra;
       const found = body.postId ? findPost(body.postId) : null;
       const post = found && canView(found, me) ? found : null;
-      if (post && post.userId !== me.id) { post.shares = (post.shares || 0) + 1; save("posts"); require("./realtime").broadcast({ type: "stats", id: post.id, likes: post.likes.length, dislikes: post.dislikes.length, views: post.viewedBy.length, comments: post.commentCount, reposts: post.reposts.length, cools: post.cools.length, shares: post.shares }); }
+      if (post && post.userId !== me.id) { post.shares = (post.shares || 0) + 1; save("posts"); require("./realtime").broadcast({ type: "stats", id: post.id, likes: post.likes.length, dislikes: post.dislikes.length, views: post.views ?? post.viewedBy.length, comments: post.commentCount, reposts: post.reposts.length, cools: post.cools.length, shares: post.shares }); }
       if (body.postId && !post) throw httpError(404, "That post doesn’t exist anymore.");
       // A reply (comment) from a post, short or video
       let commentRef = null;

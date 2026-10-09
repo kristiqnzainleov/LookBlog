@@ -36,7 +36,7 @@ function playlistView(pl, me, withVideos = false) {
     series: pl.kind === "series" ? { genre: pl.genre || null, year: pl.year || null, rating: pl.rating || null, tagline: pl.tagline || null, logo: pl.logo || null } : null,
     stars: pl.kind === "series" ? require("./social").starsView(pl.stars, me) : null,
     reviews: pl.kind === "series" && withVideos ? reviewsView(pl, me) : undefined,
-    views: videos.reduce((n, p) => n + p.viewedBy.length, 0),
+    views: videos.reduce((n, p) => n + (p.views ?? p.viewedBy.length), 0),
     seasons: pl.kind === "series" ? pl.seasons || {} : undefined,
     seasonInfo: pl.kind === "series" ? pl.seasonInfo || {} : undefined,
     seasonCount: pl.kind === "series" ? Math.max(pl.seasonCount || 1, ...Object.values(pl.seasons || {}).map(Number), 1) : undefined,
