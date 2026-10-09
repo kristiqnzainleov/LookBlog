@@ -13,12 +13,10 @@ export function openLightbox(urls, start = 0, { overlay = null } = {}) {
   const zoomIn = h("button", { type: "button", class: "lb-tool", "aria-label": "Zoom in", text: "+" });
   const zoomOut = h("button", { type: "button", class: "lb-tool", "aria-label": "Zoom out", text: "−" });
   const zoomLabel = h("span", { class: "lb-zoom", text: "100%" });
-  // Behind the photo: the photo itself, big and blurred (not plain black)
-  const bg = h("div", { class: "lb-bg", "aria-hidden": "true" });
   // Things shown on the photo (friends' bubbles): a layer the size of the photo, hidden while zoomed
   const layer = h("div", { class: "lb-layer" });
   const box = h("div", { class: "lightbox", role: "dialog", "aria-modal": "true", "aria-label": "Photo" },
-    bg, stage, layer, close, prev, next,
+    stage, layer, close, prev, next,
     h("div", { class: "lb-bar" }, counter, h("span", { class: "lb-spacer" }), zoomOut, zoomLabel, zoomIn));
   document.body.append(box);
   document.body.classList.add("no-scroll");
@@ -61,7 +59,6 @@ export function openLightbox(urls, start = 0, { overlay = null } = {}) {
     i = (n + urls.length) % urls.length;
     scale = 1; x = y = 0;
     img.src = urls[i];
-    bg.style.backgroundImage = `url("${String(urls[i]).replace(/"/g, "%22")}")`;
     apply(false);
     counter.textContent = urls.length > 1 ? `${i + 1} / ${urls.length}` : "";
     prev.hidden = next.hidden = urls.length < 2;
