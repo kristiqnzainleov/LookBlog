@@ -6668,3 +6668,4 @@ body:has(.gif-sheet) .gif-sheet, body:has(.pick-sheet) .pick-sheet { pointer-eve
 /* Text posts: the bubbles sit on the post's words, with a little room under them */
 .fa-text-host { position: relative; }
 .fa-text-host:has(> .fa-bubbles:not([hidden])) { padding-bottom: 56px; }
+.mention-box { overflow-y: auto; overscroll-behavior: contain; }

@@ -6,11 +6,19 @@ export function attachMentions(field, opts = {}) {
   const box = h("div", { class: "mention-box", role: "listbox", hidden: true });
   let items = [], active = 0, range = null, timer, seq = 0;
 
+  // Under the box if it fits, otherwise above it (a chat's box is at the bottom of the screen); never off screen
   const place = () => {
     const r = field.getBoundingClientRect();
-    box.style.left = Math.max(8, r.left) + "px";
-    box.style.top = r.bottom + 6 + "px";
-    box.style.width = Math.min(320, r.width) + "px";
+    const vh = window.visualViewport?.height || innerHeight;
+    const w = Math.min(320, Math.max(220, r.width), innerWidth - 16);
+    box.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+    box.style.width = w + "px";
+    const below = vh - r.bottom - 14, above = r.top - 14;
+    const up = below < Math.min(box.scrollHeight, 240) && above > below;
+    box.style.maxHeight = Math.max(120, Math.min(340, up ? above : below)) + "px";
+    const hgt = Math.min(box.scrollHeight, parseFloat(box.style.maxHeight));
+    box.style.top = (up ? r.top - 6 - hgt : r.bottom + 6) + "px";
+    box.classList.toggle("up", up);
   };
   const close = () => { box.hidden = true; items = []; range = null; if (!field.isConnected) box.remove(); };
 
@@ -33,7 +41,7 @@ export function attachMentions(field, opts = {}) {
       return row;
     }));
     box.hidden = !items.length;
-    if (items.length) place();
+    if (items.length) { place(); box.children[active]?.scrollIntoView({ block: "nearest" }); }
   }
 
   field.addEventListener("input", () => {
@@ -66,6 +74,7 @@ export function attachMentions(field, opts = {}) {
   }, true);
   field.addEventListener("blur", () => setTimeout(close, 150));
   window.addEventListener("scroll", () => !box.hidden && place(), true);
+  window.addEventListener("resize", () => !box.hidden && place());
   document.body.append(box);
   return { close };
 }
