@@ -1359,6 +1359,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     text.addEventListener("touchend", (e) => {
       if (document.activeElement === text || !matchMedia("(hover: none), (max-width: 760px)").matches) return;
       e.preventDefault();
+      window.dispatchEvent(new Event("lb:keyboard"));
       text.focus({ preventScroll: true });
       const end = text.value.length; try { text.setSelectionRange(end, end); } catch {}
     }, { passive: false });

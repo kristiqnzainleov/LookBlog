@@ -54,8 +54,28 @@ export function messagesPage(view, m) {
   const vv = window.visualViewport;
   // (the window follows the part of the screen you can see, above the keyboard; it never fights the phone)
   let raf = 0, follow = 0;
+  // iPhone Safari: the chat is made short enough *before* the keyboard comes out (its height is remembered),
+  // so Safari never has to push the page up to show the box. Nothing moves; the keyboard just slides into the gap.
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let pre = false, full = 0, preT = 0, measure = false, openKb = 0;
+  const kbGuess = () => { let k = 0; try { k = +localStorage.getItem("lb-kb") || 0; } catch {} return k > 150 && k < screen.height * 0.7 ? k : Math.round(screen.height * 0.43); };
+  const onKb = () => {
+    if (!IOS || !vv || pre || vv.height < window.innerHeight - 120) return;
+    full = vv.height; pre = true; measure = false; openKb = 0;
+    const root = document.documentElement.style;
+    root.setProperty("--vvh", Math.round(full - kbGuess()) + "px");
+    root.setProperty("--vvtop", "0px");
+    clearTimeout(preT); preT = setTimeout(() => { pre = false; fit(); }, 1500);
+  };
+  window.addEventListener("lb:keyboard", onKb);
   const apply = () => {
     const root = document.documentElement.style;
+    if (pre) {
+      if (vv.height > full - 120) return; // keyboard not out yet: keep the gap ready
+      pre = false; clearTimeout(preT); measure = true;
+    }
+    // Remember the keyboard's full height (the biggest it gets while sliding out)
+    if (measure && full - vv.height > openKb) { openKb = Math.round(full - vv.height); try { localStorage.setItem("lb-kb", String(openKb)); } catch {} }
     root.setProperty("--vvh", Math.round(vv.height) + "px");
     root.setProperty("--vvtop", Math.round(vv.offsetTop) + "px");
   };
@@ -77,7 +97,7 @@ export function messagesPage(view, m) {
   vv?.addEventListener("resize", fit);
   vv?.addEventListener("scroll", fit);
   fit();
-  const unfit = () => { vv?.removeEventListener("resize", fit); vv?.removeEventListener("scroll", fit); document.documentElement.style.removeProperty("--vvh"); document.documentElement.style.removeProperty("--vvtop"); };
+  const unfit = () => { window.removeEventListener("lb:keyboard", onKb); vv?.removeEventListener("resize", fit); vv?.removeEventListener("scroll", fit); document.documentElement.style.removeProperty("--vvh"); document.documentElement.style.removeProperty("--vvtop"); };
 
   // Pull the window to the right to go back to the Feed. (Inside an open chat on a phone, pull from the left edge to go back to the list.)
   let sw = null;
