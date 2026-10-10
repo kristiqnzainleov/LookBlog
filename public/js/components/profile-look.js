@@ -169,7 +169,7 @@ export function applyLook(el, look) {
 }
 
 // The profile page: ring around the photo, background, and banner colours (when there's no banner picture)
-export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, songSlot, fxBox, card }, look, song) {
+export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, songSlot, fxBox, card, onSongEdit = null }, look, song) {
   if (avatarWrap) { if (look?.ring) avatarWrap.dataset.ring = look.ring; else delete avatarWrap.dataset.ring; }
   if (avatarWrap) { if (look?.shape) avatarWrap.dataset.shape = look.shape; else delete avatarWrap.dataset.shape; }
   if (card) { if (look?.frame) card.dataset.frame = look.frame; else delete card.dataset.frame; }
@@ -236,24 +236,14 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
   if (bio) { if (look?.bioFont) { bio.dataset.nf = look.bioFont; bio.classList.add("nl"); loadFonts(); } else { delete bio.dataset.nf; } }
   // Status under the name
   if (statusSlot) statusSlot.replaceChildren(...(look?.status ? [h("p", { class: "pf-status" }, look.status.emoji ? h("span", { class: "pf-status-e", text: look.status.emoji }) : null, h("span", { text: look.status.text || "" }))] : []));
-  // The profile's song
+  // The profile's song: a small pill like on Instagram (tap to play). On my own profile: ＋ Add music / ✎ change it
   if (songSlot) {
     songSlot.replaceChildren();
-    if (song) {
-      const play = h("button", { type: "button", class: "pf-song", title: "Play" },
-        h("span", { class: "pf-song-cover", style: song.cover ? `background-image:url("${song.cover}")` : "" }, h("i", { text: "▶" })),
-        h("span", { class: "pf-song-text" }, h("small", { text: song.kind === "youtube" ? "▶️ Profile song · YouTube" : "🎵 Profile song" }), h("b", { text: song.title }), h("span", { class: "muted", text: song.artist?.name || "" })),
-        h("span", { class: "pf-song-eq", "aria-hidden": "true" }, h("i"), h("i"), h("i")));
-      if (song.kind === "youtube") {
-        let frame = null;
-        play.addEventListener("click", () => {
-          if (frame) { frame.remove(); frame = null; play.classList.remove("playing"); return; }
-          frame = h("iframe", { class: "pf-song-yt", src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.yt)}?autoplay=1&playsinline=1&rel=0`, allow: "autoplay; encrypted-media", title: song.title, loading: "lazy" });
-          play.after(frame); play.classList.add("playing");
-        });
-      } else play.addEventListener("click", () => import("./music.js").then((m) => { m.playSongs([song], 0); play.classList.add("playing"); }));
-      songSlot.append(play);
-    }
+    import("./song-picker.js").then(({ songPill }) => {
+      songSlot.replaceChildren();
+      if (song) songSlot.append(songPill(song, { onEdit: onSongEdit }));
+      else if (onSongEdit) songSlot.append(h("button", { type: "button", class: "song-pill add", onclick: () => onSongEdit() }, h("span", { class: "sp-note", text: "♫" }), h("b", { text: "Add music" })));
+    });
   }
 }
 // Some decorations are two pieces (cat ears, horns)

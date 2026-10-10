@@ -334,7 +334,7 @@ export async function profilePage(view, m, params) {
       profile.note.media ? h("img", { class: "nb-media", src: profile.note.media.url, alt: "" }) : null,
       profile.note.text ? h("span", { class: "nb-text", text: profile.note.text }) : null,
       profile.isMe ? h("span", { class: "nb-left", text: `${left}h left` }) : null);
-    import("../components/notes.js").then(({ styleNote }) => styleNote(bubble, profile.note));
+    import("../components/notes.js").then(({ styleNote, noteMusicLine }) => { styleNote(bubble, profile.note); if (profile.note?.music) bubble.insertBefore(noteMusicLine(profile.note.music), bubble.querySelector(".nb-left")); });
     bubble.addEventListener("click", (e) => {
       e.stopPropagation();
       // Someone else's note: reply to it (you need to follow them to see notes in Messages, same here)
@@ -387,7 +387,21 @@ export async function profilePage(view, m, params) {
   function paintAccent() {
     if (profile.look?.accent) view.style.setProperty("--pink", profile.look.accent); else view.style.removeProperty("--pink");
     // Ring around the photo, background, banner colours
-    import("../components/profile-look.js").then(({ applyProfileLook }) => applyProfileLook({ view, avatarWrap, banner, bio: bioEl, statusSlot, songSlot, card: view.querySelector(".profile") }, profile.look, profile.profileSong));
+    import("../components/profile-look.js").then(({ applyProfileLook }) => applyProfileLook({ view, avatarWrap, banner, bio: bioEl, statusSlot, songSlot, card: view.querySelector(".profile"), onSongEdit: profile.isMe ? editSong : null }, profile.look, profile.profileSong));
+  }
+  // My profile's song, right from the profile (like Instagram): pick one, change it or take it off
+  function editSong() {
+    import("../components/song-picker.js").then(({ openSongPicker }) => {
+      const save = async (ref) => {
+        try { const r = await api("/api/me/profile-song", { method: "POST", body: ref || {} }); profile.profileSong = r.song; profile.look = r.look; state.me.look = r.look; paintAccent(); toast(r.song ? `🎵 ${r.song.title} is on your profile.` : "The song is off your profile."); }
+        catch (err) { toast(err.error || "Couldn’t save it."); }
+      };
+      if (profile.profileSong) {
+        const md = modal({ title: "Your profile song", body: h("div", { class: "spk-actions" },
+          h("button", { type: "button", class: "btn btn-primary btn-full", text: "🎵 Change the song", onclick: () => { md.close(); openSongPicker({ title: "Pick a song for your profile", onPick: (_v, ref) => save(ref) }); } }),
+          h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Remove it", onclick: () => { md.close(); save(null); } })) });
+      } else openSongPicker({ title: "Pick a song for your profile", onPick: (_v, ref) => save(ref) });
+    });
   }
 
   /* Role badges (Musician, Artist, …) under the name */

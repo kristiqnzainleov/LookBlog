@@ -227,6 +227,30 @@ async function youtubeTitle(id) {
   } catch {}
   return null;
 }
+// A song someone puts on their profile or a note: { song } (LookBlog) · { yt: { id, title, author } } · { file: { url, title } }
+async function songRef(b, me, prevFile) {
+  if (!b || typeof b !== "object") return null;
+  if (typeof b.song === "string" && db.songs.some((x) => x.id === b.song && !x.deleted)) return { song: b.song };
+  if (b.yt && YT_ID.test(String(b.yt.id || ""))) {
+    const yt = { id: String(b.yt.id), title: clean(String(b.yt.title || "")).slice(0, 120), author: clean(String(b.yt.author || "")).slice(0, 80) };
+    if (!yt.title || !yt.author) { const info = await youtubeTitle(yt.id); if (info) { yt.title = yt.title || info.title; yt.author = yt.author || info.author; } }
+    if (!yt.title) yt.title = "YouTube";
+    return { yt };
+  }
+  if (b.file && typeof b.file === "object") {
+    const url = String(b.file.url || "");
+    const ok = prevFile && prevFile === url ? url : ownedMedia(url, me.id, "audio")?.url;
+    if (ok) return { file: { url: ok, title: clean(String(b.file.title || "")).replace(/\.[a-z0-9]{2,4}$/i, "").slice(0, 100) || "My song" } };
+  }
+  return null;
+}
+function songRefView(ref, owner, me) {
+  if (!ref) return null;
+  if (ref.yt) return { kind: "youtube", id: "yt-" + ref.yt.id, yt: ref.yt.id, title: ref.yt.title, artist: { name: ref.yt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${ref.yt.id}/hqdefault.jpg` };
+  if (ref.file) return { kind: "file", id: "f-" + ref.file.url.slice(-12), url: ref.file.url, title: ref.file.title, artist: { name: owner.name }, cover: owner.avatar || null, noCount: true };
+  const sg = ref.song && db.songs.find((x) => x.id === ref.song && !x.deleted);
+  return sg ? require("./music").songView(sg, me || owner) : null;
+}
 function cleanLook(b, me) {
   if (!b || typeof b !== "object") return null;
   const out = {};
@@ -282,7 +306,7 @@ const NOTE_MS = 24 * 60 * 60 * 1000;
 function activeNote(u) {
   if (!u.note) return null;
   if (Date.now() - new Date(u.note.createdAt).getTime() > NOTE_MS) return null;
-  return { text: u.note.text || "", media: u.note.media || null, color: u.note.color || null, deco: u.note.deco || null, createdAt: u.note.createdAt, expiresAt: new Date(new Date(u.note.createdAt).getTime() + NOTE_MS).toISOString() };
+  return { text: u.note.text || "", media: u.note.media || null, music: u.note.music ? songRefView(u.note.music, u) : null, color: u.note.color || null, deco: u.note.deco || null, createdAt: u.note.createdAt, expiresAt: new Date(new Date(u.note.createdAt).getTime() + NOTE_MS).toISOString() };
 }
 
 /* ---------- Polls ---------- */
@@ -1889,7 +1913,12 @@ async function handleSocial(req, res, url, me) {
         const g = resolveGif(body, me);
         media = { url: g.url, gif: true };
       } else if (body.keepMedia && me.note?.media) media = me.note.media;
-      if (!text && !media) throw httpError(400, "Write a note, pick an emoji or add a photo or GIF.");
+      // A song on the note (LookBlog, YouTube or my MP3)
+      const oldFile = me.note?.music?.file?.url || null;
+      const music = body.music ? await songRef(body.music, me, oldFile) : body.keepMusic && me.note?.music ? me.note.music : null;
+      if (!text && !media && !music) throw httpError(400, "Write a note, pick an emoji, add a photo or GIF, or a song.");
+      if (music?.file && music.file.url !== oldFile) markUsed(music.file.url, "notesong:" + me.id);
+      if (oldFile && oldFile !== music?.file?.url) deleteMedia(oldFile);
       if (chars(text) > 60) throw httpError(400, "Keep notes under 60 characters.");
       const old = me.note?.media;
       if (old && !old.gif && old.url !== media?.url) deleteMedia(old.url);
@@ -1899,10 +1928,11 @@ async function handleSocial(req, res, url, me) {
       const NOTE_COLORS = ["pink", "berry", "purple", "ocean", "mint", "sunset", "gold", "night", "galaxy"];
       const color = NOTE_COLORS.includes(body.color) ? body.color : null;
       const deco = typeof body.deco === "string" && body.deco.length <= 16 && /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u.test(body.deco) ? body.deco : null;
-      me.note = { text, media, ...(color ? { color } : {}), ...(deco ? { deco } : {}), createdAt: new Date().toISOString() };
+      me.note = { text, media, ...(music ? { music } : {}), ...(color ? { color } : {}), ...(deco ? { deco } : {}), createdAt: new Date().toISOString() };
       me.noteCount = (me.noteCount || 0) + 1;
     } else if (m === "DELETE") {
       if (me.note?.media && !me.note.media.gif) deleteMedia(me.note.media.url);
+      if (me.note?.music?.file) deleteMedia(me.note.music.file.url);
       me.note = null;
     } else return false;
     save("users");
@@ -2285,6 +2315,26 @@ async function handleSocial(req, res, url, me) {
       save("users");
     } else if (m !== "GET") return false;
     sendJSON(res, 200, { searches: me.searches });
+    return true;
+  }
+
+  // The song on my profile, set right from the profile: POST /api/me/profile-song { song | yt | file } ({} = no song)
+  if (m === "POST" && a === "me" && b === "profile-song" && parts.length === 2) {
+    rateLimit("pfsong:" + me.id, 30, 10 * 60 * 1000, "Slow down a little.");
+    const before = me.look?.songFile?.url || null;
+    const ref = await songRef(await readJSON(req), me, before);
+    me.look = { ...(me.look || {}) };
+    delete me.look.song; delete me.look.songYt; delete me.look.songFile;
+    if (ref?.song) me.look.song = ref.song;
+    if (ref?.yt) me.look.songYt = ref.yt;
+    if (ref?.file) me.look.songFile = ref.file;
+    const after = me.look.songFile?.url || null;
+    if (after && after !== before) markUsed(after, "profilesong:" + me.id);
+    if (before && before !== after) deleteMedia(before);
+    if (!Object.keys(me.look).length) delete me.look;
+    save("users");
+    const view = ref ? songRefView(ref.song ? ref : ref.yt ? { yt: ref.yt } : { file: ref.file }, me, me) : null;
+    sendJSON(res, 200, { song: view, look: me.look || null });
     return true;
   }
 

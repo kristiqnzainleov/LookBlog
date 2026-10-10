@@ -25,6 +25,10 @@ function hoursLeft(iso) {
   return h >= 1 ? `${h}h left` : `${Math.max(1, Math.floor(ms / 60000))}m left`;
 }
 
+// The song inside a note's bubble: "♫ Title"
+export function noteMusicLine(song) {
+  return h("span", { class: "nb-music", title: `${song.title} · ${song.artist?.name || ""}` }, h("i", { class: "nbm-eq", "aria-hidden": "true" }, h("b"), h("b"), h("b")), h("span", { text: song.title }));
+}
 export function openNoteEditor(current, onSaved) {
   const input = h("input", { type: "text", class: "text-input note-input", maxlength: 60, placeholder: "Share a thought… or just an emoji", value: current?.text || "" });
   const count = h("span", { class: "counter" });
@@ -32,7 +36,7 @@ export function openNoteEditor(current, onSaved) {
     const n = [...input.value].length;
     count.textContent = `${n} / 60`;
     count.className = "counter" + (n > 60 ? " over" : "");
-    save.disabled = (!input.value.trim() && !media) || n > 60 || busy;
+    save.disabled = (!input.value.trim() && !media && !music) || n > 60 || busy;
   };
   // A photo or GIF on the note
   let media = current?.media ? { keep: true, url: current.media.url, gif: current.media.gif } : null, busy = false;
@@ -54,6 +58,17 @@ export function openNoteEditor(current, onSaved) {
     busy = false; photoBtn.textContent = "📷 Photo"; paintMedia(); paint();
   });
   gifBtn.addEventListener("click", () => openGifs(gifBtn, (g) => { media = { send: gifBody(g), url: g.url, gif: true }; paintMedia(); paint(); }));
+  // A song on the note (LookBlog, YouTube or my MP3), like Instagram's notes
+  let music = current?.music ? { keep: true, view: current.music } : null;
+  const musicBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "🎵 Music" });
+  const musicBox = h("div", { class: "note-music-pick" });
+  const paintMusic = () => {
+    musicBox.replaceChildren();
+    musicBox.hidden = !music;
+    if (music) import("./song-picker.js").then(({ songPill }) => { musicBox.replaceChildren(songPill(music.view, { small: true }), h("button", { type: "button", class: "nm-x", title: "Remove the song", text: "✕", onclick: () => { music = null; paintMusic(); paint(); live(); } })); });
+    live();
+  };
+  musicBtn.addEventListener("click", () => import("./song-picker.js").then(({ openSongPicker }) => openSongPicker({ title: "A song for your note", onPick: (view, ref) => { music = { view, ref }; paintMusic(); paint(); } })));
   const emojiBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "😊 Emoji" });
   emojiBtn.addEventListener("click", () => openEmojiPicker(emojiBtn, (e) => insertAtCursor(input, e), { keepOpen: true }));
   const quick = h("div", { class: "note-quick" }, ...QUICK.map((e) => {
@@ -89,14 +104,16 @@ export function openNoteEditor(current, onSaved) {
   const m = modal({ title: "Your note", body: h("div", { class: "create-form note-editor" },
     h("div", { class: "note-preview" }, h("span", { class: "note-bubble big" }, h("span", { class: "nb-text" })), avatar(state.me, 72)),
     h("p", { class: "create-hint", text: "People who follow you see it for 24 hours, above your photo in Messages and on your profile." }),
-    mediaBox, input, h("div", { class: "bio-bar" }, emojiBtn, photoBtn, gifBtn, file, count), quick, style, save, del) });
+    mediaBox, musicBox, input, h("div", { class: "bio-bar" }, emojiBtn, photoBtn, gifBtn, musicBtn, file, count), quick, style, save, del) });
   const preview = m.card.querySelector(".nb-text");
   const previewBubble = m.card.querySelector(".note-preview .note-bubble");
   function live() {
     if (!preview) return;
-    preview.textContent = input.value.trim() || (media ? "" : "…");
+    preview.textContent = input.value.trim() || (media || music ? "" : "…");
     previewBubble.querySelector(".nb-media")?.remove();
+    previewBubble.querySelector(".nb-music")?.remove();
     if (media) previewBubble.prepend(h("img", { class: "nb-media", src: media.url, alt: "" }));
+    if (music) previewBubble.append(noteMusicLine(music.view));
     styleNote(previewBubble, { color, deco });
   }
   input.addEventListener("input", live);
@@ -105,7 +122,8 @@ export function openNoteEditor(current, onSaved) {
     save.disabled = true;
     try {
       const extra = !media ? {} : media.keep ? { keepMedia: true } : media.image ? { image: media.image } : media.send;
-      const { note } = await api("/api/me/note", { method: "POST", body: { text: input.value, color, deco, ...extra } });
+      const tune = !music ? {} : music.keep ? { keepMusic: true } : { music: music.ref };
+      const { note } = await api("/api/me/note", { method: "POST", body: { text: input.value, color, deco, ...extra, ...tune } });
       m.close();
       toast("Note shared for 24 hours.");
       onSaved?.(note);
@@ -118,6 +136,7 @@ export function openNoteEditor(current, onSaved) {
     onSaved?.(null);
   });
   paintMedia();
+  paintMusic();
   paint();
   live();
   setTimeout(() => input.focus(), 60);
@@ -130,10 +149,13 @@ export function openNoteReply(user, note) {
   const quick = h("div", { class: "note-quick" }, ...["😂", "❤️", "🔥", "😮", "👏", "😢"].map((e) => h("button", { type: "button", class: "quick-react", text: e, title: `Reply ${e}`, onclick: () => go(e) })));
   const m = modal({ title: "Note", body: h("div", { class: "create-form note-reply" },
     h("div", { class: "note-preview" },
-      styleNote(h("span", { class: "note-bubble big" + (note.media ? " has-media" : "") }, note.media ? h("img", { class: "nb-media", src: note.media.url, alt: "" }) : null, note.text ? h("span", { class: "nb-text", text: note.text }) : null), note),
+      styleNote(h("span", { class: "note-bubble big" + (note.media ? " has-media" : "") }, note.media ? h("img", { class: "nb-media", src: note.media.url, alt: "" }) : null, note.text ? h("span", { class: "nb-text", text: note.text }) : null, note.music ? noteMusicLine(note.music) : null), note),
       h("a", { href: profileHref(user.username), class: "note-reply-who", onclick: (e) => { e.preventDefault(); m.close(); navigate(profileHref(user.username)); } },
         avatar(user, 72), h("b", {}, user.name, tick(user, 15)), h("small", { class: "muted", text: note.expiresAt ? hoursLeft(note.expiresAt) : "" }))),
+    note.music ? h("div", { class: "note-reply-song" }) : null,
     quick, h("div", { class: "note-reply-row" }, input, send)) });
+  // Their song: tap to listen
+  if (note.music) import("./song-picker.js").then(({ songPill }) => m.card.querySelector(".note-reply-song")?.append(songPill(note.music)));
   input.addEventListener("input", () => { send.disabled = !input.value.trim(); });
   input.addEventListener("keydown", (e) => { if (e.key === "Enter" && input.value.trim()) go(input.value); });
   send.addEventListener("click", () => go(input.value));
@@ -159,7 +181,7 @@ export function notesRow() {
       row.replaceChildren(...notes.map((n) => {
         const label = n.isMe ? (n.note ? "Your note" : "Leave a note") : n.user.name.split(" ")[0];
         const item = h(n.isMe || n.note ? "button" : "a", { class: "note-item" + (n.isMe ? " mine" : ""), href: n.isMe || n.note ? null : profileHref(n.user.username), type: n.isMe || n.note ? "button" : null, title: n.note ? `${n.note.text || (n.note.media?.gif ? "GIF" : "Photo")} · ${hoursLeft(n.note.expiresAt)}` : "" },
-          styleNote(h("span", { class: "note-bubble" + (n.note ? "" : " empty") + (n.note?.media ? " has-media" : "") }, n.note?.media ? h("img", { class: "nb-media", src: n.note.media.url, alt: "" }) : null, n.note?.text || !n.note ? h("span", { class: "nb-text", text: n.note ? n.note.text : "+ Note" }) : null), n.note),
+          styleNote(h("span", { class: "note-bubble" + (n.note ? "" : " empty") + (n.note?.media ? " has-media" : "") }, n.note?.media ? h("img", { class: "nb-media", src: n.note.media.url, alt: "" }) : null, n.note?.text || !n.note ? h("span", { class: "nb-text", text: n.note ? n.note.text : "+ Note" }) : null, n.note?.music ? noteMusicLine(n.note.music) : null), n.note),
           avatar(n.user, 58),
           h("span", { class: "note-name" }, label, n.isMe ? null : tick(n.user, 13)));
         if (n.isMe) item.addEventListener("click", () => openNoteEditor(n.note, load));
