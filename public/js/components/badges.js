@@ -29,12 +29,33 @@ export function openBadges(profile, data) {
       h("small", { class: "muted", text: b.how }),
       !b.earned && b.goal > 1 ? h("div", { class: "award-bar" }, h("span", { style: `width:${Math.round((b.progress / b.goal) * 100)}%` })) : null,
       !b.earned && b.goal > 1 ? h("small", { class: "muted", text: `${b.progress} / ${b.goal}` }) : null);
-  const badges = h("div", { class: "badge-cats" }, ...cats.map((c) => {
-    const list = data.badges.filter((b) => (b.cat || "Other") === c);
-    return h("section", { class: "badge-cat" },
-      h("h4", { class: "badge-cat-title" }, c, h("span", { class: "muted", text: ` ${list.filter((b) => b.earned).length}/${list.length}` })),
-      h("div", { class: "badge-grid" }, ...list.map(badgeCard)));
-  }));
+  // 700+ badges: search them, see only the earned ones (or the ones still to earn), or one category
+  let q = "", show = "all", only = "";
+  const badges = h("div", { class: "badge-cats" });
+  const paintBadges = () => {
+    const words = q.trim().toLowerCase();
+    const pass = (b) => (show === "all" || (show === "earned" ? b.earned : !b.earned)) && (!only || (b.cat || "Other") === only) && (!words || `${b.name} ${b.how} ${b.cat}`.toLowerCase().includes(words));
+    const sections = cats.filter((c) => !only || c === only).map((c) => {
+      const all = data.badges.filter((b) => (b.cat || "Other") === c), list = all.filter(pass);
+      if (!list.length) return null;
+      // the ones closest to being earned come first among the rest
+      if (show !== "earned") list.sort((a, b) => Number(b.earned) - Number(a.earned) || (b.earned ? 0 : (b.progress / b.goal) - (a.progress / a.goal)));
+      return h("section", { class: "badge-cat" },
+        h("h4", { class: "badge-cat-title" }, c, h("span", { class: "muted", text: ` ${all.filter((b) => b.earned).length}/${all.length}` })),
+        h("div", { class: "badge-grid" }, ...list.map(badgeCard)));
+    }).filter(Boolean);
+    badges.replaceChildren(...(sections.length ? sections : [h("p", { class: "muted", text: "No badges match." })]));
+  };
+  const search = h("input", { type: "search", class: "text-input badge-search", placeholder: `Search ${data.badges.length} badges…`, autocomplete: "off" });
+  let st;
+  search.addEventListener("input", () => { clearTimeout(st); st = setTimeout(() => { q = search.value; paintBadges(); }, 120); });
+  const chip = (label, on, fn) => { const b = h("button", { type: "button", class: "badge-chip" + (on ? " on" : ""), text: label }); b.addEventListener("click", fn); return b; };
+  const filters = h("div", { class: "badge-filters" });
+  const paintFilters = () => filters.replaceChildren(
+    h("div", { class: "badge-chips" }, chip(`All`, show === "all", () => { show = "all"; paintFilters(); paintBadges(); }), chip(`✅ Earned (${earned})`, show === "earned", () => { show = "earned"; paintFilters(); paintBadges(); }), chip(`🎯 To earn (${data.badges.length - earned})`, show === "todo", () => { show = "todo"; paintFilters(); paintBadges(); })),
+    h("div", { class: "badge-chips cats" }, chip("Every category", !only, () => { only = ""; paintFilters(); paintBadges(); }), ...cats.map((c) => chip(c, only === c, () => { only = only === c ? "" : c; paintFilters(); paintBadges(); }))));
+  paintFilters();
+  paintBadges();
   const roles = data.roles?.length
     ? h("div", { class: "role-badges in-modal" }, ...data.roles.map((r) => h("span", { class: "role-chip", text: `${r.emoji} ${r.name}` })))
     : null;
@@ -45,7 +66,7 @@ export function openBadges(profile, data) {
     special ? h("h3", { class: "side-title", text: "💎 Special" }) : null, special,
     roles ? h("h3", { class: "side-title", text: "What they do" }) : null, roles,
     h("h3", { class: "side-title", text: "Awards" }), awards,
-    h("h3", { class: "side-title", text: `Badges · ${earned} of ${data.badges.length}` }), badges) });
+    h("h3", { class: "side-title", text: `Badges · ${earned} of ${data.badges.length}` }), search, filters, badges) });
 }
 
 // The colours of a special badge (the team picks one; pink and gold if not)

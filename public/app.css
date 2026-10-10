@@ -6970,3 +6970,18 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 @keyframes fxSharkGo { 0% { left: 110%; } 45% { left: 45%; transform: scale(1.15); } 55% { left: 38%; transform: scale(1.3) rotate(-8deg); } 100% { left: -40%; transform: scale(1); } }
 .fx-bite { animation: fxBite .9s ease-in-out; }
 @keyframes fxBite { 0% { clip-path: inset(0); } 20% { clip-path: polygon(0 0, 100% 0, 100% 100%, 70% 100%, 64% 72%, 57% 100%, 50% 72%, 43% 100%, 36% 72%, 30% 100%, 0 100%); transform: translateX(-4px) rotate(-2deg); } 40% { transform: translateX(4px) rotate(2deg); } 60% { transform: translateX(-3px); } 100% { clip-path: inset(0); transform: none; } }
+/* Badges: search and filters */
+.badge-search { margin: 4px 0 8px; }
+.badge-filters { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.badge-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge-chips.cats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.badge-chips.cats::-webkit-scrollbar { display: none; }
+.badge-chip { flex: 0 0 auto; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); font: 600 0.8rem var(--body); cursor: pointer; white-space: nowrap; }
+.badge-chip.on { background: var(--pink); border-color: var(--pink); color: #fff; }
+@media (max-width: 640px) {
+  .badges-modal .badge-grid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  .badges-modal .badge-card { padding: 10px 8px !important; gap: 3px; }
+  .badges-modal .badge-card .bc-emoji { font-size: 1.5rem; }
+  .badges-modal .badge-card b { font-size: 0.82rem; line-height: 1.2; }
+  .badges-modal .badge-card small { font-size: 0.7rem; line-height: 1.25; }
+}
