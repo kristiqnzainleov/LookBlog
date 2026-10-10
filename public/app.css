@@ -6985,3 +6985,8 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
   .badges-modal .badge-card b { font-size: 0.82rem; line-height: 1.2; }
   .badges-modal .badge-card small { font-size: 0.7rem; line-height: 1.25; }
 }
+/* Badges: moving the categories */
+.badge-chip.movable { touch-action: pan-x; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: grab; }
+.badge-chips.reordering { touch-action: none; }
+.badge-chip.dragging { cursor: grabbing; transform: scale(1.08); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), 0 0 0 2px var(--pink); z-index: 2; position: relative; }
+.badge-drag-hint { font-size: 0.72rem; }
