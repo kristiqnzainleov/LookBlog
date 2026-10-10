@@ -48,30 +48,87 @@ let deckB = null; // { id, yt, box, audio }
 const mixX = () => current?.mix?.x || 0;
 // Bass boost: LookBlog songs (MP3s) go through a low-end boost in the browser. YouTube doesn't let a page touch
 // its sound, so there the beat channel's kicks get a sub-bass instead. Either way the screen shakes with it.
-const bassChains = new WeakMap();
-function bassOn(el, amt) {
-  if (!el) return;
-  let ch = bassChains.get(el);
-  if (!ch) {
-    if (amt <= 0) return;
-    const c = audioEngine(); if (!c) return; // (not until the page's sound has started, or the song would go quiet)
-    try {
-      const src = c.createMediaElementSource(el), shelf = c.createBiquadFilter(), sub = c.createBiquadFilter(), drive = c.createWaveShaper(), lim = c.createDynamicsCompressor();
-      shelf.type = "lowshelf"; shelf.frequency.value = 110; sub.type = "peaking"; sub.frequency.value = 55; sub.Q.value = 1.1;
-      lim.threshold.value = -6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.15;
-      src.connect(shelf); shelf.connect(sub); sub.connect(drive); drive.connect(lim); lim.connect(c.destination);
-      ch = { shelf, sub, drive }; bassChains.set(el, ch);
-    } catch { return; }
+// The song's own effects chain (LookBlog songs; YouTube doesn't let a page touch its sound).
+// Each deck: 3-band EQ and a filter. Then for the whole song: bass boost, flanger, phaser, drive, bit-crush,
+// echo and reverb, and a limiter so nothing clips. Everyone's browser builds the same chain from the same settings.
+const chains = new WeakMap();
+const FX0 = { a: { low: 0, mid: 0, high: 0, filter: 0 }, b: { low: 0, mid: 0, high: 0, filter: 0 }, echo: 0, verb: 0, flanger: 0, phaser: 0, crush: 0, drive: 0, keylock: true };
+export const songFx = () => ({ ...FX0, ...(current?.fx || {}), a: { ...FX0.a, ...(current?.fx?.a || {}) }, b: { ...FX0.b, ...(current?.fx?.b || {}) } });
+const fxActive = (f, deck, amt) => amt > 0.02 || f.echo || f.verb || f.flanger || f.phaser || f.crush || f.drive || Object.values(f[deck]).some((v) => Math.abs(v) > 0.01);
+function chainFor(el) {
+  let ch = chains.get(el);
+  if (ch) return ch;
+  const c = audioEngine(); if (!c) return null; // (not until the page's sound has started, or the song would go quiet)
+  try {
+    const node = (type, props = {}) => { const f = c.createBiquadFilter(); f.type = type; for (const [k, v] of Object.entries(props)) f[k].value = v; return f; };
+    const src = c.createMediaElementSource(el);
+    const low = node("lowshelf", { frequency: 250 }), mid = node("peaking", { frequency: 1000, Q: 0.8 }), high = node("highshelf", { frequency: 4000 }), filt = node("allpass");
+    const shelf = node("lowshelf", { frequency: 110 }), sub = node("peaking", { frequency: 55, Q: 1.1 });
+    const sum = c.createGain(), drive = c.createWaveShaper(), crush = c.createWaveShaper(), out = c.createGain(), lim = c.createDynamicsCompressor();
+    lim.threshold.value = -6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.15;
+    src.connect(low); low.connect(mid); mid.connect(high); high.connect(filt); filt.connect(shelf); shelf.connect(sub); sub.connect(sum);
+    // Flanger: a tiny delay that sweeps, mixed back in
+    const fl = c.createDelay(0.05), flLfo = c.createOscillator(), flDepth = c.createGain(), flMix = c.createGain(), flFb = c.createGain();
+    fl.delayTime.value = 0.004; flLfo.frequency.value = 0.25; flDepth.gain.value = 0.003; flMix.gain.value = 0; flFb.gain.value = 0.5;
+    flLfo.connect(flDepth); flDepth.connect(fl.delayTime); flLfo.start(); sub.connect(fl); fl.connect(flFb); flFb.connect(fl); fl.connect(flMix); flMix.connect(sum);
+    // Phaser: four sweeping all-pass filters, mixed back in
+    const phLfo = c.createOscillator(), phDepth = c.createGain(), phMix = c.createGain();
+    phLfo.frequency.value = 0.4; phDepth.gain.value = 600; phMix.gain.value = 0; phLfo.connect(phDepth); phLfo.start();
+    let prev = sub;
+    for (let k = 0; k < 4; k++) { const ap = node("allpass", { frequency: 700 + k * 300, Q: 0.6 }); phDepth.connect(ap.frequency); prev.connect(ap); prev = ap; }
+    prev.connect(phMix); phMix.connect(sum);
+    sum.connect(drive); drive.connect(crush); crush.connect(out); out.connect(lim); lim.connect(c.destination);
+    // Echo and reverb sends
+    const dl = c.createDelay(2), fb = c.createGain(), echoOut = c.createGain(), verb = c.createConvolver(), verbOut = c.createGain();
+    dl.delayTime.value = 0.375; fb.gain.value = 0.4; echoOut.gain.value = 0; verbOut.gain.value = 0;
+    const ir = c.createBuffer(2, c.sampleRate * 2.6, c.sampleRate);
+    for (let k = 0; k < 2; k++) { const d = ir.getChannelData(k); for (let n = 0; n < d.length; n++) d[n] = (Math.random() * 2 - 1) * Math.pow(1 - n / d.length, 2.8); }
+    verb.buffer = ir;
+    out.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(echoOut); echoOut.connect(lim);
+    out.connect(verb); verb.connect(verbOut); verbOut.connect(lim);
+    ch = { low, mid, high, filt, shelf, sub, drive, crush, flMix, flLfo, flDepth, phMix, phLfo, phDepth, dl, echoOut, verbOut };
+    chains.set(el, ch);
+    return ch;
+  } catch { return null; }
+}
+const curveCache = new Map();
+function shaper(kind, k) {
+  const key = kind + Math.round(k * 50);
+  if (curveCache.has(key)) return curveCache.get(key);
+  const cv = new Float32Array(1024);
+  for (let i = 0; i < cv.length; i++) {
+    const x = (i / (cv.length - 1)) * 2 - 1;
+    if (kind === "drive") { const a = 1 + k * 25; cv[i] = ((1 + a) * x) / (1 + a * Math.abs(x)) * (1 - k * 0.3); }
+    else if (kind === "crush") { const steps = Math.round(24 - k * 21); cv[i] = Math.round(x * steps) / steps; }
+    else { const kk = (k - 0.5) * 6; cv[i] = Math.tanh(x * (1 + kk)) / Math.tanh(1 + kk); } // bass drive
   }
-  const c = ch.shelf.context, t = c.currentTime;
-  ch.shelf.gain.setTargetAtTime(amt * 16, t, 0.05); ch.sub.gain.setTargetAtTime(amt * 8, t, 0.05);
-  ch.drive.curve = amt > 0.5 ? (() => { const k = (amt - 0.5) * 6, cv = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = (i / 511) * 2 - 1; cv[i] = Math.tanh(x * (1 + k)) / Math.tanh(1 + k); } return cv; })() : null;
+  curveCache.set(key, cv);
+  return cv;
+}
+function songChain(el, deck, amt) {
+  if (!el) return;
+  const f = songFx();
+  el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = f.keylock !== false; // KEY LOCK off: faster = higher, like vinyl
+  let ch = chains.get(el);
+  if (!ch) { if (!fxActive(f, deck, amt)) return; ch = chainFor(el); if (!ch) return; }
+  const t = ch.low.context.currentTime, d = f[deck], set = (p, v) => p.setTargetAtTime(v, t, 0.04);
+  set(ch.low.gain, d.low); set(ch.mid.gain, d.mid); set(ch.high.gain, d.high);
+  if (Math.abs(d.filter) < 0.04) ch.filt.type = "allpass";
+  else if (d.filter < 0) { ch.filt.type = "lowpass"; set(ch.filt.frequency, 20000 * Math.pow(0.012, -d.filter)); ch.filt.Q.value = 3; }
+  else { ch.filt.type = "highpass"; set(ch.filt.frequency, 20 * Math.pow(200, d.filter)); ch.filt.Q.value = 3; }
+  set(ch.shelf.gain, amt * 16); set(ch.sub.gain, amt * 8);
+  set(ch.flMix.gain, f.flanger * 0.8); set(ch.flDepth.gain, 0.002 + f.flanger * 0.003);
+  set(ch.phMix.gain, f.phaser * 0.9); set(ch.phLfo.frequency, 0.2 + f.phaser * 0.8);
+  const bpm = beatOn()?.bpm || 124; set(ch.dl.delayTime, Math.min(1.5, (60 / bpm) * 0.75));
+  set(ch.echoOut.gain, f.echo * 0.8); set(ch.verbOut.gain, f.verb * 1.3);
+  ch.drive.curve = f.drive > 0.02 ? shaper("drive", f.drive) : amt > 0.5 ? shaper("bass", amt) : null;
+  ch.crush.curve = f.crush > 0.02 ? shaper("crush", f.crush) : null;
 }
 let bassStyle = null;
 function paintBass() {
   const amt = current?.now && current.pausedAt == null && !deaf ? current.bass || 0 : 0;
   setBassBoost(amt);
-  bassOn(audio, amt); bassOn(deckB?.audio, amt);
+  songChain(audio, "a", amt); songChain(deckB?.audio, "b", amt);
   const on = amt > 0.02;
   document.body.classList.toggle("bass-boost", on);
   document.body.style.setProperty("--bass", String(amt));

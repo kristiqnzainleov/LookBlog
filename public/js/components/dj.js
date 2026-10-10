@@ -2,6 +2,7 @@
 // and everyone in the channel hears it: speed, hot cues, loops, brake, fades into the next song,
 // effect pads (airhorn, siren, scratch…) and a drum machine on top. The effects are made right in each
 // person's browser at the same moment, so they sound the same for everyone.
+import { songFx } from "./voice-music.js";
 import { h, toast, modal } from "../ui.js";
 import { api as apiCall, upload } from "../api.js";
 import { state } from "../state.js";
@@ -435,6 +436,13 @@ export function djConsole(api) {
   const sendMaster = throttle((v) => api.post({ kind: "music", action: "volume", volume: Math.round(v * 100) }));
   const sendX = throttle((x) => send({ action: "mix", x }));
   const sendBass = throttle((amount) => send({ action: "bass", amount }), 200);
+  // The song's own effects (each deck's EQ and filter, and the SONG FX unit)
+  let songOwed = {};
+  const flushSong = throttle(() => { const b = songOwed; songOwed = {}; send({ action: "songfx", ...b }); }, 160);
+  const sendSong = (patch) => {
+    for (const [k, v] of Object.entries(patch)) songOwed[k] = typeof v === "object" ? { ...(songOwed[k] || {}), ...v } : v;
+    flushSong();
+  };
 
   // Not while a knob or fader is in the DJ's hand (it would be swapped for a new one mid-turn)
   let turning = false, owed = false;
@@ -504,6 +512,7 @@ export function djConsole(api) {
     const mixer = h("div", { class: "djc-mixer" },
       h("div", { class: "djc-strips" },
         strip("CH A", [knob("GAIN", { min: 0, max: 1, value: lv.a, def: 1, disabled: lock || !m?.now, fmtv: (v) => Math.round(v * 100) + "%", onChange: (v) => sendLevels({ a: v }) }),
+          ...songEq("a", lock || !m?.now),
           meter(fakeLevel(playingA, () => (api.music()?.levels?.a ?? 1) * (1 - (api.music()?.mix?.x || 0)))),
           muteBtn("a", lv, lock || !m?.now),
           vfader("A", lv.a, { disabled: lock || !m?.now, onChange: (v) => sendLevels({ a: v }) })]),
@@ -518,6 +527,7 @@ export function djConsole(api) {
           meter(beatLevel),
           vfader("FX", Math.min(1, bm.gain), { disabled: lock, onChange: (v) => sendBeatMix({ gain: v }) })]),
         strip("CH B", [knob("GAIN", { min: 0, max: 1, value: lv.b, def: 1, disabled: lock || !m?.now, fmtv: (v) => Math.round(v * 100) + "%", onChange: (v) => sendLevels({ b: v }) }),
+          ...songEq("b", lock || !m?.now),
           meter(fakeLevel(() => Boolean(api.music()?.mix), () => (api.music()?.levels?.b ?? 1) * (api.music()?.mix?.x || 0))),
           muteBtn("b", lv, lock || !m?.now),
           vfader("B", lv.b, { disabled: lock || !m?.now, onChange: (v) => sendLevels({ b: v }) })])),
@@ -530,6 +540,15 @@ export function djConsole(api) {
         knob("WOBBLE", { min: 0, max: 1, value: bm.wobble || 0, def: 0, disabled: lock, accent: "filter", fmtv: (v) => (v < 0.02 ? "OFF" : Math.round(v * 100) + "%"), onChange: (v) => sendBeatMix({ wobble: v }) }),
         pad(`WOB ${({ 1: "1/2", 2: "1/4", 4: "1/8" })[bm.wobRate || 2]}`, "dj-small", () => sendBeatMix({ wobRate: ({ 1: 2, 2: 4, 4: 1 })[bm.wobRate || 2] }), "How fast it wobbles"),
         pad("RESET", "dj-small", () => sendBeatMix({ echo: 0, verb: 0, crush: 0, pan: 0, filter: 0, low: 0, mid: 0, high: 0, drive: 0, wobble: 0 }), "Everything on the FX channel back to normal")),
+      (() => {
+        const f = songFx(), off = lock || !m?.now, yt = m?.now?.kind === "youtube";
+        const k = (label, key) => knob(label, { min: 0, max: 1, value: f[key] || 0, def: 0, disabled: off, accent: "song", fmtv: (v) => (v < 0.02 ? "OFF" : Math.round(v * 100) + "%"), onChange: (v) => sendSong({ [key]: v }) });
+        return h("div", { class: "djc-fxunit djc-songfx" + (yt ? " yt" : "") }, h("b", { class: "djc-strip-name", text: "SONG FX" }),
+          k("ECHO", "echo"), k("VERB", "verb"), k("FLANGER", "flanger"), k("PHASER", "phaser"), k("CRUSH", "crush"), k("DRIVE", "drive"),
+          pad(f.keylock !== false ? "🔒 KEY LOCK" : "🔓 KEY LOCK", "dj-small" + (f.keylock !== false ? " on" : ""), () => sendSong({ keylock: f.keylock === false }), "On: tempo changes keep the key. Off: faster = higher, like a record"),
+          pad("RESET", "dj-small", () => sendSong({ echo: 0, verb: 0, flanger: 0, phaser: 0, crush: 0, drive: 0, a: { low: 0, mid: 0, high: 0, filter: 0 }, b: { low: 0, mid: 0, high: 0, filter: 0 } }), "The song back to how it sounds"),
+          yt ? h("small", { class: "djc-yt-note", text: "YouTube doesn’t allow effects on its sound — these work on LookBlog songs." }) : null);
+      })(),
       h("div", { class: "djc-master" }, knob("MASTER", { min: 0, max: 1, value: (m?.volume ?? 70) / 100, def: 0.7, disabled: lock, fmtv: (v) => Math.round(v * 100) + "%", accent: "master", onChange: (v) => sendMaster(v) }),
         knob("BPM", { min: 70, max: 180, value: beatOn()?.bpm || 124, def: 124, step: 1, disabled: lock, fmtv: (v) => String(v), onChange: throttle((v) => { if (beatOn()) send({ action: "beat", bpm: v, pattern: beatOn().pattern }); }, 300) })),
       // Bass boost on the song itself
@@ -678,6 +697,15 @@ export function djConsole(api) {
       h("div", { class: "djc-main" }, deckA, mixer, deckB),
       h("div", { class: "djc-pads" }, tabs, h("div", { class: gridClass }, ...grid))),
       h("p", { class: "create-hint", text: lock ? "Only the DJ can use the decks. Everyone in the channel hears what the DJ does." : "Everyone in the voice channel hears everything you do here, at the same moment. (YouTube doesn’t let pages change its sound, so the EQ, filter and FX unit work on the FX · beat channel: effects, keys, beats and your sounds.)" }));
+  }
+  // A deck's EQ and filter on the song itself (everyone hears it), with kill buttons
+  function songEq(deck, off) {
+    const d = songFx()[deck];
+    const eq = (label, key) => knob(label, { min: -26, max: 12, value: d[key], def: 0, step: 1, disabled: off, fmtv: (v) => (v <= -26 ? "KILL" : (v > 0 ? "+" : "") + v + "dB"), onChange: (v) => sendSong({ [deck]: { [key]: v } }) });
+    const kill = (key, l) => { const on = d[key] <= -26; const b = h("button", { type: "button", class: "dj-pad dj-kill" + (on ? " on" : ""), text: l, disabled: off, title: `Kill ${l} on deck ${deck.toUpperCase()}` }); b.addEventListener("click", () => sendSong({ [deck]: { [key]: on ? 0 : -26 } })); return b; };
+    return [eq("HI", "high"), eq("MID", "mid"), eq("LOW", "low"),
+      knob("FILTER", { min: -1, max: 1, value: d.filter, def: 0, disabled: off, accent: "filter", fmtv: (v) => (Math.abs(v) < 0.04 ? "OFF" : v < 0 ? "LPF" : "HPF"), onChange: (v) => sendSong({ [deck]: { filter: v } }) }),
+      h("div", { class: "djc-kills" }, kill("high", "HI"), kill("mid", "MID"), kill("low", "LOW"))];
   }
   // Mute a deck (and bring it back at the level it had)
   function muteBtn(k, lv, disabled) {

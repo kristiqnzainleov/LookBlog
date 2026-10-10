@@ -41,7 +41,7 @@ async function youtubeInfo(url) {
 function musicView(key) {
   const m = music.get(key);
   if (!m || !m.now) return null;
-  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, mix: m.mix || null, levels: m.levels || null, bass: m.bass || 0, changedBy: m.changedBy || null, serverNow: Date.now() };
+  return { now: m.now, startedAt: m.startedAt, pausedAt: m.pausedAt, queue: m.queue, volume: m.volume ?? 70, rate: m.rate || 1, loop: m.loop || null, mix: m.mix || null, levels: m.levels || null, bass: m.bass || 0, fx: m.fx || null, changedBy: m.changedBy || null, serverNow: Date.now() };
 }
 function sendMusic(chat, channelId) {
   const key = chat.id + ":" + channelId;
@@ -345,6 +345,7 @@ async function handleVoice(req, res, me, chat, chats) {
         if (m.mix && x >= 1) {
           // All the way over: deck B is what's playing now
           m.now = m.mix.item; m.startedAt = m.mix.startedAt; m.pausedAt = null; m.rate = 1; m.loop = null;
+          if (m.fx) m.fx = { ...m.fx, a: m.fx.b || { low: 0, mid: 0, high: 0, filter: 0 }, b: { low: 0, mid: 0, high: 0, filter: 0 } }; // deck B's EQ comes along
           m.queue = m.queue.filter((q) => q.id !== m.now.id);
           m.mix = null;
         } else if (m.mix && x <= 0) m.mix = null;
@@ -362,6 +363,17 @@ async function handleVoice(req, res, me, chat, chats) {
         const fx = (me.djFx || []).find((x) => x.id === body.padId);
         if (!fx) throw httpError(404, "That effect is gone.");
         extra = { fx: "synth", p: fx.p, name: fx.name, emoji: fx.emoji };
+      } else if (a === "songfx") {
+        // Effects on the song itself (LookBlog songs): each deck's EQ and filter, and flanger, phaser, drive, crush, echo, reverb, key lock
+        if (!m?.now) throw httpError(409, "Nothing is playing.");
+        const num = (x, lo, hi, d) => (Number.isFinite(Number(x)) ? Math.max(lo, Math.min(hi, Number(x))) : d);
+        const prev = m.fx || {};
+        const deck = (q = {}, p = {}) => ({ low: num(q.low, -26, 12, p.low ?? 0), mid: num(q.mid, -26, 12, p.mid ?? 0), high: num(q.high, -26, 12, p.high ?? 0), filter: num(q.filter, -1, 1, p.filter ?? 0) });
+        m.fx = { a: deck(body.a, prev.a), b: deck(body.b, prev.b),
+          ...Object.fromEntries(["echo", "verb", "flanger", "phaser", "crush", "drive"].map((k) => [k, num(body[k], 0, 1, prev[k] ?? 0)])),
+          keylock: typeof body.keylock === "boolean" ? body.keylock : prev.keylock ?? true };
+        music.set(key, m);
+        sendMusic(chat, channel.id);
       } else if (a === "levels") {
         // The mixer's channel faders for deck A and deck B (0–1, everyone hears it)
         if (!m?.now) throw httpError(409, "Nothing is playing.");

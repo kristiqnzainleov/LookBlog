@@ -6867,3 +6867,10 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .djc-mc-wrap { display: flex; flex-direction: column; gap: 10px; }
 .djc-mc-row { display: flex; gap: 8px; }
 .djc-mc-row .text-input { flex: 1; min-width: 0; }
+/* DJ: the SONG FX unit (effects on the song itself) */
+.knob-dial.song { background: radial-gradient(circle at 35% 30%, #c8a2ff, #6b2fd6 60%, #2a0f5a); }
+.djc-songfx { flex-wrap: wrap; border-color: color-mix(in srgb, #9b5cff 40%, transparent) !important; }
+.djc-songfx .djc-strip-name { color: #c8a2ff; }
+.djc-songfx.yt .knob { opacity: 0.55; }
+.djc-yt-note { flex-basis: 100%; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
+.djc-strip .djc-kills { gap: 3px; flex-wrap: nowrap; justify-content: center; } .djc-strip .djc-kills .dj-kill { padding: 3px 5px; font-size: 0.6rem; min-width: 0; }
