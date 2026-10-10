@@ -23,6 +23,18 @@ export function setDj(d) { djNow = d || null; onChange(); paintBass(); }
 export const currentDj = () => djNow;
 export const musicState = () => current;
 export const musicVolume = () => volume;
+// My own music volume (0–100): only for me, on top of the channel's volume. Nobody else hears a difference.
+const MY_KEY = "lb_vc_my_music_vol";
+let mine = 100, mineMuted = false;
+try { const v = localStorage.getItem(MY_KEY); if (v != null) mine = Math.max(0, Math.min(100, Number(v) || 0)); mineMuted = localStorage.getItem(MY_KEY + "_m") === "1"; } catch {}
+const myMul = () => (mineMuted ? 0 : mine / 100);
+export const myMusicVolume = () => ({ volume: mine, muted: mineMuted });
+export function setMyMusicVolume(v, muted = mineMuted) {
+  mine = Math.max(0, Math.min(100, Math.round(v))); mineMuted = Boolean(muted);
+  try { localStorage.setItem(MY_KEY, String(mine)); localStorage.setItem(MY_KEY + "_m", mineMuted ? "1" : "0"); } catch {}
+  setMusicVolume(volume);
+  dispatchEvent(new Event("lb-my-music-vol"));
+}
 
 function loadYT() {
   if (ytReady) return ytReady;
@@ -42,7 +54,7 @@ const position = (m) => {
 };
 // The DJ's fades: 1 = full, 0 = silent (on top of the volume, which stays the same from song to song)
 let fadeMul = 1, fadeAnim = null;
-const level = () => (deaf ? 0 : Math.round((current?.volume ?? volume) * fadeMul));
+const level = () => (deaf ? 0 : Math.round((current?.volume ?? volume) * fadeMul * myMul()));
 // Deck B: the next song, while the DJ crossfades into it (x: 0 = only deck A, 1 = only deck B)
 let deckB = null; // { id, yt, box, audio }
 const mixX = () => current?.mix?.x || 0;
@@ -52,9 +64,9 @@ const mixX = () => current?.mix?.x || 0;
 // Each deck: 3-band EQ and a filter. Then for the whole song: bass boost, flanger, phaser, drive, bit-crush,
 // echo and reverb, and a limiter so nothing clips. Everyone's browser builds the same chain from the same settings.
 const chains = new WeakMap();
-const FX0 = { a: { low: 0, mid: 0, high: 0, filter: 0 }, b: { low: 0, mid: 0, high: 0, filter: 0 }, echo: 0, verb: 0, flanger: 0, phaser: 0, crush: 0, drive: 0, keylock: true };
+const FX0 = { a: { low: 0, mid: 0, high: 0, filter: 0 }, b: { low: 0, mid: 0, high: 0, filter: 0 }, echo: 0, verb: 0, flanger: 0, phaser: 0, crush: 0, drive: 0, wah: 0, gate: 0, keylock: true };
 export const songFx = () => ({ ...FX0, ...(current?.fx || {}), a: { ...FX0.a, ...(current?.fx?.a || {}) }, b: { ...FX0.b, ...(current?.fx?.b || {}) } });
-const fxActive = (f, deck, amt) => amt > 0.02 || f.echo || f.verb || f.flanger || f.phaser || f.crush || f.drive || Object.values(f[deck]).some((v) => Math.abs(v) > 0.01);
+const fxActive = (f, deck, amt) => amt > 0.02 || f.echo || f.verb || f.flanger || f.phaser || f.crush || f.drive || f.wah || f.gate || Object.values(f[deck]).some((v) => Math.abs(v) > 0.01);
 function chainFor(el) {
   let ch = chains.get(el);
   if (ch) return ch;
@@ -66,7 +78,10 @@ function chainFor(el) {
     const shelf = node("lowshelf", { frequency: 110 }), sub = node("peaking", { frequency: 55, Q: 1.1 });
     const sum = c.createGain(), drive = c.createWaveShaper(), crush = c.createWaveShaper(), out = c.createGain(), lim = c.createDynamicsCompressor();
     lim.threshold.value = -6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.15;
-    src.connect(low); low.connect(mid); mid.connect(high); high.connect(filt); filt.connect(shelf); shelf.connect(sub); sub.connect(sum);
+    // Auto-wah: a sharp peak that sweeps up and down in time
+    const wah = node("peaking", { frequency: 1000, Q: 5 }), wahLfo = c.createOscillator(), wahDepth = c.createGain();
+    wah.gain.value = 0; wahLfo.frequency.value = 1; wahDepth.gain.value = 0; wahLfo.connect(wahDepth); wahDepth.connect(wah.frequency); wahLfo.start();
+    src.connect(low); low.connect(mid); mid.connect(high); high.connect(filt); filt.connect(wah); wah.connect(shelf); shelf.connect(sub); sub.connect(sum);
     // Flanger: a tiny delay that sweeps, mixed back in
     const fl = c.createDelay(0.05), flLfo = c.createOscillator(), flDepth = c.createGain(), flMix = c.createGain(), flFb = c.createGain();
     fl.delayTime.value = 0.004; flLfo.frequency.value = 0.25; flDepth.gain.value = 0.003; flMix.gain.value = 0; flFb.gain.value = 0.5;
@@ -77,7 +92,10 @@ function chainFor(el) {
     let prev = sub;
     for (let k = 0; k < 4; k++) { const ap = node("allpass", { frequency: 700 + k * 300, Q: 0.6 }); phDepth.connect(ap.frequency); prev.connect(ap); prev = ap; }
     prev.connect(phMix); phMix.connect(sum);
-    sum.connect(drive); drive.connect(crush); crush.connect(out); out.connect(lim); lim.connect(c.destination);
+    // Trance gate: the song chops on 8th notes
+    const gate = c.createGain(), gateLfo = c.createOscillator(), gateDepth = c.createGain();
+    gateLfo.type = "square"; gateLfo.frequency.value = 4; gateDepth.gain.value = 0; gateLfo.connect(gateDepth); gateDepth.connect(gate.gain); gateLfo.start();
+    sum.connect(drive); drive.connect(crush); crush.connect(gate); gate.connect(out); out.connect(lim); lim.connect(c.destination);
     // Echo and reverb sends
     const dl = c.createDelay(2), fb = c.createGain(), echoOut = c.createGain(), verb = c.createConvolver(), verbOut = c.createGain();
     dl.delayTime.value = 0.375; fb.gain.value = 0.4; echoOut.gain.value = 0; verbOut.gain.value = 0;
@@ -86,7 +104,7 @@ function chainFor(el) {
     verb.buffer = ir;
     out.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(echoOut); echoOut.connect(lim);
     out.connect(verb); verb.connect(verbOut); verbOut.connect(lim);
-    ch = { low, mid, high, filt, shelf, sub, drive, crush, flMix, flLfo, flDepth, phMix, phLfo, phDepth, dl, echoOut, verbOut };
+    ch = { low, mid, high, filt, shelf, sub, drive, crush, flMix, flLfo, flDepth, phMix, phLfo, phDepth, dl, echoOut, verbOut, wah, wahLfo, wahDepth, gate, gateLfo, gateDepth };
     chains.set(el, ch);
     return ch;
   } catch { return null; }
@@ -120,6 +138,8 @@ function songChain(el, deck, amt) {
   set(ch.flMix.gain, f.flanger * 0.8); set(ch.flDepth.gain, 0.002 + f.flanger * 0.003);
   set(ch.phMix.gain, f.phaser * 0.9); set(ch.phLfo.frequency, 0.2 + f.phaser * 0.8);
   const bpm = beatOn()?.bpm || 124; set(ch.dl.delayTime, Math.min(1.5, (60 / bpm) * 0.75));
+  set(ch.wah.gain, f.wah * 18); set(ch.wahDepth.gain, f.wah * 900); set(ch.wahLfo.frequency, bpm / 60 / 2);
+  set(ch.gate.gain, 1 - f.gate / 2); set(ch.gateDepth.gain, f.gate / 2); set(ch.gateLfo.frequency, (bpm / 60) * 2);
   set(ch.echoOut.gain, f.echo * 0.8); set(ch.verbOut.gain, f.verb * 1.3);
   ch.drive.curve = f.drive > 0.02 ? shaper("drive", f.drive) : amt > 0.5 ? shaper("bass", amt) : null;
   ch.crush.curve = f.crush > 0.02 ? shaper("crush", f.crush) : null;
@@ -360,7 +380,7 @@ export function setMusicVolume(v) {
   volume = Math.max(0, Math.min(100, Math.round(v)));
   try { localStorage.setItem(VOL_KEY, String(volume)); } catch {}
   applyVols();
-  djVolume(deaf ? 0 : (current?.volume ?? volume) / 100); // the DJ's effects follow the music volume
+  djVolume(deaf ? 0 : ((current?.volume ?? volume) / 100) * myMul()); // the DJ's effects follow the music volume (and mine)
 }
 export function setMusicDeaf(d) { deaf = d; setMusicVolume(volume); }
 export function leaveMusic() { current = null; stopAll(); dropDeckB(); }
@@ -467,10 +487,26 @@ export function openMusicPanel() {
     lpick, lfile, lnow) : null;
   body.append(djBtn, djWrap, now, localBox,
     h("label", { class: "vm-vol-row" }, h("span", { text: "🔊 Volume for everyone" }), vol, volLabel),
+    myVolumeRow(),
     h("p", { class: "create-hint", text: "Everyone in this voice channel hears the music and anyone can change the song, pause, skip or turn it up." }),
     h("b", { class: "vis-label", text: "YouTube" }), h("div", { class: "invite-row" }, link, playLink, queueLink),
     h("b", { class: "vis-label", text: "Songs on LookBlog" }), search, songs);
   floatWindow("🎧 Music in voice", body, () => { clearInterval(tick); onChange = prevChange; });
+}
+
+// "My volume": a slider and a mute that only change what I hear
+export function myVolumeRow({ compact = false } = {}) {
+  const r = h("input", { type: "range", min: 0, max: 100, value: mine, class: "vm-vol vm-myvol", "aria-label": "My music volume (only for me)" });
+  const n = h("span", { class: "vm-vol-n", text: mine + "%" });
+  const m = h("button", { type: "button", class: "vm-mymute" + (mineMuted ? " on" : ""), title: mineMuted ? "Hear the music again" : "Mute the music just for me", text: mineMuted ? "🔇" : "🎧" });
+  const sync = () => { r.value = mine; n.textContent = mineMuted ? "Muted" : mine + "%"; m.textContent = mineMuted ? "🔇" : "🎧"; m.classList.toggle("on", mineMuted); row.classList.toggle("muted", mineMuted); };
+  r.addEventListener("input", () => setMyMusicVolume(Number(r.value), false));
+  m.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); setMyMusicVolume(mine, !mineMuted); });
+  const row = h("label", { class: "vm-vol-row vm-my" + (compact ? " compact" : "") }, m, h("span", { text: compact ? "My music" : "My volume (only for me)" }), r, n);
+  const on = () => { if (!row.isConnected) return removeEventListener("lb-my-music-vol", on); sync(); };
+  addEventListener("lb-my-music-vol", on);
+  sync();
+  return row;
 }
 
 /* ---------- A window you can drag around (remembers where you left it) ---------- */

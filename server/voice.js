@@ -321,7 +321,7 @@ async function handleVoice(req, res, me, chat, chats) {
         const rate = m.rate || 1;
         const pos = m.pausedAt != null ? m.pausedAt : (Date.now() - m.startedAt) * rate; // ms into the track now
         if (a === "rate") {
-          const r = [0.5, 0.75, 1, 1.25, 1.5, 2].includes(Number(body.rate)) ? Number(body.rate) : 1;
+          const r = [0.5, 0.75, 0.9, 0.95, 1, 1.05, 1.1, 1.25, 1.5, 2].includes(Number(body.rate)) ? Number(body.rate) : 1;
           m.rate = r;
           if (m.pausedAt == null) m.startedAt = Date.now() - pos / r;
         } else if (a === "cue") {
@@ -370,7 +370,7 @@ async function handleVoice(req, res, me, chat, chats) {
         const prev = m.fx || {};
         const deck = (q = {}, p = {}) => ({ low: num(q.low, -26, 12, p.low ?? 0), mid: num(q.mid, -26, 12, p.mid ?? 0), high: num(q.high, -26, 12, p.high ?? 0), filter: num(q.filter, -1, 1, p.filter ?? 0) });
         m.fx = { a: deck(body.a, prev.a), b: deck(body.b, prev.b),
-          ...Object.fromEntries(["echo", "verb", "flanger", "phaser", "crush", "drive"].map((k) => [k, num(body[k], 0, 1, prev[k] ?? 0)])),
+          ...Object.fromEntries(["echo", "verb", "flanger", "phaser", "crush", "drive", "wah", "gate"].map((k) => [k, num(body[k], 0, 1, prev[k] ?? 0)])),
           keylock: typeof body.keylock === "boolean" ? body.keylock : prev.keylock ?? true };
         music.set(key, m);
         sendMusic(chat, channel.id);

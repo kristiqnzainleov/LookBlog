@@ -6874,3 +6874,22 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .djc-songfx.yt .knob { opacity: 0.55; }
 .djc-yt-note { flex-basis: 100%; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
 .djc-strip .djc-kills { gap: 3px; flex-wrap: nowrap; justify-content: center; } .djc-strip .djc-kills .dj-kill { padding: 3px 5px; font-size: 0.6rem; min-width: 0; }
+/* DJ: the song's overview bar (click to jump), SOUND presets */
+.djc-overview { position: relative; height: 22px; margin: 6px 0 4px; border-radius: 8px; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 5px), #141218; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; --p: 0%; }
+.djc-overview.can { cursor: pointer; }
+.djc-overview .ov-fill { position: absolute; inset: 0 auto 0 0; width: var(--p); background: linear-gradient(90deg, color-mix(in srgb, var(--pink) 25%, transparent), color-mix(in srgb, var(--pink) 50%, transparent)); transition: width .45s linear; }
+.djc-overview .ov-head { position: absolute; top: 0; bottom: 0; left: var(--p); width: 2px; background: #fff; box-shadow: 0 0 6px #fff; transition: left .45s linear; }
+.djc-overview .ov-cue { position: absolute; top: 0; width: 3px; height: 9px; border-radius: 0 0 2px 2px; }
+.ov-cue.c1 { background: #ff4757; } .ov-cue.c2 { background: #9b5cff; } .ov-cue.c3 { background: #1f8bff; } .ov-cue.c4 { background: #19d3c5; }
+.djc-overview .ov-loop { position: absolute; top: 0; bottom: 0; background: rgba(46, 230, 166, 0.3); border-left: 1px solid #2ee6a6; border-right: 1px solid #2ee6a6; }
+.djc-sounds { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 4px; }
+.djc-sounds .dj-small { font-size: 0.66rem; padding: 4px 7px; }
+/* My own music volume */
+.vm-my { padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, #4cc9ff 10%, var(--card-2)); }
+.vm-my.muted .vm-myvol { opacity: 0.4; }
+.vm-mymute { border: none; background: rgba(255, 255, 255, 0.1); border-radius: 50%; width: 30px; height: 30px; flex: 0 0 auto; cursor: pointer; font-size: 0.95rem; }
+.vm-mymute.on { background: #ff4757; }
+.vm-my.compact { display: flex; align-items: center; gap: 6px; padding: 4px 8px; margin: 6px 0 2px; font-size: 0.75rem; font-weight: 700; }
+.vm-my.compact span:not(.vm-vol-n) { white-space: nowrap; }
+.vm-my.compact .vm-myvol { flex: 1; min-width: 0; }
+.vm-my.compact .vm-vol-n { font-size: 0.7rem; min-width: 34px; text-align: right; }

@@ -4,7 +4,7 @@
 import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
-import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake, musicTransform, musicStutter, musicDip, musicGate, musicPump, musicTremolo, musicSwell, musicBlackout, musicHalf } from "./voice-music.js";
+import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake, musicTransform, musicStutter, musicDip, myVolumeRow, musicGate, musicPump, musicTremolo, musicSwell, musicBlackout, musicHalf } from "./voice-music.js";
 import { playFx, setBeat, playCustom, setBeatMix, playNote, beatOn } from "./dj.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings, hdDescription, hdSenders } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
@@ -1009,6 +1009,8 @@ function paintDock() {
         b.addEventListener("click", () => (room.watch && !wt.watchOpen() ? showWatch(room.watch, true) : room.watch ? null : startWatch()));
         return b; })(),
       btn("gear", "Voice settings (microphone, speaker)", false, () => openAudioSettings({ onMicChange: switchMic, onOptionsChange: switchMic, onSpeakerChange: setSpeaker }))),
+    // My own music volume (only for me), while something is playing
+    musicState()?.now ? myVolumeRow({ compact: true }) : null,
     // Music and the DJ: a big button of their own, always in sight
     (() => {
       const dj = currentDj();

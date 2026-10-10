@@ -467,7 +467,7 @@ export function djConsole(api) {
         : h("button", { type: "button", class: "btn btn-xs btn-primary", text: dj ? "Taken" : "🎧 Take the decks", disabled: Boolean(dj), onclick: () => send({ action: "claim" }) }));
 
     // ---- deck A: what's playing ----
-    const rateSteps = [0.5, 0.75, 1, 1.25, 1.5, 2];
+    const rateSteps = [0.5, 0.75, 0.9, 0.95, 1, 1.05, 1.1, 1.25, 1.5, 2];
     const pitch = h("input", { type: "range", min: 0, max: rateSteps.length - 1, step: 1, value: Math.max(0, rateSteps.indexOf(m?.rate || 1)), class: "vfader pitch", disabled: lock || !m?.now, "aria-label": "Tempo" });
     pitch.addEventListener("change", () => send({ action: "rate", rate: rateSteps[Number(pitch.value)] }));
     const nudge = (label, rate) => {
@@ -487,6 +487,12 @@ export function djConsole(api) {
         pad("CUE", "dj-round cue", () => { const c = cues[m?.now?.id]?.[1]; send({ action: "cue", at: c ?? 0 }); }, "Back to cue 1 (or the start)"),
         pad(m?.pausedAt == null ? "⏸" : "▶", "dj-round play" + (m?.pausedAt == null ? " on" : ""), () => api.post({ kind: "music", action: m?.pausedAt == null ? "pause" : "resume" })),
         nudge("◀", 0.75), nudge("▶", 1.25)),
+      overview(m, me),
+      h("div", { class: "djc-loops" }, h("span", { class: "dj-lbl", text: "Beat jump" }), ...[-16, -4, -1, 1, 4, 16].map((n) => pad((n > 0 ? "+" : "") + n, "dj-small", () => {
+        if (!m?.now) return;
+        const bpm = beatOn()?.bpm || 124;
+        send({ action: "cue", at: Math.max(0, api.position() + (n * 60) / bpm) });
+      }, `Jump ${Math.abs(n)} beat${Math.abs(n) === 1 ? "" : "s"} ${n < 0 ? "back" : "ahead"} (at the BPM knob's tempo — tap the tempo in BEATS)`))),
       h("div", { class: "djc-hot" }, ...[1, 2, 3, 4].map((k) => pad(cues[m?.now?.id]?.[k] != null ? fmt(cues[m.now.id][k]) : `HOT ${k}`, "dj-hotcue c" + k + (setMode ? " setting" : ""), () => {
         if (!m?.now) return;
         if (setMode || cues[m.now.id]?.[k] == null) { cues[m.now.id] = { ...(cues[m.now.id] || {}), [k]: api.position() }; sessionStorage.setItem("lb-dj-cues", JSON.stringify(cues)); setMode = false; paint(); toast(`Hot cue ${k} at ${fmt(api.position())}.`); }
@@ -544,7 +550,8 @@ export function djConsole(api) {
         const f = songFx(), off = lock || !m?.now, yt = m?.now?.kind === "youtube";
         const k = (label, key) => knob(label, { min: 0, max: 1, value: f[key] || 0, def: 0, disabled: off, accent: "song", fmtv: (v) => (v < 0.02 ? "OFF" : Math.round(v * 100) + "%"), onChange: (v) => sendSong({ [key]: v }) });
         return h("div", { class: "djc-fxunit djc-songfx" + (yt ? " yt" : "") }, h("b", { class: "djc-strip-name", text: "SONG FX" }),
-          k("ECHO", "echo"), k("VERB", "verb"), k("FLANGER", "flanger"), k("PHASER", "phaser"), k("CRUSH", "crush"), k("DRIVE", "drive"),
+          k("ECHO", "echo"), k("VERB", "verb"), k("FLANGER", "flanger"), k("PHASER", "phaser"), k("CRUSH", "crush"), k("DRIVE", "drive"), k("WAH", "wah"), k("GATE", "gate"),
+          h("div", { class: "djc-sounds" }, h("span", { class: "dj-lbl", text: "SOUND" }), ...SOUND_COLORS.map(([e, name, patch]) => pad(`${e} ${name}`, "dj-small", () => sendSong({ ...SONG_CLEAN, ...patch, a: { ...SONG_CLEAN.a, ...(patch.a || {}) } }), `Make the song sound like: ${name}`))),
           pad(f.keylock !== false ? "🔒 KEY LOCK" : "🔓 KEY LOCK", "dj-small" + (f.keylock !== false ? " on" : ""), () => sendSong({ keylock: f.keylock === false }), "On: tempo changes keep the key. Off: faster = higher, like a record"),
           pad("RESET", "dj-small", () => sendSong({ echo: 0, verb: 0, flanger: 0, phaser: 0, crush: 0, drive: 0, a: { low: 0, mid: 0, high: 0, filter: 0 }, b: { low: 0, mid: 0, high: 0, filter: 0 } }), "The song back to how it sounds"),
           yt ? h("small", { class: "djc-yt-note", text: "YouTube doesn’t allow effects on its sound — these work on LookBlog songs." }) : null);
@@ -698,6 +705,18 @@ export function djConsole(api) {
       h("div", { class: "djc-pads" }, tabs, h("div", { class: gridClass }, ...grid))),
       h("p", { class: "create-hint", text: lock ? "Only the DJ can use the decks. Everyone in the channel hears what the DJ does." : "Everyone in the voice channel hears everything you do here, at the same moment. (YouTube doesn’t let pages change its sound, so the EQ, filter and FX unit work on the FX · beat channel: effects, keys, beats and your sounds.)" }));
   }
+  // One-tap sounds for the song (on deck A)
+  const SONG_CLEAN = { echo: 0, verb: 0, flanger: 0, phaser: 0, crush: 0, drive: 0, wah: 0, gate: 0, a: { low: 0, mid: 0, high: 0, filter: 0 } };
+  const SOUND_COLORS = [
+    ["📞", "Phone", { a: { low: -26, high: -10, filter: 0.45 }, drive: 0.3 }],
+    ["📻", "Radio", { a: { low: -14, high: -6, filter: 0.3 }, crush: 0.15 }],
+    ["🌊", "Underwater", { a: { filter: -0.78 }, verb: 0.5, flanger: 0.35 }],
+    ["🏟️", "Stadium", { verb: 0.85, echo: 0.25 }],
+    ["🔊", "Club", { a: { low: 8, mid: -3, high: 2 }, drive: 0.15 }],
+    ["🌌", "Space", { echo: 0.6, verb: 0.7, phaser: 0.6 }],
+    ["📼", "Lo-fi", { a: { high: -10 }, crush: 0.35, wah: 0.15 }],
+    ["🤖", "Robot", { flanger: 0.9, crush: 0.25, a: { low: -6 } }],
+    ["✨", "Clean", {}]];
   // A deck's EQ and filter on the song itself (everyone hears it), with kill buttons
   function songEq(deck, off) {
     const d = songFx()[deck];
@@ -706,6 +725,17 @@ export function djConsole(api) {
     return [eq("HI", "high"), eq("MID", "mid"), eq("LOW", "low"),
       knob("FILTER", { min: -1, max: 1, value: d.filter, def: 0, disabled: off, accent: "filter", fmtv: (v) => (Math.abs(v) < 0.04 ? "OFF" : v < 0 ? "LPF" : "HPF"), onChange: (v) => sendSong({ [deck]: { filter: v } }) }),
       h("div", { class: "djc-kills" }, kill("high", "HI"), kill("mid", "MID"), kill("low", "LOW"))];
+  }
+  // The whole song as a bar: where we are, the hot cues and the loop. The DJ clicks it to jump there.
+  function overview(m, me) {
+    const dur = api.duration?.() || m?.now?.duration || 0;
+    const bar = h("div", { class: "djc-overview" + (me && dur ? " can" : ""), title: me ? "Click to jump there" : "" }, h("i", { class: "ov-fill" }), h("b", { class: "ov-head" }));
+    if (dur && m?.now) {
+      for (const [k, at] of Object.entries(cues[m.now.id] || {})) bar.append(h("span", { class: "ov-cue c" + k, style: `left:${Math.min(100, (at / dur) * 100)}%`, title: `Hot cue ${k}` }));
+      if (m.loop) bar.append(h("span", { class: "ov-loop", style: `left:${(m.loop.start / dur) * 100}%;width:${(m.loop.len / dur) * 100}%` }));
+      if (me) bar.addEventListener("click", (e) => { const r = bar.getBoundingClientRect(); send({ action: "cue", at: Math.max(0, Math.min(dur - 1, ((e.clientX - r.left) / r.width) * dur)) }); });
+    }
+    return bar;
   }
   // Mute a deck (and bring it back at the level it had)
   function muteBtn(k, lv, disabled) {
@@ -963,7 +993,9 @@ export function djConsole(api) {
   // Clocks, and auto-mix 12 seconds before the end
   const clock = setInterval(() => {
     if (!box.isConnected) return clearInterval(clock);
-    if (!holding) { const t = box.querySelector(".tt:not(.dragging) .tt-time"); if (t) t.textContent = fmt(api.position()); const p = box.querySelector(".dj-pos"); if (p) p.textContent = fmt(api.position()); }
+    if (!holding) { const t = box.querySelector(".tt:not(.dragging) .tt-time"); if (t) t.textContent = fmt(api.position()); const p = box.querySelector(".dj-pos"); if (p) p.textContent = fmt(api.position());
+      const ov = box.querySelector(".djc-overview"), dur = api.duration?.() || 0;
+      if (ov && dur) { const k = Math.min(100, (api.position() / dur) * 100); ov.style.setProperty("--p", k + "%"); } }
     const m = api.music(), d = api.dj();
     if (!autoMix || !m?.now || d?.username !== state.me.username || !m.queue?.length || mixing) return;
     const leftS = (api.duration?.() || 0) - api.position();
