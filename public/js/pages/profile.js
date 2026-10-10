@@ -366,6 +366,23 @@ export async function profilePage(view, m, params) {
     try { profile.note = (await api(`/api/users/${encodeURIComponent(profile.username)}`)).profile.note; paintNote(); } catch {}
   });
   const nameEl = h("h2", {}, profile.name, tick(profile, 26), profile.private ? h("span", { class: "private-lock", title: "Private account", text: "🔒" }) : null);
+  // The name always fits on one line: a long name gets a smaller font instead of breaking onto two lines
+  const fitName = () => {
+    if (!nameEl.isConnected || nameEl.hidden) return;
+    nameEl.style.removeProperty("font-size");
+    const box = nameEl.parentElement, cs = getComputedStyle(box);
+    const avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - parseFloat(getComputedStyle(nameEl).paddingLeft) - parseFloat(getComputedStyle(nameEl).paddingRight) - 2;
+    const need = nameEl.scrollWidth - parseFloat(getComputedStyle(nameEl).paddingLeft) - parseFloat(getComputedStyle(nameEl).paddingRight);
+    if (need <= avail || avail <= 0) return;
+    const size = parseFloat(getComputedStyle(nameEl).fontSize);
+    nameEl.style.setProperty("font-size", Math.max(15, Math.floor(size * (avail / need) * 0.98)) + "px", "important");
+  };
+  nameEl.classList.add("one-line");
+  let fitT = 0;
+  const refit = () => { cancelAnimationFrame(fitT); fitT = requestAnimationFrame(fitName); };
+  new ResizeObserver(refit).observe(view);
+  new MutationObserver(refit).observe(nameEl, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["data-nf", "data-ne", "class"] });
+  document.fonts?.ready.then(refit);
   // Their own accent colour for the whole profile
   function paintAccent() {
     if (profile.look?.accent) view.style.setProperty("--pink", profile.look.accent); else view.style.removeProperty("--pink");

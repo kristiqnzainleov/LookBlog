@@ -109,7 +109,7 @@ function buildBar() {
     const s = current();
     // A listen counts after 10 seconds (or half the song, if it's shorter); every listen counts again
     const need = Math.min(10, (audio.duration || s?.duration || 20) * 0.5);
-    if (s && audio.currentTime >= need && !counted.has(s.id)) {
+    if (s && !s.noCount && audio.currentTime >= need && !counted.has(s.id)) {
       counted.add(s.id);
       api(`/api/songs/${s.id}/play`, { method: "POST" }).then((r) => { s.plays = r.plays; emit("music:changed"); emit("song:plays", { id: s.id, plays: r.plays }); }).catch(() => {});
     }

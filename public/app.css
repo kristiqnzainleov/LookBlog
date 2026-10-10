@@ -6893,3 +6893,13 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .vm-my.compact span:not(.vm-vol-n) { white-space: nowrap; }
 .vm-my.compact .vm-myvol { flex: 1; min-width: 0; }
 .vm-my.compact .vm-vol-n { font-size: 0.7rem; min-width: 34px; text-align: right; }
+/* Profile: the name stays on one line (it gets smaller instead) */
+.profile h2.one-line { white-space: nowrap !important; overflow-wrap: normal !important; word-break: normal !important; max-width: 100%; overflow: visible; }
+.profile h2.one-line > * { flex-shrink: 0; }
+/* Profile buttons on phones: the icon keeps its size */
+.profile-btns .btn svg { flex: 0 0 auto; width: 18px; height: 18px; }
+@media (max-width: 640px) { .page-profile .profile-btns > .btn:not(.bell-btn) { gap: 6px; padding-left: 8px !important; padding-right: 8px !important; } }
+/* Profile song: YouTube plays in a small player under the card; three ways to pick it in Customize */
+.pf-song-yt { display: block; width: min(360px, 100%); aspect-ratio: 16 / 9; border: 0; border-radius: 14px; margin-top: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); }
+.song-yt-row { margin-top: 8px; }
+.song-mp3-row { margin-top: 8px; }

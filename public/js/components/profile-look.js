@@ -1,6 +1,6 @@
 // Your look: the colour, font and effect of your name (shown everywhere your name is), and your profile's accent colour.
 import { h, modal, toast, tick, avatar } from "../ui.js";
-import { api } from "../api.js";
+import { api, upload } from "../api.js";
 import { state, emit } from "../state.js";
 
 export const NAME_COLORS = [
@@ -242,9 +242,16 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
     if (song) {
       const play = h("button", { type: "button", class: "pf-song", title: "Play" },
         h("span", { class: "pf-song-cover", style: song.cover ? `background-image:url("${song.cover}")` : "" }, h("i", { text: "▶" })),
-        h("span", { class: "pf-song-text" }, h("small", { text: "🎵 Profile song" }), h("b", { text: song.title }), h("span", { class: "muted", text: song.artist?.name || "" })),
+        h("span", { class: "pf-song-text" }, h("small", { text: song.kind === "youtube" ? "▶️ Profile song · YouTube" : "🎵 Profile song" }), h("b", { text: song.title }), h("span", { class: "muted", text: song.artist?.name || "" })),
         h("span", { class: "pf-song-eq", "aria-hidden": "true" }, h("i"), h("i"), h("i")));
-      play.addEventListener("click", () => import("./music.js").then((m) => { m.playSongs([song], 0); play.classList.add("playing"); }));
+      if (song.kind === "youtube") {
+        let frame = null;
+        play.addEventListener("click", () => {
+          if (frame) { frame.remove(); frame = null; play.classList.remove("playing"); return; }
+          frame = h("iframe", { class: "pf-song-yt", src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.yt)}?autoplay=1&playsinline=1&rel=0`, allow: "autoplay; encrypted-media", title: song.title, loading: "lazy" });
+          play.after(frame); play.classList.add("playing");
+        });
+      } else play.addEventListener("click", () => import("./music.js").then((m) => { m.playSongs([song], 0); play.classList.add("playing"); }));
       songSlot.append(play);
     }
   }
@@ -287,7 +294,7 @@ export function openLookEditor(onSaved, opts = {}) {
     applyLook(previewWrap.querySelector(".look-preview-b"), cur);
     applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner, fxBox: previewWrap, statusSlot: previewStatus, card: previewWrap }, cur);
     for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"], [photoAnims, "photoAnim"], [bioStyles, "bioStyle"], [nameSizes, "nameSize"], [cursors, "cursor"], [bannerAnims, "bannerAnim"], [nameDecos, "nameDeco"], [intros, "intro"], [statStyles, "statStyle"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
-    songLabel.textContent = songObj ? `🎵 ${songObj.title} · ${songObj.artist?.name || ""}` : "No song";
+    songLabel.textContent = songObj ? `${songObj.kind === "youtube" ? "▶️" : songObj.kind === "file" ? "💾" : "🎵"} ${songObj.title} · ${songObj.artist?.name || ""}` : "No song";
     songClear.hidden = !songObj;
     previewWrap.style.setProperty("--accent", cur.accent || "#ff4fa3");
     previewWrap.style.setProperty("--pink", cur.accent || "#ff4fa3");
@@ -389,7 +396,36 @@ export function openLookEditor(onSaved, opts = {}) {
   const songLabel = h("span", { class: "song-label" });
   const songClear = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Remove" });
   songClear.addEventListener("click", () => { songObj = null; cur.song = ""; paint(); });
-  const songSearch = h("input", { type: "search", class: "text-input", placeholder: "Search a song or artist", autocomplete: "off" });
+  const songSearch = h("input", { type: "search", class: "text-input", placeholder: "Search a song or artist on LookBlog", autocomplete: "off" });
+  // …or a YouTube link
+  const ytLink = h("input", { type: "url", class: "text-input", placeholder: "…or paste a YouTube link", autocomplete: "off" });
+  const ytUse = h("button", { type: "button", class: "btn btn-sm btn-primary", text: "▶️ Use it" });
+  const useYt = async () => {
+    if (!ytLink.value.trim()) return ytLink.focus();
+    ytUse.disabled = true;
+    try { const d = await api(`/api/youtube/info?url=${encodeURIComponent(ytLink.value.trim())}`); songObj = { kind: "youtube", id: "yt-" + d.id, yt: d.id, title: d.title, artist: { name: d.author || "YouTube" }, cover: d.cover }; ytLink.value = ""; paint(); }
+    catch (err) { toast(err.error || "Couldn’t open that link."); }
+    ytUse.disabled = false;
+  };
+  ytUse.addEventListener("click", useYt);
+  ytLink.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); useYt(); } });
+  // …or my own MP3
+  const mp3 = h("input", { type: "file", accept: "audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/wav,.mp3,.m4a,.ogg,.wav", hidden: true });
+  const mp3Btn = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "⬆️ Upload an MP3" });
+  mp3Btn.addEventListener("click", () => mp3.click());
+  mp3.addEventListener("change", async () => {
+    const f = mp3.files[0]; mp3.value = "";
+    if (!f) return;
+    if (f.size > 40 * 1024 * 1024) return toast("Songs can be up to 40 MB.");
+    mp3Btn.disabled = true; mp3Btn.textContent = "Uploading… 0%";
+    try {
+      const type = f.type || ({ mp3: "audio/mpeg", m4a: "audio/mp4", ogg: "audio/ogg", wav: "audio/wav" })[(f.name.split(".").pop() || "").toLowerCase()] || "";
+      const { url } = await upload(f.type ? f : new File([f], f.name, { type }), (p) => { mp3Btn.textContent = `Uploading… ${Math.round(p * 100)}%`; });
+      songObj = { kind: "file", id: "pf-" + state.me.username, url, title: f.name.replace(/\.[^.]+$/, "").slice(0, 100), artist: { name: state.me.name }, cover: state.me.avatar || null, noCount: true };
+      paint();
+    } catch (err) { toast(err.error || "Couldn’t upload it."); }
+    mp3Btn.disabled = false; mp3Btn.textContent = "⬆️ Upload an MP3";
+  });
   const songResults = h("div", { class: "song-results" });
   let songSeq = 0, songTimer;
   const findSongs = async () => {
@@ -476,7 +512,8 @@ export function openLookEditor(onSaved, opts = {}) {
     h("p", { class: "look-label", text: "Status" }), h("p", { class: "create-hint", text: "A few words under your name, with an emoji." }), statusRow,
     h("p", { class: "look-label", text: "Profile effect" }), h("p", { class: "create-hint", text: "Things that fall or float over your profile." }), fxs,
     h("p", { class: "look-label", text: "Photo decoration" }), decos,
-    h("p", { class: "look-label", text: "Profile song" }), h("p", { class: "create-hint", text: "People can play it from your profile." }), h("div", { class: "song-now" }, songLabel, songClear), songSearch, songResults,
+    h("p", { class: "look-label", text: "Profile song" }), h("p", { class: "create-hint", text: "People can play it from your profile: a song on LookBlog, one from YouTube, or your own MP3." }), h("div", { class: "song-now" }, songLabel, songClear), songSearch, songResults,
+    h("div", { class: "invite-row song-yt-row" }, ytLink, ytUse), h("div", { class: "song-mp3-row" }, mp3Btn, mp3),
     h("p", { class: "look-label", text: "Bio font" }), bioFonts,
     h("p", { class: "look-label", text: "Bio style" }), bioStyles,
     h("p", { class: "look-label", text: "✨ Banner movement" }), h("p", { class: "create-hint", text: "Your banner (picture or colours) slowly moves." }), bannerAnims,
@@ -492,12 +529,14 @@ export function openLookEditor(onSaved, opts = {}) {
       emit("me:updated", state.me);
       m.close();
       toast("Your look is saved. Your name looks like this everywhere.");
-      onSaved?.(r.look, r.look?.song ? songObj : null);
+      onSaved?.(r.look, r.look?.song || r.look?.songYt || r.look?.songFile ? songObj : null);
     } catch (err) { toast(err.error || "Couldn’t save it."); save.disabled = reset.disabled = false; }
   };
   const KEYS = ["color", "font", "effect", "accent", "ring", "bg", "banner", "emoji", "fx", "deco", "bioFont", "status", "shape", "anim", "frame", "trail",
     "photoAnim", "bioStyle", "nameSize", "cursor", "bannerAnim", "nameDeco", "intro", "statStyle"];
-  save.addEventListener("click", () => store({ ...Object.fromEntries(KEYS.map((k) => [k, cur[k] || null])), song: songObj?.id || null, featured: cur.featured?.length ? cur.featured : null }));
+  save.addEventListener("click", () => store({ ...Object.fromEntries(KEYS.map((k) => [k, cur[k] || null])), song: songObj && !songObj.kind ? songObj.id : null,
+    songYt: songObj?.kind === "youtube" ? { id: songObj.yt, title: songObj.title, author: songObj.artist?.name === "YouTube" ? "" : songObj.artist?.name || "" } : null,
+    songFile: songObj?.kind === "file" ? { url: songObj.url, title: songObj.title } : null, featured: cur.featured?.length ? cur.featured : null }));
   reset.addEventListener("click", () => store({}));
   paint();
   paintGrad();

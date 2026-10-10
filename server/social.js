@@ -215,7 +215,19 @@ const AVATAR_DECOS = ["crown", "halo", "horns", "cat", "headphones", "flowers", 
   "santa", "antlers", "turtle", "tie", "glasses", "pumpkin", "snowflake", "cupid", "gradcap", "cup", "pirate", "gift", "bone", "seashell", "unicorn", "alien"];
 const EMOJI_ONE = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u;
 const HEX = /^#[0-9a-f]{6}$/i;
-function cleanLook(b) {
+const YT_ID = /^[A-Za-z0-9_-]{11}$/;
+const YT_LINK = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([A-Za-z0-9_-]{11})/;
+// A YouTube video's title and picture (YouTube's public oEmbed)
+async function youtubeTitle(id) {
+  try {
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 4000);
+    const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent("https://www.youtube.com/watch?v=" + id)}`, { signal: ac.signal });
+    clearTimeout(t);
+    if (r.ok) { const d = await r.json(); return { title: String(d.title || "").slice(0, 120), author: String(d.author_name || "").slice(0, 80) }; }
+  } catch {}
+  return null;
+}
+function cleanLook(b, me) {
   if (!b || typeof b !== "object") return null;
   const out = {};
   if (NAME_COLORS.includes(b.color) || HEX.test(b.color || "") || (GRAD.test(b.color || "") && Number(b.color.split("@")[1]) <= 360)) out.color = String(b.color).toLowerCase();
@@ -250,6 +262,17 @@ function cleanLook(b) {
   if (stText || stEmoji) out.status = { emoji: stEmoji, text: stText };
   // A song on my profile (one from LookBlog's music)
   if (typeof b.song === "string" && db.songs.some((x) => x.id === b.song && !x.deleted)) out.song = b.song;
+  // …or a song from YouTube
+  if (b.songYt && typeof b.songYt === "object" && YT_ID.test(String(b.songYt.id || ""))) {
+    out.songYt = { id: String(b.songYt.id), title: clean(String(b.songYt.title || "")).slice(0, 120) || "YouTube", author: clean(String(b.songYt.author || "")).slice(0, 80) };
+  }
+  // …or my own MP3 (uploaded; it stays on my profile until I change it)
+  if (!out.songYt && b.songFile && typeof b.songFile === "object" && me) {
+    const url = String(b.songFile.url || ""), prev = me.look?.songFile;
+    const ok = prev && prev.url === url ? prev.url : ownedMedia(url, me.id, "audio")?.url;
+    if (ok) out.songFile = { url: ok, title: clean(String(b.songFile.title || "")).replace(/\.[a-z0-9]{2,4}$/i, "").slice(0, 100) || "My song" };
+  }
+  if (out.songYt || out.songFile) delete out.song;
   return Object.keys(out).length ? out : null;
 }
 const lookOf = (u) => (u.look ? { ...u.look } : null);
@@ -430,7 +453,12 @@ function profileView(user, me) {
     id: user.id,
     name: user.name,
     look: lookOf(user),
-    profileSong: (() => { const sg = user.look?.song && db.songs.find((x) => x.id === user.look.song && !x.deleted); return sg ? require("./music").songView(sg, me) : null; })(),
+    profileSong: (() => {
+      const yt = user.look?.songYt, f = user.look?.songFile;
+      if (yt) return { kind: "youtube", id: "yt-" + yt.id, yt: yt.id, title: yt.title, artist: { name: yt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${yt.id}/hqdefault.jpg` };
+      if (f) return { kind: "file", id: "pf-" + user.username, url: f.url, title: f.title, artist: { name: user.name }, cover: user.avatar || null, noCount: true };
+      const sg = user.look?.song && db.songs.find((x) => x.id === user.look.song && !x.deleted); return sg ? require("./music").songView(sg, me) : null;
+    })(),
     username: user.username,
     bio: user.bio,
     bioMentions: usernamesOf(findMentions(user.bio)),
@@ -2260,11 +2288,28 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
 
+  // A YouTube link's video: GET /api/youtube/info?url=
+  if (m === "GET" && a === "youtube" && b === "info" && parts.length === 2) {
+    rateLimit("ytinfo:" + me.id, 30, 60 * 1000, "Slow down a little.");
+    const id = (String(url.searchParams.get("url") || "").match(YT_LINK) || [])[1] || (YT_ID.test(url.searchParams.get("url") || "") ? url.searchParams.get("url") : null);
+    if (!id) throw httpError(400, "That isn’t a YouTube link.");
+    const info = await youtubeTitle(id);
+    sendJSON(res, 200, { id, title: info?.title || "YouTube video", author: info?.author || "", cover: `https://i.ytimg.com/vi/${id}/hqdefault.jpg` });
+    return true;
+  }
+
   // My look: POST /api/me/look { color, font, effect, accent }  (any of them; null = default)
   if (m === "POST" && a === "me" && b === "look" && parts.length === 2) {
     rateLimit("look:" + me.id, 60, 10 * 60 * 1000, "Slow down a little.");
-    me.look = cleanLook(await readJSON(req));
+    const before = me.look?.songFile?.url || null;
+    me.look = cleanLook(await readJSON(req), me);
     if (!me.look) delete me.look;
+    // The MP3 on my profile: in use now (and the old one, if I changed it, is removed)
+    const after = me.look?.songFile?.url || null;
+    if (after && after !== before) markUsed(after, "profilesong:" + me.id);
+    if (before && before !== after) deleteMedia(before);
+    // A YouTube song without its name yet: ask YouTube
+    if (me.look?.songYt && (me.look.songYt.title === "YouTube" || !me.look.songYt.author)) { const info = await youtubeTitle(me.look.songYt.id); if (info) Object.assign(me.look.songYt, { title: info.title || me.look.songYt.title, author: info.author }); }
     save("users");
     sendJSON(res, 200, { look: lookOf(me) });
     return true;
