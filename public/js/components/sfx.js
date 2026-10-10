@@ -49,7 +49,7 @@ export const SOUND_PRESETS = [["pop", "🫧", "Pop"], ["chime", "🎐", "Chime"]
   ["drop", "💧", "Drop"], ["whoosh", "💨", "Whoosh"], ["harp", "🎼", "Harp"], ["game", "🎮", "Level up"], ["retro", "👾", "Retro"], ["kiss", "💋", "Kiss"], ["boing", "🤪", "Boing"],
   ["twinkle", "✨", "Twinkle"], ["bass", "🔊", "Bass"], ["magic", "🪄", "Magic"],
   ["cash", "💰", "Cash (ka-ching)"], ["coins", "🪙", "Coins falling"], ["airhorn", "📯", "Air horn"], ["quack", "🦆", "Quack"], ["doorbell", "🛎️", "Doorbell"],
-  ["drum", "🥁", "Ba-dum-tss"], ["alarm", "🚨", "Alarm"], ["heartbeat", "💓", "Heartbeat"], ["tada", "🎉", "Ta-da"], ["phone", "📱", "Phone"]];
+  ["drum", "🥁", "Ba-dum-tss"], ["alarm", "🚨", "Alarm"], ["heartbeat", "💓", "Heartbeat"], ["tada", "🎉", "Ta-da"], ["phone", "📱", "Phone"], ["shark", "🦈", "Shark (dun-dun…)"]];
 // A short burst of noise (for coins, cymbals, the "cha" of a cash register)
 function noise(c, { at = 0, dur = 0.1, vol = 0.05, hp = 3000 }) {
   const b = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate), d = b.getChannelData(0);
@@ -87,6 +87,16 @@ export function playPreset(k) {
     if (k === "alarm") for (let i = 0; i < 3; i++) T({ from: 880, to: 1320, at: i * 0.2, dur: 0.18, vol: 0.04, type: "square" });
     if (k === "heartbeat") [0, 0.18, 0.7, 0.88].forEach((at, i) => T({ from: i % 2 ? 50 : 65, to: 40, at, dur: 0.14, vol: 0.2 }));
     if (k === "tada") { [523, 659, 784].forEach((f, i) => T({ from: f, to: f, at: i * 0.07, dur: 0.12, vol: 0.04, type: "triangle" })); [1046, 1318, 1568].forEach((f) => T({ from: f, to: f, at: 0.25, dur: 0.6, vol: 0.035, type: "triangle" })); }
+    // The shark: the two low notes from the film, getting faster… then a bite
+    if (k === "shark") {
+      [0, 0.5, 1.0, 1.35, 1.65, 1.88, 2.06, 2.2, 2.32, 2.43].forEach((at, i) => {
+        const f = i % 2 ? 87.31 : 82.41;
+        T({ from: f, to: f, at, dur: 0.28, vol: 0.09 + i * 0.008, type: "sawtooth" });
+        T({ from: f * 2, to: f * 2, at, dur: 0.22, vol: 0.03, type: "triangle" });
+      });
+      T({ from: 220, to: 70, at: 2.58, dur: 0.25, vol: 0.14, type: "square" });
+      noise(c, { at: 2.58, dur: 0.18, vol: 0.08, hp: 800 });
+    }
     if (k === "phone") for (let i = 0; i < 8; i++) T({ from: i % 2 ? 480 : 440, to: i % 2 ? 480 : 440, at: i * 0.05, dur: 0.05, vol: 0.04 });
   } catch {}
 }

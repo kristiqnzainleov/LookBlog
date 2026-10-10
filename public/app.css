@@ -6946,3 +6946,27 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .note-reply-song { max-width: 100%; overflow: hidden; }
 .note-reply-song .song-pill-wrap { justify-content: center; width: 100%; }
 .note-reply-song .song-pill { max-width: 100%; }
+
+/* ── Sharks 🦈 ── */
+/* On a profile: they swim across (half of them the other way), bobbing, with bubbles behind */
+.pfx.swim span.shark { position: absolute; left: 105%; top: 10%; font-size: var(--size, 1.6em); opacity: 0.9; animation: sharkSwim var(--dur, 12s) linear var(--delay, 0s) infinite; will-change: left; }
+.pfx.swim span.shark.back { animation-name: sharkSwimBack; }
+.pfx.swim span.shark em { display: inline-flex; align-items: center; font-style: normal; animation: sharkBob var(--bob, 2s) ease-in-out infinite alternate; }
+.pfx.swim span.shark.back em b { display: inline-block; transform: scaleX(-1); }
+.pfx.swim span.shark.back em { flex-direction: row-reverse; }
+.shark-bubbles { display: inline-flex; gap: 3px; margin-left: 4px; font-style: normal; }
+.shark-bubbles s { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid rgba(160, 220, 255, 0.8); text-decoration: none; animation: sharkBubble 1.6s ease-out infinite; }
+.shark-bubbles s:nth-child(2) { animation-delay: .4s; width: 4px; height: 4px; } .shark-bubbles s:nth-child(3) { animation-delay: .8s; width: 3px; height: 3px; }
+@keyframes sharkSwim { from { left: 105%; } to { left: -25%; } }
+@keyframes sharkSwimBack { from { left: -25%; } to { left: 105%; } }
+@keyframes sharkBob { from { transform: translateY(-8px) rotate(-3deg); } to { transform: translateY(8px) rotate(3deg); } }
+@keyframes sharkBubble { 0% { transform: translateY(0); opacity: 0.9; } 100% { transform: translateY(-18px); opacity: 0; } }
+.pfx.swim { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .pfx.swim { display: none; } }
+/* In a chat: "Shark attack" — it swims across and bites the message */
+.fx-shark-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+.fx-shark { position: absolute; left: 110%; font-size: 4.2rem; font-style: normal; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5)); animation: fxSharkGo 3.2s cubic-bezier(.45, .05, .55, .95) forwards; }
+.fx-shark b { display: inline-block; animation: sharkBob .7s ease-in-out infinite alternate; }
+@keyframes fxSharkGo { 0% { left: 110%; } 45% { left: 45%; transform: scale(1.15); } 55% { left: 38%; transform: scale(1.3) rotate(-8deg); } 100% { left: -40%; transform: scale(1); } }
+.fx-bite { animation: fxBite .9s ease-in-out; }
+@keyframes fxBite { 0% { clip-path: inset(0); } 20% { clip-path: polygon(0 0, 100% 0, 100% 100%, 70% 100%, 64% 72%, 57% 100%, 50% 72%, 43% 100%, 36% 72%, 30% 100%, 0 100%); transform: translateX(-4px) rotate(-2deg); } 40% { transform: translateX(4px) rotate(2deg); } 60% { transform: translateX(-3px); } 100% { clip-path: inset(0); transform: none; } }

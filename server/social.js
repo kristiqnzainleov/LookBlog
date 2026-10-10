@@ -206,7 +206,7 @@ const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "
 const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora", "snow", "candy", "shell", "pinstripe", "hearts", "matrix", "sunrays", "hexagons", "zigzag", "plaid", "circuit", "bokeh", "confetti"];
 const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono", "xmas", "winter", "forest", "turtle", "business", "halloween", "beach", "love", "matrix", "coffee", "pirate", "spring"];
 const PROFILE_FX = ["snow", "hearts", "sparkles", "stars", "sakura", "confetti", "bubbles", "fire", "leaves", "money",
-  "xmas", "turtles", "pumpkins", "bats", "love", "notes", "charts", "fish", "rain", "coffee", "paws", "petals", "gems", "matrix", "summer", "school", "balls", "food"];
+  "xmas", "turtles", "pumpkins", "bats", "love", "notes", "charts", "fish", "rain", "coffee", "paws", "petals", "gems", "matrix", "summer", "school", "balls", "food", "sharks"];
 const AVATAR_SHAPES = ["squircle", "hex", "heart", "star", "blob", "diamond", "octagon", "pentagon", "shield", "leaf", "flower", "drop"];
 const NAME_ANIMS = ["wave", "bounce", "pulse", "glitch", "rainbow", "float", "shake", "flicker", "glow", "slide", "zoom", "jelly"];
 const CARD_FRAMES = ["neon", "glass", "gold", "pixel", "comic", "holo", "candy", "ice", "wood", "business", "shell", "rainbow", "fire", "dashed", "double", "sketch", "aurora"];
@@ -2287,7 +2287,7 @@ async function handleSocial(req, res, url, me) {
   if (m === "POST" && a === "me" && b === "msg-sound" && parts.length === 2) {
     const body = await readJSON(req);
     const PRESETS = ["pop", "chime", "bubble", "coin", "laser", "bell", "drop", "whoosh", "harp", "game", "retro", "kiss", "boing", "twinkle", "bass", "magic",
-      "cash", "coins", "airhorn", "quack", "doorbell", "drum", "alarm", "heartbeat", "tada", "phone"];
+      "cash", "coins", "airhorn", "quack", "doorbell", "drum", "alarm", "heartbeat", "tada", "phone", "shark"];
     const old = me.msgSound?.url;
     if (body.url) {
       const snd = ownedMedia(body.url, me.id, "audio");

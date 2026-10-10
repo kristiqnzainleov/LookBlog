@@ -21,7 +21,7 @@ const GLOWS = [["", "None"], ["glow", "✨ Glow"], ["outline", "Outline"], ["sha
 const ENTERS = [["", "Normal"], ["pop", "💥 Pop"], ["slide", "➡️ Slide"], ["bounce", "🏀 Bounce"], ["zoom", "🔍 Zoom"], ["flip", "🔄 Flip"], ["drop", "⬇️ Drop"], ["spin", "🌀 Spin"], ["jelly", "🍮 Jelly"]];
 // A little emoji stuck on the corner of every message
 const STICKERS = ["", "🔥", "💖", "✨", "👑", "🐢", "🌸", "⭐", "🎀", "💎", "🍓", "🦋", "😎", "🎧", "⚡", "🌙", "🍀", "👻", "🐱", "🍕", "🚀", "💀", "🌈", "🧸"];
-export const EFFECTS = [["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["gentle", "🌙", "Gentle"], ["confetti", "🎉", "Confetti"], ["hearts", "💕", "Hearts"],
+export const EFFECTS = [["shark", "🦈", "Shark attack"], ["slam", "💥", "Slam"], ["loud", "📢", "Loud"], ["gentle", "🌙", "Gentle"], ["confetti", "🎉", "Confetti"], ["hearts", "💕", "Hearts"],
   ["fireworks", "🎆", "Fireworks"], ["balloons", "🎈", "Balloons"], ["spotlight", "🔦", "Spotlight"], ["lasers", "🌈", "Lasers"], ["shake", "🫨", "Shake"], ["rainbow", "🦄", "Rainbow"],
   ["party", "🥳", "Party"], ["snow", "❄️", "Snow"], ["stars", "⭐", "Stars"], ["money", "💸", "Money"], ["fire", "🔥", "Fire"], ["bubbles", "🫧", "Bubbles"], ["kisses", "💋", "Kisses"],
   ["butterflies", "🦋", "Butterflies"], ["petals", "🌸", "Petals"], ["rockets", "🚀", "Rockets"], ["thunder", "⚡", "Thunder"], ["disco", "🪩", "Disco"], ["zoom", "🔍", "Zoom in"],
@@ -229,6 +229,15 @@ export function playEffect(effect, row, stage) {
     const l = layer("fx-matrix");
     for (let i = 0; i < 22; i++) l.append(h("i", { class: "fx-code", text: Array.from({ length: 14 }, () => (Math.random() < 0.5 ? "0" : "1")).join("\n"), style: `left:${(i / 22) * 100}%;--d:${Math.random() * 0.8}s;--t:${1.6 + Math.random() * 1.4}s` }));
     setTimeout(() => l.remove(), 4000);
+  }
+  // Shark attack: a shark swims across the chat, takes a bite out of the message, with the music
+  if (effect === "shark") {
+    const l = layer("fx-shark-layer");
+    l.append(h("i", { class: "fx-shark", style: `top:${Math.max(4, Math.min(80, (cy / (st.height || 1)) * 100 - 8))}%` }, h("b", { text: "🦈" })));
+    for (let i = 0; i < 14; i++) l.append(h("i", { class: "fx-heart", text: "🫧", style: `left:${Math.random() * 100}%;--d:${Math.random() * 1.6}s;--t:${2 + Math.random() * 1.5}s` }));
+    setTimeout(() => anim(bubble, "fx-bite", 900), 1500);
+    setTimeout(() => l.remove(), 3600);
+    import("./sfx.js").then((m) => { if (!m.soundsOff()) m.playPreset("shark"); }).catch(() => {});
   }
   if (effect === "heartbeat") anim(bubble, "fx-heartbeat", 1800);
   if (effect === "flip") anim(bubble, "fx-flip", 900);
