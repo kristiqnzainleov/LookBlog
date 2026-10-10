@@ -2119,7 +2119,8 @@ async function handleSocial(req, res, url, me) {
       const beat = q.beat && Number(q.beat.bpm) ? { bpm: Math.round(num(q.beat.bpm, 60, 200, 124)), pattern: String(q.beat.pattern || "house").slice(0, 20), swing: num(q.beat.swing, 0, 0.5, 0),
         steps: q.beat.steps ? Object.fromEntries(["kick", "snare", "clap", "hat", "open", "perc"].map((r) => [r, String(q.beat.steps[r] || "").replace(/[^x.]/g, ".").slice(0, 16)])) : null } : null;
       return { mix: { gain: num(mix.gain, 0, 1.5, 1), low: num(mix.low, -24, 12, 0), mid: num(mix.mid, -24, 12, 0), high: num(mix.high, -24, 12, 0), filter: num(mix.filter, -1, 1, 0),
-        echo: num(mix.echo, 0, 1, 0), verb: num(mix.verb, 0, 1, 0), crush: num(mix.crush, 0, 1, 0), pan: num(mix.pan, -1, 1, 0) }, bass: num(q.bass, 0, 1, 0), beat };
+        echo: num(mix.echo, 0, 1, 0), verb: num(mix.verb, 0, 1, 0), crush: num(mix.crush, 0, 1, 0), pan: num(mix.pan, -1, 1, 0),
+        drive: num(mix.drive, 0, 1, 0), wobble: num(mix.wobble, 0, 1, 0), wobRate: [1, 2, 4].includes(Number(mix.wobRate)) ? Number(mix.wobRate) : 2 }, bass: num(q.bass, 0, 1, 0), beat };
     };
     const shape = (body, item) => {
       if (body.name !== undefined) item.name = clean(body.name).replace(/\s+/g, " ").slice(0, 24) || item.name || "Mine";

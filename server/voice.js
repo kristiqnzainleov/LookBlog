@@ -285,8 +285,11 @@ async function handleVoice(req, res, me, chat, chats) {
       const m = music.get(key);
       const FX = ["airhorn", "siren", "scratch", "laser", "riser", "drop", "rewind", "clap", "brake", "fade", "fadein", "horn", "boom",
         "cheer", "whistle", "roll", "zap", "cymbal", "bassdrop", "backspin", "cut", "echo", "gong", "vinyl",
-        "transform", "stutter", "dip", "build", "snare", "kick", "hat", "cowbell", "tom", "perc", "stab", "chord", "uplift", "downlift", "impact", "glitch", "dog", "bell", "phone", "reverse"];
-      const INSTRUMENTS = ["808", "synth", "pluck", "bell", "organ", "lead"];
+        "transform", "stutter", "dip", "build", "snare", "kick", "hat", "cowbell", "tom", "perc", "stab", "chord", "uplift", "downlift", "impact", "glitch", "dog", "bell", "phone", "reverse",
+        "dubsiren", "police", "bomb", "explosion", "rimshot", "shaker", "conga", "triangle", "coin", "oneup", "pew", "heartbeat", "thunder", "wind", "alarm", "bleep",
+        "subdrop", "zipper", "chopper", "ufo", "tapestop", "hey", "roll808", "hornstab", "kalimba", "lights", "strobe",
+        "gate", "pump", "tremolo", "swell", "blackout", "halfvol"];
+      const INSTRUMENTS = ["808", "synth", "pluck", "bell", "organ", "lead", "piano", "strings", "sub", "chip", "brass"];
       if (a === "fx" && body.fx === "custom") {
         // One of the DJ's own effects (an MP3 they uploaded)
         const pad = (me.djPads || []).find((x) => x.id === body.padId);
@@ -297,6 +300,12 @@ async function handleVoice(req, res, me, chat, chats) {
         const note = Math.round(Number(body.note));
         if (!(note >= 0 && note <= 24)) throw httpError(400, "Pick a key.");
         extra = { fx: "note", note, inst: INSTRUMENTS.includes(body.inst) ? body.inst : "synth" };
+      } else if (a === "fx" && body.fx === "say") {
+        // The MC: a short line everyone's browser says out loud
+        rateLimit("vdj-say:" + me.id, 20, 60 * 1000, "Easy on the mic!");
+        const text = String(body.text || "").replace(/[\u0000-\u001f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
+        if (!text) throw httpError(400, "Type what to say.");
+        extra = { fx: "say", text, voice: ["deep", "normal", "robot", "chipmunk"].includes(body.voice) ? body.voice : "deep" };
       } else if (a === "fx" && body.fx !== "synth") {
         if (!FX.includes(body.fx)) throw httpError(400, "Unknown effect.");
         extra = { fx: body.fx };
@@ -366,11 +375,13 @@ async function handleVoice(req, res, me, chat, chats) {
         const prev = v.beatMix || {};
         v.beatMix = { gain: num(body.gain, 0, 1.5, prev.gain ?? 1), low: num(body.low, -24, 12, prev.low ?? 0), mid: num(body.mid, -24, 12, prev.mid ?? 0),
           high: num(body.high, -24, 12, prev.high ?? 0), filter: num(body.filter, -1, 1, prev.filter ?? 0),
-          echo: num(body.echo, 0, 1, prev.echo ?? 0), verb: num(body.verb, 0, 1, prev.verb ?? 0), crush: num(body.crush, 0, 1, prev.crush ?? 0), pan: num(body.pan, -1, 1, prev.pan ?? 0) };
+          echo: num(body.echo, 0, 1, prev.echo ?? 0), verb: num(body.verb, 0, 1, prev.verb ?? 0), crush: num(body.crush, 0, 1, prev.crush ?? 0), pan: num(body.pan, -1, 1, prev.pan ?? 0),
+          drive: num(body.drive, 0, 1, prev.drive ?? 0), wobble: num(body.wobble, 0, 1, prev.wobble ?? 0), wobRate: [1, 2, 4].includes(Number(body.wobRate)) ? Number(body.wobRate) : prev.wobRate ?? 2 };
         extra = { beatMix: v.beatMix };
       } else if (a === "beat") {
         const bpm = Number(body.bpm) || 0;
-        const PATTERNS = ["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco", "afro", "garage", "funk", "jersey", "drill", "lofi", "custom"];
+        const PATTERNS = ["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco", "afro", "garage", "funk", "jersey", "drill", "lofi", "custom",
+          "amapiano", "dubstep", "breakbeat", "boombap", "phonk", "latin", "bigroom", "moombahton", "baile", "chalga", "trance", "electro"];
         // My own pattern from the step sequencer: 16 steps per drum, "x" = hit
         const ROWS = ["kick", "snare", "hat", "clap", "open", "perc"];
         let steps = null;

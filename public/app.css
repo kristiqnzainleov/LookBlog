@@ -6855,3 +6855,15 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .drop-ic { font-size: 2.6rem; animation: dropBob 1s ease-in-out infinite alternate; }
 @keyframes dropBob { to { transform: translateY(-6px); } }
 .convo { position: relative; }
+
+/* ── DJ: party lights, strobe, the MC ── */
+.party-lights { position: fixed; inset: 0; z-index: 9990; pointer-events: none; mix-blend-mode: screen; }
+.party-lights.lights { background: radial-gradient(40% 50% at 20% 30%, rgba(255, 79, 163, 0.35), transparent 70%), radial-gradient(40% 50% at 80% 40%, rgba(76, 201, 255, 0.32), transparent 70%), radial-gradient(45% 50% at 50% 85%, rgba(155, 92, 255, 0.32), transparent 70%); animation: plSpin calc(var(--beat, 0.5s) * 4) linear infinite, plPulse var(--beat, 0.5s) ease-out infinite; }
+@keyframes plSpin { to { filter: hue-rotate(360deg); } }
+@keyframes plPulse { 0% { opacity: 1; } 100% { opacity: 0.35; } }
+.party-lights.strobe { background: #fff; animation: plStrobe calc(var(--beat, 0.5s) / 2) steps(1) infinite; mix-blend-mode: normal; }
+@keyframes plStrobe { 0% { opacity: 0.28; } 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .party-lights { display: none; } }
+.djc-mc-wrap { display: flex; flex-direction: column; gap: 10px; }
+.djc-mc-row { display: flex; gap: 8px; }
+.djc-mc-row .text-input { flex: 1; min-width: 0; }

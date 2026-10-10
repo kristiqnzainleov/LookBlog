@@ -163,6 +163,39 @@ export function musicStutter() {
   while (at < 1800) { const on = k++ % 2 === 0; setTimeout(() => { fadeMul = on ? 1 : 0; applyVols(); }, at); at += gap; gap = Math.max(50, gap * 0.85); }
   setTimeout(() => { fadeMul = 1; applyVols(); }, at + 40);
 }
+// Trance gate: the music chops on and off on every 16th note, for 2 bars
+export function musicGate(bpm = 124) {
+  cancelAnimationFrame(fadeAnim);
+  const s16 = 60000 / bpm / 4;
+  for (let i = 0; i < 32; i++) setTimeout(() => { fadeMul = i % 2 ? 0.08 : 1; applyVols(); }, i * s16);
+  setTimeout(() => { fadeMul = 1; applyVols(); }, 32 * s16);
+}
+// Sidechain pump: the music ducks on every beat and swells back (like a kick pushing it), for 2 bars
+export function musicPump(bpm = 124) {
+  cancelAnimationFrame(fadeAnim);
+  const beatMs = 60000 / bpm, t0 = performance.now(), end = beatMs * 8;
+  const step = () => {
+    const el = performance.now() - t0;
+    if (el >= end) { fadeMul = 1; applyVols(); return; }
+    const ph = (el % beatMs) / beatMs;
+    fadeMul = 0.15 + 0.85 * Math.min(1, ph * 1.6) ** 2;
+    applyVols(); fadeAnim = requestAnimationFrame(step);
+  };
+  step();
+}
+// Tremolo: the volume wobbles fast for a few seconds
+export function musicTremolo() {
+  cancelAnimationFrame(fadeAnim);
+  const t0 = performance.now();
+  const step = () => { const el = performance.now() - t0; if (el > 4000) { fadeMul = 1; applyVols(); return; } fadeMul = 0.55 + 0.45 * Math.sin(el / 1000 * 2 * Math.PI * 7); applyVols(); fadeAnim = requestAnimationFrame(step); };
+  step();
+}
+// Swell: quiet, then it grows back up
+export function musicSwell() { cancelAnimationFrame(fadeAnim); fadeMul = 0.1; applyVols(); fadeTo(1, 4000); }
+// Blackout: total silence for one bar, then everything back at once
+export function musicBlackout(bpm = 124) { musicCut(60000 / bpm * 4); }
+// Half volume (tap again to bring it back)
+export function musicHalf() { cancelAnimationFrame(fadeAnim); fadeTo(fadeMul > 0.75 ? 0.5 : 1, 400); }
 // Dip: the music drops low for a moment (for a shout-out or an effect), then comes back
 export function musicDip() { fadeTo(0.25, 250); setTimeout(() => fadeTo(1, 900), 2200); }
 // How long the song is (for auto-mix)

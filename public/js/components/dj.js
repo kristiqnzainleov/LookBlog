@@ -23,10 +23,14 @@ function engine() {
       const ir = ctx.createBuffer(2, ctx.sampleRate * 2.4, ctx.sampleRate);
       for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.6); }
       verb.buffer = ir;
-      gain.connect(low); low.connect(mid); mid.connect(high); high.connect(filter); filter.connect(crush); crush.connect(pan); pan.connect(meter); meter.connect(master);
+      // DRIVE: warm distortion · WOBBLE: a low-pass filter that opens and closes in time with the beat (dubstep wobble)
+      const drive = ctx.createWaveShaper(), wob = ctx.createBiquadFilter(), wobLfo = ctx.createOscillator(), wobDepth = ctx.createGain();
+      wob.type = "lowpass"; wob.frequency.value = 20000; wob.Q.value = 1; wobLfo.frequency.value = 2; wobDepth.gain.value = 0;
+      wobLfo.connect(wobDepth); wobDepth.connect(wob.frequency); wobLfo.start();
+      gain.connect(low); low.connect(mid); mid.connect(high); high.connect(wob); wob.connect(filter); filter.connect(drive); drive.connect(crush); crush.connect(pan); pan.connect(meter); meter.connect(master);
       pan.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(echoOut); echoOut.connect(master);
       pan.connect(verb); verb.connect(verbOut); verbOut.connect(master);
-      beatBus = { gain, low, mid, high, filter, meter, crush, pan, delay, echoOut, verbOut };
+      beatBus = { gain, low, mid, high, filter, meter, crush, pan, delay, echoOut, verbOut, drive, wob, wobLfo, wobDepth };
       if (pendingMix) setBeatMix(pendingMix);
     } catch { return null; }
   }
@@ -102,11 +106,16 @@ export const SYNTH_STARTS = {
 // The keys: 808 bass, synth, pluck, bell, organ, lead. note 0–24 (two octaves from C)
 export function playNote(note, inst = "synth") {
   const c = engine(); if (!c) return;
-  const t = c.currentTime + 0.02, base = inst === "808" ? 32.7 : inst === "bell" ? 523.25 : 261.63, f = base * Math.pow(2, note / 12);
+  const t = c.currentTime + 0.02, base = inst === "808" ? 32.7 : inst === "sub" ? 65.41 : inst === "bell" || inst === "chip" ? 523.25 : 261.63, f = base * Math.pow(2, note / 12);
   if (inst === "808") { osc(c, "sine", f * 2.2, f, t, 1.3, 0.9, 0.003); osc(c, "triangle", f, f, t, 1.1, 0.25, 0.005); return; }
   if (inst === "pluck") { osc(c, "sawtooth", f, f, t, 0.35, 0.18, 0.002); osc(c, "square", f * 2, f * 2, t, 0.12, 0.05, 0.002); return; }
   if (inst === "bell") { for (const [m, p] of [[1, 0.25], [2.76, 0.1], [5.4, 0.05]]) osc(c, "sine", f * m, f * m, t, 1.6, p, 0.002); return; }
   if (inst === "organ") { for (const [m, p] of [[1, 0.12], [2, 0.08], [3, 0.05], [4, 0.03]]) osc(c, "sine", f * m, f * m, t, 0.7, p, 0.02); return; }
+  if (inst === "piano") { for (const [m, p, d] of [[1, 0.22, 1.4], [2, 0.07, 0.8], [3, 0.03, 0.5]]) osc(c, "triangle", f * m, f * m, t, d, p, 0.003); return; }
+  if (inst === "strings") { for (const dt of [1, 1.004, 0.996, 2.002]) osc(c, "sawtooth", f * dt, f * dt, t, 1.6, 0.035, 0.25); return; }
+  if (inst === "sub") { osc(c, "sine", f / 2, f / 2, t, 0.9, 0.7, 0.01); return; }
+  if (inst === "chip") { osc(c, "square", f, f, t, 0.18, 0.09, 0.001); osc(c, "square", f * 2, f * 2, t + 0.06, 0.12, 0.05, 0.001); return; }
+  if (inst === "brass") { osc(c, "sawtooth", f, f, t, 0.55, 0.13, 0.06); osc(c, "sawtooth", f * 1.003, f * 1.003, t, 0.55, 0.1, 0.06); osc(c, "sine", f / 2, f / 2, t, 0.55, 0.08, 0.06); return; }
   if (inst === "lead") { osc(c, "sawtooth", f, f, t, 0.5, 0.1, 0.01); osc(c, "sawtooth", f * 1.006, f * 1.006, t, 0.5, 0.1, 0.01); osc(c, "square", f / 2, f / 2, t, 0.5, 0.05, 0.01); return; }
   for (const d of [1, 1.008, 0.992]) osc(c, "sawtooth", f * d, f * d, t, 0.6, 0.07, 0.02);
 }
@@ -136,6 +145,17 @@ export function setBeatMix(mix) {
   b.verbOut.gain.setTargetAtTime((m.verb || 0) * 1.2, t, 0.05);
   if (b.pan.pan) b.pan.pan.setTargetAtTime(m.pan || 0, t, 0.03);
   b.crush.curve = m.crush > 0.02 ? crushCurve(m.crush) : null;
+  b.drive.curve = m.drive > 0.02 ? driveCurve(m.drive) : null;
+  // Wobble: the filter swings 2 times a beat
+  const w = m.wobble || 0, bpm = beat?.b?.bpm || 124;
+  b.wobLfo.frequency.setTargetAtTime((bpm / 60) * (m.wobRate || 2) / 2, t, 0.05);
+  if (w > 0.02) { b.wob.Q.setTargetAtTime(4 + w * 8, t, 0.05); b.wob.frequency.setTargetAtTime(1200 - w * 500, t, 0.05); b.wobDepth.gain.setTargetAtTime(1100 * w, t, 0.05); }
+  else { b.wob.Q.setTargetAtTime(1, t, 0.05); b.wob.frequency.setTargetAtTime(20000, t, 0.05); b.wobDepth.gain.setTargetAtTime(0, t, 0.05); }
+}
+function driveCurve(k) {
+  const c = new Float32Array(1024), amt = 1 + k * 30;
+  for (let i = 0; i < c.length; i++) { const x = (i / (c.length - 1)) * 2 - 1; c[i] = ((1 + amt) * x) / (1 + amt * Math.abs(x)) * (1 - k * 0.35); }
+  return c;
 }
 function crushCurve(k) {
   const steps = Math.round(24 - k * 21), c = new Float32Array(1024);
@@ -222,8 +242,42 @@ const FX = {
   bell() { playNote(12, "bell"); playNote(19, "bell"); },
   phone(c, t) { for (let k = 0; k < 2; k++) for (let j = 0; j < 10; j++) osc(c, "sine", j % 2 ? 480 : 440, j % 2 ? 480 : 440, t + k * 0.9 + j * 0.05, 0.05, 0.1, 0.002); },
   reverse(c, t) { const n = noise(c, 1.2), f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1500; n.connect(f); const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 1.1); g.gain.setValueAtTime(0.0001, t + 1.15); f.connect(g); g.connect(bus()); n.start(t); n.stop(t + 1.2); osc(c, "sine", 110, 110, t + 0.1, 1, 0.3, 0.9); },
+  // ---- FX 2 ----
+  dubsiren(c, t) {
+    // The reggae dub siren: a beeping tone that sweeps up and down
+    const o = c.createOscillator(), lfo = c.createOscillator(), dep = c.createGain(), sweep = c.createOscillator(), sdep = c.createGain();
+    o.type = "sine"; o.frequency.value = 700; lfo.type = "square"; lfo.frequency.value = 7; dep.gain.value = 180; sweep.type = "sine"; sweep.frequency.value = 0.5; sdep.gain.value = 300;
+    lfo.connect(dep); dep.connect(o.frequency); sweep.connect(sdep); sdep.connect(o.frequency);
+    env(c, o, t, 0.02, 0.12, 2.6); for (const n of [o, lfo, sweep]) { n.start(t); n.stop(t + 2.8); }
+  },
+  police(c, t) { for (let k = 0; k < 6; k++) osc(c, "triangle", k % 2 ? 660 : 880, k % 2 ? 660 : 880, t + k * 0.32, 0.3, 0.1, 0.01); },
+  bomb(c, t) { osc(c, "sine", 2400, 300, t, 1.3, 0.12, 0.02); setTimeout(() => FX.explosion(c, c.currentTime), 1300); },
+  explosion(c, t) { osc(c, "sine", 80, 20, t, 1.6, 1, 0.003); const n = noise(c, 2.2), f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(4000, t); f.frequency.exponentialRampToValueAtTime(150, t + 2); n.connect(f); env(c, f, t, 0.003, 0.9, 2); n.start(t); },
+  rimshot(c, t) { osc(c, "triangle", 1700, 1600, t, 0.04, 0.3, 0.001); const n = noise(c, 0.05), f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3000; n.connect(f); env(c, f, t, 0.001, 0.4, 0.04); n.start(t); },
+  shaker(c, t) { for (let k = 0; k < 8; k++) { const n = noise(c, 0.06), f = c.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 6000; n.connect(f); env(c, f, t + k * 0.125, 0.01, k % 2 ? 0.12 : 0.22, 0.05); n.start(t + k * 0.125); } },
+  conga(c, t) { [[0, 330], [0.15, 330], [0.3, 250], [0.45, 220]].forEach(([d, f]) => osc(c, "sine", f * 1.4, f, t + d, 0.22, 0.5, 0.002)); },
+  triangle(c, t) { for (const [m, p] of [[1, 0.12], [2.7, 0.05], [5.1, 0.03]]) osc(c, "sine", 1600 * m, 1600 * m, t, 2, p, 0.001); },
+  coin(c, t) { osc(c, "square", 988, 988, t, 0.08, 0.08, 0.001); osc(c, "square", 1319, 1319, t + 0.08, 0.35, 0.08, 0.001); },
+  oneup(c, t) { [659, 784, 1319, 1047, 1175, 1568].forEach((f, i) => osc(c, "square", f, f, t + i * 0.09, 0.08, 0.07, 0.001)); },
+  pew(c, t) { osc(c, "square", 1800, 200, t, 0.18, 0.12, 0.001); },
+  heartbeat(c, t) { for (let k = 0; k < 3; k++) { osc(c, "sine", 70, 45, t + k * 0.8, 0.15, 0.9, 0.003); osc(c, "sine", 65, 40, t + k * 0.8 + 0.22, 0.15, 0.6, 0.003); } },
+  thunder(c, t) { const n = noise(c, 3.5), f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 600; n.connect(f); const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.9, t + 0.08); g.gain.exponentialRampToValueAtTime(0.3, t + 0.6); g.gain.exponentialRampToValueAtTime(0.6, t + 1); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.4); f.connect(g); g.connect(bus()); n.start(t); },
+  wind(c, t) { const n = noise(c, 4), f = c.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 2; f.frequency.setValueAtTime(400, t); f.frequency.linearRampToValueAtTime(1400, t + 2); f.frequency.linearRampToValueAtTime(500, t + 4); n.connect(f); env(c, f, t, 1.2, 0.35, 2.6); n.start(t); },
+  alarm(c, t) { for (let k = 0; k < 8; k++) osc(c, "square", 1000, 1000, t + k * 0.2, 0.1, 0.07, 0.002); },
+  bleep(c, t) { osc(c, "sine", 1000, 1000, t, 0.7, 0.25, 0.005); },
+  subdrop(c, t) { osc(c, "sine", 110, 28, t, 3, 1, 0.01); },
+  zipper(c, t) { for (let k = 0; k < 14; k++) osc(c, "sawtooth", 300 + k * 140, 300 + k * 140, t + k * 0.025, 0.02, 0.07, 0.001); },
+  chopper(c, t) { for (let k = 0; k < 24; k++) { const n = noise(c, 0.05), f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 500; n.connect(f); env(c, f, t + k * 0.09, 0.003, 0.5, 0.05); n.start(t + k * 0.09); } },
+  ufo(c, t) { const o = c.createOscillator(), lfo = c.createOscillator(), d = c.createGain(); o.type = "sine"; o.frequency.value = 600; lfo.frequency.value = 9; d.gain.value = 250; lfo.connect(d); d.connect(o.frequency); o.frequency.setValueAtTime(400, t); o.frequency.exponentialRampToValueAtTime(1400, t + 2); env(c, o, t, 0.1, 0.1, 2); o.start(t); lfo.start(t); o.stop(t + 2.2); lfo.stop(t + 2.2); },
+  tapestop(c, t) { osc(c, "sawtooth", 440, 25, t, 1, 0.1, 0.005); osc(c, "sawtooth", 330, 20, t, 1, 0.08, 0.005); },
+  hey(c, t) { for (const [f, q] of [[730, 0.1], [1090, 0.07], [2440, 0.04]]) { const n = noise(c, 0.35), bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = f; bp.Q.value = 8; n.connect(bp); env(c, bp, t, 0.02, q * 6, 0.3); n.start(t); } osc(c, "sawtooth", 180, 150, t, 0.3, 0.06, 0.02); },
+  roll808(c, t) { for (let k = 0; k < 12; k++) osc(c, "sine", 120, 45, t + k * 0.08, 0.12, 0.6 + k * 0.02, 0.002); },
+  hornstab(c, t) { for (let k = 0; k < 2; k++) for (const f of [349, 440, 523]) osc(c, "sawtooth", f, f, t + k * 0.2, 0.15, 0.07, 0.01); },
+  kalimba(c, t) { [523, 659, 784, 1047].forEach((f, i) => osc(c, "sine", f, f, t + i * 0.12, 0.8, 0.2, 0.001)); },
+  // (these don't make a sound: lights on everyone's screen, or the MC speaking — handled by the voice room)
+  lights() {}, strobe() {}, say() {},
   // (these change the music itself, in voice-music.js)
-  fade() {}, fadein() {}, cut() {}, echo() {}, transform() {}, stutter() {}, dip() {},
+  fade() {}, fadein() {}, cut() {}, echo() {}, transform() {}, stutter() {}, dip() {}, gate() {}, pump() {}, tremolo() {}, swell() {}, blackout() {}, halfvol() {},
 };
 // A tiny scratch sound for while the DJ turns the record (only on the DJ's own screen, it follows their hand)
 export function scratchGrain(speed) {
@@ -249,6 +303,18 @@ const PATTERNS = {
   jersey: { kick: "x..x..x.x.x.x.x.", snare: "....x.......x...", hat: "x.x.x.x.x.x.x.x.", clap: "....x..x....x..." },
   drill: { kick: "x......x..x.....", snare: "......x.......x.", hat: "x..x..x.x..x.x..", perc: "...x.......x...." },
   lofi: { kick: "x......x..x.....", snare: "....x.......x...", hat: "x.x.x.x.x.x.x.x.", open: "..............x." },
+  amapiano: { kick: "x...x...x...x...", snare: "......x.......x.", hat: "..x...x...x...x.", perc: "x..x..x...x.x..x", open: "...........x...." },
+  dubstep: { kick: "x.........x.....", snare: "........x.......", hat: "x.x.x.x.x.x.x.x.", perc: "......x.......x." },
+  breakbeat: { kick: "x.....x...x.....", snare: "....x.......x..x", hat: "x.x.x.x.x.x.x.x.", open: "..........x....." },
+  boombap: { kick: "x.......x.x.....", snare: "....x.......x...", hat: "x.x.x.x.x.x.x.x.", open: "..............x." },
+  phonk: { kick: "x.....x...x...x.", snare: "....x.......x...", hat: "xxxxxxxxxxxxxxxx", perc: "x...x...x...x..." },
+  latin: { kick: "x...x...x...x...", snare: "...x..x....x..x.", perc: "x.xx.x.xx.x.x.x.", hat: "x.x.x.x.x.x.x.x." },
+  bigroom: { kick: "x...x...x...x...", clap: "....x.......x...", open: "..x...x...x...x.", hat: "x.x.x.x.x.x.x.x." },
+  moombahton: { kick: "x...x...x...x...", snare: "...x..x....x..x.", hat: "..x...x...x...x.", perc: "x..x.x..x..x.x.." },
+  baile: { kick: "x..x..x.x..x..x.", snare: "....x.......x...", perc: "..x...x...x...x.", hat: "x.x.x.x.x.x.x.x." },
+  chalga: { kick: "x...x...x...x...", snare: "....x.......x...", perc: "x.xxx.x.x.xxx.x.", hat: "..x...x...x...x.", clap: "............x..." },
+  trance: { kick: "x...x...x...x...", clap: "....x.......x...", open: "..x...x...x...x.", hat: "xxxxxxxxxxxxxxxx" },
+  electro: { kick: "x.....x.x.......", snare: "....x.......x...", hat: "x.xxx.xxx.xxx.xx", clap: "....x.......x..." },
 };
 export const DRUM_ROWS = ["kick", "snare", "clap", "hat", "open", "perc"];
 function drum(c, row, t, b) {
@@ -279,6 +345,7 @@ export function setBeat(b, skew = 0) {
       n++; nextAt += step;
     }
   }, 25) };
+  setBeatMix({}); // the wobble follows the new tempo
 }
 export const beatStep = () => beat?.step ?? -1;
 export const beatOn = () => beat?.b || null;
@@ -335,7 +402,30 @@ export function djConsole(api) {
   const box = h("div", { class: "dj" });
   const cues = JSON.parse(sessionStorage.getItem("lb-dj-cues") || "{}");
   let setMode = false, taps = [], autoMix = false, mixing = false, tab = sessionStorage.getItem("lb-dj-tab") || "fx", holding = false, myPads = [], padsLoaded = false;
-  let inst = "synth", octave = 0, muted = {}, killed = {}, myFx = [], myPresets = [];
+  let inst = "synth", octave = 0, muted = {}, killed = {}, myFx = [], myPresets = [], mcVoice = "deep";
+  // Macros: [time in beats, what to send]
+  const MACROS = [["🎆", "Build & drop", "Roll and riser for 8 beats, then the drop with an impact and max bass"], ["🙌", "Hype", "Airhorns and the crowd"], ["⏪", "Rewind selecta", "Rewind, backspin, airhorn — pull it up!"],
+    ["🌀", "Breakdown", "The beat filters away and the music dips"], ["💥", "Bass drop", "Sub drop, explosion and max bass for 8 beats"], ["3️⃣", "Countdown", "3, 2, 1 — impact"],
+    ["🔦", "Light show", "Lights, strobe and cheers"], ["🛸", "Space out", "UFO, echo and reverb"]];
+  const MACRO_STEPS = {
+    "Build & drop": [[0, { action: "fx", fx: "roll" }], [0, { action: "fx", fx: "riser" }], [0, { action: "fx", fx: "uplift" }], [8, { action: "fx", fx: "impact" }], [8, { action: "fx", fx: "airhorn" }], [8, { action: "bass", amount: 1 }], [8, { action: "fx", fx: "lights" }], [24, { action: "bass", amount: 0 }]],
+    Hype: [[0, { action: "fx", fx: "airhorn" }], [2, { action: "fx", fx: "airhorn" }], [3, { action: "fx", fx: "cheer" }], [4, { action: "fx", fx: "airhorn" }], [6, { action: "fx", fx: "whistle" }]],
+    "Rewind selecta": [[0, { action: "fx", fx: "rewind" }], [0, { action: "fx", fx: "backspin" }], [3, { action: "fx", fx: "airhorn" }], [4, { action: "fx", fx: "dubsiren" }]],
+    Breakdown: [[0, { action: "fx", fx: "dip" }], [0, { action: "fx", fx: "downlift" }], [0, { action: "beatmix", filter: -0.6 }], [8, { action: "beatmix", filter: 0 }], [8, { action: "fx", fx: "impact" }]],
+    "Bass drop": [[0, { action: "fx", fx: "subdrop" }], [0, { action: "bass", amount: 1 }], [2, { action: "fx", fx: "explosion" }], [10, { action: "bass", amount: 0 }]],
+    Countdown: [[0, { action: "fx", fx: "say", text: "Three", voice: "deep" }], [2, { action: "fx", fx: "say", text: "Two", voice: "deep" }], [4, { action: "fx", fx: "say", text: "One", voice: "deep" }], [6, { action: "fx", fx: "impact" }], [6, { action: "fx", fx: "airhorn" }]],
+    "Light show": [[0, { action: "fx", fx: "lights" }], [0, { action: "fx", fx: "cheer" }], [8, { action: "fx", fx: "strobe" }]],
+    "Space out": [[0, { action: "fx", fx: "ufo" }], [0, { action: "beatmix", echo: 0.7, verb: 0.6 }], [4, { action: "fx", fx: "kalimba" }], [12, { action: "beatmix", echo: 0, verb: 0 }]],
+  };
+  const runMacro = (name) => {
+    const beatMs = 60000 / (beatOn()?.bpm || 124);
+    for (const [at, body] of MACRO_STEPS[name] || []) setTimeout(() => {
+      if (body.action === "beatmix") { sendBeatMix({ ...body, action: undefined }); return; }
+      send(body);
+    }, at * beatMs);
+  };
+  const MC_LINES = [["🙌", "Make some noise!"], ["🔥", "Let's go!"], ["🎧", "DJ in the house!"], ["💥", "Drop it!"], ["⏪", "Rewind!"], ["👐", "Hands up!"],
+    ["🎉", "Party time!"], ["😎", "Turn it up!"], ["🐢", "Turtle power!"], ["🇧🇬", "Наздраве!"], ["🔊", "Louder!"], ["❤️", "One love!"]];
   let seq = (() => { try { return JSON.parse(localStorage.getItem("lb-dj-seq")) || null; } catch { return null; } })() || { kick: "x...x...x...x...", snare: "....x.......x...", clap: "", hat: "..x...x...x...x.", open: "", perc: "", swing: 0 };
   const saveSeq = () => { try { localStorage.setItem("lb-dj-seq", JSON.stringify(seq)); } catch {} };
   const send = (b) => api.post({ kind: "dj", ...b }).catch((err) => toast(err.error || "Couldn’t do that."));
@@ -436,7 +526,10 @@ export function djConsole(api) {
         knob("VERB", { min: 0, max: 1, value: bm.verb || 0, def: 0, disabled: lock, fmtv: (v) => Math.round(v * 100) + "%", onChange: (v) => sendBeatMix({ verb: v }) }),
         knob("CRUSH", { min: 0, max: 1, value: bm.crush || 0, def: 0, disabled: lock, fmtv: (v) => Math.round(v * 100) + "%", onChange: (v) => sendBeatMix({ crush: v }) }),
         knob("PAN", { min: -1, max: 1, value: bm.pan || 0, def: 0, disabled: lock, fmtv: (v) => (Math.abs(v) < 0.05 ? "C" : (v < 0 ? "L" : "R") + Math.round(Math.abs(v) * 100)), onChange: (v) => sendBeatMix({ pan: v }) }),
-        pad("RESET", "dj-small", () => sendBeatMix({ echo: 0, verb: 0, crush: 0, pan: 0, filter: 0, low: 0, mid: 0, high: 0 }), "Everything on the FX channel back to normal")),
+        knob("DRIVE", { min: 0, max: 1, value: bm.drive || 0, def: 0, disabled: lock, fmtv: (v) => Math.round(v * 100) + "%", onChange: (v) => sendBeatMix({ drive: v }) }),
+        knob("WOBBLE", { min: 0, max: 1, value: bm.wobble || 0, def: 0, disabled: lock, accent: "filter", fmtv: (v) => (v < 0.02 ? "OFF" : Math.round(v * 100) + "%"), onChange: (v) => sendBeatMix({ wobble: v }) }),
+        pad(`WOB ${({ 1: "1/2", 2: "1/4", 4: "1/8" })[bm.wobRate || 2]}`, "dj-small", () => sendBeatMix({ wobRate: ({ 1: 2, 2: 4, 4: 1 })[bm.wobRate || 2] }), "How fast it wobbles"),
+        pad("RESET", "dj-small", () => sendBeatMix({ echo: 0, verb: 0, crush: 0, pan: 0, filter: 0, low: 0, mid: 0, high: 0, drive: 0, wobble: 0 }), "Everything on the FX channel back to normal")),
       h("div", { class: "djc-master" }, knob("MASTER", { min: 0, max: 1, value: (m?.volume ?? 70) / 100, def: 0.7, disabled: lock, fmtv: (v) => Math.round(v * 100) + "%", accent: "master", onChange: (v) => sendMaster(v) }),
         knob("BPM", { min: 70, max: 180, value: beatOn()?.bpm || 124, def: 124, step: 1, disabled: lock, fmtv: (v) => String(v), onChange: throttle((v) => { if (beatOn()) send({ action: "beat", bpm: v, pattern: beatOn().pattern }); }, 300) })),
       // Bass boost on the song itself
@@ -459,7 +552,7 @@ export function djConsole(api) {
       })());
 
     // ---- performance pads ----
-    const TABS = [["fx", "FX"], ["moves", "MOVES"], ["keys", "KEYS"], ["mine", "MY SOUNDS"], ["myfx", "MY FX"], ["beats", "BEATS"], ["seq", "SEQUENCER"], ["presets", "MY PRESETS"]];
+    const TABS = [["fx", "FX"], ["fx2", "FX 2"], ["moves", "MOVES"], ["macros", "MACROS"], ["keys", "KEYS"], ["beats", "BEATS"], ["seq", "SEQUENCER"], ["mc", "MC 🎤"], ["show", "LIGHTS"], ["mine", "MY SOUNDS"], ["myfx", "MY FX"], ["presets", "MY PRESETS"]];
     const tabs = h("div", { class: "djc-tabs" }, ...TABS.map(([k, l]) => {
       const b = h("button", { type: "button", class: "djc-tab" + (tab === k ? " on" : ""), text: l });
       b.addEventListener("click", () => { tab = k; sessionStorage.setItem("lb-dj-tab", k); paint(); });
@@ -474,10 +567,33 @@ export function djConsole(api) {
       ["🎹", "stab", "Stab"], ["🌅", "chord", "Pad chord"], ["⬆️", "uplift", "Uplifter"], ["⬇️", "downlift", "Downlifter"], ["☄️", "impact", "Impact"], ["👾", "glitch", "Glitch"],
       ["🛎️", "bell", "Bell"], ["📞", "phone", "Phone"], ["🔁", "reverse", "Reverse"], ["🏗️", "build", "Build-up"]]);
     else if (tab === "moves") grid = fxPads([["🔉", "fade", "Fade out"], ["🔊", "fadein", "Fade in"], ["✂️", "cut", "Cut"], ["〰️", "echo", "Echo out"], ["⏪", "backspin", "Backspin"], ["🛑", "brake", "Brake"],
-      ["🎚️", "transform", "Transform"], ["🔂", "stutter", "Stutter"], ["🫳", "dip", "Dip"]]);
-    else if (tab === "keys") {
+      ["🎚️", "transform", "Transform"], ["🔂", "stutter", "Stutter"], ["🫳", "dip", "Dip"],
+      ["🚪", "gate", "Trance gate"], ["💓", "pump", "Sidechain pump"], ["〽️", "tremolo", "Tremolo"], ["🌊", "swell", "Swell"], ["⬛", "blackout", "Blackout"], ["🔈", "halfvol", "Half volume"]]);
+    else if (tab === "fx2") grid = fxPads([["🇯🇲", "dubsiren", "Dub siren"], ["🚓", "police", "Police"], ["💣", "bomb", "Bomb"], ["🧨", "explosion", "Explosion"], ["🥢", "rimshot", "Rimshot"], ["🧂", "shaker", "Shaker"],
+      ["🪘", "conga", "Congas"], ["🔺", "triangle", "Triangle"], ["🪙", "coin", "Coin"], ["🍄", "oneup", "1-Up"], ["🔫", "pew", "Pew"], ["❤️", "heartbeat", "Heartbeat"],
+      ["⛈️", "thunder", "Thunder"], ["🌬️", "wind", "Wind"], ["⏰", "alarm", "Alarm"], ["🤬", "bleep", "Bleep"], ["🕳️", "subdrop", "Sub drop"], ["🤐", "zipper", "Zipper"],
+      ["🚁", "chopper", "Chopper"], ["🛸", "ufo", "UFO"], ["📼", "tapestop", "Tape stop"], ["🙋", "hey", "Hey!"], ["🥁", "roll808", "808 roll"], ["🎺", "hornstab", "Horn stab"], ["🎶", "kalimba", "Kalimba"]]);
+    else if (tab === "macros") {
+      // One tap, a whole move: several effects in time with each other
+      grid = MACROS.map(([e, name, hint], i) => pad(`${e}\n${name}`, "dj-perf c" + (i % 4 + 1), () => runMacro(name), hint));
+      grid.push(h("p", { class: "djc-note wide", text: "Macros play a few effects one after another, in time. Everyone hears them." }));
+    } else if (tab === "mc") {
+      // The MC: everyone's browser says it out loud
+      gridClass = "djc-mc-wrap";
+      const say = (text) => { if (!text.trim()) return; send({ action: "fx", fx: "say", text: text.trim().slice(0, 80), voice: mcVoice }); };
+      const input = h("input", { type: "text", class: "text-input", maxlength: 80, placeholder: "Type a shout-out… (everyone hears it)", disabled: lock });
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); say(input.value); input.value = ""; } });
+      grid = [h("div", { class: "djc-mc-row" }, input, pad("🎤 Say it", "dj-small play", () => { say(input.value); input.value = ""; })),
+        h("div", { class: "djc-inst" }, ...[["deep", "🗣️ Deep"], ["normal", "🙂 Normal"], ["robot", "🤖 Robot"], ["chipmunk", "🐿️ Chipmunk"]].map(([k, l]) => pad(l, "dj-small" + (mcVoice === k ? " on" : ""), () => { mcVoice = k; paint(); }))),
+        h("div", { class: "djc-grid" }, ...MC_LINES.map(([e, line], i) => pad(`${e}\n${line}`, "dj-perf c" + (i % 4 + 1), () => say(line)))),
+        h("p", { class: "djc-note", text: "The MC speaks in everyone’s browser, with the voice you pick." })];
+    } else if (tab === "show") {
+      grid = fxPads([["🌈", "lights", "Party lights"], ["⚡", "strobe", "Strobe"]]);
+      grid.push(h("p", { class: "djc-note wide", text: "Lights flash on everyone’s screen in the channel for a few seconds, in time with the beat." }));
+    } else if (tab === "keys") {
       gridClass = "djc-keys-wrap";
-      const INST = [["808", "🔈 808"], ["synth", "🎛️ Synth"], ["pluck", "🎸 Pluck"], ["bell", "🔔 Bells"], ["organ", "⛪ Organ"], ["lead", "🎺 Lead"]];
+      const INST = [["808", "🔈 808"], ["synth", "🎛️ Synth"], ["pluck", "🎸 Pluck"], ["bell", "🔔 Bells"], ["organ", "⛪ Organ"], ["lead", "🎺 Lead"],
+        ["piano", "🎹 Piano"], ["strings", "🎻 Strings"], ["sub", "🕳️ Sub bass"], ["chip", "👾 8-bit"], ["brass", "🎷 Brass"]];
       const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
       const keys = Array.from({ length: 13 }, (_, i) => {
         const note = i + octave * 12, black = names[i % 12].includes("#");
@@ -522,9 +638,10 @@ export function djConsole(api) {
       }), ...(myPresets.length < 16 ? [h("button", { type: "button", class: "dj-pad dj-perf dj-add", text: "💾\nSave current", onclick: () => savePreset() })] : [])];
       grid.unshift(h("p", { class: "djc-note wide", text: "A preset keeps the FX · beat knobs (EQ, filter, echo, reverb, crush, pan), the bass boost and the beat. Tap one to load it all at once." }));
     } else if (tab === "beats") {
-      const NAMES = { hiphop: "Hip-hop", dnb: "D&B", lofi: "Lo-fi" };
+      const NAMES = { hiphop: "Hip-hop", dnb: "D&B", lofi: "Lo-fi", boombap: "Boom bap", bigroom: "Big room", baile: "Baile funk", chalga: "Чалга" };
       const b = beatOn();
-      grid = [...["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco", "afro", "garage", "funk", "jersey", "drill", "lofi"].map((p, i) => pad(`🥁\n${NAMES[p] || p[0].toUpperCase() + p.slice(1)}`, "dj-perf c" + (i % 4 + 1) + (b?.pattern === p ? " on" : ""), () => send({ action: "beat", bpm: b?.bpm || 124, pattern: p, swing: b?.swing || 0 }))),
+      grid = [...["house", "hiphop", "techno", "trap", "dnb", "reggaeton", "disco", "afro", "garage", "funk", "jersey", "drill", "lofi",
+        "amapiano", "dubstep", "breakbeat", "boombap", "phonk", "latin", "bigroom", "moombahton", "baile", "chalga", "trance", "electro"].map((p, i) => pad(`🥁\n${NAMES[p] || p[0].toUpperCase() + p.slice(1)}`, "dj-perf c" + (i % 4 + 1) + (b?.pattern === p ? " on" : ""), () => send({ action: "beat", bpm: b?.bpm || 124, pattern: p, swing: b?.swing || 0 }))),
         pad("⏹\nBeat off", "dj-perf c4", () => send({ action: "beat", bpm: 0 })),
         pad("👆\nTap tempo", "dj-perf c1", () => {
           const now = performance.now();

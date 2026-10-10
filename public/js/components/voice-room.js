@@ -4,8 +4,8 @@
 import { h, icon, avatar, toast, tick, modal } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
-import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake, musicTransform, musicStutter, musicDip } from "./voice-music.js";
-import { playFx, setBeat, playCustom, setBeatMix, playNote } from "./dj.js";
+import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake, musicTransform, musicStutter, musicDip, musicGate, musicPump, musicTremolo, musicSwell, musicBlackout, musicHalf } from "./voice-music.js";
+import { playFx, setBeat, playCustom, setBeatMix, playNote, beatOn } from "./dj.js";
 import { getMic, audioPrefs, audioEngine, iceServers, openAudioSettings, hdDescription, hdSenders } from "./audio-devices.js";
 import * as relay from "./voice-relay.js";
 import * as wt from "./watch-together.js";
@@ -449,6 +449,27 @@ on("message", (ev) => {
 });
 
 /* ---------- DJ mode: everyone hears what the DJ does ---------- */
+// Party lights / strobe on everyone's screen, in time with the beat (a few seconds)
+let lightsT = 0;
+function partyLights(kind, bpm) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let el = document.querySelector(".party-lights");
+  if (!el) { el = h("div", { class: "party-lights", "aria-hidden": "true" }); document.body.append(el); }
+  el.className = "party-lights " + kind;
+  el.style.setProperty("--beat", (60 / bpm).toFixed(3) + "s");
+  clearTimeout(lightsT);
+  lightsT = setTimeout(() => el.remove(), kind === "strobe" ? 3000 : 8000);
+}
+// The MC: everyone's browser says the line
+function mcSay(text, voice) {
+  if (!text || !window.speechSynthesis || room?.deaf) return;
+  const u = new SpeechSynthesisUtterance(String(text).slice(0, 80));
+  const v = { deep: [0.6, 0.95], normal: [1, 1], robot: [0.1, 0.8], chipmunk: [2, 1.35] }[voice] || [0.6, 0.95];
+  u.pitch = v[0]; u.rate = v[1]; u.volume = 1;
+  if (/[а-яА-Я]/.test(text)) u.lang = "bg-BG";
+  speechSynthesis.speak(u);
+  toast(`🎤 ${text}`);
+}
 on("voice:dj", (ev) => {
   if (!room || ev.chatId !== room.chat.id || ev.channelId !== room.channel.id) return;
   room.skew = ev.now - Date.now();
@@ -463,6 +484,15 @@ on("voice:dj", (ev) => {
     if (ev.fx === "transform") musicTransform();
     if (ev.fx === "stutter") musicStutter();
     if (ev.fx === "dip") musicDip();
+    const bpm = beatOn()?.bpm || 124;
+    if (ev.fx === "gate") musicGate(bpm);
+    if (ev.fx === "pump") musicPump(bpm);
+    if (ev.fx === "tremolo") musicTremolo();
+    if (ev.fx === "swell") musicSwell();
+    if (ev.fx === "blackout") musicBlackout(bpm);
+    if (ev.fx === "halfvol") musicHalf();
+    if (ev.fx === "lights" || ev.fx === "strobe") partyLights(ev.fx, bpm);
+    if (ev.fx === "say") mcSay(ev.text, ev.voice);
     return; // (a sound: nothing on screen changes)
   }
   if (ev.action === "beat") setBeat(ev.beat, room.skew);
