@@ -105,6 +105,7 @@ export function openBadges(profile, data) {
       !b.earned && b.goal > 1 ? h("small", { class: "muted", text: `${b.progress} / ${b.goal}` }) : null);
   // 700+ badges: search them, see only the earned ones (or the ones still to earn), or one category
   let q = "", show = "all", only = "";
+  const open = new Set(); // categories showing all their badges (otherwise the first 24)
   const badges = h("div", { class: "badge-cats" });
   const paintBadges = () => {
     const words = q.trim().toLowerCase();
@@ -114,9 +115,11 @@ export function openBadges(profile, data) {
       if (!list.length) return null;
       // the ones closest to being earned come first among the rest
       if (show !== "earned") list.sort((a, b) => Number(b.earned) - Number(a.earned) || (b.earned ? 0 : (b.progress / b.goal) - (a.progress / a.goal)));
+      const full = open.has(c) || only === c || words, cut = full ? list : list.slice(0, 24);
+      const more = !full && list.length > cut.length ? h("button", { type: "button", class: "btn btn-sm btn-outline-light badge-more", text: `Show all ${list.length}`, onclick: () => { open.add(c); paintBadges(); } }) : null;
       return h("section", { class: "badge-cat" },
         h("h4", { class: "badge-cat-title" }, c, h("span", { class: "muted", text: ` ${all.filter((b) => b.earned).length}/${all.length}` })),
-        h("div", { class: "badge-grid" }, ...list.map(badgeCard)));
+        h("div", { class: "badge-grid" }, ...cut.map(badgeCard)), more);
     }).filter(Boolean);
     badges.replaceChildren(...(sections.length ? sections : [h("p", { class: "muted", text: "No badges match." })]));
   };

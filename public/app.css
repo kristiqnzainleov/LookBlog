@@ -6990,3 +6990,4 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .badge-chips.reordering { touch-action: none; }
 .badge-chip.dragging { cursor: grabbing; transform: scale(1.08); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), 0 0 0 2px var(--pink); z-index: 2; position: relative; }
 .badge-drag-hint { font-size: 0.72rem; }
+.badge-more { display: block; margin: 10px auto 4px; }
