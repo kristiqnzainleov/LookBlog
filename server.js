@@ -329,6 +329,7 @@ async function handle(req, res) {
     // An invite link: "Join LookBlog" (with the logo when it's shared)
     if (/^\/join\/[a-z0-9]{4,12}$/i.test(p)) return serveJoinPage(req, res, p.slice(6));
     if (/^\/doodle\/[a-z]+(?:_[a-z]+)?-\d{1,10}\.svg$/.test(p)) return require("./server/doodles").serveDoodle(res, p.slice(8));
+    if (p === "/oembed") return require("./server/share-pages").serveOembed(req, res, url.searchParams.get("url"));
     // A post, video, short or profile shared outside LookBlog: a preview page (for link previews and people without an account)
     if (!loggedIn) {
       const sp = require("./server/share-pages");
