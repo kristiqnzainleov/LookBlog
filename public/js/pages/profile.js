@@ -756,14 +756,14 @@ export async function profilePage(view, m, params) {
     paintSpecial(data.special || []);
     const earned = data.badges.filter((b) => b.earned);
     const medals = data.awards.filter((a) => a.level);
-    // Only two on the profile (the special ones first, then the ones they chose to show, then the hardest they earned);
+    // Only three on the profile (the special ones first, then the ones they chose to show, then the hardest they earned);
     // everything else is in the badges window
     const featured = profile.look?.featured || [];
     const picks = [
       ...(data.special || []).map((b) => ({ special: b })),
       ...featured.map((id) => earned.find((b) => b.id === id)).filter(Boolean).map((b) => ({ badge: b })),
       ...[...earned].sort((a, b) => (b.goal || 1) - (a.goal || 1)).map((b) => ({ badge: b })),
-    ].filter((x, i, all) => all.findIndex((y) => (y.badge?.id || y.special?.id) === (x.badge?.id || x.special?.id)) === i).slice(0, 2);
+    ].filter((x, i, all) => all.findIndex((y) => (y.badge?.id || y.special?.id) === (x.badge?.id || x.special?.id)) === i).slice(0, 3);
     const total = earned.length + medals.length + (data.special || []).length;
     const dot = (x) => x.special
       ? h("span", { class: "badge-dot special" + (x.special.image ? " has-img" : ""), style: specialStyle(x.special), title: x.special.unique ? `${x.special.name}: special badge, only @${profile.username} has it` : `${x.special.name}: a badge from the LookBlog team` }, x.special.image ? h("img", { src: x.special.image, alt: "" }) : x.special.emoji)

@@ -7022,3 +7022,4 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .vinyl-bar i { display: block; height: 100%; width: 0; background: var(--pink); transition: width .5s linear; }
 .bubble:has(> .vinyl-card) { padding: 4px !important; background: transparent !important; box-shadow: none !important; }
 @media (prefers-reduced-motion: reduce) { .vinyl-disc { animation: none !important; } }
+.badge-strip .badge-all { white-space: nowrap; flex-shrink: 0; } @media (max-width: 640px) { .badge-strip { gap: 6px !important; } .badge-strip .badge-label { font-size: 0.66rem; } .badge-strip .badge-all { padding-left: 10px; padding-right: 10px; font-size: 0.78rem; } }
