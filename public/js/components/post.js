@@ -188,8 +188,7 @@ export function actions(p, { onDeleted, big = false } = {}) {
     if (next === "dislike") p.dislikes++;
     p.reaction = next;
     paint();
-    if (next === "like") likeAnim(btn);
-    else if (next) { btn.classList.remove("pop"); void btn.offsetWidth; btn.classList.add("pop"); }
+    if (next) likeAnim(btn, { dislike: next === "dislike" });
     try {
       const r = await api(`/api/posts/${p.id}/react`, { method: "POST", body: { reaction: next || "none" } });
       Object.assign(p, { reaction: r.reaction, likes: r.likes, dislikes: r.dislikes });

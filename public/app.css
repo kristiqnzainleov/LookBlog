@@ -7174,3 +7174,7 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 @keyframes laSvgMusic { 0% { transform: scale(1); opacity: 1; } 12% { transform: scale(0.4); opacity: 0; } 55% { transform: scale(0.4); opacity: 0; } 72% { transform: scale(1.6) rotate(-10deg); opacity: 1; } 86% { transform: scale(0.92); } 100% { transform: scale(1); opacity: 1; } }
 .la-note { position: absolute; left: var(--la-x, 50%); top: var(--la-y, 50%); z-index: 3; color: var(--pink); font: 900 1.25rem/1 var(--body); pointer-events: none; transform: translate(-50%, -50%) scale(0); animation: laNote 1.05s ease forwards; text-shadow: 0 0 10px rgba(255, 79, 163, 0.6); }
 @keyframes laNote { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 12% { opacity: 1; transform: translate(-50%, -50%) scale(0.8) rotate(-10deg); } 40% { transform: translate(-50%, -60%) scale(1.9) rotate(10deg); opacity: 1; } 58% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0); } }
+/* Dislike: the same pop, tipping down, in the dislike blue */
+.la-down svg { animation-name: laPopDown; }
+@keyframes laPopDown { 0% { transform: scale(1); } 25% { transform: scale(0.75); } 55% { transform: scale(1.75) rotate(12deg) translateY(2px); } 75% { transform: scale(0.95) rotate(-4deg); } 100% { transform: scale(1); } }
+.la-dis .la-burst i { background: #a9bdff; }
