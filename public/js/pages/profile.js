@@ -59,8 +59,10 @@ export function followButton(username, isFollowing = null, { small = false, onCh
     paint();
     // Just followed (or asked to): a small bounce and one soft ring, nothing more
     if ((following || requested) && !was && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      btn.classList.remove("follow-pop"); void btn.offsetWidth;
       btn.classList.add("follow-pop");
-      setTimeout(() => btn.classList.remove("follow-pop"), 700);
+      btn.prepend(h("span", { class: "follow-check", "aria-hidden": "true", text: "✓" }));
+      setTimeout(() => { btn.classList.remove("follow-pop"); btn.querySelector(".follow-check")?.remove(); }, 1300);
     }
   });
   // Stay in sync with other follow buttons for the same person
