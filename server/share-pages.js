@@ -24,7 +24,7 @@ function page(res, { base, path, title, desc, image, imageW, imageH, video, auth
     video ? `<meta property="og:video" content="${esc(video.url)}"><meta property="og:video:secure_url" content="${esc(video.url)}"><meta property="og:video:type" content="video/mp4">${video.w ? `<meta property="og:video:width" content="${video.w}"><meta property="og:video:height" content="${video.h}">` : ""}` : "",
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(desc)}"><meta name="twitter:image" content="${esc(img)}">`,
-    `<meta name="theme-color" content="${esc(/^#[0-9a-f]{6}$/i.test(accent || "") ? accent : "#ff4fa3")}">`,
+    `<meta name="theme-color" content="#ff4fa3">`,
     `<link rel="alternate" type="application/json+oembed" href="${esc(base + "/oembed?url=" + encodeURIComponent(url))}" title="${esc(title)}">`,
     author ? `<meta name="author" content="${esc(author)}">` : "",
   ].filter(Boolean).join("\n");
@@ -44,6 +44,7 @@ ${head}
 <style>
 :root { --pink: #ff4fa3; --ink: #0d0c0c; --paper: #f5f0f0; --card: #161414; --card-2: #1f1c1c; --text: #f5f0f0; --muted: #a39b9b; --line: #2a2626; --body: "Golos Text", system-ui, sans-serif; --display: Unbounded, sans-serif; }
 body { background-color: var(--ink) !important; }
+[hidden] { display: none !important; }
 .card { position: relative; overflow: hidden; }
 .sp-banner { height: 96px; margin: -22px -22px 0; border-radius: 0; background: linear-gradient(135deg, var(--pink), #9b5cff) center / cover; }
 .sp-banner.empty { opacity: .9; }
@@ -79,7 +80,6 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
     const name = document.querySelector(".sp-name");
     if (name) applyLook(name, look);
     applyProfileLook({ avatarWrap: document.querySelector(".sp-av"), banner: document.querySelector(".sp-banner.empty"), card: null }, look);
-    if (look.accent) document.documentElement.style.setProperty("--pink", look.accent);
   </script>` : ""}
   <a class="btn" href="/?next=${next}">Open in LookBlog</a>
   <a class="btn ghost" href="/?join=1&next=${next}">Join LookBlog</a>
@@ -91,7 +91,7 @@ const initials = (u) => esc(String(u?.name || "?").trim().split(/\s+/).map((w) =
 const avatarHtml = (u) => `<div class="profile-avatar sp-av" style="--av:60px"><span class="avatar" style="--size:60px">${u?.avatar ? `<img src="${esc(u.avatar)}" alt="">` : `<span class="av-initials">${initials(u)}</span>`}</span></div>`;
 const whoHtml = (u, extra = "") => `<div class="who">${avatarHtml(u)}<div><b class="sp-name">${esc(u?.name || "Someone")}</b>${u?.verified ? ` <span class="sp-tick" title="Verified">✔</span>` : ""}<span style="display:block">@${esc(u?.username || "")}${extra}</span></div></div>`;
 // What of their look the page shows (what's on their profile anyway)
-const lookOf = (u, base) => ({ look: u?.look ? Object.fromEntries(Object.entries(u.look).filter(([k]) => ["color", "font", "effect", "emoji", "anim", "accent", "ring", "shape", "deco", "photoAnim", "banner", "frame"].includes(k))) : {}, bannerImg: u?.banner ? mediaAddress(u.banner, base) || u.banner : null });
+const lookOf = (u, base) => ({ look: u?.look ? Object.fromEntries(Object.entries(u.look).filter(([k]) => ["color", "font", "effect", "anim", "ring", "shape", "photoAnim", "banner", "frame"].includes(k))) : {}, bannerImg: u?.banner ? mediaAddress(u.banner, base) || u.banner : null });
 const avatarUrl = (u, base) => (u?.avatar ? (mediaAddress(u.avatar, base) || (u.avatar.startsWith("http") ? u.avatar : base + u.avatar)) : null);
 
 // /post/:id and /watch/:id (posts, photos, shorts and videos)
@@ -105,7 +105,7 @@ function servePostPage(req, res, id, path) {
   const video = (p.media || []).find((m) => m.kind === "video");
   const photo = (p.media || []).find((m) => m.kind === "image");
   const kind = p.film ? "movie" : p.type === "short" ? "short" : p.type === "video" ? "video" : photo ? "photo" : "post";
-  const label = { movie: "🎬 Movie", short: "📱 Short", video: "▶️ Video", photo: "📷 Photo", post: "📝 Post" }[kind];
+  const label = { movie: "Movie", short: "Short", video: "Video", photo: "Photo", post: "Post" }[kind];
   const title = p.title ? `${clip(p.title, 80)} · ${author.name}` : `${author.name} on LookBlog`;
   const desc = clip(p.text || p.title || `${label} by @${author.username}`, 200) + (p.title && p.text ? "" : "");
   const videoUrl = video && !hidden ? mediaAddress(video.url, base) : null;
