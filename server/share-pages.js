@@ -96,7 +96,6 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
 <body><div class="wrap">
   <a class="logo" href="/" aria-label="LookBlog"><span aria-hidden="true">L<span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span><span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span>k<em>Blog</em></span></a>
   <main class="card">
-  ${look !== null ? `<div class="sp-banner profile-banner${look.bannerImg ? "" : " empty"}"${look.bannerImg ? ` style="background-image:url('${esc(look.bannerImg)}')"` : ""}></div>` : ""}
   ${body}
   ${look !== null ? `<script type="module">
     import { applyLook, applyProfileLook } from "/js/components/profile-look.js";
@@ -107,7 +106,7 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
     const look = ${JSON.stringify(look.look || {}).replace(/</g, "\\u003c")};
     const name = document.querySelector(".sp-name");
     if (name) applyLook(name, look);
-    applyProfileLook({ avatarWrap: document.querySelector(".sp-av"), banner: document.querySelector(".sp-banner.empty"), card: null }, look);
+    applyProfileLook({ avatarWrap: document.querySelector(".sp-av"), card: null }, look);
   </script>` : ""}
   <a class="btn" href="/?next=${next}">Open in LookBlog</a>
   <a class="btn ghost" href="/?join=1&next=${next}">Join LookBlog</a>
