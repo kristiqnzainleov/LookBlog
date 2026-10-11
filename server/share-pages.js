@@ -48,14 +48,15 @@ body { background-color: var(--ink) !important; }
 .card { position: relative; overflow: hidden; }
 .sp-banner { height: 96px; margin: -22px -22px 0; border-radius: 0; background: linear-gradient(135deg, var(--pink), #9b5cff) center / cover; }
 .sp-banner.empty { opacity: .9; }
-.card > .logo { position: relative; z-index: 1; margin-top: -72px; margin-bottom: 40px; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.wrap { width: min(520px, 100%); display: flex; flex-direction: column; align-items: stretch; gap: 18px; }
+.sp-banner + .who { margin-top: 14px; }
 .sp-av { position: relative; width: 60px; height: 60px; flex: 0 0 auto; }
 .sp-av .avatar { width: 60px !important; height: 60px !important; border: 3px solid #161414; }
 .sp-name { font-size: 1.15rem; }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(60% 50% at 50% 0%, rgba(255,79,163,.25), transparent 70%), var(--ink); color: var(--paper); font-family: "Golos Text", system-ui, sans-serif; }
-.card { width: min(520px, 100%); padding: 22px; border-radius: 26px; background: #161414; border: 1px solid #2a2626; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
-.logo { display: block; text-align: center; font-family: Unbounded, sans-serif; font-weight: 900; font-size: 1.6rem; letter-spacing: -0.05em; color: var(--paper); text-decoration: none; margin-bottom: 16px; }
+.card { width: 100%; padding: 22px; border-radius: 26px; background: #161414; border: 1px solid #2a2626; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+.logo { display: block; text-align: center; font-family: Unbounded, sans-serif; font-weight: 900; font-size: 2.1rem; letter-spacing: -0.05em; color: var(--paper); text-decoration: none; }
 .logo em { font-style: normal; color: var(--pink); }
 .who { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .av { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--paper); color: var(--ink); display: grid; place-items: center; font: 900 1.1rem Unbounded, sans-serif; flex: 0 0 auto; }
@@ -70,9 +71,10 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
 .btn.ghost { background: transparent; color: var(--paper); box-shadow: none; border: 1px solid #3a3434; }
 .muted { color: #8a8282; font-size: .85rem; text-align: center; margin-top: 12px; }
 </style></head>
-<body><main class="card">
-  ${look !== null ? `<div class="sp-banner profile-banner${look.bannerImg ? "" : " empty"}"${look.bannerImg ? ` style="background-image:url('${esc(look.bannerImg)}')"` : ""}></div>` : ""}
+<body><div class="wrap">
   <a class="logo" href="/">Look<em>Blog</em></a>
+  <main class="card">
+  ${look !== null ? `<div class="sp-banner profile-banner${look.bannerImg ? "" : " empty"}"${look.bannerImg ? ` style="background-image:url('${esc(look.bannerImg)}')"` : ""}></div>` : ""}
   ${body}
   ${look !== null ? `<script type="module">
     import { applyLook, applyProfileLook } from "/js/components/profile-look.js";
@@ -84,7 +86,7 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
   <a class="btn" href="/?next=${next}">Open in LookBlog</a>
   <a class="btn ghost" href="/?join=1&next=${next}">Join LookBlog</a>
   <p class="muted">Follow people, not the algorithm.</p>
-</main></body></html>`);
+</main></div></body></html>`);
 }
 
 const initials = (u) => esc(String(u?.name || "?").trim().split(/\s+/).map((w) => w[0] || "").join("").slice(0, 2).toUpperCase() || "?");
