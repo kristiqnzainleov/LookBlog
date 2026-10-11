@@ -58,11 +58,34 @@ export function openShare(post) {
   const hint = post.visibility === "unlisted" ? h("p", { class: "create-hint", text: "This is unlisted: only people with this link can watch it." })
     : post.visibility === "private" ? h("p", { class: "create-hint", text: "This is private: only you can open the link." }) : null;
 
+  // Outside LookBlog: the link shows as a LookBlog post / video there (with the picture, and the video on Discord)
+  const what = post.type === "video" ? "video" : post.type === "short" ? "short" : "post";
+  const text = `${post.title || post.text?.slice(0, 80) || `A ${what} on LookBlog`}`;
+  const counted = () => { if (!post.mine) api(`/api/posts/${post.id}/share`, { method: "POST" }).catch(() => {}); };
+  const out = (label, emoji, href) => h("a", { class: "share-app", href, target: "_blank", rel: "noopener", onclick: counted }, h("span", { class: "sa-ic", text: emoji }), h("small", { text: label }));
+  const copyFor = (label, emoji) => {
+    const b = h("button", { type: "button", class: "share-app" }, h("span", { class: "sa-ic", text: emoji }), h("small", { text: label }));
+    b.addEventListener("click", async () => { if (await copyText(url)) { counted(); toast(`Link copied — paste it in ${label}.`); } });
+    return b;
+  };
+  const u = encodeURIComponent(url), t = encodeURIComponent(text);
+  const apps = h("div", { class: "share-apps" },
+    copyFor("Discord", "🎮"), copyFor("Instagram", "📸"),
+    out("WhatsApp", "🟢", `https://wa.me/?text=${t}%20${u}`),
+    matchMedia("(pointer: coarse)").matches ? out("Messenger", "💬", `fb-messenger://share?link=${u}`) : copyFor("Messenger", "💬"),
+    out("Telegram", "✈️", `https://t.me/share/url?url=${u}&text=${t}`),
+    out("Viber", "🟣", `viber://forward?text=${t}%20${u}`),
+    out("X", "✖️", `https://twitter.com/intent/tweet?url=${u}&text=${t}`),
+    out("Facebook", "📘", `https://www.facebook.com/sharer/sharer.php?u=${u}`),
+    out("Reddit", "👽", `https://www.reddit.com/submit?url=${u}&title=${t}`),
+    out("Email", "✉️", `mailto:?subject=${t}&body=${u}`));
   const note = h("input", { type: "text", class: "text-input", placeholder: "Add a message (optional)", maxlength: 500 });
   const list = h("div", { class: "conn-list" }, spinner());
   modal({ title: "Share", body: [
     h("div", { class: "share-row" }, linkBox, copyBtn, nativeBtn),
     hint,
+    post.visibility === "private" ? null : h("h3", { class: "side-title share-sub", text: "Share outside LookBlog" }),
+    post.visibility === "private" ? null : apps,
     h("h3", { class: "side-title share-sub", text: "Send in a chat" }),
     note, list,
   ] });

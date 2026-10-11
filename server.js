@@ -316,8 +316,9 @@ async function handle(req, res) {
 
     const loggedIn = Boolean(sessionUser(req));
     if (p === "/" || p === "/index.html") {
-      // Logged-in people go straight to their feed (unless they opened a password reset link)
-      if (loggedIn && !url.searchParams.has("reset") && !url.searchParams.has("add")) return redirect(res, "/feed");
+      // Logged-in people go straight to their feed (unless they opened a password reset link), or back to a shared link
+      const next = url.searchParams.get("next");
+      if (loggedIn && !url.searchParams.has("reset") && !url.searchParams.has("add")) return redirect(res, next && /^\/(post|watch|u)\/[\w@.%-]+$/.test(next) ? next : "/feed");
       return servePublic(res, "index.html");
     }
     // The admin panel: its own log in, separate from LookBlog accounts
@@ -328,6 +329,13 @@ async function handle(req, res) {
     // An invite link: "Join LookBlog" (with the logo when it's shared)
     if (/^\/join\/[a-z0-9]{4,12}$/i.test(p)) return serveJoinPage(req, res, p.slice(6));
     if (/^\/doodle\/[a-z]+(?:_[a-z]+)?-\d{1,10}\.svg$/.test(p)) return require("./server/doodles").serveDoodle(res, p.slice(8));
+    // A post, video, short or profile shared outside LookBlog: a preview page (for link previews and people without an account)
+    if (!loggedIn) {
+      const sp = require("./server/share-pages");
+      let m;
+      if ((m = p.match(/^\/(post|watch)\/([\w-]+)$/))) return sp.servePostPage(req, res, m[2], p);
+      if ((m = p.match(/^\/u\/([^/]+)$/))) return sp.serveProfilePage(req, res, decodeURIComponent(m[1]), p);
+    }
     if (APP_PAGES.some((re) => re.test(p))) {
       if (!loggedIn) return redirect(res, "/");
       return servePublic(res, "app.html");

@@ -1,3 +1,5 @@
+// After logging in from a shared link: back to that post, video or profile
+const NEXT = (() => { const n = new URLSearchParams(location.search).get("next"); return n && /^\/(post|watch|u)\/[\w@.%-]+$/.test(n) ? n : "/feed"; })();
 /* =========================================================
    LookBlog front end: pop-ups, watching eyes, log in, sign up
    ========================================================= */
@@ -106,7 +108,7 @@ function finishAuth(formEl, successEl, textEl, text) {
   formEl.hidden = true;
   textEl.textContent = text;
   successEl.hidden = false;
-  setTimeout(() => location.assign("/feed"), 900);
+  setTimeout(() => location.assign(NEXT), 900);
 }
 
 /* ---------- Log in ---------- */
@@ -290,7 +292,7 @@ resetForm.addEventListener("submit", async (e) => {
     });
     resetForm.hidden = true;
     $("resetSuccess").hidden = false;
-    setTimeout(() => location.assign("/feed"), 1200);
+    setTimeout(() => location.assign(NEXT), 1200);
   } catch (err) {
     if (err.errors?.password) setError(input, $("rpPasswordError"), err.errors.password);
     else showFormError($("resetError"), err.error || "Something went wrong. Try again.");
@@ -319,7 +321,7 @@ $("codeForm").addEventListener("submit", async (e) => {
   setBusy(btn, true, "Checking…");
   try {
     await api("/api/login/code", { method: "POST", body: JSON.stringify({ ticket: codeTicket, code }) });
-    location.assign("/feed");
+    location.assign(NEXT);
   } catch (err) {
     setError(input, $("tfaError"), err.error || "That code isn’t right.");
     shake($("codeCard"));

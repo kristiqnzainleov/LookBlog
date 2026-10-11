@@ -234,4 +234,11 @@ function serveMedia(req, res, name) {
   fs.createReadStream(file).pipe(res);
 }
 
-module.exports = { handleUpload, startUpload, finishUpload, ownedMedia, markUsed, deleteMedia, serveMedia };
+// A file's full address for other sites (link previews): the storage address online, ours locally
+function mediaAddress(url, base) {
+  const name = String(url || "").replace(/^\/media\//, "");
+  if (!NAME_RE.test(name) || !db.uploads[name]) return null;
+  return store.enabled ? publicUrl(name) : base + "/media/" + name;
+}
+
+module.exports = { mediaAddress, handleUpload, startUpload, finishUpload, ownedMedia, markUsed, deleteMedia, serveMedia };

@@ -7023,3 +7023,10 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .bubble:has(> .vinyl-card) { padding: 4px !important; background: transparent !important; box-shadow: none !important; }
 @media (prefers-reduced-motion: reduce) { .vinyl-disc { animation: none !important; } }
 .badge-strip .badge-all { white-space: nowrap; flex-shrink: 0; } @media (max-width: 640px) { .badge-strip { gap: 6px !important; } .badge-strip .badge-label { font-size: 0.66rem; } .badge-strip .badge-all { padding-left: 10px; padding-right: 10px; font-size: 0.78rem; } }
+/* Share: apps outside LookBlog */
+.share-apps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+.share-app { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); text-decoration: none; cursor: pointer; font: inherit; }
+.share-app:hover { border-color: var(--pink); }
+.share-app .sa-ic { font-size: 1.4rem; line-height: 1; }
+.share-app small { font-size: 0.68rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+@media (max-width: 420px) { .share-apps { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
