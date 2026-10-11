@@ -18,6 +18,20 @@ import { isMe, postHref, navigate } from "../router.js";
 import { watchHref, trackImpression } from "../components/post.js";
 import { songList, playSongs, openUploadSong, albumCard, openAlbumForm } from "../components/music.js";
 
+// A light puff of confetti from a button (on the page, so nothing cuts it off)
+function followConfetti(btn) {
+  const r = btn.getBoundingClientRect();
+  const colors = ["#ff4fa3", "#ff8cc6", "#ffd166", "#66d1ff", "#5fe0b0", "#fff"];
+  const layer = h("div", { class: "follow-confetti", "aria-hidden": "true", style: `left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px` },
+    ...Array.from({ length: 16 }, (_, i) => {
+      const a = (-160 + (140 * i) / 15 + (Math.random() * 10 - 5)) * (Math.PI / 180); // spread upwards
+      const d = 34 + Math.random() * 30;
+      return h("i", { style: `--x:${Math.cos(a) * d}px;--y:${Math.sin(a) * d}px;--r:${Math.random() * 540 - 270}deg;--c:${colors[i % colors.length]};--t:${0.75 + Math.random() * 0.35}s` + (i % 3 === 0 ? ";border-radius:50%;width:5px;height:5px" : "") });
+    }));
+  document.body.append(layer);
+  setTimeout(() => layer.remove(), 1300);
+}
+
 /* ---------- Follow button (used on profiles, shorts, search, suggestions) ---------- */
 export function followButton(username, isFollowing = null, { small = false, onChange, requested: req = false } = {}) {
   const btn = h("button", { class: "btn " + (small ? "btn-xs" : "btn-sm") });
@@ -57,12 +71,9 @@ export function followButton(username, isFollowing = null, { small = false, onCh
     }
     btn.disabled = false;
     paint();
-    // Just followed (or asked to): a small bounce and one soft ring, nothing more
+    // Just followed (or asked to): a little confetti
     if ((following || requested) && !was && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      btn.classList.remove("follow-pop"); void btn.offsetWidth;
-      btn.classList.add("follow-pop");
-      btn.prepend(h("span", { class: "follow-check", "aria-hidden": "true", text: "✓" }));
-      setTimeout(() => { btn.classList.remove("follow-pop"); btn.querySelector(".follow-check")?.remove(); }, 1300);
+      followConfetti(btn);
     }
   });
   // Stay in sync with other follow buttons for the same person
