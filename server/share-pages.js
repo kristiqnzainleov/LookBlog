@@ -58,6 +58,28 @@ body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding
 .card { width: 100%; padding: 22px; border-radius: 26px; background: #161414; border: 1px solid #2a2626; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
 .logo { display: block; text-align: center; font-family: Unbounded, sans-serif; font-weight: 900; font-size: 2.1rem; letter-spacing: -0.05em; color: var(--paper); text-decoration: none; }
 .logo em { font-style: normal; color: var(--pink); }
+.logo { line-height: 1; user-select: none; }
+.eye { --close: 0; position: relative; display: inline-block; width: 0.6em; height: 0.6em; margin: 0 0.035em; border-radius: 50%; background: var(--paper); vertical-align: -0.02em; overflow: hidden; isolation: isolate; }
+.pupil { position: absolute; left: 50%; top: 50%; width: 0.27em; height: 0.27em; border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%); will-change: transform; }
+.pupil::after { content: ""; position: absolute; top: 18%; left: 22%; width: 28%; height: 28%; border-radius: 50%; background: var(--paper); }
+.lid { position: absolute; left: -5%; width: 110%; background: #ddd3c5; transition: transform 0.22s cubic-bezier(0.45, 0, 0.25, 1); }
+.lid-top { top: 0; height: 58%; z-index: 2; border-bottom: 0.035em solid var(--ink); border-radius: 0 0 50% 50% / 0 0 38% 38%; transform: translateY(calc((var(--close) - 1) * 104%)); }
+.lid-bottom { bottom: 0; height: 50%; z-index: 1; border-top: 0.02em solid var(--ink); border-radius: 50% 50% 0 0 / 22% 22% 0 0; transform: translateY(calc((1 - var(--close)) * 104%)); }
+.eye.blink { --close: 1; } .eye.blink .lid { transition-duration: 0.09s; }
+.logo { position: relative; display: block; width: fit-content; margin: 0 auto; }
+.logo.asleep .eye { --close: 1; }
+.logo.asleep .lid { transition-duration: 1.4s; transition-timing-function: ease-in; }
+.logo.waking .eye { animation: eyeWake 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes eyeWake { 0% { transform: scale(0.9); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.zzz { position: absolute; left: 100%; top: -0.2em; pointer-events: none; font-family: Unbounded, sans-serif; font-weight: 900; color: var(--pink); font-size: 0.42em; line-height: 1; }
+.zzz i { position: absolute; font-style: normal; opacity: 0; }
+.logo.asleep .zzz i { animation: zFloat 3s ease-in-out infinite; }
+.logo.asleep .zzz i:nth-child(2) { animation-delay: 1s; font-size: 1.25em; }
+.logo.asleep .zzz i:nth-child(3) { animation-delay: 2s; font-size: 1.55em; }
+@keyframes zFloat { 0% { opacity: 0; transform: translate(0, 0.4em) rotate(-10deg); } 20% { opacity: 1; } 80% { opacity: 0.9; } 100% { opacity: 0; transform: translate(1.4em, -1.6em) rotate(12deg); } }
+.who b.sp-name { display: inline; }
+.sp-tick { display: inline-flex; vertical-align: -3px; margin-left: 4px; }
+.sp-tick svg { width: 20px; height: 20px; }
 .who { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .av { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--paper); color: var(--ink); display: grid; place-items: center; font: 900 1.1rem Unbounded, sans-serif; flex: 0 0 auto; }
 .who b { display: block; } .who span { color: #a39b9b; font-size: .9rem; }
@@ -72,12 +94,16 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
 .muted { color: #8a8282; font-size: .85rem; text-align: center; margin-top: 12px; }
 </style></head>
 <body><div class="wrap">
-  <a class="logo" href="/">Look<em>Blog</em></a>
+  <a class="logo" href="/" aria-label="LookBlog"><span aria-hidden="true">L<span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span><span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span>k<em>Blog</em></span></a>
   <main class="card">
   ${look !== null ? `<div class="sp-banner profile-banner${look.bannerImg ? "" : " empty"}"${look.bannerImg ? ` style="background-image:url('${esc(look.bannerImg)}')"` : ""}></div>` : ""}
   ${body}
   ${look !== null ? `<script type="module">
     import { applyLook, applyProfileLook } from "/js/components/profile-look.js";
+    import { tick } from "/js/ui.js";
+    // The same verification tick as on LookBlog (its kind: creator, artist, rapper…)
+    const t = document.querySelector(".sp-tick");
+    if (t) { const svg = tick({ verified: true, verifiedType: t.dataset.type }, 20); if (svg) t.replaceChildren(svg); }
     const look = ${JSON.stringify(look.look || {}).replace(/</g, "\\u003c")};
     const name = document.querySelector(".sp-name");
     if (name) applyLook(name, look);
@@ -86,12 +112,13 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
   <a class="btn" href="/?next=${next}">Open in LookBlog</a>
   <a class="btn ghost" href="/?join=1&next=${next}">Join LookBlog</a>
   <p class="muted">Follow people, not the algorithm.</p>
-</main></div></body></html>`);
+</main></div>
+<script src="/eyes.js" defer></script></body></html>`);
 }
 
 const initials = (u) => esc(String(u?.name || "?").trim().split(/\s+/).map((w) => w[0] || "").join("").slice(0, 2).toUpperCase() || "?");
 const avatarHtml = (u) => `<div class="profile-avatar sp-av" style="--av:60px"><span class="avatar" style="--size:60px">${u?.avatar ? `<img src="${esc(u.avatar)}" alt="">` : `<span class="av-initials">${initials(u)}</span>`}</span></div>`;
-const whoHtml = (u, extra = "") => `<div class="who">${avatarHtml(u)}<div><b class="sp-name">${esc(u?.name || "Someone")}</b>${u?.verified ? ` <span class="sp-tick" title="Verified">✔</span>` : ""}<span style="display:block">@${esc(u?.username || "")}${extra}</span></div></div>`;
+const whoHtml = (u, extra = "") => `<div class="who">${avatarHtml(u)}<div><b class="sp-name">${esc(u?.name || "Someone")}</b>${u?.verified ? `<span class="sp-tick" title="Verified" data-type="${esc(u.verifiedType || "creator")}">✔</span>` : ""}<span style="display:block">@${esc(u?.username || "")}${extra}</span></div></div>`;
 // What of their look the page shows (what's on their profile anyway)
 const lookOf = (u, base) => ({ look: u?.look ? Object.fromEntries(Object.entries(u.look).filter(([k]) => ["color", "font", "effect", "anim", "ring", "shape", "photoAnim", "banner", "frame"].includes(k))) : {}, bannerImg: u?.banner ? mediaAddress(u.banner, base) || u.banner : null });
 const avatarUrl = (u, base) => (u?.avatar ? (mediaAddress(u.avatar, base) || (u.avatar.startsWith("http") ? u.avatar : base + u.avatar)) : null);
