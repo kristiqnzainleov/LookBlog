@@ -37,6 +37,7 @@ export function followButton(username, isFollowing = null, { small = false, onCh
   btn.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    const was = following || requested;
     btn.disabled = true;
     try {
       const { profile } = await api(`/api/users/${encodeURIComponent(username)}/follow`, { method: "POST" });
@@ -56,6 +57,11 @@ export function followButton(username, isFollowing = null, { small = false, onCh
     }
     btn.disabled = false;
     paint();
+    // Just followed (or asked to): a small bounce and one soft ring, nothing more
+    if ((following || requested) && !was && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      btn.classList.add("follow-pop");
+      setTimeout(() => btn.classList.remove("follow-pop"), 700);
+    }
   });
   // Stay in sync with other follow buttons for the same person
   const off = on("following:changed", (ev) => {

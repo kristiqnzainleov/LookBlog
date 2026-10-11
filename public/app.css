@@ -7191,3 +7191,7 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .reply.mine-new { animation: replyIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), replyGlow 1.6s ease-out; }
 @keyframes replyIn { from { opacity: 0; transform: translateY(18px) scale(0.96); } }
 @keyframes replyGlow { 0%, 30% { box-shadow: 0 0 0 2px var(--pink), 0 0 22px rgba(255, 79, 163, 0.45); } 100% { box-shadow: 0 0 0 0 transparent; } }
+/* Follow: a small bounce and one soft pink ring */
+.follow-pop { animation: followPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), followRing 0.7s ease-out; }
+@keyframes followPop { 0% { transform: scale(1); } 35% { transform: scale(0.94); } 70% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes followRing { 0% { box-shadow: 0 0 0 0 rgba(255, 79, 163, 0.55); } 100% { box-shadow: 0 0 0 10px rgba(255, 79, 163, 0); } }
