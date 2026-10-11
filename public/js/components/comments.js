@@ -1,6 +1,6 @@
 // Replies under a post. People answer publicly with text, a photo or a video,
 // react to replies with emoji, and answer each other in threads (one level deep).
-import { h, icon, avatar, timeEl, toast, confirmClick, plural, richText, tick, linkTimes, fmtTime } from "../ui.js";
+import { h, icon, avatar, timeEl, toast, confirmClick, plural, richText, tick, linkTimes, fmtTime, likeAnim, sentAnim } from "../ui.js";
 import { attachMentions } from "./mentions.js";
 import { api } from "../api.js";
 import { state, on, emit } from "../state.js";
@@ -183,11 +183,14 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
     setHeading();
   }
 
-  function add(c, { animate = false } = {}) {
+  // The reply count on the post pops when you reply
+  const bumpCount = () => document.querySelectorAll(`.act-comment[href*="${post.id}"]`).forEach((b) => likeAnim(b, { comment: true }));
+  function add(c, { animate = false, mine = false } = {}) {
     if (ids.has(c.id)) return;
     ids.add(c.id);
     const el = commentEl(c, { onReply: (x) => setReplying(x), onGif: (g, x) => sendGif(g, x), onRemoved: remove, post });
     if (animate) el.classList.add("new");
+    if (mine) { el.classList.add("mine-new"); setTimeout(() => el.classList.remove("mine-new"), 1600); bumpCount(); }
     if (c.parentId && threads.has(c.parentId)) {
       threads.get(c.parentId).replies.append(el);
       const top = threads.get(c.parentId).el.querySelector(":scope > .reply")._comment;
@@ -226,7 +229,7 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
   async function sendGif(g, to = replying) {
     try {
       const { comment } = await api(`/api/posts/${post.id}/comments`, { method: "POST", body: { text: to === replying ? text.value : "", ...gifBody(g), parentId: to?.id || null } });
-      add(comment, { animate: true });
+      add(comment, { animate: true, mine: true });
       if (to === replying) { text.value = ""; text.style.height = ""; setReplying(null); }
     } catch (ex) { showErr(ex.error || "Couldn’t send the GIF."); toast(ex.error || "Couldn’t send the GIF."); }
   }
@@ -240,7 +243,7 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
   async function sendExtra(body, what) {
     try {
       const { comment } = await api(`/api/posts/${post.id}/comments`, { method: "POST", body: { text: text.value, ...body, parentId: replying?.id || null } });
-      add(comment, { animate: true });
+      add(comment, { animate: true, mine: true });
       text.value = ""; text.style.height = ""; setReplying(null);
     } catch (ex) { showErr(ex.error || `Couldn’t send the ${what}.`); }
   }
@@ -297,7 +300,7 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
       const media = picker.media()[0] || null;
       const at = atChip && atOn && !replying ? getTime() : undefined;
       const { comment } = await api(`/api/posts/${post.id}/comments`, { method: "POST", body: { text: text.value, media, parentId: replying?.id || null, at } });
-      add(comment, { animate: true });
+      add(comment, { animate: true, mine: true });
       if (comment.at != null) onTimed?.(comment);
       text.value = "";
       text.style.height = "";
@@ -305,8 +308,11 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
       setReplying(null);
     } catch (ex) {
       showErr(ex.error || "Couldn’t post your reply.");
+      update();
+      return;
     }
     update();
+    sentAnim(submit);
   });
 
   /* Live updates */

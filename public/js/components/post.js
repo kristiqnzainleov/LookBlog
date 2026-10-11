@@ -245,7 +245,7 @@ export function actions(p, { onDeleted, big = false } = {}) {
     p.reposts = (p.reposts || 0) + (p.reposted ? 1 : -1);
     paintRepost();
   if (p.visibility && p.visibility !== "public") repost.hidden = true; // only public things can be reposted
-    if (p.reposted) { repost.classList.remove("pop"); void repost.offsetWidth; repost.classList.add("pop"); }
+    if (p.reposted) likeAnim(repost, { repost: true });
     try {
       const r = await api(`/api/posts/${p.id}/repost`, { method: "POST", body: { repost: p.reposted } });
       Object.assign(p, { reposted: r.reposted, reposts: r.reposts });

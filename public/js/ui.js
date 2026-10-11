@@ -493,19 +493,36 @@ export function phoneSheet(panel, close, scroller = null) {
 
 // Liking: the icon pops up big with a little burst around it.
 // music: like YouTube — first it turns into a music note that grows, then back into the like.
-export function likeAnim(btn, { music = false, dislike = false } = {}) {
+export function likeAnim(btn, { music = false, dislike = false, repost = false, comment = false } = {}) {
   if (!btn || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   btn.querySelectorAll(".la-note, .la-burst").forEach((x) => x.remove());
   btn.classList.remove("la-pop", "la-music", "la-down");
   void btn.offsetWidth;
   btn.classList.add("la-host", music ? "la-music" : "la-pop");
   btn.classList.toggle("la-dis", dislike);
+  btn.classList.toggle("la-rep", repost);
+  btn.classList.toggle("la-com", comment);
   if (dislike) btn.classList.add("la-down");
+  if (repost) btn.classList.add("la-spin");
   const svg = btn.querySelector("svg");
   // Center the note and the burst on the icon
   if (svg) { const r = svg.getBoundingClientRect(), b = btn.getBoundingClientRect(); btn.style.setProperty("--la-x", `${r.left - b.left - btn.clientLeft + r.width / 2}px`); btn.style.setProperty("--la-y", `${r.top - b.top - btn.clientTop + r.height / 2}px`); }
   const anchor = h("span", { class: "la-burst", "aria-hidden": "true" }, ...Array.from({ length: 8 }, (_, i) => h("i", { style: `--a:${i * 45}deg;--d:${i % 2 ? 18 : 24}px`, text: music ? (i % 2 ? "♪" : "♫") : "" })));
   if (svg) svg.after(anchor); else btn.prepend(anchor);
   if (music) { const note = h("span", { class: "la-note", "aria-hidden": "true", text: "♫" }); anchor.after(note); }
-  setTimeout(() => { btn.classList.remove("la-pop", "la-music", "la-down"); anchor.remove(); btn.querySelector(".la-note")?.remove(); }, music ? 1100 : 750);
+  setTimeout(() => { btn.classList.remove("la-pop", "la-music", "la-down", "la-spin"); anchor.remove(); btn.querySelector(".la-note")?.remove(); }, music ? 1100 : 750);
+}
+
+// Sent a reply: the button says so and a speech bubble flies up from it
+export function sentAnim(btn, label = "Sent ✓") {
+  if (!btn) return;
+  const was = btn.textContent;
+  btn.textContent = label;
+  btn.classList.remove("sent-pop"); void btn.offsetWidth; btn.classList.add("sent-pop", "la-host");
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const fly = h("span", { class: "sent-fly", "aria-hidden": "true", text: "💬" });
+    btn.append(fly);
+    setTimeout(() => fly.remove(), 900);
+  }
+  setTimeout(() => { btn.classList.remove("sent-pop"); if (btn.textContent.startsWith(label)) btn.textContent = was; }, 1100);
 }
