@@ -219,8 +219,9 @@ addEventListener("scroll", hideTickTip, { passive: true, capture: true });
 
 /* ---------- Avatars ---------- */
 function initials(name) {
-  const parts = String(name || "").trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || "?";
+  // Whole characters (an emoji is two code units), skipping words that start with an emoji like "🤖 Rosie"
+  const parts = String(name || "").trim().split(/\s+/).filter((w) => /^[\p{L}\p{N}]/u.test(w));
+  return ((parts[0] ? [...parts[0]][0] : "") + (parts[1] ? [...parts[1]][0] : "")).toUpperCase() || "?";
 }
 function tone(username) {
   let n = 0;

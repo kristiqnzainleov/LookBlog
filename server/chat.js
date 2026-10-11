@@ -33,6 +33,10 @@ function recordResult(g) {
     u.gamesFinished = (u.gamesFinished || 0) + 1;
     if (g.card) u.cardGames = (u.cardGames || 0) + 1;
     if (winners.includes(id)) { u.gameWins = (u.gameWins || 0) + 1; if (g.card) u.cardWins = (u.cardWins || 0) + 1; }
+    // Per game: played and won (for the game badges)
+    const gs = (u.gameStats ||= {})[g.type] ||= { p: 0, w: 0 };
+    gs.p++;
+    if (winners.includes(id)) gs.w++;
   }
   save("users");
 }

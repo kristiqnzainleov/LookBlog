@@ -589,7 +589,7 @@ const belot = {
   over: (s) => (s.winner !== null ? { winner: s.winner, team: true } : null),
 };
 
-const CARD_GAMES = { poker, blackjack, santase, uno, belot, ...require("./party") }; // + DOS and the drawing/story party games
+const CARD_GAMES = { poker, blackjack, santase, uno, belot, ...require("./party"), ...require("./cards2") }; // + DOS and the drawing/story party games
 
 /* ======================= Bots ======================= */
 // Who has to do something right now (so a bot in that seat can move)

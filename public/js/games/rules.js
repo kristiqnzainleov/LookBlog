@@ -170,9 +170,163 @@ export function c4Status(s) {
   return { over: false };
 }
 
+/* ---------- Reversi / Othello (8×8, D = dark moves first, L = light) ---------- */
+const DIRS8 = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+export function reversiStart() { const cells = Array(64).fill(null); cells[27] = "L"; cells[28] = "D"; cells[35] = "D"; cells[36] = "L"; return { cells, turn: "D", last: null, passed: false }; }
+function reversiFlips(cells, i, side) {
+  if (cells[i]) return [];
+  const r0 = Math.floor(i / 8), c0 = i % 8, foe = side === "D" ? "L" : "D", out = [];
+  for (const [dr, dc] of DIRS8) {
+    const line = [];
+    let r = r0 + dr, c = c0 + dc;
+    while (r >= 0 && r < 8 && c >= 0 && c < 8 && cells[r * 8 + c] === foe) { line.push(r * 8 + c); r += dr; c += dc; }
+    if (line.length && r >= 0 && r < 8 && c >= 0 && c < 8 && cells[r * 8 + c] === side) out.push(...line);
+  }
+  return out;
+}
+export const reversiMoves = (s, side = s.turn) => s.cells.map((_, i) => (reversiFlips(s.cells, i, side).length ? i : -1)).filter((i) => i >= 0);
+export function reversiMove(s, { cell }) {
+  if (!Number.isInteger(cell) || cell < 0 || cell > 63) return null;
+  const flips = reversiFlips(s.cells, cell, s.turn);
+  if (!flips.length) return null;
+  const cells = s.cells.slice(); cells[cell] = s.turn; for (const f of flips) cells[f] = s.turn;
+  const other = s.turn === "D" ? "L" : "D";
+  const next = { cells, turn: other, last: cell, flipped: flips, passed: false };
+  if (!reversiMoves(next, other).length && reversiMoves(next, s.turn).length) { next.turn = s.turn; next.passed = true; } // they can't move: you go again
+  return next;
+}
+export function reversiStatus(s) {
+  const d = s.cells.filter((x) => x === "D").length, l = s.cells.filter((x) => x === "L").length;
+  if (reversiMoves(s, "D").length || reversiMoves(s, "L").length) return { over: false, score: { D: d, L: l } };
+  return { over: true, result: `${d}–${l}`, winner: d > l ? "D" : l > d ? "L" : null, score: { D: d, L: l } };
+}
+
+/* ---------- Gomoku: five in a row on a 15×15 board ---------- */
+export const gomokuStart = () => ({ cells: Array(225).fill(null), turn: "X", last: null });
+export function gomokuMove(s, { cell }) {
+  if (!Number.isInteger(cell) || cell < 0 || cell > 224 || s.cells[cell]) return null;
+  const cells = s.cells.slice(); cells[cell] = s.turn;
+  return { cells, turn: s.turn === "X" ? "O" : "X", last: cell };
+}
+export function gomokuStatus(s) {
+  const get = (r, c) => (r >= 0 && r < 15 && c >= 0 && c < 15 ? s.cells[r * 15 + c] : null);
+  if (s.last != null) {
+    const r0 = Math.floor(s.last / 15), c0 = s.last % 15, v = s.cells[s.last];
+    for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+      const line = [[r0, c0]];
+      for (const k of [1, -1]) { let r = r0 + dr * k, c = c0 + dc * k; while (get(r, c) === v) { line.push([r, c]); r += dr * k; c += dc * k; } }
+      if (line.length >= 5) return { over: true, result: "five in a row", winner: v, line: line.map(([r, c]) => r * 15 + c) };
+    }
+  }
+  if (s.cells.every(Boolean)) return { over: true, result: "draw", winner: null };
+  return { over: false };
+}
+
+/* ---------- Dots and boxes: 4×4 boxes; finish a box and you go again ---------- */
+const DB = 4;
+export const dotsStart = () => ({ h: Array((DB + 1) * DB).fill(null), v: Array(DB * (DB + 1)).fill(null), boxes: Array(DB * DB).fill(null), turn: "A", last: null });
+const boxDone = (s, b) => { const r = Math.floor(b / DB), c = b % DB; return s.h[r * DB + c] && s.h[(r + 1) * DB + c] && s.v[r * (DB + 1) + c] && s.v[r * (DB + 1) + c + 1]; };
+export function dotsMove(s, { kind, i }) {
+  const list = kind === "h" ? s.h : kind === "v" ? s.v : null;
+  if (!list || !Number.isInteger(i) || i < 0 || i >= list.length || list[i]) return null;
+  const next = { h: s.h.slice(), v: s.v.slice(), boxes: s.boxes.slice(), turn: s.turn, last: { kind, i } };
+  next[kind][i] = s.turn;
+  let made = 0;
+  for (let b = 0; b < DB * DB; b++) if (!next.boxes[b] && boxDone(next, b)) { next.boxes[b] = s.turn; made++; }
+  if (!made) next.turn = s.turn === "A" ? "B" : "A";
+  return next;
+}
+export function dotsStatus(s) {
+  const a = s.boxes.filter((x) => x === "A").length, b = s.boxes.filter((x) => x === "B").length;
+  if (s.boxes.every(Boolean)) return { over: true, result: `${a}–${b}`, winner: a > b ? "A" : b > a ? "B" : null, score: { A: a, B: b } };
+  return { over: false, score: { A: a, B: b } };
+}
+
+/* ---------- Checkers (draughts): r = red (bottom, moves up), k = black; capitals are kings. Captures are a must. ---------- */
+export function checkersStart() {
+  const cells = Array(64).fill(null);
+  for (let i = 0; i < 64; i++) { const r = Math.floor(i / 8), c = i % 8; if ((r + c) % 2) { if (r < 3) cells[i] = "k"; else if (r > 4) cells[i] = "r"; } }
+  return { cells, turn: "r", last: null, chain: null, quiet: 0 };
+}
+const own = (p, side) => p && p.toLowerCase() === side;
+function pieceMoves(cells, i, side) {
+  const p = cells[i]; if (!own(p, side)) return { steps: [], jumps: [] };
+  const r = Math.floor(i / 8), c = i % 8, king = p === p.toUpperCase();
+  const dirs = king ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] : side === "r" ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]];
+  const steps = [], jumps = [];
+  for (const [dr, dc] of dirs) {
+    const r1 = r + dr, c1 = c + dc, r2 = r + 2 * dr, c2 = c + 2 * dc;
+    if (r1 < 0 || r1 > 7 || c1 < 0 || c1 > 7) continue;
+    const mid = cells[r1 * 8 + c1];
+    if (!mid) steps.push(r1 * 8 + c1);
+    else if (!own(mid, side) && r2 >= 0 && r2 <= 7 && c2 >= 0 && c2 <= 7 && !cells[r2 * 8 + c2]) jumps.push({ to: r2 * 8 + c2, over: r1 * 8 + c1 });
+  }
+  return { steps, jumps };
+}
+export function checkersMoves(s) {
+  const side = s.turn, all = [];
+  const from = s.chain != null ? [s.chain] : s.cells.map((_, i) => i);
+  let anyJump = false;
+  for (const i of from) { const m = pieceMoves(s.cells, i, side); if (m.jumps.length) anyJump = true; all.push([i, m]); }
+  const out = [];
+  for (const [i, m] of all) {
+    if (anyJump) for (const j of m.jumps) out.push({ from: i, to: j.to, over: j.over });
+    else if (s.chain == null) for (const t of m.steps) out.push({ from: i, to: t });
+  }
+  return out;
+}
+export function checkersMove(s, { from, to }) {
+  const mv = checkersMoves(s).find((m) => m.from === from && m.to === to);
+  if (!mv) return null;
+  const cells = s.cells.slice();
+  let p = cells[from]; cells[from] = null;
+  if (mv.over != null) cells[mv.over] = null;
+  const row = Math.floor(to / 8);
+  const crowned = p === p.toLowerCase() && ((p === "r" && row === 0) || (p === "k" && row === 7));
+  if (crowned) p = p.toUpperCase();
+  cells[to] = p;
+  const next = { cells, turn: s.turn, last: { from, to, over: mv.over ?? null }, chain: null, quiet: mv.over != null ? 0 : (s.quiet || 0) + 1 };
+  // Another jump with the same piece? Then it's still your turn (not after being crowned)
+  if (mv.over != null && !crowned && pieceMoves(cells, to, s.turn).jumps.length) next.chain = to;
+  else next.turn = s.turn === "r" ? "k" : "r";
+  return next;
+}
+export function checkersStatus(s) {
+  if ((s.quiet || 0) >= 80) return { over: true, result: "draw (80 moves without a capture)", winner: null };
+  if (!checkersMoves(s).length) { const win = s.turn === "r" ? "k" : "r"; return { over: true, result: "no moves left", winner: win }; }
+  return { over: false };
+}
+
+/* ---------- Mancala (Kalah): pits 0–5 + store 6 are South, 7–12 + store 13 North; 4 seeds each ---------- */
+export const mancalaStart = () => ({ pits: [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0], turn: "S", last: null });
+export function mancalaMove(s, { pit }) {
+  const mine = s.turn === "S" ? [0, 1, 2, 3, 4, 5] : [7, 8, 9, 10, 11, 12], store = s.turn === "S" ? 6 : 13, foeStore = s.turn === "S" ? 13 : 6;
+  if (!mine.includes(pit) || !s.pits[pit]) return null;
+  const pits = s.pits.slice();
+  let seeds = pits[pit], i = pit; pits[pit] = 0;
+  while (seeds) { i = (i + 1) % 14; if (i === foeStore) continue; pits[i]++; seeds--; }
+  let turn = s.turn === "S" ? "N" : "S";
+  if (i === store) turn = s.turn; // last seed in your store: go again
+  else if (mine.includes(i) && pits[i] === 1 && pits[12 - i]) { pits[store] += pits[12 - i] + 1; pits[i] = 0; pits[12 - i] = 0; } // capture
+  // One side empty: the rest go to their owners and the game ends
+  const south = pits.slice(0, 6).reduce((a, b) => a + b, 0), north = pits.slice(7, 13).reduce((a, b) => a + b, 0);
+  if (!south || !north) { pits[6] += south; pits[13] += north; for (const k of [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12]) pits[k] = 0; }
+  return { pits, turn, last: pit };
+}
+export function mancalaStatus(s) {
+  const done = s.pits.slice(0, 6).every((x) => !x) && s.pits.slice(7, 13).every((x) => !x);
+  if (!done) return { over: false, score: { S: s.pits[6], N: s.pits[13] } };
+  return { over: true, result: `${s.pits[6]}–${s.pits[13]}`, winner: s.pits[6] > s.pits[13] ? "S" : s.pits[13] > s.pits[6] ? "N" : null, score: { S: s.pits[6], N: s.pits[13] } };
+}
+
 /* ---------- One interface for all games ---------- */
 export const GAMES = {
   chess: { name: "Chess", emoji: "♟️", sides: ["w", "b"], start: chessStart, move: chessMove, status: chessStatus },
   ttt: { name: "Tic-tac-toe", emoji: "⭕", sides: ["X", "O"], start: tttStart, move: tttMove, status: tttStatus },
   c4: { name: "Connect four", emoji: "🔴", sides: ["R", "Y"], start: c4Start, move: c4Move, status: c4Status },
+  reversi: { name: "Reversi", emoji: "⚫", desc: "Othello: trap their discs between yours to flip them. Most discs wins.", sides: ["D", "L"], start: reversiStart, move: reversiMove, status: reversiStatus },
+  gomoku: { name: "Gomoku", emoji: "⚪", desc: "Five in a row on a big board. Block them while you build yours.", sides: ["X", "O"], start: gomokuStart, move: gomokuMove, status: gomokuStatus },
+  dots: { name: "Dots & Boxes", emoji: "🔲", desc: "Draw lines; close a box and you go again. Most boxes wins.", sides: ["A", "B"], start: dotsStart, move: dotsMove, status: dotsStatus },
+  checkers: { name: "Checkers", emoji: "🏁", desc: "Draughts: jump their pieces (you must), reach the end to be crowned king.", sides: ["r", "k"], start: checkersStart, move: checkersMove, status: checkersStatus },
+  mancala: { name: "Mancala", emoji: "🥣", desc: "Sow the seeds around the board; end in your store to go again. Most seeds wins.", sides: ["S", "N"], start: mancalaStart, move: mancalaMove, status: mancalaStatus },
 };

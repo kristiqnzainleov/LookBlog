@@ -11,6 +11,13 @@ export const CARD_LIST = [
   ["uno", "🟥", "UNO", "2–8 players. Match colour or number, +2, +4, skip."],
   ["belot", "🎴", "Belot", "Белот for 4 in two teams. Bid, declare, play to 151."],
   ["dos", "🟦", "DOS", "UNO’s sequel for 2–8. Match the middle cards by number — or two cards that add up."],
+  ["crazy8", "🎱", "Crazy Eights", "2–6 players. Match the suit or rank — eights are wild."],
+  ["gofish", "🐟", "Go Fish", "2–6 players. Ask for ranks, collect books of four."],
+  ["peter", "🃏", "Black Peter", "Черен Петър for 2–6. Pair up — don’t get stuck with the Q♠!"],
+  ["hearts", "♥️", "Hearts", "4 players. Dodge the hearts and the Q♠ — or shoot the moon."],
+  ["hilo", "📈", "Higher or Lower", "1–8 players. Guess if the next card is higher or lower."],
+  ["war", "⚔️", "War", "Война for 2. Flip — the higher card takes both. Ties mean war!"],
+  ["baccarat", "🎰", "Baccarat", "1–8 players. Bet on Player, Banker or Tie — closest to 9."],
 ];
 // Party games: drawing and stories, with a replay at the end
 export const PARTY_LIST = [
@@ -349,7 +356,76 @@ export function cardGameView(chatId, messageId, game, { big = false, onOpenBig }
     b.addEventListener("click", () => { if (!armed) { armed = true; b.textContent = "Sure? Click again"; setTimeout(() => { armed = false; b.textContent = text; }, 3000); } else action(); });
     return b;
   };
-  const TABLE = { blackjack, uno, poker, santase, belot, dos, drawtell: chain, story: chain, drawthis };
+  /* ---------- The newer card games ---------- */
+  const seatsRow = (v, extra = () => null) => h("div", { class: "cg-seats" }, ...g.players.map((p, i) => h("span", { class: "cg-seat" + (v.turn === i ? " turn" : "") + (i === g.myIndex ? " me" : "") }, avatar(p, 22), h("b", { text: name(i) }), extra(i))));
+  const turnLine = (v, mine, theirs) => h("p", { class: "muted cg-turnline", text: v.turn === g.myIndex ? mine : v.turn >= 0 ? `${name(v.turn)} ${theirs}` : "" });
+  function crazy8(v) {
+    const me = g.myIndex, myTurn = v.turn === me && v.winner === null;
+    const play = (c) => {
+      if (!myTurn) return;
+      if (c[0] !== "8") return act({ type: "play", card: c });
+      const m = modal({ title: "Eight! Pick a suit", body: h("div", { class: "uno-colors" }, ...["S", "H", "D", "C"].map((su) => h("button", { type: "button", class: "suit-pick " + (su === "H" || su === "D" ? "red" : ""), text: SUIT[su], onclick: () => { m.close(); act({ type: "play", card: c, suit: su }); } }))) });
+    };
+    return [seatsRow(v, (i) => h("small", { class: "muted", text: ` ${v.counts[i]} 🂠` })),
+      h("div", { class: "uno-table" }, h("button", { type: "button", class: "pcard back", disabled: !myTurn || v.drew, title: "Draw a card", onclick: () => act({ type: "draw" }) }), cardEl(v.top, { size: "lg" }), h("span", { class: "c8-suit " + (v.suit === "H" || v.suit === "D" ? "red" : ""), title: "Suit to match", text: SUIT[v.suit] })),
+      me !== -1 ? h("div", { class: "cg-hand" }, ...v.hand.map((c) => cardEl(c, { onClick: myTurn ? play : null, playable: v.playable.includes(c), dim: myTurn && !v.playable.includes(c) }))) : null,
+      h("div", { class: "game-actions" }, myTurn && v.drew ? btn("Pass", () => act({ type: "pass" })) : null, turnLine(v, v.drew ? "Play the card you drew, or pass." : "Your turn — match the suit or rank, or draw.", "is playing"))];
+  }
+  function gofish(v) {
+    const me = g.myIndex, myTurn = v.turn === me && !v.done;
+    let rank = null;
+    const targets = h("div", { class: "game-actions gf-targets" });
+    const paintTargets = () => targets.replaceChildren(...(rank ? g.players.map((p, i) => i !== me && v.counts[i] ? btn(`Ask ${name(i)} for ${RANK[rank] || rank}s`, () => act({ type: "ask", target: i, rank }), "btn-primary") : null) : [h("span", { class: "muted", text: myTurn ? "Tap a card, then who to ask." : "" })]));
+    paintTargets();
+    const hand = h("div", { class: "cg-hand" }, ...v.hand.map((c) => { const el = cardEl(c, { onClick: myTurn ? () => { rank = c[0]; hand.querySelectorAll(".pcard").forEach((x) => x.classList.toggle("picked", x.title.startsWith((RANK[rank] || rank) + ""))); paintTargets(); } : null, playable: myTurn }); return el; }));
+    return [seatsRow(v, (i) => h("small", { class: "muted", text: ` ${v.counts[i]} 🂠 · 📚 ${v.books[i].length}` })),
+      h("p", { class: "muted", text: `🐟 ${v.drawCount} cards in the pond` }),
+      me !== -1 ? hand : null, myTurn ? targets : turnLine(v, "", "is fishing…")];
+  }
+  function peter(v) {
+    const me = g.myIndex, myTurn = v.turn === me && v.loser === null;
+    const fromCards = v.from >= 0 ? Array.from({ length: v.counts[v.from] }, (_, i) => h("button", { type: "button", class: "pcard back" + (myTurn ? " playable" : ""), disabled: !myTurn, title: "Take this card", onclick: () => act({ type: "take", index: i }) })) : [];
+    return [seatsRow(v, (i) => h("small", { class: "muted", text: v.out.includes(i) ? " ✅ out" : ` ${v.counts[i]} 🂠` })),
+      v.from >= 0 && v.loser === null ? h("div", { class: "peter-from" }, h("small", { class: "muted", text: myTurn ? `Take one of ${name(v.from)}’s cards:` : `${name(v.turn)} takes from ${name(v.from)}` }), h("div", { class: "cg-cards fan" }, ...fromCards)) : null,
+      v.loser !== null ? h("p", { class: "cg-big-note", text: `🃏 ${name(v.loser)} is left with Black Peter!` }) : null,
+      me !== -1 ? h("div", { class: "cg-hand" }, ...v.hand.map((c) => cardEl(c))) : null];
+  }
+  function hearts(v) {
+    const me = g.myIndex, myTurn = v.turn === me;
+    const trick = h("div", { class: "hearts-trick" }, ...(v.trick.length ? v.trick : v.lastTrick || []).map((t) => h("div", { class: "ht-card" + (v.trick.length ? "" : " old") }, cardEl(t.card), h("small", { text: name(t.seat) }))));
+    return [seatsRow(v, (i) => h("small", { class: "muted", text: ` ${v.scores[i]} pts${v.taken[i] ? " (+" + v.taken[i] + ")" : ""}` })),
+      h("p", { class: "muted", text: `Hand ${v.handNo} · first to ${v.target} loses — lowest wins${v.broken ? " · ♥ broken" : ""}` }), trick,
+      me !== -1 ? h("div", { class: "cg-hand" }, ...v.hand.map((c) => cardEl(c, { onClick: myTurn && v.legal.includes(c) ? () => act({ type: "play", card: c }) : null, playable: v.legal.includes(c), dim: myTurn && !v.legal.includes(c) }))) : null,
+      turnLine(v, "Your turn — play a card.", "is playing")];
+  }
+  function hilo(v) {
+    const me = g.myIndex, myTurn = v.turn === me;
+    return [seatsRow(v, (i) => h("small", { class: "muted", text: ` ✅ ${v.score[i]} · ${v.guesses[i]}/${v.rounds}` })),
+      h("div", { class: "uno-table" }, v.prev ? cardEl(v.prev, { dim: true }) : null, h("span", { class: "hilo-arrow", text: v.last ? (v.last.same ? "＝" : v.last.right ? "✅" : "❌") : "→" }), cardEl(v.card, { size: "lg" })),
+      myTurn ? h("div", { class: "game-actions" }, btn("⬆ Higher", () => act({ type: "higher" }), "btn-primary"), btn("⬇ Lower", () => act({ type: "lower" }), "btn-primary")) : turnLine(v, "", "is guessing…")];
+  }
+  function war(v) {
+    const me = g.myIndex, myTurn = v.turn === me;
+    return [seatsRow(v, (i) => h("small", { class: "muted", text: ` 🂠 ${v.counts[i]}` })),
+      h("div", { class: "war-table" }, ...[0, 1].map((i) => h("div", { class: "war-side" }, h("small", { text: name(i) }), v.shown[i] ? cardEl(v.shown[i], { size: "lg" }) : h("span", { class: "pcard back lg" })))),
+      h("p", { class: "muted", text: `Flip ${v.flips}/${v.maxFlips}` }),
+      myTurn ? h("div", { class: "game-actions" }, btn("⚔️ Flip!", () => act({ type: "flip" }), "btn-primary")) : turnLine(v, "", "flips next")];
+  }
+  function baccarat(v) {
+    const me = g.myIndex;
+    const ctl = h("div", { class: "game-actions" });
+    if (me !== -1 && v.phase === "bet" && !v.bets[me] && v.chips[me] >= 10) {
+      const amt = h("input", { type: "number", class: "cg-num", min: 10, max: v.chips[me], step: 10, value: Math.min(100, v.chips[me]) });
+      ctl.append(amt, ...[["player", "👤 Player"], ["banker", "🏦 Banker"], ["tie", "🤝 Tie (8:1)"]].map(([on, l]) => btn(l, () => act({ type: "bet", on, amount: Number(amt.value) }), "btn-primary")));
+    } else if (v.phase === "bet") ctl.append(h("span", { class: "muted", text: "Waiting for everyone to bet…" }));
+    if (v.phase === "done" && me !== -1) ctl.append(btn("Next round", () => act({ type: "next" }), "btn-primary"));
+    const hand = (label, cards, total, win) => h("div", { class: "bac-hand" + (win ? " win" : "") }, h("b", { text: `${label}${total != null ? " · " + total : ""}` }), h("div", { class: "cg-cards" }, ...cards.map((c) => cardEl(c, { size: "sm" }))));
+    return [seatsRow(v, (i) => h("small", { class: "muted", text: ` 🪙 ${v.chips[i]}${v.bets[i] ? ` · ${v.bets[i].amount} on ${v.bets[i].on}` : ""}${v.payouts[i] ? ` · ${v.payouts[i] > 0 ? "+" : ""}${v.payouts[i]}` : ""}` })),
+      h("p", { class: "muted", text: `Round ${v.round}/${v.rounds}` }),
+      v.player.length ? h("div", { class: "bac-table" }, hand("👤 Player", v.player, v.pt, v.result === "player"), hand("🏦 Banker", v.banker, v.bt, v.result === "banker")) : null,
+      v.result ? h("p", { class: "cg-big-note", text: v.result === "tie" ? "🤝 Tie!" : v.result === "player" ? "👤 Player wins" : "🏦 Banker wins" }) : null, ctl];
+  }
+  const TABLE = { blackjack, uno, poker, santase, belot, dos, drawtell: chain, story: chain, drawthis, crazy8, gofish, peter, hearts, hilo, war, baccarat };
   function paint(next) {
     g = next;
     const v = g.view;

@@ -3,7 +3,7 @@
 import { h, icon, modal, toast, avatar } from "../ui.js";
 import { api } from "../api.js";
 import { on } from "../state.js";
-import { GAMES, chessMoves, inCheck } from "../games/rules.js";
+import { GAMES, chessMoves, inCheck, reversiMoves, checkersMoves } from "../games/rules.js";
 import { cardGameView, CARD_LIST, PARTY_LIST } from "./cardgames.js";
 
 const boards = new Map(); // messageId -> Set of repaint functions
@@ -32,7 +32,7 @@ function takenRow(g, i) {
   return h("div", { class: "taken" }, ...mine.map((t) => h("span", { class: "pc " + foe, text: GLYPH[t] + "\uFE0E" })), lead > 0 ? h("b", { class: "lead", text: "+" + lead }) : null);
 }
 const capturedCount = (g) => (g.captured ? g.captured.w.length + g.captured.b.length : 0);
-const SIDE_NAME = { w: "White", b: "Black", X: "X", O: "O", R: "Red", Y: "Yellow" };
+const SIDE_NAME = { w: "White", b: "Black", X: "X", O: "O", R: "Red", Y: "Yellow", D: "Dark", L: "Light", A: "Pink", B: "Blue", r: "Red", k: "Black", S: "South", N: "North" };
 const who = (g, i) => g.players[i] ? (g.players[i].nickname || g.players[i].name) : "Open seat";
 
 function statusText(g) {
@@ -42,13 +42,14 @@ function statusText(g) {
     if (s.result === "ended") return `⏹ Game stopped by ${g.ended || "the starter"}`;
     if (g.resigned) return `${who(g, sideIdx(s.winner) === 0 ? 1 : 0)} resigned · ${who(g, sideIdx(s.winner))} wins 🏆`;
     if (!s.winner) return s.result === "stalemate" ? "Stalemate · it’s a draw" : `It’s a draw (${s.result.replace(/^draw ?/, "").replace(/[()]/g, "") || "board full"})`;
-    return `${s.result === "checkmate" ? "Checkmate! " : ""}${who(g, sideIdx(s.winner))} wins 🏆`;
+    return `${s.result === "checkmate" ? "Checkmate! " : ""}${who(g, sideIdx(s.winner))} wins 🏆${s.score ? " · " + s.result : ""}`;
   }
   if (g.open) return g.myIndex === 0 ? "Waiting for someone to join…" : "Seat open: join to play";
   const turnIdx = sideIdx(g.state.turn);
   const mine = turnIdx === g.myIndex;
   const check = s.check ? "Check! " : "";
-  return mine ? `${check}Your turn` : `${check}${who(g, turnIdx)}’s turn`;
+  const score = s.score && g.type !== "dots" ? ` · ${g.sides.map((sd) => s.score[sd]).join("–")}` : "";
+  return (mine ? `${check}Your turn` : `${check}${who(g, turnIdx)}’s turn`) + score;
 }
 
 /* ---------- Boards ---------- */
@@ -132,7 +133,72 @@ function c4Board(g, send, big) {
   }
   return grid;
 }
-const BOARD = { chess: chessBoard, ttt: tttBoard, c4: c4Board };
+const myTurnIn = (g) => !g.status.over && !g.open && g.sides[g.myIndex] === g.state.turn;
+// Reversi: the dots show where you can play
+function reversiBoard(g, send, big) {
+  const myTurn = myTurnIn(g), can = new Set(myTurn ? reversiMoves(g.state) : []), flipped = new Set(g.state.flipped || []);
+  return h("div", { class: "rv" + (big ? " big" : "") }, ...g.state.cells.map((v, i) => {
+    const b = h("button", { type: "button", class: "rv-cell" + (can.has(i) ? " can" : "") + (g.state.last === i ? " last" : ""), disabled: !can.has(i), "aria-label": `Square ${i + 1}` },
+      v ? h("span", { class: "rv-disc " + v + (flipped.has(i) ? " flip" : "") }) : null);
+    b.addEventListener("click", () => send({ cell: i }));
+    return b;
+  }));
+}
+function gomokuBoard(g, send, big) {
+  const myTurn = myTurnIn(g), line = new Set(g.status.line || []);
+  return h("div", { class: "gk" + (big ? " big" : "") }, ...g.state.cells.map((v, i) => {
+    const b = h("button", { type: "button", class: "gk-cell" + (g.state.last === i ? " last" : "") + (line.has(i) ? " win" : ""), disabled: !myTurn || Boolean(v) }, v ? h("span", { class: "gk-stone " + v }) : null);
+    b.addEventListener("click", () => send({ cell: i }));
+    return b;
+  }));
+}
+function dotsBoard(g, send, big) {
+  const myTurn = myTurnIn(g), N = 4, s = g.state;
+  const grid = h("div", { class: "db" + (big ? " big" : "") });
+  for (let r = 0; r <= 2 * N; r++) for (let c = 0; c <= 2 * N; c++) {
+    if (r % 2 === 0 && c % 2 === 0) grid.append(h("span", { class: "db-dot" }));
+    else if (r % 2 === 0) { const i = (r / 2) * N + (c - 1) / 2; const b = h("button", { type: "button", class: "db-line h" + (s.h[i] ? " on " + s.h[i] : "") + (s.last?.kind === "h" && s.last.i === i ? " last" : ""), disabled: !myTurn || Boolean(s.h[i]), "aria-label": "Line" }); b.addEventListener("click", () => send({ kind: "h", i })); grid.append(b); }
+    else if (c % 2 === 0) { const i = ((r - 1) / 2) * (N + 1) + c / 2; const b = h("button", { type: "button", class: "db-line v" + (s.v[i] ? " on " + s.v[i] : "") + (s.last?.kind === "v" && s.last.i === i ? " last" : ""), disabled: !myTurn || Boolean(s.v[i]), "aria-label": "Line" }); b.addEventListener("click", () => send({ kind: "v", i })); grid.append(b); }
+    else { const bx = ((r - 1) / 2) * N + (c - 1) / 2; grid.append(h("span", { class: "db-box" + (s.boxes[bx] ? " " + s.boxes[bx] : "") })); }
+  }
+  const sc = g.status.score || { A: 0, B: 0 };
+  return h("div", {}, grid, h("p", { class: "muted db-score", text: `Pink ${sc.A} · Blue ${sc.B}` }));
+}
+// Checkers: tap your piece, then where it goes (captures are a must)
+function checkersBoard(g, send, big) {
+  const myTurn = myTurnIn(g), moves = myTurn ? checkersMoves(g.state) : [];
+  const flip = g.sides[g.myIndex] === "k"; // black plays from the top: turn the board
+  let picked = g.state.chain ?? null;
+  const board = h("div", { class: "ck" + (big ? " big" : "") });
+  const paint = () => {
+    const targets = new Set(moves.filter((m) => m.from === picked).map((m) => m.to)), from = new Set(moves.map((m) => m.from));
+    board.replaceChildren(...Array.from({ length: 64 }, (_, k) => {
+      const i = flip ? 63 - k : k, r = Math.floor(i / 8), c = i % 8, p = g.state.cells[i];
+      const b = h("button", { type: "button", class: "ck-sq " + ((r + c) % 2 ? "dark" : "light") + (picked === i ? " picked" : "") + (targets.has(i) ? " target" : "") + (from.has(i) ? " movable" : "") + (g.state.last && (g.state.last.from === i || g.state.last.to === i) ? " last" : ""), disabled: !myTurn },
+        p ? h("span", { class: "ck-piece " + p.toLowerCase() + (p === p.toUpperCase() ? " king" : ""), text: p === p.toUpperCase() ? "♛" : "" }) : null);
+      b.addEventListener("click", () => {
+        if (targets.has(i)) return send({ from: picked, to: i });
+        if (from.has(i)) { picked = i; paint(); }
+      });
+      return b;
+    }));
+  };
+  paint();
+  return board;
+}
+function mancalaBoard(g, send, big) {
+  const myTurn = myTurnIn(g), side = g.sides[g.myIndex], p = g.state.pits;
+  const pit = (i) => { const mine = myTurn && ((side === "S" && i <= 5) || (side === "N" && i >= 7 && i <= 12)) && p[i] > 0; const b = h("button", { type: "button", class: "mc-pit" + (mine ? " can" : "") + (g.state.last === i ? " last" : ""), disabled: !mine }, h("b", { text: String(p[i]) }), h("span", { class: "mc-seeds" }, ...Array.from({ length: Math.min(p[i], 12) }, () => h("i")))); b.addEventListener("click", () => send({ pit: i })); return b; };
+  // My row at the bottom
+  const north = [12, 11, 10, 9, 8, 7], south = [0, 1, 2, 3, 4, 5];
+  const top = side === "N" ? south.slice().reverse() : north, bottom = side === "N" ? north.slice().reverse() : south;
+  const storeL = side === "N" ? 6 : 13, storeR = side === "N" ? 13 : 6;
+  return h("div", { class: "mc" + (big ? " big" : "") },
+    h("div", { class: "mc-store" }, h("b", { text: String(p[storeL]) })),
+    h("div", { class: "mc-rows" }, h("div", { class: "mc-row" }, ...top.map(pit)), h("div", { class: "mc-row" }, ...bottom.map(pit))),
+    h("div", { class: "mc-store mine" }, h("b", { text: String(p[storeR]) })));
+}
+const BOARD = { chess: chessBoard, ttt: tttBoard, c4: c4Board, reversi: reversiBoard, gomoku: gomokuBoard, dots: dotsBoard, checkers: checkersBoard, mancala: mancalaBoard };
 
 /* ---------- A game (in a message, a window or the call screen) ---------- */
 export function gameView(chatId, messageId, game, { big = false, inCall = false } = {}) {
@@ -208,7 +274,7 @@ export function openGamePicker(chat, { channelId = null, onStarted } = {}) {
   const list = h("div", { class: "game-pick" }, ...Object.entries(GAMES).map(([type, def]) => {
     const b = h("button", { type: "button", class: "game-option" },
       h("span", { class: "go-emoji", text: def.emoji }), h("b", { text: def.name }),
-      h("span", { class: "muted", text: type === "chess" ? "The classic. Checkmate wins." : type === "ttt" ? "Three in a row. Quick!" : "Drop discs, get four in a line." }));
+      h("span", { class: "muted", text: def.desc || (type === "chess" ? "The classic. Checkmate wins." : type === "ttt" ? "Three in a row. Quick!" : "Drop discs, get four in a line.") }));
     b.addEventListener("click", async () => {
       b.disabled = true;
       try {
