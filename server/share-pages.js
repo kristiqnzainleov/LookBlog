@@ -46,10 +46,7 @@ ${head}
 body { background-color: var(--ink) !important; }
 [hidden] { display: none !important; }
 .card { position: relative; overflow: hidden; }
-.sp-banner { height: 96px; margin: -22px -22px 0; border-radius: 0; background: linear-gradient(135deg, var(--pink), #9b5cff) center / cover; }
-.sp-banner.empty { opacity: .9; }
 .wrap { width: min(520px, 100%); display: flex; flex-direction: column; align-items: stretch; gap: 18px; }
-.sp-banner + .who { margin-top: 14px; }
 .sp-av { position: relative; width: 60px; height: 60px; flex: 0 0 auto; }
 .sp-av .avatar { width: 60px !important; height: 60px !important; border: 3px solid #161414; }
 .sp-name { font-size: 1.15rem; }
