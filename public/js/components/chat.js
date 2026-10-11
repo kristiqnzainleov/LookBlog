@@ -90,8 +90,15 @@ function roleColor(chat, username) {
 }
 
 /* ---------- A song from LookBlog inside a message ---------- */
+// Songs in chats are records (like Instagram): tap to play, they spin while they play
+function vinylSlot(song, label) {
+  const slot = h("div", { class: "vinyl-slot" });
+  import("./yt-audio.js").then((m) => slot.replaceWith(m.vinylCard(song, label ? { kindLabel: label } : {})));
+  return slot;
+}
 function songChatCard(s) {
   if (!s || s.deleted) return h("div", { class: "shared shared-gone", text: "This song was deleted." });
+  if (s.url) return vinylSlot(s, "🎧 LookBlog");
   const btn = h("button", { type: "button", class: "scc-play", "aria-label": "Play" }, icon("play"));
   const card = h("div", { class: "song-chat" },
     h("div", { class: "scc-cover", style: s.cover ? `background-image:url("${s.cover}")` : "" }, btn),
@@ -400,7 +407,7 @@ function openTrending(chat, channelId, jump) {
     try {
       const { messages } = await api(`/api/chats/${chat.id}/trending?period=${period}${channelId ? "&channelId=" + encodeURIComponent(channelId) : ""}`);
       list.replaceChildren(...(messages.length ? messages.map((m, i) => {
-        const what = m.text || (m.media?.gif ? "GIF" : m.media?.kind === "image" ? "📷 Photo" : m.media?.kind === "video" ? "🎬 Video" : m.media?.kind === "file" ? "📎 " + (m.media.name || "File") : m.media?.kind === "audio" ? (m.media.file ? "🎵 " + (m.media.name || "Audio") : "🎤 Voice message") : m.post ? "📝 Shared a post" : "Message");
+        const what = m.text || (m.media?.gif ? "GIF" : m.media?.kind === "image" ? "📷 Photo" : m.media?.kind === "video" ? "🎬 Video" : m.media?.kind === "file" ? "📎 " + (m.media.name || "File") : m.media?.kind === "audio" ? (m.media.file ? "🎵 " + (m.media.name || "Audio") : "🎤 Voice message") : m.post ? "📝 Shared a post" : m.song || m.songYt ? "🎵 Song" : "Message");
         const row = h("button", { type: "button", class: "ht-row" + (i < 3 ? " top" : "") },
           h("span", { class: "ht-rank", text: i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "#" + (i + 1) }),
           avatar(m.author, 34),
@@ -831,6 +838,7 @@ function messageEl(msg, chat, onRemoved) {
       return h("button", { type: "button", class: "btn btn-xs btn-primary wt-msg-btn", text: "📺 Watch together in voice", onclick: (e) => { e.stopPropagation(); window.__lbWatchLink?.(link[0]); } });
     })(),
     msg.song ? songChatCard(msg.song) : null,
+    msg.songYt ? vinylSlot(msg.songYt) : null,
     h("span", { class: "bubble-time" }, timeEl(msg.createdAt))
   );
 
@@ -1428,7 +1436,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       replying = m;
       replyBar.hidden = !m;
       if (!m) return replyBar.replaceChildren();
-      const what = m.text || (m.media?.gif ? "GIF" : m.media?.sticker ? "Sticker" : m.media ? (m.media.kind === "file" ? "📎 " + (m.media.name || "File") : m.media.kind === "audio" ? (m.media.file ? "🎵 " + (m.media.name || "Audio") : "🎤 Voice message") : m.media.kind === "video" ? "Video" : "Photo") : m.post ? "Shared post" : "Message");
+      const what = m.text || (m.media?.gif ? "GIF" : m.media?.sticker ? "Sticker" : m.media ? (m.media.kind === "file" ? "📎 " + (m.media.name || "File") : m.media.kind === "audio" ? (m.media.file ? "🎵 " + (m.media.name || "Audio") : "🎤 Voice message") : m.media.kind === "video" ? "Video" : "Photo") : m.post ? "Shared post" : m.song || m.songYt ? "🎵 Song" : "Message");
       const cancel = h("button", { type: "button", class: "tool-icon", "aria-label": "Cancel reply" }, icon("close"));
       cancel.addEventListener("click", () => { setReply(null); text.focus(); });
       replyBar.replaceChildren(icon("replyArrow"),
@@ -1577,13 +1585,14 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     inputRow.insertBefore(soundBtn, text);
     // Send a song from LookBlog
     const songBtn = h("button", { type: "button", class: "tool-btn", "aria-label": "Send a song", title: "Send a song" }, icon("note", "note-ic"));
-    songBtn.addEventListener("click", () => openSongPicker(async (sg) => {
+    songBtn.addEventListener("click", () => import("./song-picker.js").then(({ openSongPicker: pickSong }) => pickSong({ title: "Send a song", onPick: async (view, ref) => {
+      if (ref.file) return sendExtra({ media: { url: ref.file.url, file: true, name: ref.file.title + ".mp3", size: 0 } }, "song");
       try {
-        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, songId: sg.id, replyTo: replying?.id || null } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
+        const { message } = await api(`/api/chats/${chat.id}/messages`, { method: "POST", body: { channelId, ...(ref.yt ? { songYt: ref.yt } : { songId: ref.song }), replyTo: replying?.id || null } }); sfx(message.viewOnce || message.expiresAt ? "vanish" : "send");
         setReply(null); add(message); toBottom();
         if (chat.kind === "dm") refresh().catch(() => {});
-      } catch (ex) { showErr(ex.error || "Couldn’t send the song."); throw ex; }
-    }));
+      } catch (ex) { showErr(ex.error || "Couldn’t send the song."); }
+    } })));
     inputRow.insertBefore(songBtn, text);
     const sendGif = async (g, to = replying) => {
       try {

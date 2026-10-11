@@ -87,22 +87,20 @@ export function songPill(song, { onEdit = null, small = false } = {}) {
     song.cover ? h("span", { class: "sp-cover", style: `background-image:url("${song.cover}")` }) : h("span", { class: "sp-note", text: "♫" }),
     h("span", { class: "sp-text" }, h("b", { text: song.title }), h("span", { text: " · " + (song.artist?.name || "") })),
     song.kind === "youtube" ? h("span", { class: "sp-yt", text: "▶️" }) : null, eq);
-  let frame = null, offPlayer = null;
+  // Tap: play / pause (YouTube songs play as sound only, no video)
+  const paint = async () => {
+    if (!pill.isConnected) return off();
+    const { isPlayingAny } = await import("./yt-audio.js");
+    pill.classList.toggle("playing", await isPlayingAny(song));
+  };
   pill.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (song.kind === "youtube") {
-      if (frame) { frame.remove(); frame = null; pill.classList.remove("playing"); return; }
-      frame = h("iframe", { class: "pf-song-yt", src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.yt)}?autoplay=1&playsinline=1&rel=0`, allow: "autoplay; encrypted-media", title: song.title });
-      wrap.append(frame); pill.classList.add("playing");
-      return;
-    }
-    import("./music.js").then((m) => {
-      m.playSongs([song], 0);
-      const sync = () => { if (!pill.isConnected) return offPlayer?.(); pill.classList.toggle("playing", m.isPlaying(song.id)); };
-      setTimeout(sync, 150);
-      if (!offPlayer) import("../state.js").then((st) => { offPlayer = st.on("music:changed", sync); });
-    });
+    import("./yt-audio.js").then((m) => { m.playAny(song); setTimeout(paint, 300); });
   });
+  addEventListener("lb-yt-audio", paint);
+  let offMusic = null;
+  import("../state.js").then((st) => { offMusic = st.on("music:changed", paint); });
+  function off() { removeEventListener("lb-yt-audio", paint); offMusic?.(); }
   wrap.append(pill);
   if (onEdit) wrap.append(h("button", { type: "button", class: "song-pill-edit", title: "Change the song", "aria-label": "Change the song", text: "✎", onclick: (e) => { e.stopPropagation(); onEdit(); } }));
   return wrap;

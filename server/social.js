@@ -2497,4 +2497,4 @@ function removePost(post) {
   broadcast({ type: "post:deleted", id: post.id });
 }
 
-module.exports = { activeNote, removePost, starsView, notPlainVideo, resolveExtras, cleanClip, handleSocial, resolveGif, canView, blockedBetween, canMakeFilms, canMakeMusic, postView, authorView, buildMedia, claim, findMentions, usernamesOf, clean, chars };
+module.exports = { youtubeTitle, activeNote, removePost, starsView, notPlainVideo, resolveExtras, cleanClip, handleSocial, resolveGif, canView, blockedBetween, canMakeFilms, canMakeMusic, postView, authorView, buildMedia, claim, findMentions, usernamesOf, clean, chars };

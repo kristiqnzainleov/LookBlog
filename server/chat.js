@@ -96,7 +96,7 @@ function preview(msg) {
   if (msg.media) return msg.media.kind === "file" ? `📎 ${msg.media.name || "File"}` : msg.media.kind === "audio" ? (msg.media.file ? `🎵 ${msg.media.name || "Audio"}` : "🎤 Voice message") : msg.media.kind === "video" ? "Sent a video" : "Sent a photo";
   if (msg.postId) return "Shared a post";
   if (msg.commentId) return "Shared a reply";
-  if (msg.songId) return "🎵 Sent a song";
+  if (msg.songId || msg.songYt) return "🎵 Sent a song";
   return "";
 }
 
@@ -279,6 +279,7 @@ function messageViewFull(msg, me) {
     media: msg.media,
     post,
     comment: msg.commentId ? sharedCommentView(msg.commentId, me) : null,
+    songYt: msg.songYt ? { kind: "youtube", id: "yt-" + msg.songYt.id, yt: msg.songYt.id, title: msg.songYt.title, artist: { name: msg.songYt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${msg.songYt.id}/hqdefault.jpg` } : null,
     song: msg.songId ? (() => { const sg = db.songs.find((x) => x.id === msg.songId); return sg ? require("./music").songView(sg, me) : { deleted: true }; })() : null,
     pinned: Boolean(chat?.pins?.includes(msg.id)),
     mentions: usernamesOf(msg.mentions),
@@ -742,7 +743,14 @@ async function handleChat(req, res, url, me) {
         if (!sg) throw httpError(404, "That song doesn’t exist anymore.");
         songRef = sg.id;
       }
-      if (!text && !media && !post && !commentRef && !songRef) throw httpError(400, "Write a message or add something to send.");
+      // …or a song from YouTube (it plays as a record, sound only)
+      let songYt = null;
+      if (body.songYt && /^[A-Za-z0-9_-]{11}$/.test(String(body.songYt.id || ""))) {
+        songYt = { id: String(body.songYt.id), title: clean(String(body.songYt.title || "")).slice(0, 120), author: clean(String(body.songYt.author || "")).slice(0, 80) };
+        if (!songYt.title || !songYt.author) { const info = await require("./social").youtubeTitle(songYt.id); if (info) { songYt.title = songYt.title || info.title; songYt.author = songYt.author || info.author; } }
+        if (!songYt.title) songYt.title = "YouTube";
+      }
+      if (!text && !media && !post && !commentRef && !songRef && !songYt) throw httpError(400, "Write a message or add something to send.");
       if (chars(text) > 2000) throw httpError(400, "Keep messages under 2000 characters.");
 
       let replyTo = null;
@@ -751,7 +759,7 @@ async function handleChat(req, res, url, me) {
         if (!orig) throw httpError(404, "The message you’re replying to was deleted.");
         replyTo = orig.id;
       }
-      const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media, postId: post ? post.id : null, commentId: commentRef, songId: songRef, replyTo, mentions: findMentions(text), createdAt: new Date().toISOString() };
+      const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media, postId: post ? post.id : null, commentId: commentRef, songId: songRef, ...(songYt ? { songYt } : {}), replyTo, mentions: findMentions(text), createdAt: new Date().toISOString() };
       // Sent with an effect (like iMessage): everyone sees it play when it arrives
       if (MSG_EFFECTS.includes(body.effect)) msg.effect = body.effect;
       if (msg.effect === "capsule") {
@@ -762,7 +770,7 @@ async function handleChat(req, res, url, me) {
       if (msg.effect === "selfdestruct") { const at = Date.now() + 60000; if (!msg.expiresAt || new Date(msg.expiresAt).getTime() > at) msg.expiresAt = new Date(at).toISOString(); }
       // View once: the others can open it one time, then it's gone (like Instagram)
       if (body.viewOnce) {
-        if (post || commentRef || songRef || media?.sticker || media?.gif || media?.kind === "audio" || media?.kind === "file" || media?.shared) throw httpError(400, "View once works for text, photos and videos.");
+        if (post || commentRef || songRef || songYt || media?.sticker || media?.gif || media?.kind === "audio" || media?.kind === "file" || media?.shared) throw httpError(400, "View once works for text, photos and videos.");
         // "replay": each person can open it twice (like Instagram's "Allow replay")
         msg.viewOnce = { openedBy: [], ...(body.viewOnce === "replay" ? { max: 2, opens: {} } : {}) };
       }
