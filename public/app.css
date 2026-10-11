@@ -7121,3 +7121,41 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .mc-store { width: 34px; flex-shrink: 0; }
 .mc.big .mc-store { width: 52px; } .mc.big .mc-row { gap: 8px; }
 .msg.mine .cg .muted, .msg.mine .game .muted { color: rgba(245, 240, 235, 0.65); }
+/* Make it Meme */
+.meme { position: relative; width: 100%; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--mm-bg, #222) center / cover no-repeat; color: #fff; container-type: inline-size; }
+.meme .mm-cap { font: 900 clamp(0.7rem, 7.5cqw, 1.7rem) / 1.1 Impact, "Anton", "Arial Black", sans-serif; text-transform: uppercase; text-align: center; overflow-wrap: anywhere; -webkit-text-stroke: 1.2px #000; paint-order: stroke fill; text-shadow: 0 2px 0 #000, 0 0 4px #000; }
+.meme .mm-cap.hint { opacity: 0.45; }
+.meme.tb { display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 6% 5%; }
+.meme.tb .mm-art { font-size: 38cqw; line-height: 1; text-align: center; }
+.meme.photo { padding: 4%; }
+.meme.rows { display: flex; flex-direction: column; gap: 2px; background: #000; }
+.mm-row { flex: 1; display: grid; grid-template-columns: 42% 1fr; align-items: center; background: var(--mm-bg); }
+.mm-row:nth-child(even) { filter: brightness(0.9); }
+.meme.rows .mm-art { display: grid; place-items: center; height: 100%; font-size: 16cqw; line-height: 1; background: rgba(0, 0, 0, 0.12); }
+.meme.rows .mm-cap { padding: 4px 8px; font-size: clamp(0.65rem, 6cqw, 1.4rem); }
+.meme.labels { display: grid; grid-template-columns: repeat(var(--mm-n), 1fr); align-items: center; padding: 6% 3%; }
+.mm-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.meme.labels .mm-art { font-size: calc(60cqw / var(--mm-n)); line-height: 1; }
+.meme.labels .mm-cap { font-size: clamp(0.6rem, 5.5cqw, 1.2rem); }
+.mm-preview { max-width: 340px; width: 100%; margin: 0 auto; }
+.mm-inputs { display: flex; flex-direction: column; gap: 6px; }
+.mm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.mm-tile, .mm-vote { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--ink); color: var(--paper); font: inherit; text-align: center; }
+.mm-tile small, .mm-vote small { font-size: 0.78rem; font-weight: 700; }
+.mm-tile.win, .mm-vote.chosen { border-color: var(--pink); box-shadow: 0 0 14px rgba(255, 79, 163, 0.35); }
+.mm-vote:not(:disabled) { cursor: pointer; }
+.mm-vote:not(:disabled):hover { border-color: var(--pink); transform: translateY(-2px); }
+.mm-vote.mine { opacity: 0.6; }
+.mm-last summary { cursor: pointer; font-weight: 700; font-size: 0.85rem; color: var(--pink); }
+.mm-last .mm-tile { max-width: 220px; margin-top: 6px; }
+.mm-input { width: 100%; font: 400 0.95rem/1.4 var(--body); padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--ink); color: var(--paper); outline: none; }
+.mm-input:focus { border-color: var(--pink); }
+.msg.mine .mm-input::placeholder { color: #6f6a65; }
+/* Board game side pills */
+.side-D { background: #111; color: #f5f0eb; border: 1px solid #444; } .side-L { background: #f5f0eb; color: #111; }
+.side-A { background: var(--pink); color: #111; } .side-B { background: #66d1ff; color: #111; }
+.side-r { background: #e5303c; color: #fff; } .side-k { background: #1b1b1b; color: #f5f0eb; border: 1px solid #444; }
+.side-S, .side-N { background: #6b3f1f; color: #ffd27a; }
+.meme .mm-art { white-space: nowrap; }
+.meme.labels .mm-art { font-size: calc(44cqw / var(--mm-n)); }
+.mm-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); }

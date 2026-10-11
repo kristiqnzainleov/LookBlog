@@ -269,3 +269,92 @@ const drawThis = {
 };
 
 module.exports = { dos, drawtell: drawTell, story: storyChain, drawthis: drawThis };
+
+/* ======================= Make it Meme ======================= */
+// Everyone gets a meme picture (they can swap it twice, or use a photo of their own), writes the captions,
+// then everyone votes for the funniest one (not their own). A vote is a point. 3 rounds.
+const MEME = require("../public/js/games/memes.js");
+const isPhoto = (v) => typeof v === "string" && /^\/media\/[0-9a-f-]{36}\.(png|jpe?g|webp|gif)$/.test(v);
+const MEME_ROUNDS = 3, MEME_SWAPS = 2;
+const makeItMeme = {
+  name: "Make it Meme", emoji: "😂", desc: "Everyone gets a meme picture and writes the captions, then you vote for the funniest.", min: 2, max: 10, party: true,
+  start(n) { const s = { kind: "meme", n, round: 0, rounds: MEME_ROUNDS, scores: Array(n).fill(0), history: [], phase: "play", log: [] }; this.deal(s); return s; },
+  // Different pictures for everyone (where there are enough)
+  deal(s) {
+    const ids = shuffle(MEME.MEMES.map((m) => m.id));
+    s.step = "make"; s.tmpl = {}; s.swaps = {}; s.memes = {}; s.votes = {};
+    for (let i = 0; i < s.n; i++) s.tmpl[i] = { id: ids[i % ids.length] };
+  },
+  act(s, seat, a, names) {
+    if (s.phase !== "play") fail("This game is over.");
+    if (s.step === "make") {
+      if (s.memes[seat]) fail("You already sent your meme.");
+      if (a.type === "swap") {
+        if ((s.swaps[seat] || 0) >= MEME_SWAPS) fail("No more swaps this round.");
+        const taken = new Set(Object.values(s.tmpl).map((t) => t.id));
+        const free = MEME.MEMES.filter((m) => !taken.has(m.id));
+        s.tmpl[seat] = { id: pick(free.length ? free : MEME.MEMES).id };
+        s.swaps[seat] = (s.swaps[seat] || 0) + 1;
+        return;
+      }
+      if (a.type === "photo") {
+        if (!isPhoto(a.url)) fail("That photo didn’t work.");
+        s.tmpl[seat] = { photo: a.url };
+        return;
+      }
+      const n = MEME.slotsOf(s.tmpl[seat]);
+      const captions = Array.from({ length: n }, (_, i) => cleanText(a.captions?.[i], 80));
+      if (!captions.some(Boolean)) fail("Write at least one caption.");
+      s.memes[seat] = { t: s.tmpl[seat], captions };
+      if (Object.keys(s.memes).length >= s.n) { s.step = "vote"; log(s, "All memes are in — vote for the funniest! 😂"); }
+      return;
+    }
+    if (s.step === "vote") {
+      if (s.votes[seat] !== undefined) fail("You already voted.");
+      const to = Number(a.seat);
+      if (!s.memes[to]) fail("Pick one of the memes.");
+      if (to === seat && s.n > 1) fail("You can’t vote for your own meme.");
+      s.votes[seat] = to;
+      if (Object.keys(s.votes).length >= s.n) this.nextRound(s, names);
+    }
+  },
+  nextRound(s, names) {
+    const got = Array(s.n).fill(0);
+    for (const to of Object.values(s.votes)) got[to]++;
+    got.forEach((v, i) => { s.scores[i] += v; });
+    const top = Math.max(...got), best = got.indexOf(top);
+    s.history.push({ memes: s.memes, votes: got, best });
+    log(s, `Round ${s.round + 1}: ${names[best]}’s meme won with ${top} vote${top === 1 ? "" : "s"} 😂`);
+    s.round++;
+    if (s.round >= s.rounds) {
+      s.phase = "done";
+      const most = Math.max(...s.scores);
+      s.winner = s.scores.indexOf(most);
+      log(s, `${names[s.winner]} is the meme lord with ${most} votes 👑`);
+      return;
+    }
+    this.deal(s);
+  },
+  view(s, me) {
+    const out = { kind: "meme", round: s.round, rounds: s.rounds, step: s.step, scores: s.scores, phase: s.phase, log: s.log, winner: s.winner ?? null,
+      sent: Object.keys(s.memes || {}).map(Number), voted: Object.keys(s.votes || {}).map(Number), last: s.history[s.history.length - 1] || null };
+    if (s.phase === "play" && s.step === "make" && me !== -1) { out.tmpl = s.tmpl[me]; out.swapsLeft = MEME_SWAPS - (s.swaps[me] || 0); out.mine = s.memes[me] || null; }
+    // While voting the memes don't show who made them (only your own)
+    if (s.phase === "play" && s.step === "vote") { out.memes = Object.entries(s.memes).map(([k, m]) => ({ seat: Number(k) === me ? me : null, key: Number(k), ...m })); out.myVote = s.votes[me] ?? null; }
+    if (s.phase === "done") out.history = s.history;
+    return out;
+  },
+  over: (s) => (s.phase === "done" ? { winner: s.winner } : null),
+  waiting(s) {
+    if (s.phase !== "play") return [];
+    const all = Array.from({ length: s.n }, (_, i) => i);
+    return s.step === "make" ? all.filter((i) => !s.memes[i]) : all.filter((i) => s.votes[i] === undefined);
+  },
+  // A bot writes something silly, or votes for a meme that isn't its own
+  bot(s, seat) {
+    if (s.step === "make") return { type: "submit", captions: Array.from({ length: MEME.slotsOf(s.tmpl[seat]) }, () => pick(MEME.BOT_CAPTIONS)) };
+    const options = Object.keys(s.memes).map(Number).filter((k) => k !== seat);
+    return { type: "vote", seat: pick(options.length ? options : [seat]) };
+  },
+};
+module.exports.meme = makeItMeme;

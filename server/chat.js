@@ -37,6 +37,17 @@ function recordResult(g) {
     const gs = (u.gameStats ||= {})[g.type] ||= { p: 0, w: 0 };
     gs.p++;
     if (winners.includes(id)) gs.w++;
+    // More for the badges: bots, big tables, who you played with, game days, meme votes
+    if (g.players.some(isBot)) u.botGames = (u.botGames || 0) + 1;
+    if (g.players.length >= 4) u.bigTables = (u.bigTables || 0) + 1;
+    const pals = new Set(u.gamePals || []);
+    for (const o of g.players) if (o !== id && !isBot(o)) pals.add(o);
+    u.gamePals = [...pals].slice(-2000);
+    const today = new Date().toISOString().slice(0, 10);
+    if (u.lastGameDay !== today) { u.lastGameDay = today; u.gameDays = (u.gameDays || 0) + 1; u.gamesToday = 0; }
+    u.gamesToday = (u.gamesToday || 0) + 1;
+    u.bestGameDay = Math.max(u.bestGameDay || 0, u.gamesToday);
+    if (g.type === "meme") u.memeVotes = (u.memeVotes || 0) + (g.state.scores?.[g.players.indexOf(id)] || 0);
   }
   save("users");
 }

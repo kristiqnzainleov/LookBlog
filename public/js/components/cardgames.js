@@ -3,6 +3,7 @@
 import { h, avatar, toast, modal } from "../ui.js";
 import { api, upload } from "../api.js";
 import { drawInWindow } from "./drawpad.js";
+import { memeById, slotsOf } from "../games/memes.js";
 
 export const CARD_LIST = [
   ["poker", "♠️", "Poker", "Texas Hold’em for 2–8. Chips, blinds, all in."],
@@ -23,6 +24,7 @@ export const CARD_LIST = [
 export const PARTY_LIST = [
   ["drawtell", "🎨", "Draw & Tell", "Like Gartic Phone: write, draw what you’re told, guess what the drawing is…"],
   ["drawthis", "🖍️", "Draw This!", "One person says what to draw, everyone draws it, they pick the best one."],
+  ["meme", "😂", "Make it Meme", "Everyone gets a meme picture, writes the captions, then you vote for the funniest."],
   ["story", "📖", "Story Chain", "Start a story; the next person only sees your last line and carries on."],
 ];
 const DOS_COLOR = { R: "red", G: "green", B: "blue", Y: "yellow", W: "wild" };
@@ -54,6 +56,17 @@ function unoEl(c, { onClick, playable = false, dim = false, size = "" } = {}) {
   const el = h(onClick ? "button" : "span", { type: onClick ? "button" : undefined, class: `ucard ${wild ? "wild" : UNO_COLOR[c[0]]} ${playable ? "playable" : ""} ${dim ? "dim" : ""} ${size}`.trim() }, h("b", { text: label }));
   if (onClick) el.addEventListener("click", () => onClick(c));
   return el;
+}
+
+// A meme: the picture (emoji or a photo) with its captions on it. hints show (faded) where nothing is written yet.
+export function memeEl(t, captions = [], hints = []) {
+  const cap = (i, cls) => { const text = captions[i]?.trim(); return h("span", { class: "mm-cap " + cls + (text ? "" : " hint"), text: text || hints[i] || "" }); };
+  if (t?.photo) return h("div", { class: "meme tb photo", style: `background-image:url("${t.photo}")` }, cap(0, "mm-t"), cap(1, "mm-b"));
+  const m = memeById(t?.id);
+  if (!m) return h("div", { class: "meme tb" });
+  if (m.layout === "tb") return h("div", { class: "meme tb", style: `--mm-bg:${m.bg}` }, cap(0, "mm-t"), h("span", { class: "mm-art", text: m.art.join(" ") }), cap(1, "mm-b"));
+  if (m.layout === "rows") return h("div", { class: "meme rows", style: `--mm-bg:${m.bg}` }, ...m.art.map((a, i) => h("div", { class: "mm-row" }, h("span", { class: "mm-art", text: a }), cap(i, "mm-s"))));
+  return h("div", { class: "meme labels", style: `--mm-bg:${m.bg};--mm-n:${m.art.length}` }, ...m.art.map((a, i) => h("div", { class: "mm-col" }, cap(i, "mm-l"), h("span", { class: "mm-art", text: a }))));
 }
 
 export function cardGameView(chatId, messageId, game, { big = false, onOpenBig } = {}) {
@@ -425,7 +438,54 @@ export function cardGameView(chatId, messageId, game, { big = false, onOpenBig }
       v.player.length ? h("div", { class: "bac-table" }, hand("👤 Player", v.player, v.pt, v.result === "player"), hand("🏦 Banker", v.banker, v.bt, v.result === "banker")) : null,
       v.result ? h("p", { class: "cg-big-note", text: v.result === "tie" ? "🤝 Tie!" : v.result === "player" ? "👤 Player wins" : "🏦 Banker wins" }) : null, ctl];
   }
-  const TABLE = { blackjack, uno, poker, santase, belot, dos, drawtell: chain, story: chain, drawthis, crazy8, gofish, peter, hearts, hilo, war, baccarat };
+  /* ---------- Make it Meme ---------- */
+  // What you're typing stays when the table updates (someone else sending theirs)
+  const memeDraft = { at: "", captions: [] };
+  function meme(v) {
+    const me = g.myIndex;
+    const scores = h("div", { class: "cg-seats" }, ...g.players.map((p, i) => h("span", { class: "cg-seat" + (v.winner === i ? " turn" : "") }, avatar(p, 22), h("b", { text: name(i) }), h("small", { text: ` 😂 ${v.scores[i]}` }))));
+    const tile = (m, { who = "", votes = null, win = false } = {}) => h("div", { class: "mm-tile" + (win ? " win" : "") }, memeEl(m.t, m.captions), who || votes !== null ? h("small", { text: `${who}${votes !== null ? ` · 👍 ${votes}` : ""}${win ? " 👑" : ""}` }) : null);
+    if (v.phase === "done") return [scores, h("p", { class: "cg-big-note", text: `👑 ${name(v.winner)} is the meme lord!` }),
+      ...(v.history || []).map((r, k) => h("div", { class: "pg-task" }, h("p", { class: "pg-round", text: `Round ${k + 1}` }),
+        h("div", { class: "mm-grid" }, ...Object.entries(r.memes).map(([seat, m]) => tile(m, { who: name(Number(seat)), votes: r.votes[seat], win: Number(seat) === r.best })))))];
+    const head = h("p", { class: "pg-round", text: `Round ${v.round + 1} of ${v.rounds}` });
+    const last = v.last && v.step === "make" ? h("details", { class: "mm-last" }, h("summary", { text: `Last round: ${name(v.last.best)} won 👑` }), tile(v.last.memes[v.last.best], { who: name(v.last.best), votes: v.last.votes[v.last.best], win: true })) : null;
+    if (v.step === "make") {
+      if (me === -1 || v.mine) return [scores, head, last, v.mine ? tile(v.mine) : null, avatarsDone(v.sent), h("p", { class: "muted", text: me === -1 ? "They’re making memes…" : "✓ Sent! Waiting for the others…" })];
+      const at = `${v.round}:${v.tmpl.photo || v.tmpl.id}`;
+      if (memeDraft.at !== at) { memeDraft.at = at; memeDraft.captions = []; }
+      const hints = v.tmpl.photo ? ["Top text", "Bottom text"] : memeById(v.tmpl.id)?.hint || [];
+      const preview = h("div", { class: "mm-preview" });
+      const paintPreview = () => preview.replaceChildren(memeEl(v.tmpl, memeDraft.captions, hints));
+      const inputs = Array.from({ length: slotsOf(v.tmpl) }, (_, i) => {
+        const inp = h("input", { type: "text", class: "text-input mm-input", maxlength: 80, placeholder: hints[i] || `Caption ${i + 1}`, value: memeDraft.captions[i] || "", dataset: { mm: String(i) } });
+        inp.addEventListener("input", () => { memeDraft.captions[i] = inp.value; paintPreview(); });
+        return inp;
+      });
+      paintPreview();
+      const send = () => { if (!memeDraft.captions.some((c) => c?.trim())) return toast("Write at least one caption."); act({ type: "submit", captions: inputs.map((x) => x.value) }); };
+      const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", hidden: true });
+      file.addEventListener("change", async () => {
+        const f = file.files[0]; file.value = "";
+        if (!f) return;
+        try { toast("Uploading your photo…"); const { url } = await upload(f); act({ type: "photo", url }); } catch (err) { toast(err.error || "Couldn’t upload it."); }
+      });
+      return [scores, head, last, preview, h("div", { class: "mm-inputs" }, ...inputs),
+        h("div", { class: "game-actions" }, btn("😂 Send meme", send, "btn-primary"),
+          v.swapsLeft > 0 ? btn(`🔄 Another picture (${v.swapsLeft})`, () => act({ type: "swap" })) : null,
+          btn("📷 My photo", () => file.click()), file),
+        avatarsDone(v.sent)];
+    }
+    // Voting: the memes without names (except yours)
+    const grid = h("div", { class: "mm-grid" }, ...(v.memes || []).map((m) => {
+      const mine = m.seat === me, chosen = v.myVote === m.key;
+      const b = h("button", { type: "button", class: "mm-vote" + (chosen ? " chosen" : "") + (mine ? " mine" : ""), disabled: mine || v.myVote !== null || me === -1 }, memeEl(m.t, m.captions), h("small", { text: mine ? "Your meme" : chosen ? "👍 Your vote" : v.myVote === null && me !== -1 ? "Vote 👍" : "" }));
+      b.addEventListener("click", () => act({ type: "vote", seat: m.key }));
+      return b;
+    }));
+    return [scores, head, h("p", { class: "muted", text: me === -1 ? "Everyone is voting…" : v.myVote === null ? "Vote for the funniest meme:" : "✓ Voted! Waiting for the others…" }), grid, avatarsDone(v.voted)];
+  }
+  const TABLE = { meme, blackjack, uno, poker, santase, belot, dos, drawtell: chain, story: chain, drawthis, crazy8, gofish, peter, hearts, hilo, war, baccarat };
   function paint(next) {
     g = next;
     const v = g.view;
@@ -447,6 +507,13 @@ export function cardGameView(chatId, messageId, game, { big = false, onOpenBig }
         !g.isHost && g.myIndex !== -1 && g.phase === "play" ? sure("🚪 Leave (a bot takes your seat)", () => send("leave")) : null) : null,
       !big && onOpenBig ? h("div", { class: "game-actions" }, btn("⤢ Bigger", () => onOpenBig(g))) : null);
   }
+  // Keep typing in a meme caption when the table repaints
+  const paint0 = paint;
+  paint = (next) => {
+    const a = document.activeElement, i = a?.dataset?.mm, pos = a?.selectionStart;
+    paint0(next);
+    if (i !== undefined) { const n = el.querySelector(`[data-mm="${i}"]`); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch {} } }
+  };
   paint(game);
   return { el, paint };
 }
