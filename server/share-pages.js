@@ -61,6 +61,9 @@ body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding
 .who b { display: block; } .who span { color: #a39b9b; font-size: .9rem; }
 .text { white-space: pre-wrap; line-height: 1.5; margin: 0 0 12px; font-size: 1.02rem; }
 .media { display: block; width: 100%; max-height: 70vh; object-fit: contain; border-radius: 16px; background: #000; margin-bottom: 12px; }
+.sp-player { margin-bottom: 12px; border-radius: 16px; overflow: hidden; }
+.sp-player .lb-player { border-radius: 16px; }
+.sp-player.vertical .lb-player { max-height: 70vh; margin: 0 auto; }
 h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
 .btn { display: block; text-align: center; padding: 14px 18px; border-radius: 999px; background: var(--pink); color: #000; font-weight: 800; text-decoration: none; font-size: 1.02rem; box-shadow: 0 10px 30px rgba(255,79,163,.35); margin-top: 8px; }
 .btn.ghost { background: transparent; color: var(--paper); box-shadow: none; border: 1px solid #3a3434; }
@@ -111,7 +114,13 @@ function servePostPage(req, res, id, path) {
   const image = posterUrl || photoUrl || avatarUrl(author, base);
   const sized = posterUrl || photoUrl ? (video || photo) : null;
   const mediaHtml = hidden ? `<p class="text">🔞 This one is marked as sensitive. Open it in LookBlog to see it.</p>`
-    : videoUrl ? `<video class="media" src="${esc(videoUrl)}" ${posterUrl ? `poster="${esc(posterUrl)}"` : ""} controls playsinline preload="metadata"></video>`
+    : videoUrl ? `<div class="sp-player${p.type === "short" ? " vertical" : ""}" data-cfg="${esc(JSON.stringify({ src: video.url, poster: video.poster || null, width: video.width || null, height: video.height || null, vertical: p.type === "short", sources: video.renditions || [], knownDuration: video.duration || null }))}"><video class="media" src="${esc(videoUrl)}" ${posterUrl ? `poster="${esc(posterUrl)}"` : ""} controls playsinline preload="metadata"></video></div>
+      <script type="module">
+        // LookBlog's own player (pink bar, big play button, speed, quality, full screen) instead of the browser's
+        import { createPlayer } from "/js/components/player.js";
+        const box = document.querySelector(".sp-player");
+        try { const player = createPlayer(JSON.parse(box.dataset.cfg)); box.replaceChildren(player); } catch {}
+      </script>`
     : photoUrl ? `<img class="media" src="${esc(photoUrl)}" alt="">` : "";
   page(res, {
     base, path, title, desc, image, imageW: sized?.width, imageH: sized?.height, author: author.name, look: lookOf(author, base), accent: author.look?.accent,
