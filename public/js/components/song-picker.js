@@ -80,7 +80,7 @@ export function openSongPicker({ title = "Add music", onPick }) {
 
 // A song as a small pill (like on Instagram): ♫ Title · Artist — tap to play / pause.
 // YouTube songs open a small player under the pill. onEdit: a ✎ to change it (only on your own).
-export function songPill(song, { onEdit = null, small = false } = {}) {
+export function songPill(song, { onEdit = null, small = false, key = "" } = {}) {
   const wrap = h("div", { class: "song-pill-wrap" });
   const eq = h("span", { class: "sp-eq", "aria-hidden": "true" }, h("i"), h("i"), h("i"));
   const pill = h("button", { type: "button", class: "song-pill" + (small ? " small" : ""), title: "Play" },
@@ -91,11 +91,11 @@ export function songPill(song, { onEdit = null, small = false } = {}) {
   const paint = async () => {
     if (!pill.isConnected) return off();
     const { isPlayingAny } = await import("./yt-audio.js");
-    pill.classList.toggle("playing", await isPlayingAny(song));
+    pill.classList.toggle("playing", await isPlayingAny(song, key));
   };
   pill.addEventListener("click", (e) => {
     e.stopPropagation();
-    import("./yt-audio.js").then((m) => { m.playAny(song); setTimeout(paint, 300); });
+    import("./yt-audio.js").then((m) => { m.playAny(song, key); setTimeout(paint, 300); });
   });
   addEventListener("lb-yt-audio", paint);
   let offMusic = null;

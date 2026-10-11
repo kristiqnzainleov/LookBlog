@@ -42,21 +42,22 @@ function makePlayer(id) {
 }
 
 // Play (or pause, if it's the one playing) a YouTube song by its video id
-export async function ytToggle(id, meta = {}) {
-  if (now?.id === id && player?.getPlayerState) {
+// (key: where it's played from — a profile, a note, one message. The same song somewhere else starts from the beginning.)
+export async function ytToggle(id, meta = {}, key = id) {
+  if (now?.id === id && now.key === key && player?.getPlayerState) {
     const st = player.getPlayerState();
     if (st === 1 || st === 3) { player.pauseVideo(); now.playing = false; tell(); return; }
     player.playVideo(); return;
   }
   // The site's own music player stops (one thing plays at a time)
   import("./music.js").then((m) => { if (!m.player.audio.paused) m.player.audio.pause(); }).catch(() => {});
-  now = { id, playing: false, ...meta };
+  now = { id, key, playing: false, ...meta };
   tell();
   // A phone that won't start it without a tap on the player itself: show the small player to tap
   clearTimeout(failTimer);
   failTimer = setTimeout(() => { if (now?.id === id && !now.playing) box?.classList.add("show"); }, 3500);
   if (!player) await makePlayer(id);
-  else { await ready; player.loadVideoById(id); }
+  else { await ready; player.loadVideoById({ videoId: id, startSeconds: 0 }); }
 }
 export function stop() {
   try { player?.stopVideo(); } catch {}
@@ -65,7 +66,7 @@ export function stop() {
   tell();
 }
 export const ytNow = () => now;
-export const ytIsPlaying = (id) => Boolean(now && now.id === id && now.playing);
+export const ytIsPlaying = (id, key = id) => Boolean(now && now.id === id && now.key === key && now.playing);
 export function ytProgress() {
   try { return player && now ? { pos: player.getCurrentTime() || 0, dur: player.getDuration() || 0 } : { pos: 0, dur: 0 }; } catch { return { pos: 0, dur: 0 }; }
 }
@@ -73,19 +74,20 @@ export function ytProgress() {
 addEventListener("play", (e) => { if (e.target instanceof HTMLMediaElement && now?.playing && !e.target.dataset.voiceMusic) stop(); }, true);
 
 // Play / pause any song: LookBlog / MP3 in the site's player, YouTube as sound only
-export function playAny(song) {
-  if (song.kind === "youtube") return ytToggle(song.yt, { title: song.title, artist: song.artist?.name, cover: song.cover });
+// key: the place it's played from (a profile, a note, a message) — each has its own playback
+export function playAny(song, key = "") {
+  if (song.kind === "youtube") return ytToggle(song.yt, { title: song.title, artist: song.artist?.name, cover: song.cover }, key || song.yt);
   stop();
-  return import("./music.js").then((m) => m.playSongs([song], 0));
+  return import("./music.js").then((m) => m.playSongs([{ ...song, instance: key }], 0));
 }
-export async function isPlayingAny(song) {
-  if (song.kind === "youtube") return ytIsPlaying(song.yt);
+export async function isPlayingAny(song, key = "") {
+  if (song.kind === "youtube") return ytIsPlaying(song.yt, key || song.yt);
   const m = await import("./music.js");
-  return m.isPlaying(song.id);
+  return m.isPlaying(song.id, key);
 }
 
 // A song as a vinyl record (like Instagram's music in DMs): the cover is the label, it spins while it plays
-export function vinylCard(song, { kindLabel = "🎵 Song" } = {}) {
+export function vinylCard(song, { kindLabel = "🎵 Song", key = "" } = {}) {
   const disc = h("div", { class: "vinyl-disc" }, h("div", { class: "vinyl-label", style: song.cover ? `background-image:url("${song.cover}")` : "" }), h("i", { class: "vinyl-hole" }));
   const btn = h("button", { type: "button", class: "vinyl-play", "aria-label": "Play" }, h("span", { class: "vp-ic", text: "▶" }));
   const bar = h("div", { class: "vinyl-bar" }, h("i"));
@@ -100,18 +102,18 @@ export function vinylCard(song, { kindLabel = "🎵 Song" } = {}) {
   const paint = async () => {
     if (!card.isConnected) { if (mounted) off(); return; }
     mounted = true;
-    const on = await isPlayingAny(song);
+    const on = await isPlayingAny(song, key);
     card.classList.toggle("playing", on);
     btn.querySelector(".vp-ic").textContent = on ? "❚❚" : "▶";
   };
-  const go = (e) => { e.stopPropagation(); playAny(song); setTimeout(paint, 300); };
+  const go = (e) => { e.stopPropagation(); playAny(song, key); setTimeout(paint, 300); };
   btn.addEventListener("click", go);
   disc.addEventListener("click", go);
   const tick = setInterval(async () => {
     if (!card.isConnected) { if (mounted) off(); return; }
     if (!card.classList.contains("playing")) return;
     let p = { pos: 0, dur: 0 };
-    if (song.kind === "youtube") p = ytProgress();
+    if (song.kind === "youtube") p = ytIsPlaying(song.yt, key || song.yt) ? ytProgress() : { pos: 0, dur: 0 };
     else { const m = await import("./music.js"); p = { pos: m.player.audio.currentTime, dur: m.player.audio.duration || 0 }; }
     bar.firstChild.style.width = p.dur ? Math.min(100, (p.pos / p.dur) * 100) + "%" : "0%";
   }, 500);

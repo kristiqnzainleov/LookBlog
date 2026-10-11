@@ -246,7 +246,7 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
     songSlot.replaceChildren();
     import("./song-picker.js").then(({ songPill }) => {
       songSlot.replaceChildren();
-      if (song) songSlot.append(songPill(song, { onEdit: onSongEdit }));
+      if (song) songSlot.append(songPill(song, { onEdit: onSongEdit, key: "profile:" + (view?.dataset?.profileUser || location.pathname) }));
       else if (onSongEdit) songSlot.append(h("button", { type: "button", class: "song-pill add", onclick: () => onSongEdit() }, h("span", { class: "sp-note", text: "♫" }), h("b", { text: "Add music" })));
     });
   }

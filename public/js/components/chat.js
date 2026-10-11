@@ -91,14 +91,14 @@ function roleColor(chat, username) {
 
 /* ---------- A song from LookBlog inside a message ---------- */
 // Songs in chats are records (like Instagram): tap to play, they spin while they play
-function vinylSlot(song, label) {
+function vinylSlot(song, label, msgId = "") {
   const slot = h("div", { class: "vinyl-slot" });
-  import("./yt-audio.js").then((m) => slot.replaceWith(m.vinylCard(song, label ? { kindLabel: label } : {})));
+  import("./yt-audio.js").then((m) => slot.replaceWith(m.vinylCard(song, { ...(label ? { kindLabel: label } : {}), key: "msg:" + msgId })));
   return slot;
 }
-function songChatCard(s) {
+function songChatCard(s, msgId = "") {
   if (!s || s.deleted) return h("div", { class: "shared shared-gone", text: "This song was deleted." });
-  if (s.url) return vinylSlot(s, "🎧 LookBlog");
+  if (s.url) return vinylSlot(s, "🎧 LookBlog", msgId);
   const btn = h("button", { type: "button", class: "scc-play", "aria-label": "Play" }, icon("play"));
   const card = h("div", { class: "song-chat" },
     h("div", { class: "scc-cover", style: s.cover ? `background-image:url("${s.cover}")` : "" }, btn),
@@ -837,8 +837,8 @@ function messageEl(msg, chat, onRemoved) {
       if (!link || window.__lbCurrentVoice?.()?.chatId !== chat.id) return null;
       return h("button", { type: "button", class: "btn btn-xs btn-primary wt-msg-btn", text: "📺 Watch together in voice", onclick: (e) => { e.stopPropagation(); window.__lbWatchLink?.(link[0]); } });
     })(),
-    msg.song ? songChatCard(msg.song) : null,
-    msg.songYt ? vinylSlot(msg.songYt) : null,
+    msg.song ? songChatCard(msg.song, msg.id) : null,
+    msg.songYt ? vinylSlot(msg.songYt, null, msg.id) : null,
     h("span", { class: "bubble-time" }, timeEl(msg.createdAt))
   );
 

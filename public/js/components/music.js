@@ -151,12 +151,12 @@ function go(i) {
 // Play a list starting at one song (press the same song again to pause / resume)
 export function playSongs(list, start = 0) {
   const s = list[start];
-  if (current()?.id === s.id) return audio.paused ? audio.play().catch(() => {}) : audio.pause();
+  if (current()?.id === s.id && (current()?.instance || "") === (s.instance || "")) return audio.paused ? audio.play().catch(() => {}) : audio.pause();
   buildBar();
   queue = list.slice();
   go(start);
 }
-export const isPlaying = (id) => current()?.id === id && !audio.paused;
+export const isPlaying = (id, instance) => current()?.id === id && (instance === undefined || (current()?.instance || "") === instance) && !audio.paused;
 
 function openLyrics(s) {
   modal({ title: `${s.title} · Lyrics`, body: s.lyrics ? h("p", { class: "lyrics", text: s.lyrics }) : h("p", { class: "muted", text: "No lyrics for this song yet." }) });

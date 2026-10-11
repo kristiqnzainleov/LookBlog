@@ -65,7 +65,7 @@ export function openNoteEditor(current, onSaved) {
   const paintMusic = () => {
     musicBox.replaceChildren();
     musicBox.hidden = !music;
-    if (music) import("./song-picker.js").then(({ songPill }) => { musicBox.replaceChildren(songPill(music.view, { small: true }), h("button", { type: "button", class: "nm-x", title: "Remove the song", text: "✕", onclick: () => { music = null; paintMusic(); paint(); live(); } })); });
+    if (music) import("./song-picker.js").then(({ songPill }) => { musicBox.replaceChildren(songPill(music.view, { small: true, key: "note-editor" }), h("button", { type: "button", class: "nm-x", title: "Remove the song", text: "✕", onclick: () => { music = null; paintMusic(); paint(); live(); } })); });
     live();
   };
   musicBtn.addEventListener("click", () => import("./song-picker.js").then(({ openSongPicker }) => openSongPicker({ title: "A song for your note", onPick: (view, ref) => { music = { view, ref }; paintMusic(); paint(); } })));
@@ -155,7 +155,7 @@ export function openNoteReply(user, note) {
     note.music ? h("div", { class: "note-reply-song" }) : null,
     quick, h("div", { class: "note-reply-row" }, input, send)) });
   // Their song: tap to listen
-  if (note.music) import("./song-picker.js").then(({ songPill }) => m.card.querySelector(".note-reply-song")?.append(songPill(note.music)));
+  if (note.music) import("./song-picker.js").then(({ songPill }) => m.card.querySelector(".note-reply-song")?.append(songPill(note.music, { key: "note:" + user.username + ":" + (note.createdAt || "") })));
   input.addEventListener("input", () => { send.disabled = !input.value.trim(); });
   input.addEventListener("keydown", (e) => { if (e.key === "Enter" && input.value.trim()) go(input.value); });
   send.addEventListener("click", () => go(input.value));
