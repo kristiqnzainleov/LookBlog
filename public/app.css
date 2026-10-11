@@ -7159,3 +7159,5 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .meme .mm-art { white-space: nowrap; }
 .meme.labels .mm-art { font-size: calc(44cqw / var(--mm-n)); }
 .mm-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); }
+/* Profile: the dot is already the moon, so "Idle" next to it has no second one */
+.handle-presence .presence-text.idle::before { content: none !important; display: none !important; }
