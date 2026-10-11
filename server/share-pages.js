@@ -82,7 +82,7 @@ body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding
 .who b { display: block; } .who span { color: #a39b9b; font-size: .9rem; }
 .text { white-space: pre-wrap; line-height: 1.5; margin: 0 0 12px; font-size: 1.02rem; }
 .media { display: block; width: 100%; max-height: 70vh; object-fit: contain; border-radius: 16px; background: #000; margin-bottom: 12px; }
-.sp-player { margin-bottom: 12px; border-radius: 16px; overflow: hidden; }
+.sp-player { margin-bottom: 12px; border-radius: 16px; overflow: hidden; cursor: pointer; }
 .sp-player .lb-player { border-radius: 16px; }
 .sp-player.vertical .lb-player { max-height: 70vh; margin: 0 auto; }
 h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
@@ -145,6 +145,11 @@ function servePostPage(req, res, id, path) {
         import { createPlayer } from "/js/components/player.js";
         const box = document.querySelector(".sp-player");
         try { const player = createPlayer(JSON.parse(box.dataset.cfg)); box.replaceChildren(player); } catch {}
+        // Pressing play (or anywhere on the video) takes you to LookBlog, to watch it there
+        const go = (e) => { e.preventDefault(); e.stopPropagation(); location.href = "/?next=" + encodeURIComponent(location.pathname); };
+        box.addEventListener("click", go, true);
+        box.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") go(e); }, true);
+        box.title = "Watch it on LookBlog";
       </script>`
     : photoUrl ? `<img class="media" src="${esc(photoUrl)}" alt="">` : "";
   page(res, {
