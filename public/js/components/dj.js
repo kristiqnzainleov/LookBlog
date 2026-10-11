@@ -433,7 +433,6 @@ export function djConsole(api) {
   const throttle = (fn, ms = 140) => { let t = null, last; return (...a) => { last = a; if (!t) t = setTimeout(() => { t = null; fn(...last); }, ms); }; };
   const sendLevels = throttle((lv) => send({ action: "levels", ...lv }));
   const sendBeatMix = throttle((mx) => { setBeatMix(mx); send({ action: "beatmix", ...mx }); });
-  const sendMaster = throttle((v) => api.post({ kind: "music", action: "volume", volume: Math.round(v * 100) }));
   const sendX = throttle((x) => send({ action: "mix", x }));
   const sendBass = throttle((amount) => send({ action: "bass", amount }), 200);
   // The song's own effects (each deck's EQ and filter, and the SONG FX unit)
@@ -556,8 +555,7 @@ export function djConsole(api) {
           pad("RESET", "dj-small", () => sendSong({ echo: 0, verb: 0, flanger: 0, phaser: 0, crush: 0, drive: 0, a: { low: 0, mid: 0, high: 0, filter: 0 }, b: { low: 0, mid: 0, high: 0, filter: 0 } }), "The song back to how it sounds"),
           yt ? h("small", { class: "djc-yt-note", text: "YouTube doesn’t allow effects on its sound — these work on LookBlog songs." }) : null);
       })(),
-      h("div", { class: "djc-master" }, knob("MASTER", { min: 0, max: 1, value: (m?.volume ?? 70) / 100, def: 0.7, disabled: lock, fmtv: (v) => Math.round(v * 100) + "%", accent: "master", onChange: (v) => sendMaster(v) }),
-        knob("BPM", { min: 70, max: 180, value: beatOn()?.bpm || 124, def: 124, step: 1, disabled: lock, fmtv: (v) => String(v), onChange: throttle((v) => { if (beatOn()) send({ action: "beat", bpm: v, pattern: beatOn().pattern }); }, 300) })),
+      h("div", { class: "djc-master" }, knob("BPM", { min: 70, max: 180, value: beatOn()?.bpm || 124, def: 124, step: 1, disabled: lock, fmtv: (v) => String(v), onChange: throttle((v) => { if (beatOn()) send({ action: "beat", bpm: v, pattern: beatOn().pattern }); }, 300) })),
       // Bass boost on the song itself
       (() => {
         const amt = m?.bass || 0;

@@ -25,7 +25,7 @@ export const musicState = () => current;
 export const musicVolume = () => volume;
 // My own music volume (0–100): only for me, on top of the channel's volume. Nobody else hears a difference.
 const MY_KEY = "lb_vc_my_music_vol";
-let mine = 100, mineMuted = false;
+let mine = 70, mineMuted = false;
 try { const v = localStorage.getItem(MY_KEY); if (v != null) mine = Math.max(0, Math.min(100, Number(v) || 0)); mineMuted = localStorage.getItem(MY_KEY + "_m") === "1"; } catch {}
 const myMul = () => (mineMuted ? 0 : mine / 100);
 export const myMusicVolume = () => ({ volume: mine, muted: mineMuted });
@@ -54,7 +54,8 @@ const position = (m) => {
 };
 // The DJ's fades: 1 = full, 0 = silent (on top of the volume, which stays the same from song to song)
 let fadeMul = 1, fadeAnim = null;
-const level = () => (deaf ? 0 : Math.round((current?.volume ?? volume) * fadeMul * myMul()));
+// How loud the music is for me: only my own volume (nobody else's slider changes what I hear)
+const level = () => (deaf ? 0 : Math.round(100 * fadeMul * myMul()));
 // Deck B: the next song, while the DJ crossfades into it (x: 0 = only deck A, 1 = only deck B)
 let deckB = null; // { id, yt, box, audio }
 const mixX = () => current?.mix?.x || 0;
@@ -380,7 +381,7 @@ export function setMusicVolume(v) {
   volume = Math.max(0, Math.min(100, Math.round(v)));
   try { localStorage.setItem(VOL_KEY, String(volume)); } catch {}
   applyVols();
-  djVolume(deaf ? 0 : ((current?.volume ?? volume) / 100) * myMul()); // the DJ's effects follow the music volume (and mine)
+  djVolume(deaf ? 0 : myMul()); // the DJ's effects follow my music volume
 }
 export function setMusicDeaf(d) { deaf = d; setMusicVolume(volume); }
 export function leaveMusic() { current = null; stopAll(); dropDeckB(); }
@@ -417,21 +418,11 @@ export function openMusicPanel() {
   };
   search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(load, 200); });
   load();
-  const vol = h("input", { type: "range", min: 0, max: 100, value: current?.volume ?? 70, class: "vm-vol", "aria-label": "Music volume for everyone" });
-  const volLabel = h("span", { class: "vm-vol-n", text: (current?.volume ?? 70) + "%" });
-  let volTimer;
-  vol.addEventListener("input", () => {
-    volLabel.textContent = vol.value + "%";
-    if (current) { current.volume = Number(vol.value); setMusicVolume(volume); }
-    clearTimeout(volTimer);
-    volTimer = setTimeout(() => post({ kind: "music", action: "volume", volume: Number(vol.value) }).catch(() => {}), 150);
-  });
   const now = h("div", { class: "vm-now" });
   let tick = null;
   function paint() {
     if (!body.isConnected && tick) { clearInterval(tick); return; }
     const m = current;
-    if (document.activeElement !== vol && m) { vol.value = m.volume ?? 70; volLabel.textContent = vol.value + "%"; }
     if (!m?.now) { now.replaceChildren(h("p", { class: "muted", text: "Nothing is playing. Paste a YouTube link or pick a song — everyone in the channel will hear it." })); return; }
     const it = m.now, paused = m.pausedAt != null;
     const pos = h("span", { class: "vm-pos", text: fmt(position(m)) + (it.duration ? " / " + fmt(it.duration) : "") });
@@ -486,9 +477,8 @@ export function openMusicPanel() {
     h("p", { class: "create-hint", text: "Play MP3, WAV, M4A or FLAC files from your computer. Everyone in the channel hears them live — they're not uploaded or saved anywhere." }),
     lpick, lfile, lnow) : null;
   body.append(djBtn, djWrap, now, localBox,
-    h("label", { class: "vm-vol-row" }, h("span", { text: "🔊 Volume for everyone" }), vol, volLabel),
     myVolumeRow(),
-    h("p", { class: "create-hint", text: "Everyone in this voice channel hears the music and anyone can change the song, pause, skip or turn it up." }),
+    h("p", { class: "create-hint", text: "Everyone in this voice channel hears the music and anyone can change the song, pause or skip. The volume is yours: each person sets how loud it is for them." }),
     h("b", { class: "vis-label", text: "YouTube" }), h("div", { class: "invite-row" }, link, playLink, queueLink),
     h("b", { class: "vis-label", text: "Songs on LookBlog" }), search, songs);
   floatWindow("🎧 Music in voice", body, () => { clearInterval(tick); onChange = prevChange; });
@@ -502,7 +492,7 @@ export function myVolumeRow({ compact = false } = {}) {
   const sync = () => { r.value = mine; n.textContent = mineMuted ? "Muted" : mine + "%"; m.textContent = mineMuted ? "🔇" : "🎧"; m.classList.toggle("on", mineMuted); row.classList.toggle("muted", mineMuted); };
   r.addEventListener("input", () => setMyMusicVolume(Number(r.value), false));
   m.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); setMyMusicVolume(mine, !mineMuted); });
-  const row = h("label", { class: "vm-vol-row vm-my" + (compact ? " compact" : "") }, m, h("span", { text: compact ? "My music" : "My volume (only for me)" }), r, n);
+  const row = h("label", { class: "vm-vol-row vm-my" + (compact ? " compact" : "") }, m, h("span", { text: compact ? "Music" : "🔊 Music volume (just for you)" }), r, n);
   const on = () => { if (!row.isConnected) return removeEventListener("lb-my-music-vol", on); sync(); };
   addEventListener("lb-my-music-vol", on);
   sync();
