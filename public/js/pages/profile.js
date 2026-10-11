@@ -21,7 +21,7 @@ import { songList, playSongs, openUploadSong, albumCard, openAlbumForm } from ".
 // A light puff of confetti from a button (on the page, so nothing cuts it off)
 function followConfetti(btn) {
   const r = btn.getBoundingClientRect();
-  const colors = ["#ff4fa3", "#ff8cc6", "#ffd166", "#66d1ff", "#5fe0b0", "#fff"];
+  const colors = ["#ff4fa3", "#ff8cc6", "#ff2d8f", "#ffb3d9", "#e0388a", "#ff6eb4"]; // all pink
   const layer = h("div", { class: "follow-confetti", "aria-hidden": "true", style: `left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px` },
     ...Array.from({ length: 16 }, (_, i) => {
       const a = (-160 + (140 * i) / 15 + (Math.random() * 10 - 5)) * (Math.PI / 180); // spread upwards
