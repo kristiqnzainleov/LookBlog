@@ -3,7 +3,7 @@
 //   - comments pop up live as the song reaches them, and new ones arrive in real time
 //   - lyrics that follow the song (Spotify style); "[01:23.40] line" times make them exact
 //   - reactions (🔥 😍 👏 😂 😢 🎉) that float up for everyone listening
-import { h, avatar, tick, toast, fmtTime } from "../ui.js";
+import { h, avatar, tick, toast, fmtTime, likeAnim } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
@@ -146,6 +146,7 @@ export function openNowPlaying(tab = "comments") {
   function paintPlays() { plays.textContent = `${(song.plays || 0).toLocaleString("en-US")} play${song.plays === 1 ? "" : "s"}`; }
   function paintLike() { like.classList.toggle("on", Boolean(song.liked)); like.title = song.liked ? "Remove from Liked Songs" : "Save to Liked Songs"; }
   like.addEventListener("click", async () => {
+    if (!song.liked) likeAnim(like, { music: true });
     try { const r = await api(`/api/songs/${song.id}/like`, { method: "POST" }); song.liked = r.liked; player.update(song); paintLike(); toast(r.liked ? "Added to Liked Songs." : "Removed from Liked Songs."); } catch {}
   });
   function paintReacts() {

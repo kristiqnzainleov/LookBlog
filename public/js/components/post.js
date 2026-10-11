@@ -1,5 +1,5 @@
 // A post card (used in every feed), plus reactions and view counting.
-import { h, icon, avatar, timeEl, count, duration, toast, confirmClick, spinner, richText, tick } from "../ui.js";
+import { h, icon, avatar, timeEl, count, duration, toast, confirmClick, spinner, richText, tick, likeAnim } from "../ui.js";
 import { openShare } from "./share.js";
 import { createPlayer } from "./player.js";
 import { visibilityBadge } from "./visibility.js";
@@ -188,7 +188,8 @@ export function actions(p, { onDeleted, big = false } = {}) {
     if (next === "dislike") p.dislikes++;
     p.reaction = next;
     paint();
-    if (next) { btn.classList.remove("pop"); void btn.offsetWidth; btn.classList.add("pop"); }
+    if (next === "like") likeAnim(btn);
+    else if (next) { btn.classList.remove("pop"); void btn.offsetWidth; btn.classList.add("pop"); }
     try {
       const r = await api(`/api/posts/${p.id}/react`, { method: "POST", body: { reaction: next || "none" } });
       Object.assign(p, { reaction: r.reaction, likes: r.likes, dislikes: r.dislikes });

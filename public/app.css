@@ -7161,3 +7161,16 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .mm-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); }
 /* Profile: the dot is already the moon, so "Idle" next to it has no second one */
 .handle-presence .presence-text.idle::before { content: none !important; display: none !important; }
+/* Liking: the like grows big with a burst; songs turn into a note first (like YouTube) */
+.la-host { position: relative; overflow: visible !important; }
+.la-host svg { transform-origin: center; }
+.la-pop svg { animation: laPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes laPop { 0% { transform: scale(1); } 25% { transform: scale(0.75); } 55% { transform: scale(1.75) rotate(-12deg); } 75% { transform: scale(0.95) rotate(4deg); } 100% { transform: scale(1); } }
+.la-burst { position: absolute; left: var(--la-x, 50%); top: var(--la-y, 50%); width: 0; height: 0; pointer-events: none; z-index: 2; }
+.la-burst i { position: absolute; left: 0; top: 0; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: var(--pink); font-style: normal; opacity: 0; animation: laBurst 0.6s ease-out 0.12s forwards; }
+@keyframes laBurst { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(0.4); } 70% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-1 * var(--d))) scale(1); } }
+.la-music .la-burst i { width: auto; height: auto; margin: -0.5em -0.3em; background: none; color: var(--pink); font-size: 0.75rem; font-weight: 900; line-height: 1; animation-delay: 0.45s; animation-duration: 0.65s; }
+.la-music svg { animation: laSvgMusic 1.05s ease forwards; }
+@keyframes laSvgMusic { 0% { transform: scale(1); opacity: 1; } 12% { transform: scale(0.4); opacity: 0; } 55% { transform: scale(0.4); opacity: 0; } 72% { transform: scale(1.6) rotate(-10deg); opacity: 1; } 86% { transform: scale(0.92); } 100% { transform: scale(1); opacity: 1; } }
+.la-note { position: absolute; left: var(--la-x, 50%); top: var(--la-y, 50%); z-index: 3; color: var(--pink); font: 900 1.25rem/1 var(--body); pointer-events: none; transform: translate(-50%, -50%) scale(0); animation: laNote 1.05s ease forwards; text-shadow: 0 0 10px rgba(255, 79, 163, 0.6); }
+@keyframes laNote { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 12% { opacity: 1; transform: translate(-50%, -50%) scale(0.8) rotate(-10deg); } 40% { transform: translate(-50%, -60%) scale(1.9) rotate(10deg); opacity: 1; } 58% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0); } }

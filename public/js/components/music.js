@@ -1,5 +1,5 @@
 // Music, Spotify style: a player bar at the bottom of every page, song lists, and uploading songs.
-import { h, icon, avatar, tick, toast, modal, confirmClick, duration as fmt, spinner } from "../ui.js";
+import { h, icon, avatar, tick, toast, modal, confirmClick, duration as fmt, spinner, likeAnim } from "../ui.js";
 import { api, upload } from "../api.js";
 import { state, emit, on } from "../state.js";
 import { navigate, profileHref } from "../router.js";
@@ -84,6 +84,7 @@ function buildBar() {
   lyrics.addEventListener("click", () => import("./music-now.js").then((m) => m.openNowPlaying("lyrics")));
   like.addEventListener("click", async () => {
     const s = current(); if (!s) return;
+    if (!s.liked) likeAnim(like, { music: true });
     try { const r = await api(`/api/songs/${s.id}/like`, { method: "POST" }); s.liked = r.liked; paint(); toast(r.liked ? "Added to Liked Songs." : "Removed from Liked Songs."); emit("music:changed"); } catch {}
   });
   const seekTo = (x) => { const r = seek.getBoundingClientRect(); if (audio.duration) audio.currentTime = Math.max(0, Math.min(1, (x - r.left) / r.width)) * audio.duration; };
@@ -171,6 +172,7 @@ export function songList(songs, { showArtist = true, onRemoved } = {}) {
     const heart = h("button", { type: "button", class: "sl-like" + (s.liked ? " on" : ""), title: s.liked ? "Remove from Liked Songs" : "Save to Liked Songs", "aria-label": "Like" }, ico("heart"));
     heart.addEventListener("click", async (e) => {
       e.stopPropagation();
+      if (!s.liked) likeAnim(heart, { music: true });
       try { const r = await api(`/api/songs/${s.id}/like`, { method: "POST" }); s.liked = r.liked; heart.classList.toggle("on", r.liked); emit("music:changed"); } catch {}
     });
     const del = s.mine ? h("button", { type: "button", class: "sl-del", title: "Delete song", "aria-label": "Delete song" }, icon("trash")) : null;
