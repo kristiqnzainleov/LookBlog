@@ -52,8 +52,8 @@ export async function miniProfile(username, anchor, { extra = null } = {}) {
       extra?.groupStatus ? h("p", { class: "mp-status", text: `${extra.groupStatus.emoji || "💬"} ${extra.groupStatus.text || ""}` }) : null,
       p.bio ? h("p", { class: "mp-bio", text: p.bio }) : null,
       h("div", { class: "mp-stats" },
-        h("span", {}, h("b", { text: String(p.followers ?? 0) }), h("small", { text: "Followers" })),
-        h("span", {}, h("b", { text: String(p.following ?? 0) }), h("small", { text: "Following" })),
+        h("span", {}, h("b", { dataset: { followers: p.username }, text: String(p.followers ?? 0) }), h("small", { text: "Followers" })),
+        h("span", {}, h("b", { dataset: { following: p.username }, text: String(p.following ?? 0) }), h("small", { text: "Following" })),
         p.posts != null ? h("span", {}, h("b", { text: String(p.posts) }), h("small", { text: "Posts" })) : null),
       h("div", { class: "mp-btns" }, ...btns)));
   if (look.color || look.font) import("./profile-look.js").then((m) => m.applyLook?.(name, look)).catch(() => {});

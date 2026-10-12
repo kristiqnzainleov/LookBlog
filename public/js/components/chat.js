@@ -1273,7 +1273,20 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   const toBottom = () => { list.scrollTop = list.scrollHeight; stick = true; };
   // Photos and GIFs that finish loading later don't push the chat away from the newest message
   let stick = true;
-  list.addEventListener("scroll", () => { stick = atBottom(); }, { passive: true });
+  // Scrolled up: a pink arrow takes you back down to the newest message (with how many came in meanwhile)
+  const jumpCount = h("span", { class: "chat-jump-n", hidden: true });
+  const jump = h("button", { type: "button", class: "chat-jump", "aria-label": "Go to the newest message", title: "Newest messages" }, icon("arrowDown"), jumpCount);
+  let unseen = 0;
+  const paintJump = () => {
+    const far = list.scrollHeight - list.scrollTop - list.clientHeight > 240;
+    if (!far) unseen = 0;
+    jump.classList.toggle("show", far);
+    jumpCount.hidden = !unseen;
+    jumpCount.textContent = unseen > 99 ? "99+" : String(unseen);
+  };
+  jump.addEventListener("click", () => { unseen = 0; list.scrollTo({ top: list.scrollHeight, behavior: "smooth" }); stick = true; paintJump(); });
+  list.addEventListener("scroll", () => { stick = atBottom(); paintJump(); }, { passive: true });
+  list.after(jump);
   list.addEventListener("load", () => { if (stick) list.scrollTop = list.scrollHeight; }, true);
   // When the keyboard opens (or closes) the list gets shorter (or taller): stay on the newest message, no jump
   if ("ResizeObserver" in window) { let lastH = 0; new ResizeObserver(() => { const h0 = list.clientHeight; if (h0 !== lastH) { if (stick) list.scrollTop = list.scrollHeight; lastH = h0; } }).observe(list); }
@@ -1879,6 +1892,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     if (ev.message.media?.kind === "sound" && !ev.message.mine) playSound(ev.message.media);
     add(ev.message);
     if (stick) toBottom();
+    else if (!ev.message.mine) { unseen++; paintJump(); }
     if (chat.kind === "dm" && !ev.message.mine) refresh().catch(() => {});
     markRead();
   });

@@ -7195,3 +7195,12 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .follow-confetti { position: fixed; z-index: 9999; width: 0; height: 0; pointer-events: none; }
 .follow-confetti i { position: absolute; left: -2px; top: -4px; width: 4px; height: 8px; border-radius: 1px; background: var(--c); opacity: 0; animation: followConfetti var(--t) cubic-bezier(0.2, 0.7, 0.4, 1) forwards; }
 @keyframes followConfetti { 0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(0.6); } 60% { opacity: 1; transform: translate(var(--x), var(--y)) rotate(calc(var(--r) * 0.7)) scale(1); } 100% { opacity: 0; transform: translate(var(--x), calc(var(--y) + 22px)) rotate(var(--r)) scale(0.9); } }
+/* Chats: the pink arrow back down to the newest message */
+.chat-jump { position: absolute; right: 18px; bottom: 96px; z-index: 6; display: grid; place-items: center; width: 44px; height: 44px; border: none; border-radius: 50%; background: var(--pink); color: #111; box-shadow: 0 6px 18px rgba(255, 79, 163, 0.45); cursor: pointer; opacity: 0; transform: translateY(14px) scale(0.8); pointer-events: none; transition: opacity 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.chat-jump.show { opacity: 1; transform: none; pointer-events: auto; }
+.chat-jump:hover { filter: brightness(1.08); }
+.chat-jump:active { transform: scale(0.92); }
+.chat-jump svg { width: 22px; height: 22px; stroke-width: 2.6; }
+.chat-jump-n { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #fff; color: #111; font: 800 0.7rem/20px var(--body); text-align: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }
+.chat-jump { right: auto; left: 50%; margin-left: -22px; box-shadow: 0 0 0 3px #161414, 0 6px 18px rgba(255, 79, 163, 0.45); }
+.chat-jump svg { fill: none; stroke: currentColor; }

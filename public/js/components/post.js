@@ -258,6 +258,16 @@ export function actions(p, { onDeleted, big = false } = {}) {
   });
   paintRepost();
 
+  // Live counts: keep the numbers this post remembers in step with what the server says,
+  // so my own like / repost / Cool counts from the real number (not an old one)
+  let shown = false;
+  const offStats = on("stats", (ev) => {
+    if (like.isConnected) shown = true;
+    else if (shown) return offStats(); // the post left the page
+    if (ev.id !== p.id) return;
+    for (const k of ["likes", "dislikes", "reposts", "cools", "comments", "shares", "views"]) if (typeof ev[k] === "number") p[k] = ev[k];
+  });
+
   const comments = h("a", { class: "act act-comment" + (p.noReplies ? " closed" : ""), href: openHref(p) + "#replies", "aria-label": "Reply", title: p.noReplies ? (p.noReplies === "off" ? "Replies are turned off" : "No replies on " + (p.noReplies === "movie" ? "movies" : p.noReplies === "episode" ? "series episodes" : "past lives")) : "Reply" },
     stat(p, "comments", "comment", p.film ? " reviews" : " replies"), p.noReplies ? null : h("span", { class: "act-label act-reply-label", text: p.film ? "Reviews" : "Reply" }));
   const views = h("span", { class: "act act-views", title: "Views" }, stat(p, "views", "eye", " views"));

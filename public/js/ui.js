@@ -49,6 +49,7 @@ const ICONS = {
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   note: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  arrowDown: '<path d="M12 5v14"/><path d="m6 13 6 6 6-6"/>',
   replyArrow: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   bell: '<path d="M6 9a6 6 0 1 1 12 0c0 4.5 1.8 6.5 2.5 7.2a.5.5 0 0 1-.4.8H3.9a.5.5 0 0 1-.4-.8C4.2 15.5 6 13.5 6 9z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>',
   bellOff: '<path d="M8.6 3.9A6 6 0 0 1 18 9c0 2.3.5 4 1.1 5.2M17 17H3.9a.5.5 0 0 1-.4-.8C4.2 15.5 6 13.5 6 9c0-.6.1-1.2.3-1.8"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/><path d="m3 3 18 18"/>',
