@@ -7204,3 +7204,22 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .chat-jump-n { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #fff; color: #111; font: 800 0.7rem/20px var(--body); text-align: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }
 .chat-jump { right: auto; left: 50%; margin-left: -22px; box-shadow: 0 0 0 3px #161414, 0 6px 18px rgba(255, 79, 163, 0.45); }
 .chat-jump svg { fill: none; stroke: currentColor; }
+/* ⏰ Scheduled messages */
+.sched-form { display: flex; flex-direction: column; gap: 10px; }
+.sched .text-input { margin: 0 !important; }
+.sched-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sched-row input { color-scheme: dark; }
+.sched-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.sched-quick .chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--ink); color: var(--paper); font: 600 0.82rem var(--body); cursor: pointer; }
+.sched-quick .chip:hover { border-color: var(--pink); color: var(--pink); }
+.sched-when { margin: 0; font-size: 0.85rem; }
+.sched-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.sched-head { margin: 0; font-weight: 800; font-size: 0.85rem; color: var(--pink); }
+.sched-item { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--ink); border: 1px solid var(--line); }
+.sched-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sched-item-text b { font-size: 0.8rem; color: var(--pink); }
+.sched-item-text span { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sched-item-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.sched-chip { align-self: flex-start; margin: 0 0 6px 8px; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(255, 79, 163, 0.4); background: rgba(255, 79, 163, 0.12); color: var(--pink); font: 700 0.78rem var(--body); cursor: pointer; }
+.sched-chip[hidden] { display: none; }
+.sched-mark { font-size: 0.8em; }

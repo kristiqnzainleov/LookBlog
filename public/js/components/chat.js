@@ -839,7 +839,7 @@ function messageEl(msg, chat, onRemoved) {
     })(),
     msg.song ? songChatCard(msg.song, msg.id) : null,
     msg.songYt ? vinylSlot(msg.songYt, null, msg.id) : null,
-    h("span", { class: "bubble-time" }, timeEl(msg.createdAt))
+    h("span", { class: "bubble-time" }, msg.scheduled ? h("span", { class: "sched-mark", title: "Scheduled message", text: "⏰ " }) : null, timeEl(msg.createdAt))
   );
 
   /* Hover menu: quick reactions, more emoji, delete */
@@ -1679,13 +1679,26 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       sfx("send"); add(message); toBottom();
     }));
     inputRow.insertBefore(pollBtn, camBtn);
+    // ⏰ Schedule: write it now, it's sent at the day and time you pick
+    const schedBtn = h("button", { type: "button", class: "tool-btn sched-btn", "aria-label": "Schedule a message", title: "Schedule a message" }, h("span", { text: "⏰" }));
+    schedBtn.addEventListener("click", () => openSchedule({ chatId: chat.id, channelId, draft: text.value, onScheduled: (n) => { text.value = ""; text.dispatchEvent(new Event("input")); paintSchedChip(n); } }));
+    inputRow.insertBefore(schedBtn, camBtn);
+    // "⏰ 2 scheduled" above the box: tap to see, send now or cancel them
+    const schedChip = h("button", { type: "button", class: "sched-chip", hidden: true });
+    const paintSchedChip = (n) => { schedChip.hidden = !n; schedChip.textContent = `⏰ ${n} scheduled message${n === 1 ? "" : "s"}`; };
+    schedChip.addEventListener("click", () => openSchedule({ chatId: chat.id, channelId, draft: "", listOnly: true, onScheduled: paintSchedChip }));
+    form.prepend(schedChip);
+    const recountSched = () => api(`/api/chats/${chat.id}/scheduled`).then((r) => paintSchedChip(r.scheduled.length)).catch(() => {});
+    recountSched();
+    // One of mine went out (at its time): count again
+    const offSched = on("message", (ev) => { if (!form.isConnected) return offSched(); if (ev.chatId === chat.id && ev.message?.scheduled && ev.message.mine) recountSched(); });
     // The tools: the main ones stay in the row (on a computer); the rest live in a panel that ＋ opens.
     // On a phone the row is just ＋ · text · mic / send, and every tool is in the panel.
     const tray = h("div", { class: "convo-tray", role: "group", "aria-label": "More things to send" });
     form.insertBefore(tray, inputRow);
     const tile = (b, label) => h("div", { class: "tray-tile" }, b, h("small", { text: label }));
     // In the ＋ panel: my message style & effects, a song, a poll, the camera, view once
-    for (const [b, l] of [[fileBtn, "File"], [fxBtn, "Style & effects"], [soundBtn, "Sounds"], [songBtn, "Music"], [pollBtn, "Poll"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
+    for (const [b, l] of [[fileBtn, "File"], [fxBtn, "Style & effects"], [soundBtn, "Sounds"], [songBtn, "Music"], [pollBtn, "Poll"], [schedBtn, "Schedule"], [camBtn, "Camera"], [voBtn, "View once"]]) tray.append(tile(b, l));
     // In the row: emoji, GIFs and stickers always; the photo button too on a computer (on a phone it's in ＋)
     const ROW = [emojiBtn, chatGif, stickerBtn];
     const MAIN = [[picker.button, "Photo"]], mainTiles = new Map();
@@ -1941,3 +1954,61 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
   return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offNotes(); offHype(); offHyped(); offPoll(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
 }
 
+
+/* ---------- ⏰ Scheduled messages: pick a day and time, it's sent then ---------- */
+const pad2 = (n) => String(n).padStart(2, "0");
+const localDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const localTime = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+const whenText = (iso) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+function openSchedule({ chatId, channelId, draft = "", listOnly = false, onScheduled }) {
+  const soon = new Date(Date.now() + 60 * 60 * 1000);
+  soon.setMinutes(Math.ceil(soon.getMinutes() / 5) * 5, 0, 0);
+  const text = h("textarea", { class: "text-input sched-text", rows: 3, maxlength: 2000, placeholder: "Your message" });
+  text.value = draft;
+  const date = h("input", { type: "date", class: "text-input sched-date", value: localDate(soon), min: localDate(new Date()) });
+  const time = h("input", { type: "time", class: "text-input sched-time", value: localTime(soon) });
+  const pickAt = (d) => { date.value = localDate(d); time.value = localTime(d); paintWhen(); };
+  const at = () => new Date(`${date.value}T${time.value || "00:00"}`);
+  const whenEl = h("p", { class: "muted sched-when" });
+  const paintWhen = () => { const d = at(); whenEl.textContent = Number.isNaN(d.getTime()) ? "" : d.getTime() < Date.now() ? "⚠️ That time has passed — pick a later one." : `It will be sent ${whenText(d.toISOString())}.`; };
+  date.addEventListener("input", paintWhen); time.addEventListener("input", paintWhen);
+  const quick = (label, make) => h("button", { type: "button", class: "chip", text: label, onclick: () => pickAt(make()) });
+  const at9 = (days) => { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(9, 0, 0, 0); return d; };
+  const tonight = () => { const d = new Date(); d.setHours(20, 0, 0, 0); if (d.getTime() < Date.now() + 60000) d.setDate(d.getDate() + 1); return d; };
+  const chips = h("div", { class: "sched-quick" }, quick("In 1 hour", () => new Date(Date.now() + 3600000)), quick("Tonight 20:00", tonight), quick("Tomorrow 9:00", () => at9(1)), quick("In a week", () => at9(7)));
+  const go = h("button", { type: "button", class: "btn btn-primary btn-full", text: "⏰ Schedule" });
+  const list = h("div", { class: "sched-list" });
+  const paintList = (items) => {
+    onScheduled?.(items.length);
+    list.replaceChildren(...(items.length ? [h("p", { class: "sched-head", text: "Scheduled here" })] : []), ...items.map((x) => {
+      const now = h("button", { type: "button", class: "btn btn-xs", text: "Send now" });
+      const del = h("button", { type: "button", class: "btn btn-xs btn-danger", text: "Cancel" });
+      now.addEventListener("click", async () => { try { paintList((await api(`/api/chats/${chatId}/scheduled/${x.id}/now`, { method: "POST" })).scheduled); toast("Sent."); } catch (err) { toast(err.error || "Couldn’t send it."); } });
+      del.addEventListener("click", async () => { try { paintList((await api(`/api/chats/${chatId}/scheduled/${x.id}`, { method: "DELETE" })).scheduled); toast("Cancelled."); } catch (err) { toast(err.error || "Couldn’t cancel it."); } });
+      return h("div", { class: "sched-item" }, h("div", { class: "sched-item-text" }, h("b", { text: "⏰ " + whenText(x.at) }), h("span", { text: x.text })), h("div", { class: "sched-item-btns" }, now, del));
+    }));
+    if (listOnly && !items.length) list.append(h("p", { class: "muted", text: "Nothing scheduled here." }));
+  };
+  go.addEventListener("click", async () => {
+    const d = at();
+    if (!text.value.trim()) return toast("Write the message first.");
+    if (Number.isNaN(d.getTime()) || d.getTime() < Date.now() + 30000) return toast("Pick a time in the future.");
+    go.disabled = true;
+    try {
+      const r = await api(`/api/chats/${chatId}/scheduled`, { method: "POST", body: { text: text.value, at: d.toISOString(), channelId } });
+      toast(`⏰ Scheduled for ${whenText(d.toISOString())}`);
+      text.value = "";
+      paintList(r.scheduled);
+      onScheduled?.(r.scheduled.length);
+      md.close();
+    } catch (err) { toast(err.error || "Couldn’t schedule it."); }
+    go.disabled = false;
+  });
+  paintWhen();
+  const body = h("div", { class: "create-form sched" },
+    listOnly ? null : h("div", { class: "sched-form" }, text, h("div", { class: "sched-row" }, date, time), chips, whenEl, go),
+    list);
+  const md = modal({ title: listOnly ? "⏰ Scheduled messages" : "⏰ Schedule a message", body });
+  api(`/api/chats/${chatId}/scheduled`).then((r) => paintList(r.scheduled)).catch(() => {});
+  if (!listOnly) setTimeout(() => text.focus(), 60);
+}

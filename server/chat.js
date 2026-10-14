@@ -276,6 +276,7 @@ function messageView(msg, me) {
   if (msg.viewOnce) return viewOnceView(msg, me, messageViewFull(msg, me));
   const v = messageViewFull(msg, me);
   if (msg.unlockAt) v.unlockAt = msg.unlockAt;
+  if (msg.scheduled) v.scheduled = true;
   if (lockedFor(msg, me)) { v.text = ""; v.media = null; v.post = null; v.song = null; v.comment = null; v.locked = true; }
   return v;
 }
@@ -523,6 +524,40 @@ function groupInviteView(gi, me) {
 const channelOf = (chat, msg) => msg.channelId || firstText(chat)?.id;
 every(() => sweepVoice(db.chats), 15 * 1000).unref();
 
+/* ---------- Scheduled messages: written now, sent at the day and time you picked ---------- */
+// They wait on the chat (chat.scheduled) and go out like a normal message when it's time.
+const MAX_SCHEDULED = 25;
+const scheduledView = (x) => ({ id: x.id, text: x.text, at: x.at, channelId: x.channelId || null, createdAt: x.createdAt });
+function sendScheduled(chat, x) {
+  const me = findUser(x.userId);
+  if (!me || !isMember(chat, me)) return; // left the group (or the account is gone): it's dropped
+  if (chat.kind === "dm") { const other = findUser(chat.members.find((id) => id !== me.id)); if (!other || !mutual(me, other)) return; }
+  // (its id is the scheduled one's: if two servers send it at once, it's still one message)
+  if (db.messages.some((y) => y.id === x.id)) return;
+  const msg = { id: x.id, chatId: chat.id, userId: me.id, text: x.text, media: null, postId: null, replyTo: null, mentions: findMentions(x.text), scheduled: true, createdAt: new Date().toISOString() };
+  if (chat.kind === "group") msg.channelId = (chat.channels.find((c) => c.id === x.channelId && c.kind === "text") || firstText(chat)).id;
+  db.messages.push(msg);
+  chat.lastAt = msg.createdAt;
+  chat.reads = { ...(chat.reads || {}), [me.id]: msg.createdAt };
+  save("messages");
+  deliver(chat, msg);
+  for (const id of msg.mentions) if (id !== me.id && chat.members.includes(id)) notify(id, "chat-mention", me, { chatId: chat.id, group: chat.kind === "group" ? chat.name : null, text: x.text });
+}
+function sendDueScheduled() {
+  const now = Date.now();
+  let changed = false;
+  for (const chat of db.chats) {
+    if (!chat.scheduled?.length) continue;
+    const due = chat.scheduled.filter((x) => new Date(x.at).getTime() <= now);
+    if (!due.length) continue;
+    chat.scheduled = chat.scheduled.filter((x) => !due.includes(x));
+    for (const x of due.sort((a, b) => a.at.localeCompare(b.at))) { try { sendScheduled(chat, x); } catch (err) { console.error("[scheduled]", err); } }
+    changed = true;
+  }
+  if (changed) save("chats");
+}
+every(sendDueScheduled, 15 * 1000).unref();
+
 async function handleChat(req, res, url, me) {
   const parts = url.pathname.split("/").filter(Boolean).slice(1); // without "api"
   const [a, b, c, d] = parts;
@@ -721,6 +756,51 @@ async function handleChat(req, res, url, me) {
       const slice = all.slice(-PAGE);
       sendJSON(res, 200, { messages: slice.map((x) => messageView(x, me)), more: all.length > PAGE ? slice[0].createdAt : null });
       return true;
+    }
+
+    // My scheduled messages here: GET /api/chats/:id/scheduled
+    // Schedule one: POST /api/chats/:id/scheduled { text, at, channelId }
+    // Cancel: DELETE /api/chats/:id/scheduled/:sid · Send it now: POST /api/chats/:id/scheduled/:sid/now
+    if (c === "scheduled") {
+      if (!isMember(chat, me)) throw httpError(403, "You’re not in this conversation.");
+      const mine = () => (chat.scheduled || []).filter((x) => x.userId === me.id).sort((a, b) => a.at.localeCompare(b.at)).map(scheduledView);
+      if (m === "GET" && parts.length === 3) { sendJSON(res, 200, { scheduled: mine() }); return true; }
+      if (m === "POST" && parts.length === 3) {
+        rateLimit("sched:" + me.id, 30, 10 * 60 * 1000, "That’s a lot of scheduled messages. Try again later.");
+        if (chat.kind === "dm") {
+          const other = findUser(chat.members.find((id) => id !== me.id));
+          if (!other || !mutual(me, other)) throw httpError(403, "You can message someone only while you follow each other.");
+        }
+        const body = await readJSON(req);
+        const text = clean(body.text);
+        if (!text) throw httpError(400, "Write the message first.");
+        if (chars(text) > 2000) throw httpError(400, "Keep messages under 2000 characters.");
+        const at = new Date(body.at);
+        if (Number.isNaN(at.getTime())) throw httpError(400, "Pick a day and time.");
+        if (at.getTime() < Date.now() + 30 * 1000) throw httpError(400, "Pick a time in the future.");
+        if (at.getTime() > Date.now() + 366 * 24 * 3600 * 1000) throw httpError(400, "You can schedule up to a year ahead.");
+        if ((chat.scheduled || []).filter((x) => x.userId === me.id).length >= MAX_SCHEDULED) throw httpError(400, `You can have up to ${MAX_SCHEDULED} scheduled messages in a chat.`);
+        const x = { id: crypto.randomUUID(), userId: me.id, text, at: at.toISOString(), channelId: chat.kind === "group" ? String(body.channelId || "") || null : null, createdAt: new Date().toISOString() };
+        (chat.scheduled ||= []).push(x);
+        save("chats");
+        sendJSON(res, 201, { scheduled: mine() });
+        return true;
+      }
+      const x = (chat.scheduled || []).find((y) => y.id === d && y.userId === me.id);
+      if (!x) throw httpError(404, "That scheduled message is gone (maybe it was already sent).");
+      if (m === "DELETE" && parts.length === 4) {
+        chat.scheduled = chat.scheduled.filter((y) => y !== x);
+        save("chats");
+        sendJSON(res, 200, { scheduled: mine() });
+        return true;
+      }
+      if (m === "POST" && parts[4] === "now" && parts.length === 5) {
+        chat.scheduled = chat.scheduled.filter((y) => y !== x);
+        sendScheduled(chat, x);
+        save("chats");
+        sendJSON(res, 200, { scheduled: mine() });
+        return true;
+      }
     }
 
     // POST /api/chats/:id/messages { text, media, postId }
