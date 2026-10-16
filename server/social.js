@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { db, save, findUser, findByUsername, findPost, reservedUsername } = require("./db");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
-const { ownedMedia, markUsed, deleteMedia } = require("./media");
+const { ownedMedia, markUsed, deleteMedia, aiOf } = require("./media");
 const { broadcast, sendTo, presence } = require("./realtime");
 const { notify } = require("./notifications");
 const { every } = require("./ticker");
@@ -400,6 +400,7 @@ function postView(p, me) {
     id: p.id,
     nsfw: Boolean(p.nsfw),
     sensitive: Boolean(p.sensitive),
+    ai: p.ai ? { auto: Boolean(p.ai.auto), tool: p.ai.tool && p.ai.tool !== "AI" ? p.ai.tool : null } : null,
     type: p.type,
     title: p.title,
     text: p.text,
@@ -845,6 +846,10 @@ async function handleSocial(req, res, url, me) {
     post.tags = []; // people are tagged with @ in the text (post.mentions)
     // Sensitive (18+): found by the automatic check, or marked by the author
     if (body.nsfw === true || post.media.some((x) => x.nsfw)) post.nsfw = true;
+    // Made with AI: the author says so, or a photo / video carries an AI tool's mark (then it can't be taken off)
+    const aiFound = [...post.media.map((x) => x.url), ...post.media.map((x) => x.poster)].map(aiOf).find(Boolean);
+    if (aiFound) post.ai = { auto: true, tool: aiFound };
+    else if (body.ai === true) post.ai = { auto: false };
 
     db.posts.unshift(post);
     claim(post.media, "post:" + post.id);
@@ -1004,6 +1009,15 @@ async function handleSocial(req, res, url, me) {
     if (!post) throw httpError(404, "This post doesn’t exist anymore.");
     if (post.userId !== me.id) throw httpError(403, "You can only edit your own posts.");
     const body = await readJSON(req);
+    // "Made with AI" on or off (one the file itself marked as AI stays marked)
+    if (typeof body.ai === "boolean" && !post.ai?.auto) {
+      if (body.ai) post.ai = { auto: false }; else delete post.ai;
+      if (body.text === undefined && body.title === undefined && body.visibility === undefined && body.categoryId === undefined) {
+        save("posts");
+        sendJSON(res, 200, { post: postView(post, me) });
+        return true;
+      }
+    }
     if (body.categoryId !== undefined) {
       if (body.categoryId && !me.categories.some((x) => x.id === body.categoryId)) throw httpError(400, "That category doesn’t exist anymore.");
       post.categoryId = body.categoryId || null;
@@ -2155,6 +2169,14 @@ async function handleSocial(req, res, url, me) {
       sendJSON(res, 201, { ok: true });
       return true;
     }
+  }
+
+  // AI filter: POST /api/me/ai { hide }  (posts labelled "AI-generated" are hidden for me)
+  if (m === "POST" && a === "me" && b === "ai" && parts.length === 2) {
+    me.hideAi = Boolean((await readJSON(req)).hide);
+    save("users");
+    sendJSON(res, 200, { hideAi: me.hideAi });
+    return true;
   }
 
   // Sensitive content: POST /api/me/nsfw { show, adult }  (show it without blur, and in recommendations; 18+ only)

@@ -84,6 +84,8 @@ function servePublic(res, relPath) {
   fs.createReadStream(file).pipe(res);
 }
 
+const SCRIPT_SRC = "script-src 'self' 'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com https://cdn.jsdelivr.net";
+
 async function handleApi(req, res, url) {
   // Every write must carry this header. Other sites can't add it without permission, which blocks CSRF.
   // (the one exception: "I closed LookBlog", sent as a beacon, which can't carry headers; it can only mark me offline)
@@ -301,7 +303,9 @@ async function handle(req, res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Content-Security-Policy", "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
+  // Scripts only from LookBlog itself, YouTube's player and the photo-check models (jsDelivr): an injected
+  // <script> or inline code wouldn't run. (The share pages add a one-time nonce for their own small script.)
+  res.setHeader("Content-Security-Policy", `${SCRIPT_SRC}; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`);
   res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), display-capture=(self), geolocation=(self), payment=()");
   if (req.headers["x-forwarded-proto"] === "https") res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);

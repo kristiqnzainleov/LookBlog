@@ -102,6 +102,19 @@ export function settingsPage(view) {
   });
   paintNsfw();
 
+  // AI filter: posts labelled "AI-generated" can be hidden
+  const aiState = h("span", { class: "set-state" });
+  const aiBtn = h("button", { type: "button", class: "btn btn-sm btn-outline-light" });
+  const paintAi = () => {
+    aiState.textContent = state.me.hideAi ? "Hidden — you’ll see “AI-generated post hidden” with a button to show it." : "Shown, with a 🤖 AI-generated label.";
+    aiBtn.textContent = state.me.hideAi ? "Show AI content" : "Hide AI content";
+  };
+  aiBtn.addEventListener("click", async () => {
+    try { const r = await api("/api/me/ai", { method: "POST", body: { hide: !state.me.hideAi } }); state.me.hideAi = r.hideAi; paintAi(); toast(r.hideAi ? "AI-generated posts are hidden." : "AI-generated posts are shown again."); }
+    catch (err) { toast(err.error || "Couldn’t change it."); }
+  });
+  paintAi();
+
   // Password: the current one, then the new one twice (an eye in each box shows what you typed)
   const pwField = (ph, ac, label) => {
     const input = h("input", { type: "password", class: "pw-input", placeholder: ph, autocomplete: ac, maxlength: 128, "aria-label": label });
@@ -146,6 +159,7 @@ export function settingsPage(view) {
     section("Two-step verification (2FA)", "When it’s on, LookBlog asks for your code after your password — so knowing your password (or email) isn’t enough to get into your account. LookBlog can make the code for you, or you can pick your own.", twoBox),
     section("Preferences", null, h("div", { class: "set-row" }, lang, priv)),
     section("🔞 Sensitive content (NSFW)", "LookBlog checks photos and videos when they’re posted. Sensitive ones (nudity and other 18+ things) are blurred and aren’t recommended to people who didn’t ask for them.", h("div", { class: "set-row" }, nsfwState, nsfwBtn)),
+    section("🤖 AI filter", "Photos and videos made with AI tools are found automatically (from the marks those tools leave in the file), and anyone can mark their post as “Made with AI”. They get a 🤖 AI-generated label.", h("div", { class: "set-row" }, aiState, aiBtn)),
     section("Delete account", "This removes your profile, posts, videos, songs, messages and everything else you made. It can’t be undone.", del));
 }
 settingsPage.navName = () => "";

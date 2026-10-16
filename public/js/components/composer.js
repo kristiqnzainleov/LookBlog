@@ -194,7 +194,9 @@ function postForm() {
   });
 
   // 💬 on/off: let people reply or not
-  let repliesOff = false;
+  let repliesOff = false, madeWithAi = false;
+  const aiBtn = h("button", { type: "button", class: "tool-btn ai-btn", title: "Made with AI? Click to label it" }, h("span", { class: "tool-emoji", text: "🤖" }));
+  aiBtn.addEventListener("click", () => { madeWithAi = !madeWithAi; aiBtn.classList.toggle("on", madeWithAi); aiBtn.title = madeWithAi ? "Labelled “AI-generated” — click to undo" : "Made with AI? Click to label it"; toast(madeWithAi ? "🤖 This post will be labelled AI-generated." : "AI label off."); });
   const repliesOffBtn = h("button", { type: "button", class: "tool-btn replies-off-btn", title: "Replies on — click to turn them off" }, h("span", { class: "tool-emoji", text: "💬" }));
   repliesOffBtn.addEventListener("click", () => { repliesOff = !repliesOff; repliesOffBtn.classList.toggle("off", repliesOff); repliesOffBtn.title = repliesOff ? "Replies off — click to turn them on" : "Replies on — click to turn them off"; toast(repliesOff ? "Replies will be off for this post." : "Replies are on."); });
   const form = h("form", { class: "composer", novalidate: true },
@@ -204,7 +206,7 @@ function postForm() {
       picker.previews,
       poll.el,
       chain.el,
-      h("div", { class: "composer-bar" }, picker.button, pollBtn, chainBtn, repliesOffBtn, cat.el, cnt.el, submit),
+      h("div", { class: "composer-bar" }, picker.button, pollBtn, chainBtn, repliesOffBtn, aiBtn, cat.el, cnt.el, submit),
       err
     )
   );
@@ -219,7 +221,7 @@ function postForm() {
     submit.disabled = true;
     submit.textContent = "Posting…";
     try {
-      await publish({ type: "post", text: text.value, media: poll.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, chain: chain.on() ? chain.value() : null, categoryId: cat.value() || null, repliesOff });
+      await publish({ type: "post", text: text.value, media: poll.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, chain: chain.on() ? chain.value() : null, categoryId: cat.value() || null, repliesOff, ai: madeWithAi });
       toast(poll.on() ? "Poll posted." : chain.on() ? "⛓️ Chain started! Others can carry it on now." : "Posted.");
       text.value = "";
       picker.clear();
@@ -334,6 +336,8 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
   // Replies on or off (can be changed later from the post)
   const repliesBox = h("input", { type: "checkbox" });
   const repliesRow = h("label", { class: "check-row replies-row" }, repliesBox, h("span", {}, h("b", { text: "💬 Turn off replies" }), h("small", { class: "muted", text: " — nobody can reply to it" })));
+  const aiBox = h("input", { type: "checkbox" });
+  const aiRow = h("label", { class: "check-row" }, aiBox, h("span", {}, h("b", { text: "🤖 Made with AI" }), h("small", { class: "muted", text: " — it gets an “AI-generated” label (AI-made files are found and labelled anyway)" })));
   // SoundCloud-style extras (off unless you turn them on)
   const timedBox = h("input", { type: "checkbox" }), momentsBox = h("input", { type: "checkbox" });
   const extrasRow = h("div", { class: "extras-rows" },
@@ -377,6 +381,7 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
     vis?.el,
     schedEl,
     repliesRow,
+    aiRow,
     extrasRow,
     err,
     submit
@@ -393,7 +398,7 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
       const media = picker.media();
       if (thumb && media[0] && thumb.value()) media[0].poster = thumb.value();
       const publishAt = schedAt?.dataset.on ? new Date(schedAt.value).toISOString() : null;
-      await publish({ type: kind, text: text.value, title: title?.value || "", media, visibility: vis?.value() || "public", categoryId: cat?.value() || null, publishAt, repliesOff: repliesBox.checked, timedComments: timedBox.checked, momentReactions: momentsBox.checked, replyTo: replyTo?.id || null, ...(series ? { seriesId: series.id, season: Number(seasonSel.value) } : {}) });
+      await publish({ type: kind, text: text.value, title: title?.value || "", media, visibility: vis?.value() || "public", categoryId: cat?.value() || null, publishAt, repliesOff: repliesBox.checked, ai: aiBox.checked, timedComments: timedBox.checked, momentReactions: momentsBox.checked, replyTo: replyTo?.id || null, ...(series ? { seriesId: series.id, season: Number(seasonSel.value) } : {}) });
       close();
       if (series) { toast(`📺 Episode added to Season ${seasonSel.value} of “${series.title}”.`); onDone?.(Number(seasonSel.value)); return; }
       if (replyTo) toast(`✅ Your video reply is up! It shows under “${replyTo.title || "the video"}”.`);

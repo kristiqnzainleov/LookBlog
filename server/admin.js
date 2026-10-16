@@ -519,9 +519,12 @@ async function handlePanel(req, res, url) {
     rateLimit("panel-login:" + ip, 10, 15 * 60 * 1000, "Too many tries. Wait 15 minutes.");
     const body = await readJSON(req);
     const a = db.admins.find((x) => x.username.toLowerCase() === clip(body.username, 20).replace(/^@/, "").toLowerCase());
-    dummyHash = dummyHash || require("./auth").hashPassword("not-a-real-password"); // same time for unknown names
-    const ok = require("./auth").verifyPassword(String(body.password || ""), a ? a.passwordHash : dummyHash) && a;
-    if (!ok) throw httpError(401, "Wrong username or password.");
+    const auth = require("./auth");
+    auth.checkLock(a, "admins"); // (counted on the admin account too, shared by every server)
+    dummyHash = dummyHash || auth.hashPassword("not-a-real-password"); // same time for unknown names
+    const ok = auth.verifyPassword(String(body.password || ""), a ? a.passwordHash : dummyHash) && a;
+    if (!ok) { auth.failedTry(a, "admins"); throw httpError(401, "Wrong username or password."); }
+    auth.goodTry(a, "admins");
     sendJSON(res, 200, { admin: adminView(a) }, { "Set-Cookie": startPanelSession(req, a) });
     return true;
   }

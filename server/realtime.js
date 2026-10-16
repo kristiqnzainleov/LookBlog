@@ -95,12 +95,36 @@ function handleEvents(req, res, me) {
 }
 
 /* ---------- Online: Supabase Realtime ---------- */
+// Everything the server sends there is signed (ECDSA P-256), and browsers only believe signed events:
+// anyone logged in can send on the shared topic, but they can't sign. The key comes from the secret key,
+// so every server instance has the same one and nothing extra has to be stored.
+let signer = null;
+function signingKey() {
+  if (signer) return signer;
+  const b64u = (b) => Buffer.from(b).toString("base64url");
+  for (let i = 0; i < 20 && !signer; i++) {
+    const d = crypto.createHmac("sha256", SB_KEY || "lb").update("realtime-sign:" + i).digest();
+    try {
+      const ecdh = crypto.createECDH("prime256v1");
+      ecdh.setPrivateKey(d);
+      const pub = ecdh.getPublicKey();
+      const jwk = { kty: "EC", crv: "P-256", x: b64u(pub.subarray(1, 33)), y: b64u(pub.subarray(33, 65)) };
+      signer = { key: crypto.createPrivateKey({ key: { ...jwk, d: b64u(d) }, format: "jwk" }), pub: jwk };
+    } catch {}
+  }
+  return signer;
+}
+function signed(event) {
+  const data = JSON.stringify({ ...event, _t: Date.now() });
+  const s = crypto.sign("sha256", Buffer.from(data), { key: signingKey().key, dsaEncoding: "ieee-p1363" }).toString("base64");
+  return { d: data, s };
+}
 // Each person's topic is worked out from their id with the secret key: every server gets the same name,
 // nothing is stored (a stored random key could end up different on two servers), and nobody can guess it.
 const topicOf = (u) => "lb-" + crypto.createHmac("sha256", SB_KEY || "lb").update("user:" + u.id).digest("base64url").slice(0, 28);
 // Where my browser listens: GET /api/realtime
 function realtimeInfo(me) {
-  return { mode: "supabase", url: SB_URL.replace(/^http/, "ws") + "/realtime/v1/websocket", key: SB_PUBLIC_KEY, topics: [topicOf(me), ALL_TOPIC] };
+  return { mode: "supabase", url: SB_URL.replace(/^http/, "ws") + "/realtime/v1/websocket", key: SB_PUBLIC_KEY, topics: [topicOf(me), ALL_TOPIC], signKey: signingKey().pub };
 }
 // My tab is open: POST /api/ping (every ~30 seconds)
 function ping(me, idle = false) {
@@ -126,7 +150,7 @@ function sweepOffline() {
 let queue = [];
 let timer = null;
 function queueOut(topic, event) {
-  queue.push({ topic, event: "lb", payload: event, private: false });
+  queue.push({ topic, event: "lb", payload: signed(event), private: false });
   if (!timer) timer = setTimeout(flushRealtime, 30);
 }
 // Send what's waiting (requests call this before they answer)

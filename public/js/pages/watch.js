@@ -5,7 +5,7 @@ import { starsWidget } from "../components/stars.js";
 import { api } from "../api.js";
 import { state } from "../state.js";
 import { on } from "../state.js";
-import { actions, videoPlayer, watchHref, nsfwCover, warnKind } from "../components/post.js";
+import { actions, videoPlayer, watchHref, nsfwCover, warnKind, aiBadge } from "../components/post.js";
 import { commentsSection } from "../components/comments.js";
 import { openSaveToPlaylist, playlistHref } from "../components/playlists.js";
 import { openChangeThumbnail } from "../components/thumbnail.js";
@@ -172,7 +172,7 @@ export async function watchPage(view, m, params) {
     h("div", { class: "watch-desc" },
       h("p", { class: "watch-meta" },
         h("span", { dataset: { postId: p.id, stat: "views" }, text: count(p.views) }), p.views === 1 ? " view · " : " views · ",
-        new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), " · ", timeEl(p.createdAt), " ", editedLabel(p)
+        new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), " · ", timeEl(p.createdAt), " ", editedLabel(p), " ", aiBadge(p)
       ),
       p.mine
         ? makeEditable(postTextEl(p, "post-text", { placeholder: "Add a description" }), p)

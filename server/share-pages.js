@@ -29,7 +29,10 @@ function page(res, { base, path, title, desc, image, imageW, imageH, video, auth
     author ? `<meta name="author" content="${esc(author)}">` : "",
   ].filter(Boolean).join("\n");
   const next = encodeURIComponent(path);
-  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300" });
+  // Its one small script runs with a one-time nonce (scripts are otherwise only allowed from files)
+  const nonce = require("crypto").randomBytes(16).toString("base64");
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300",
+    "Content-Security-Policy": `script-src 'self' 'nonce-${nonce}'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'` });
   res.end(`<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -94,7 +97,7 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
   <a class="logo" href="/" aria-label="LookBlog"><span aria-hidden="true">L<span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span><span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span>k<em>Blog</em></span></a>
   <main class="card">
   ${body}
-  ${look !== null ? `<script type="module">
+  ${look !== null ? `<script type="module" nonce="${nonce}">
     import { applyLook, applyProfileLook } from "/js/components/profile-look.js";
     import { tick } from "/js/ui.js";
     // The same verification tick as on LookBlog (its kind: creator, artist, rapper…)

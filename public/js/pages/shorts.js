@@ -3,7 +3,7 @@ import { h, icon, avatar, count, empty, tick } from "../ui.js";
 import { taggedSlot } from "../components/tags.js";
 import { api } from "../api.js";
 import { on } from "../state.js";
-import { actions, trackPlay, trackImpression, likeBurst, nsfwCover, warnKind } from "../components/post.js";
+import { actions, trackPlay, trackImpression, likeBurst, nsfwCover, warnKind, aiBadge } from "../components/post.js";
 import { profileHref } from "../router.js";
 import { followButton } from "./profile.js";
 import { postTextEl } from "../components/edit-post.js";
@@ -150,6 +150,7 @@ export function shortsPage(view, _m, params) {
             h("a", { href, class: "name" }, p.author.name, tick(p.author)),
             p.mine ? null : followButton(p.author.username, null, { small: true })
           ),
+          aiBadge(p),
           postTextEl(p, "reel-caption"),
           taggedSlot(p, "reel-tags")
         )

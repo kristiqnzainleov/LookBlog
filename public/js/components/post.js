@@ -436,7 +436,22 @@ export function pinButton(p, { cls = "act act-pin", onChange } = {}) {
   });
   return b;
 }
-export function postCard(p, { onDeleted, onProfile = false } = {}) {
+// 🤖 AI-generated: found in the file (it can't be taken off) or marked by the author
+export function aiBadge(p) {
+  if (!p.ai) return null;
+  return h("span", { class: "badge badge-ai", title: p.ai.auto ? `Made with AI${p.ai.tool ? ` (${p.ai.tool})` : ""} — found in the file` : "The author says this was made with AI", text: "🤖 AI-generated" });
+}
+// The AI filter (Settings): a post labelled AI-generated is folded away, with a button to show it
+export function postCard(p, opts = {}) {
+  if (p.ai && state.me?.hideAi && !p.mine) {
+    const box = h("article", { class: "post ai-hidden", dataset: { id: p.id } },
+      h("span", { text: `🤖 AI-generated post by @${p.author.username} hidden` }),
+      h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Show", onclick: (e) => { e.stopPropagation(); box.replaceWith(realPostCard(p, opts)); } }));
+    return box;
+  }
+  return realPostCard(p, opts);
+}
+function realPostCard(p, { onDeleted, onProfile = false } = {}) {
   const href = profileHref(p.author.username);
   const typeBadge = p.type === "short" ? h("span", { class: "badge", text: "Short" }) : p.stream ? h("span", { class: "badge badge-live", text: "🔴 Past live" }) : p.type === "video" ? h("span", { class: "badge", text: "Video" }) : null;
 
@@ -478,6 +493,7 @@ export function postCard(p, { onDeleted, onProfile = false } = {}) {
         h("a", { class: "muted time", href: openHref(p) }, timeEl(p.createdAt)),
         editedLabel(p),
         typeBadge,
+        aiBadge(p),
         visibilityBadge(p),
         p.category ? h("a", { class: "cat-chip", href: `${profileHref(p.author.username)}?category=${encodeURIComponent(p.category.id)}`, text: p.category.name }) : null
       ),

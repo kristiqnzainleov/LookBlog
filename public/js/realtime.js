@@ -97,7 +97,24 @@ export const realtimeLink = {
   send(topic, event, payload) { return Boolean(rtSend?.("realtime:" + topic, "broadcast", { type: "broadcast", event, payload })); },
   get ready() { return Boolean(rtSend); },
 };
-function listenSupabase({ url, key, topics }) {
+// Only events the server signed are believed (anyone can send on the shared topic, nobody else can sign)
+let verifyKey = null, chain = Promise.resolve();
+function verifiedHandle(payload) {
+  // One after another, in the order they came
+  chain = chain.then(async () => {
+    if (!verifyKey || typeof payload?.d !== "string" || typeof payload?.s !== "string") return;
+    let sig;
+    try { sig = Uint8Array.from(atob(payload.s), (c) => c.charCodeAt(0)); } catch { return; }
+    const ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, verifyKey, sig, new TextEncoder().encode(payload.d)).catch(() => false);
+    if (!ok) return;
+    let ev; try { ev = JSON.parse(payload.d); } catch { return; }
+    if (Math.abs(Date.now() - (ev._t || 0)) > 10 * 60 * 1000) return; // an old one sent again
+    delete ev._t;
+    handle(ev);
+  }).catch(() => {});
+}
+function listenSupabase({ url, key, topics, signKey }) {
+  if (signKey) crypto.subtle.importKey("jwk", { ...signKey, ext: true }, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]).then((k) => (verifyKey = k)).catch(() => {});
   let ws, ref = 0, beat, retry = 1000;
   const send = (topic, event, payload = {}) => { if (ws?.readyState !== 1) return false; ws.send(JSON.stringify({ topic, event, payload, ref: String(++ref) })); return true; };
   rtSend = send;
@@ -113,7 +130,7 @@ function listenSupabase({ url, key, topics }) {
     ws.onmessage = (m) => {
       let msg; try { msg = JSON.parse(m.data); } catch { return; }
       if (msg.event !== "broadcast" || !msg.payload) return;
-      if (msg.payload.event === "lb" && msg.payload.payload) return handle(msg.payload.payload);
+      if (msg.payload.event === "lb" && msg.payload.payload) return verifiedHandle(msg.payload.payload);
       const h = extra.get(String(msg.topic || "").replace(/^realtime:/, ""));
       if (h) h(msg.payload.event, msg.payload.payload);
     };

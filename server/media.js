@@ -91,8 +91,15 @@ async function finishUpload(req, res, me, body) {
     : !t.check(head) ? httpError(415, `That file doesn’t look like a real ${WHAT[t.kind]}.`) : null;
   if (bad) { removeObject(name); throw bad; }
   db.uploads[name] = { ownerId: me.id, kind: t.kind, size, createdAt: new Date().toISOString() };
+  if (t.kind === "image" || t.kind === "video") {
+    try {
+      const r2 = await fetch(publicUrl(name) + "?t=" + Date.now(), { headers: { Range: "bytes=0-524287" }, signal: AbortSignal.timeout(8000) });
+      const ai = r2.ok ? aiMark(Buffer.from(await r2.arrayBuffer())) : null;
+      if (ai) db.uploads[name].ai = ai;
+    } catch {}
+  }
   save("uploads");
-  sendJSON(res, 201, { url: "/media/" + name, kind: t.kind });
+  sendJSON(res, 201, { url: "/media/" + name, kind: t.kind, ai: db.uploads[name].ai || null });
 }
 
 function removeObject(name) {
@@ -100,6 +107,38 @@ function removeObject(name) {
     .catch((err) => console.error("[media] delete", err.message));
 }
 
+
+/* ---------- AI-made photos and videos: the marks AI tools leave in the file ---------- */
+// Content Credentials (C2PA) and IPTC say "trainedAlgorithmicMedia" for AI-made media (OpenAI, Google, Adobe,
+// Microsoft, Meta… write it); Stable Diffusion / ComfyUI / InvokeAI / NovelAI keep their settings in the file;
+// Midjourney and others put their name in the metadata. Found → the post gets the "AI-generated" label.
+const AI_MARKS = [
+  [/trainedAlgorithmicMedia/, "AI"],
+  [/Midjourney/i, "Midjourney"],
+  [/DALL[\u00b7\-·. ]?E/, "DALL·E"],
+  [/(?:ChatGPT|OpenAI)(?: |-)?(?:Image|API|GPT)/i, "ChatGPT"],
+  [/Adobe Firefly/i, "Adobe Firefly"],
+  [/Stable[ _-]?Diffusion/i, "Stable Diffusion"],
+  [/Steps: \d+, Sampler: /, "Stable Diffusion"],
+  [/"class_type"\s*:\s*"(?:KSampler|CheckpointLoader)/, "ComfyUI"],
+  [/invokeai_metadata|InvokeAI/i, "InvokeAI"],
+  [/NovelAI/i, "NovelAI"],
+  [/Google (?:AI|Imagen|Gemini)|Imagen [234]|SynthID/i, "Google AI"],
+  [/Ideogram/i, "Ideogram"],
+  [/Leonardo\.?Ai/i, "Leonardo AI"],
+  [/Microsoft Designer|Bing Image Creator/i, "Microsoft Designer"],
+  [/Meta AI|Imagine with Meta/i, "Meta AI"],
+  [/xAI Grok|Grok Imagine|Aurora by xAI/i, "Grok"],
+  [/OpenAI Sora|Sora by OpenAI|Made with Sora/i, "Sora"],
+  [/Runway (?:Gen-?\d|ML)/i, "Runway"],
+  [/Kling AI|Luma Dream Machine|Pika Labs|Google Veo|\bVeo [23]\b/i, "AI video"],
+];
+function aiMark(buf) {
+  if (!buf?.length) return null;
+  const text = buf.toString("latin1");
+  for (const [re, name] of AI_MARKS) if (re.test(text)) return name;
+  return null;
+}
 /* ---------- POST /api/upload  (raw file body, type in Content-Type) ---------- */
 async function handleUpload(req, res, me) {
   if (store.enabled) throw httpError(400, "Uploads go straight to storage now. Reload the page and try again.");
@@ -147,8 +186,16 @@ async function handleUpload(req, res, me) {
   const name = `${id}.${t.ext}`;
   fs.renameSync(tmp, path.join(UPLOAD_DIR, name));
   db.uploads[name] = { ownerId: me.id, kind: t.kind, size, createdAt: new Date().toISOString() };
+  if (t.kind === "image" || t.kind === "video") {
+    try {
+      const fd = fs.openSync(path.join(UPLOAD_DIR, name), "r"), buf = Buffer.alloc(Math.min(size, 524288));
+      fs.readSync(fd, buf, 0, buf.length, 0); fs.closeSync(fd);
+      const ai = aiMark(buf);
+      if (ai) db.uploads[name].ai = ai;
+    } catch {}
+  }
   save("uploads");
-  sendJSON(res, 201, { url: "/media/" + name, kind: t.kind });
+  sendJSON(res, 201, { url: "/media/" + name, kind: t.kind, ai: db.uploads[name].ai || null });
 }
 
 /* ---------- Check that a URL points to a fresh file this user uploaded ---------- */
@@ -241,4 +288,5 @@ function mediaAddress(url, base) {
   return store.enabled ? publicUrl(name) : base + "/media/" + name;
 }
 
-module.exports = { mediaAddress, handleUpload, startUpload, finishUpload, ownedMedia, markUsed, deleteMedia, serveMedia };
+const aiOf = (url) => db.uploads[String(url || "").replace(/^\/media\//, "")]?.ai || null;
+module.exports = { aiOf, aiMark, mediaAddress, handleUpload, startUpload, finishUpload, ownedMedia, markUsed, deleteMedia, serveMedia };

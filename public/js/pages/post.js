@@ -3,7 +3,7 @@ import { h, icon, avatar, timeEl, empty, count, richText, tick } from "../ui.js"
 import { api } from "../api.js";
 import { state } from "../state.js";
 import { on } from "../state.js";
-import { actions, mediaBlock, videoPlayer, sendView, warnKind, nsfwWrap } from "../components/post.js";
+import { actions, mediaBlock, videoPlayer, sendView, warnKind, nsfwWrap, aiBadge } from "../components/post.js";
 import { visibilityButton } from "../components/visibility.js";
 import { pollEl } from "../components/poll.js";
 import { chainEl } from "../components/chain.js";
@@ -39,7 +39,7 @@ export async function postPage(view, m) {
   );
   const viewsLine = h("p", { class: "detail-meta muted" },
     h("span", { dataset: { postId: p.id, stat: "views" }, text: count(p.views) }), p.views === 1 ? " view · " : " views · ", timeEl(p.createdAt),
-    " · ", new Date(p.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }), " ", editedLabel(p)
+    " · ", new Date(p.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }), " ", editedLabel(p), " ", aiBadge(p)
   );
 
   let main;

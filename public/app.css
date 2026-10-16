@@ -7235,3 +7235,19 @@ img.snd-img { object-fit: cover; border-radius: 8px; flex-shrink: 0; }
 .snd-picbtn { font-size: 0.85rem; }
 img.st-img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; }
 img.lv-sound-emoji { width: 30px; height: 30px; }
+/* 🤖 AI-generated */
+.badge-ai { background: rgba(124, 92, 255, 0.16); color: #b9a8ff; border: 1px solid rgba(124, 92, 255, 0.4); white-space: nowrap; }
+.reel-info .badge-ai { align-self: flex-start; margin: 2px 0 4px; backdrop-filter: blur(6px); }
+.post.ai-hidden { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; color: var(--muted); font-size: 0.9rem; }
+.tool-btn.ai-btn.on { background: rgba(124, 92, 255, 0.25); box-shadow: 0 0 0 1.5px #9b87ff; }
+/* Stickers stuck on messages */
+.bubble { position: relative; }
+.bubble:has(.msg-stuck img) { overflow: visible !important; }
+.msg-stuck { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.msg-stuck .stuck { position: absolute; width: 46px; height: 46px; object-fit: contain; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)); filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45)); pointer-events: auto; cursor: default; transition: transform 0.15s; user-select: none; }
+.msg-stuck .stuck:hover { transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.12); }
+.msg-stuck .stuck.armed { outline: 2px dashed #ff5b6e; outline-offset: 3px; border-radius: 8px; animation: stuckWiggle 0.4s ease infinite alternate; }
+@keyframes stuckWiggle { from { transform: translate(-50%, -50%) rotate(calc(var(--rot, 0deg) - 4deg)); } to { transform: translate(-50%, -50%) rotate(calc(var(--rot, 0deg) + 4deg)); } }
+.msg-stuck .stuck.just { animation: stuckDrop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes stuckDrop { from { transform: translate(-50%, -90%) rotate(var(--rot, 0deg)) scale(1.8); opacity: 0; } }
+.msg:has(.msg-stuck img) { margin-top: 12px; margin-bottom: 12px; }

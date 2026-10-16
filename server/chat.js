@@ -272,6 +272,8 @@ function viewOnceView(msg, me, out) {
   out.text = ""; out.media = null; out.mentions = [];
   return out;
 }
+// Stickers stuck on a message: who put them, where (x / y in %, a little turn)
+const stuckView = (msg) => (msg.stuck || []).map((x) => ({ id: x.id, url: x.url, x: x.x, y: x.y, rot: x.rot, by: findUser(x.by)?.username || "", byId: x.by }));
 function messageView(msg, me) {
   if (msg.viewOnce) return viewOnceView(msg, me, messageViewFull(msg, me));
   const v = messageViewFull(msg, me);
@@ -301,6 +303,7 @@ function messageViewFull(msg, me) {
     mentions: usernamesOf(msg.mentions),
     pingsMe: msg.userId !== me.id && (msg.mentions.includes(me.id) || Boolean(msg.everyone)),
     reactions: reactionsView(msg, me),
+    stuck: stuckView(msg),
     notes: notesView(msg, me),
     poll: msg.poll ? chatPollView(msg.poll, me, chat) : null,
     groupInvite: msg.groupInvite ? groupInviteView(msg.groupInvite, me) : null,
@@ -956,6 +959,34 @@ async function handleChat(req, res, url, me) {
       const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
       if (!msg || (msg.expiresAt && new Date(msg.expiresAt) < new Date())) throw httpError(404, "That message is gone.");
       sendJSON(res, 200, { message: messageView(msg, me) });
+      return true;
+    }
+    // Stick a sticker on a message (like on Instagram / Telegram): POST /api/chats/:id/messages/:messageId/stick
+    //   { sticker | groupSticker, x, y, rot }  ·  take one off: { remove: <id> } (yours, or any on your message)
+    if (m === "POST" && c === "messages" && d && parts[4] === "stick" && parts.length === 5) {
+      if (!isMember(chat, me)) throw httpError(403, "Join to add stickers.");
+      const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
+      if (!msg || msg.system || msg.viewOnce) throw httpError(404, "That message doesn’t exist.");
+      const body = await readJSON(req);
+      msg.stuck = msg.stuck || [];
+      if (body.remove) {
+        const st = msg.stuck.find((x) => x.id === body.remove);
+        if (!st) throw httpError(404, "That sticker is gone.");
+        if (st.by !== me.id && msg.userId !== me.id) throw httpError(403, "You can only take off your own stickers.");
+        msg.stuck = msg.stuck.filter((x) => x !== st);
+      } else {
+        rateLimit("stick:" + me.id, 60, 60 * 1000, "Easy on the stickers!");
+        const media = resolveExtras({ sticker: body.sticker, groupSticker: body.groupSticker }, me, chat);
+        if (!media?.sticker) throw httpError(400, "Pick a sticker.");
+        if (msg.stuck.length >= 8) throw httpError(400, "That message is full of stickers already.");
+        if (msg.stuck.filter((x) => x.by === me.id).length >= 3) throw httpError(400, "You can put up to 3 stickers on one message.");
+        const num = (v, lo, hi, def) => (Number.isFinite(Number(v)) ? Math.max(lo, Math.min(hi, Math.round(Number(v)))) : def);
+        msg.stuck.push({ id: crypto.randomUUID().slice(0, 8), by: me.id, url: media.url, x: num(body.x, 0, 100, 80), y: num(body.y, 0, 100, 0), rot: num(body.rot, -30, 30, 0), at: new Date().toISOString() });
+      }
+      save("messages");
+      const view = stuckView(msg);
+      sendTo(chat.members, { type: "message:stuck", chatId: chat.id, messageId: msg.id, stuck: view });
+      sendJSON(res, 200, { stuck: view });
       return true;
     }
     // Hype a message (like trending): POST /api/chats/:id/messages/:messageId/hype  (again takes it back)

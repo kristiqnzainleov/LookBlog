@@ -245,6 +245,43 @@ async function react(msg, chat, emoji) {
   } catch (err) { toast(err.error || "Couldn’t react to that."); }
 }
 
+/* ---------- Stickers stuck on messages ---------- */
+// They sit on a corner of the bubble, a little turned. Tap one of yours (or any on your message) twice to take it off.
+function stuckEl(msg, chat) {
+  const list = msg.stuck || [];
+  const layer = h("div", { class: "msg-stuck", "aria-label": list.length ? `${list.length} sticker${list.length === 1 ? "" : "s"}` : null });
+  for (const s of list) {
+    const canOff = s.byId === state.me?.id || msg.mine;
+    const img = h("img", { class: "stuck", src: s.url, alt: "Sticker", draggable: "false", title: `Sticker from @${s.by}${canOff ? " · tap twice to take it off" : ""}`, style: `left:${s.x}%;top:${s.y}%;--rot:${s.rot}deg` });
+    img.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!canOff) return;
+      if (!img.classList.contains("armed")) { img.classList.add("armed"); setTimeout(() => img.classList.remove("armed"), 2500); return; }
+      try { const r = await api(`/api/chats/${chat.id}/messages/${msg.id}/stick`, { method: "POST", body: { remove: s.id } }); paintStuck(msg.id, r.stuck, chat); }
+      catch (err) { toast(err.error || "Couldn’t take it off."); }
+    });
+    layer.append(img);
+  }
+  return layer;
+}
+function paintStuck(messageId, stuck, chat) {
+  const row = document.querySelector(`.msg[data-id="${CSS.escape(messageId)}"]`);
+  if (!row?._msg) return;
+  row._msg.stuck = stuck;
+  row.querySelector(".bubble .msg-stuck")?.replaceWith(stuckEl(row._msg, chat));
+}
+async function stickOn(msg, chat, st, kind) {
+  // A corner of the bubble, a little off and turned (like dropping it on there)
+  const right = Math.random() < 0.6, top = Math.random() < 0.5;
+  const x = right ? 84 + Math.random() * 14 : 2 + Math.random() * 14, y = top ? -4 + Math.random() * 18 : 78 + Math.random() * 20;
+  try {
+    const r = await api(`/api/chats/${chat.id}/messages/${msg.id}/stick`, { method: "POST", body: { ...(kind === "group" ? { groupSticker: st.id } : { sticker: st.id }), x, y, rot: Math.round(Math.random() * 40 - 20) } });
+    paintStuck(msg.id, r.stuck, chat);
+    const row = document.querySelector(`.msg[data-id="${CSS.escape(msg.id)}"]`);
+    row?.querySelector(".bubble .msg-stuck .stuck:last-child")?.classList.add("just");
+  } catch (err) { toast(err.error || "Couldn’t add the sticker."); }
+}
+
 function paintReactions(messageId, reactions, chat) {
   const row = document.querySelector(`.msg[data-id="${CSS.escape(messageId)}"]`);
   if (!row) return;
@@ -883,6 +920,12 @@ function messageEl(msg, chat, onRemoved) {
     hb.addEventListener("click", () => hype(row._msg || msg, chat));
     tools.prepend(hb);
   }
+  // Stick a sticker on it
+  if (chat.member !== false && !msg.system && !msg.viewOnce) {
+    const sb = h("button", { type: "button", class: "tool-icon stick-tool", "aria-label": "Add a sticker", title: "Put a sticker on it" }, h("span", { text: "🏷️" }));
+    sb.addEventListener("click", () => openStickers(sb, (st, kind) => stickOn(row._msg || msg, chat, st, kind), { group: chat.kind === "group" ? chat : null }));
+    tools.append(sb);
+  }
   // Leave a note on it
   if (chat.member !== false && !msg.system) {
     const nb = h("button", { type: "button", class: "tool-icon", "aria-label": "Add a note", title: "Add a note" }, h("span", { text: "🗒" }));
@@ -921,6 +964,7 @@ function messageEl(msg, chat, onRemoved) {
   if (PERSISTENT.has(msg.effect)) secretBubble(bubble, msg, { onUnlock: () => setTimeout(() => api(`/api/chats/${chat.id}/messages/${msg.id}`).then(({ message }) => { const row = bubble.closest(".msg"); if (row) row.replaceWith(messageEl(message, chat, onRemoved)); }).catch(() => {}), 800) });
   if (msg.pinned) bubble.prepend(h("span", { class: "pin-mark", title: "Pinned", text: "📌" }));
   if (msg.expiresAt) bubble.append(h("span", { class: "vanish-mark", title: "Disappears " + new Date(msg.expiresAt).toLocaleString(), text: "⏳" }));
+  bubble.append(stuckEl(msg, chat));
   const row = h("div", { class: "msg" + (msg.mine ? " mine" : "") + (msg.pinned ? " pinned" : "") + (msg.pingsMe ? " pings-me" : "") + (msg.hypes >= 3 ? " hot" : ""), dataset: { id: msg.id, author: msg.author.username || "" } },
     msg.mine ? null : h("a", { href: profileHref(msg.author.username), class: "msg-avatar", tabindex: "-1" }, avatar(msg.author, 34)),
     h("div", { class: "msg-stack" }, bubble, h("div", { class: "msg-under" }, reactionsEl(msg, chat), hypeEl(msg, chat)), notesEl(msg, chat)),
@@ -1926,6 +1970,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     navigate("/messages");
   });
   const offReact = on("message:reactions", (ev) => { if (ev.chatId === chatId && chat) paintReactions(ev.messageId, ev.reactions, chat); });
+  const offStuck = on("message:stuck", (ev) => { if (ev.chatId === chatId && chat) paintStuck(ev.messageId, ev.stuck, chat); });
   const offNotes = on("message:notes", (ev) => { if (ev.chatId === chatId && chat) paintNotes(ev.messageId, ev.notes, chat); });
   const offPoll = on("message:poll", (ev) => { if (ev.chatId === chatId && chat) paintPoll(ev.messageId, ev.poll, chat); });
   const offHype = on("message:hype", (ev) => { if (ev.chatId === chatId && chat) paintHype(ev.messageId, ev.hypes, chat, ev.by === state.me.username ? ev.on : undefined); });
@@ -1951,7 +1996,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     list.querySelectorAll(".msg").forEach((row) => { if (row._msg?.expiresAt && row._msg.expiresAt <= now) { ids.delete(row._msg.id); row.remove(); } });
   }, 5000);
 
-  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offNotes(); offHype(); offHyped(); offPoll(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
+  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offStuck(); offNotes(); offHype(); offHyped(); offPoll(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
 }
 
 

@@ -142,6 +142,7 @@ function meView(u) {
     msgStyle: u.msgStyle || null,
     msgSound: u.msgSound || null,
     showNsfw: Boolean(u.showNsfw),
+    hideAi: Boolean(u.hideAi),
     showSensitive: Boolean(u.showSensitive),
     username: u.username,
     email: u.email,
@@ -160,6 +161,25 @@ function meView(u) {
     categories: u.categories || [],
   };
 }
+
+// Wrong passwords and 2-step codes are also counted on the account itself (kept in the database, so every
+// server sees the same count): after 8 wrong tries in 15 minutes the account waits 15 minutes.
+const LOCK_AFTER = 8, LOCK_MS = 15 * 60 * 1000;
+function checkLock(user, saveName = "users") {
+  const f = user?.authFails;
+  if (f?.until && f.until > Date.now()) throw httpError(429, `Too many wrong tries for this account. Try again in ${Math.ceil((f.until - Date.now()) / 60000)} min.`);
+}
+function failedTry(user, saveName = "users") {
+  if (!user) return;
+  const now = Date.now();
+  let f = user.authFails;
+  if (!f || now - (f.first || 0) > LOCK_MS) f = { n: 0, first: now };
+  f.n++;
+  if (f.n >= LOCK_AFTER) f = { n: 0, first: now, until: now + LOCK_MS };
+  user.authFails = f;
+  save(saveName);
+}
+function goodTry(user, saveName = "users") { if (user?.authFails) { delete user.authFails; save(saveName); } }
 
 function validateSignup({ name, username, email, password }) {
   const errors = {};
@@ -219,6 +239,7 @@ async function handleAuth(req, res, url, { port }) {
       passwordHash: hashPassword(clean.password),
       createdAt: new Date().toISOString(),
       following: [],
+      stickers: [], sounds: [], gifs: [], // (a new account has its collections from the start)
       bio: "",
       avatar: null,
       banner: null,
@@ -240,9 +261,11 @@ async function handleAuth(req, res, url, { port }) {
     const id = String(body.login || "").trim().replace(/^@/, "");
     const password = String(body.password || "");
     const user = id.includes("@") ? db.users.find((u) => u.email === id.toLowerCase()) : findByUsername(id);
+    checkLock(user);
     const ok = verifyPassword(password, user ? user.passwordHash : DUMMY_HASH) && Boolean(user);
-    if (!ok) throw httpError(401, "Wrong email/username or password.");
+    if (!ok) { failedTry(user); throw httpError(401, "Wrong email/username or password."); }
     checkNotBanned(user);
+    if (!twoFA(user)) goodTry(user);
     // 2FA on: the password was right, now we need the code
     if (twoFA(user)) {
       sendJSON(res, 200, { needCode: true, ticket: askForCode(user, Boolean(body.remember)), name: user.name });
@@ -261,12 +284,15 @@ async function handleAuth(req, res, url, { port }) {
     if (!t || t.expires < Date.now()) { pending2fa.delete(key); throw httpError(400, "That took too long. Log in again."); }
     const user = findUser(t.userId);
     if (!user || !twoFA(user)) { pending2fa.delete(key); throw httpError(400, "Log in again."); }
+    checkLock(user);
     if (!codeOk(user, body.code)) {
+      failedTry(user);
       if (++t.tries >= 5) { pending2fa.delete(key); throw httpError(401, "Too many wrong codes. Log in again."); }
       pending2fa.set(key, t);
       throw httpError(401, `That code isn’t right. ${5 - t.tries} tries left.`);
     }
     pending2fa.delete(key);
+    goodTry(user);
     sendJSON(res, 200, { user: meView(user) }, { "Set-Cookie": [startSession(user, t.remember), ...keepPrevious(req, user)] });
     return true;
   }
@@ -375,12 +401,14 @@ async function handleAuth(req, res, url, { port }) {
     const body = await readJSON(req);
     const id = String(body.login || "").trim().replace(/^@/, "");
     const user = id.includes("@") ? db.users.find((u) => u.email === id.toLowerCase()) : findByUsername(id);
+    checkLock(user);
     const ok = verifyPassword(String(body.password || ""), user ? user.passwordHash : DUMMY_HASH) && Boolean(user);
-    if (!ok) throw httpError(401, "Wrong email/username or password.");
+    if (!ok) { failedTry(user); throw httpError(401, "Wrong email/username or password."); }
     checkNotBanned(user);
     if (user.id === me.id) throw httpError(400, "You’re already using this account.");
     if (twoFA(user) && !body.code) throw httpError(401, "This account has 2-step verification. Enter its code.", { needCode: true });
-    if (twoFA(user) && !codeOk(user, body.code)) throw httpError(401, "That 2-step code isn’t right.", { needCode: true });
+    if (twoFA(user) && !codeOk(user, body.code)) { failedTry(user); throw httpError(401, "That 2-step code isn’t right.", { needCode: true }); }
+    goodTry(user);
     const others = otherTokens(req);
     const existing = others.find((t) => userOfToken(t)?.id === user.id);
     if (!existing && others.length >= MAX_ACCOUNTS - 1) throw httpError(400, `You can be logged in to up to ${MAX_ACCOUNTS} accounts.`);
@@ -448,7 +476,7 @@ async function handleAuth(req, res, url, { port }) {
       user = {
         id: crypto.randomUUID(), name: String(profile.name || username).slice(0, 50), username, email,
         passwordHash: hashPassword(crypto.randomBytes(24).toString("hex")), googleId: profile.sub,
-        createdAt: new Date().toISOString(), following: [], bio: "", avatar: null, banner: null, bells: [], categories: [], note: null,
+        createdAt: new Date().toISOString(), following: [], stickers: [], sounds: [], gifs: [], bio: "", avatar: null, banner: null, bells: [], categories: [], note: null,
         verified: VERIFIED.includes(username.toLowerCase()),
       };
       db.users.push(user);
@@ -483,7 +511,8 @@ async function handleAuth(req, res, url, { port }) {
     if (twoFA(user)) {
       const code = (await Promise.resolve(body2fa))?.code;
       if (!code) { sendJSON(res, 401, { needCode: true, error: "This account has 2-step verification. Enter your code to continue." }); return true; }
-      if (!codeOk(user, code)) { sendJSON(res, 401, { needCode: true, error: "That 2-step code isn’t right." }); return true; }
+      checkLock(user);
+      if (!codeOk(user, code)) { failedTry(user); sendJSON(res, 401, { needCode: true, error: "That 2-step code isn’t right." }); return true; }
     }
     for (const [k, v] of resetTokens) if (v.userId === user.id) resetTokens.delete(k);
     const token = crypto.randomBytes(32).toString("hex");
@@ -521,4 +550,4 @@ async function handleAuth(req, res, url, { port }) {
   return false;
 }
 
-module.exports = { handleAuth, sessionUser, meView, endSessionsFor, hashPassword, verifyPassword };
+module.exports = { checkLock, failedTry, goodTry, handleAuth, sessionUser, meView, endSessionsFor, hashPassword, verifyPassword };
