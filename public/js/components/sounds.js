@@ -1,6 +1,6 @@
 // Sounds you can send: your own ("Mine", kept on your profile), the group's own soundboard sounds
 // ("This group", only inside that group), and LookBlog's built-in ones. They're kept apart on purpose.
-import { h, toast, spinner, modal, visibleRect, phoneSheet } from "../ui.js";
+import { h, toast, spinner, modal, visibleRect, phoneSheet, soundPic, pickPicture } from "../ui.js";
 import { api, upload } from "../api.js";
 import { BUILTIN_SOUNDS, previewSound } from "./voice-room.js";
 
@@ -19,7 +19,16 @@ export function addMySound(onDone) {
   const emoji = h("input", { type: "text", class: "text-input", maxlength: 4, placeholder: "Emoji", value: "🔊", style: "width:80px" });
   const pick = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Choose an audio file" });
   const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Save sound", disabled: true });
-  let url = null;
+  let url = null, image = null;
+  // A picture for it (optional): shown instead of the emoji
+  const picBox = h("span", { class: "snd-pic-preview" });
+  const paintPic = () => picBox.replaceChildren(soundPic({ image, emoji: emoji.value || "🔊" }, "snd-emoji big"));
+  const picBtn = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "🖼️ Add a picture" });
+  const picDel = h("button", { type: "button", class: "btn btn-xs", text: "Remove", hidden: true });
+  picBtn.addEventListener("click", () => pickPicture((u) => { image = u; picBtn.textContent = "🖼️ Change picture"; picDel.hidden = false; paintPic(); }));
+  picDel.addEventListener("click", () => { image = null; picBtn.textContent = "🖼️ Add a picture"; picDel.hidden = true; paintPic(); });
+  emoji.addEventListener("input", paintPic);
+  paintPic();
   pick.addEventListener("click", () => file.click());
   file.addEventListener("change", async () => {
     const f = file.files[0];
@@ -32,12 +41,12 @@ export function addMySound(onDone) {
   });
   save.addEventListener("click", async () => {
     save.disabled = true;
-    try { const { sounds } = await api("/api/me/sounds", { method: "POST", body: { url, name: name.value, emoji: emoji.value } }); m.close(); toast("Sound saved to your sounds."); onDone?.(sounds); }
+    try { const { sounds } = await api("/api/me/sounds", { method: "POST", body: { url, name: name.value, emoji: emoji.value, image } }); m.close(); toast("Sound saved to your sounds."); onDone?.(sounds); }
     catch (err) { toast(err.error || "Couldn’t save it."); save.disabled = false; }
   });
   const m = modal({ title: "Add your own sound", body: h("div", { class: "create-form" },
     h("p", { class: "create-hint", text: "Your sounds are yours: send them in messages, replies and live streams. (Group soundboards have their own sounds.)" }),
-    pick, file, h("div", { class: "invite-row" }, emoji, name), save) });
+    pick, file, h("div", { class: "invite-row" }, emoji, name), h("div", { class: "snd-pic-row" }, picBox, picBtn, picDel), save) });
 }
 
 // The picker: tabs Mine / This group / Built-in. onPick(body) gets what to send: { mySound } | { groupSound } | { builtinSound }
@@ -67,7 +76,7 @@ export function openSoundPicker(anchor, { group = null, builtin = true, onPick }
   const row = (s, body, extra) => {
     const play = h("button", { type: "button", class: "snd-play", title: "Listen", text: "▶" });
     play.addEventListener("click", (e) => { e.stopPropagation(); previewSound(s.builtin ? { builtin: s.builtin } : { url: s.url }); });
-    const b = h("div", { class: "snd-row" }, h("span", { class: "snd-emoji", text: s.emoji || "🔊" }), h("b", { text: s.name }), play,
+    const b = h("div", { class: "snd-row" }, soundPic(s), h("b", { text: s.name }), play,
       h("button", { type: "button", class: "btn btn-xs btn-primary", text: "Send", onclick: () => { closeSoundPicker(); onPick(body); } }), extra || null);
     return b;
   };
@@ -84,10 +93,15 @@ export function openSoundPicker(anchor, { group = null, builtin = true, onPick }
       try {
         const { sounds } = await api("/api/me/sounds");
         const add = h("button", { type: "button", class: "snd-add", text: "＋ Add your own sound", onclick: () => { closeSoundPicker(); addMySound(() => openSoundPicker(anchor, { group, builtin, onPick })); } });
-        list.replaceChildren(add, ...sounds.map((s) => row(s, { mySound: s.id }, h("button", { type: "button", class: "snd-del", title: "Remove from your sounds", text: "✕", onclick: async (e) => {
-          e.stopPropagation();
-          try { await api(`/api/me/sounds/${s.id}`, { method: "DELETE" }); paint(); } catch (err) { toast(err.error || "Couldn’t remove it."); }
-        } }))));
+        list.replaceChildren(add, ...sounds.map((s) => row(s, { mySound: s.id }, h("span", { class: "snd-own" },
+          h("button", { type: "button", class: "snd-del snd-picbtn", title: s.image ? "Change the picture" : "Add a picture", text: "🖼️", onclick: (e) => {
+            e.stopPropagation();
+            pickPicture(async (u) => { try { await api(`/api/me/sounds/${s.id}`, { method: "PATCH", body: { image: u } }); paint(); } catch (err) { toast(err.error || "Couldn’t save the picture."); } });
+          } }),
+          h("button", { type: "button", class: "snd-del", title: "Remove from your sounds", text: "✕", onclick: async (e) => {
+            e.stopPropagation();
+            try { await api(`/api/me/sounds/${s.id}`, { method: "DELETE" }); paint(); } catch (err) { toast(err.error || "Couldn’t remove it."); }
+          } })))));
         if (!sounds.length) list.append(h("p", { class: "muted snd-empty", text: "No sounds yet. Add one: a laugh, a catchphrase, anything short." }));
       } catch { list.replaceChildren(h("p", { class: "muted", text: "Couldn’t load your sounds." })); }
     }
@@ -105,5 +119,5 @@ export function openSoundPicker(anchor, { group = null, builtin = true, onPick }
 // A sound in a message or reply: emoji + name + play
 export function soundChip(m) {
   return h("button", { type: "button", class: "snd-chip", title: "Play", onclick: (e) => { e.preventDefault(); e.stopPropagation(); playSound(m); } },
-    h("span", { class: "snd-emoji", text: soundEmoji(m) }), h("b", { text: soundLabel(m) }), h("span", { class: "snd-chip-play", text: "▶" }));
+    m.image ? soundPic(m) : h("span", { class: "snd-emoji", text: soundEmoji(m) }), h("b", { text: soundLabel(m) }), h("span", { class: "snd-chip-play", text: "▶" }));
 }

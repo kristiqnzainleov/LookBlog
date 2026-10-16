@@ -1,6 +1,6 @@
 // A group, Discord style: channels on the left (text and voice), the open channel on the right.
 // Admins manage channels, roles, the colour and events; anyone sets their own nickname.
-import { h, icon, avatar, toast, modal, confirmClick, plural, tick, spinner, empty } from "../ui.js";
+import { h, icon, avatar, toast, modal, confirmClick, plural, tick, spinner, empty, soundPic, pickPicture } from "../ui.js";
 import { api, upload } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { navigate, profileHref } from "../router.js";
@@ -506,7 +506,9 @@ export function groupView(chatId, { onBack } = {}) {
         play.addEventListener("click", () => previewSound(s));
         const del = h("button", { type: "button", class: "icon-btn", title: "Delete", "aria-label": "Delete" }, icon("trash"));
         confirmClick(del, "Delete?", async () => { try { await api(`/api/groups/${chat.id}/sounds/${s.id}`, { method: "DELETE" }); refresh(); } catch (err) { toast(err.error || "Couldn’t delete it."); } });
-        return h("div", { class: "gs-row sound-row" }, h("span", { class: "sb-emoji", text: s.emoji }), h("b", { class: "grow", text: s.name }), play, del);
+        const pic = h("button", { type: "button", class: "icon-btn", title: s.image ? "Change the picture" : "Add a picture", "aria-label": "Picture", text: "🖼️" });
+        pic.addEventListener("click", () => pickPicture(async (u) => { try { await api(`/api/groups/${chat.id}/sounds/${s.id}`, { method: "PATCH", body: { image: u } }); refresh(); } catch (err) { toast(err.error || "Couldn’t save the picture."); } }));
+        return h("div", { class: "gs-row sound-row" }, soundPic(s, "sb-emoji"), h("b", { class: "grow", text: s.name }), pic, play, del);
       }));
       if (!chat.sounds?.length) list.append(h("p", { class: "muted", text: "No sounds yet. Everyone also gets the LookBlog sounds below." }));
       const emoji = h("input", { type: "text", class: "text-input role-own-emoji", maxlength: 8, placeholder: "🔊" });
@@ -515,8 +517,15 @@ export function groupView(chatId, { onBack } = {}) {
       const pick = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Choose a sound file" });
       const info = h("span", { class: "muted sound-file" });
       const add = h("button", { type: "button", class: "btn btn-primary btn-sm", text: "Add sound", disabled: true });
-      let chosen = null;
+      let chosen = null, image = null;
       pick.addEventListener("click", () => file.click());
+      // A picture for it (optional)
+      const picBox = h("span", { class: "snd-pic-preview" });
+      const paintPic = () => picBox.replaceChildren(soundPic({ image, emoji: emoji.value || "🔊" }, "sb-emoji"));
+      const picBtn = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "🖼️ Picture" });
+      picBtn.addEventListener("click", () => pickPicture((u) => { image = u; paintPic(); }));
+      emoji.addEventListener("input", paintPic);
+      paintPic();
       file.addEventListener("change", () => {
         const f = file.files[0];
         if (!f) return;
@@ -534,7 +543,7 @@ export function groupView(chatId, { onBack } = {}) {
         add.disabled = true; add.textContent = "Uploading…";
         try {
           const { url } = await upload(chosen);
-          await api(`/api/groups/${chat.id}/sounds`, { method: "POST", body: { name: name.value, emoji: emoji.value, url } });
+          await api(`/api/groups/${chat.id}/sounds`, { method: "POST", body: { name: name.value, emoji: emoji.value, url, image } });
           toast("Sound added.");
           refresh();
         } catch (err) { toast(err.error || "Couldn’t add the sound."); add.disabled = false; add.textContent = "Add sound"; }
@@ -547,7 +556,7 @@ export function groupView(chatId, { onBack } = {}) {
       return h("div", { class: "create-form" },
         h("p", { class: "create-hint", text: "Sounds play for everyone in a voice channel. Open the soundboard from the Voice connected panel." }),
         list, h("b", { class: "vis-label", text: "Add a sound (up to 8 seconds)" }),
-        h("div", { class: "role-own" }, emoji, name), h("div", { class: "gs-actions" }, pick, add), info, file,
+        h("div", { class: "role-own" }, emoji, name), h("div", { class: "snd-pic-row" }, picBox, picBtn), h("div", { class: "gs-actions" }, pick, add), info, file,
         h("b", { class: "vis-label", text: "LookBlog sounds (tap to hear)" }), builtins);
     }
 

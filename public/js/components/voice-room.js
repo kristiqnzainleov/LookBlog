@@ -1,7 +1,7 @@
 // Voice channels in groups (like Discord): everyone in a channel talks to everyone else.
 // Each pair of people has its own WebRTC connection; the server only passes set-up messages along.
 // You can mute, deafen, turn on your camera and share your screen.
-import { h, icon, avatar, toast, tick, modal } from "../ui.js";
+import { h, icon, avatar, toast, tick, modal, soundPic } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake, musicTransform, musicStutter, musicDip, myVolumeRow, musicGate, musicPump, musicTremolo, musicSwell, musicBlackout, musicHalf } from "./voice-music.js";
@@ -899,7 +899,7 @@ function playBuiltin(id, shared = null, into = null) {
   } catch {}
 }
 function showSoundToast(ev) {
-  const el = h("div", { class: "sound-toast" }, h("span", { text: ev.emoji || BUILTIN_SOUNDS.find((s) => s.builtin === ev.builtin)?.emoji || "🔊" }), h("span", {}, h("b", { text: ev.by }), ` played ${ev.name}`));
+  const el = h("div", { class: "sound-toast" }, ev.image ? soundPic(ev, "st-img") : h("span", { text: ev.emoji || BUILTIN_SOUNDS.find((s) => s.builtin === ev.builtin)?.emoji || "🔊" }), h("span", {}, h("b", { text: ev.by }), ` played ${ev.name}`));
   document.body.append(el);
   setTimeout(() => el.classList.add("out"), 1800);
   setTimeout(() => el.remove(), 2200);
@@ -911,7 +911,7 @@ function openSoundboard(anchor) {
     .then(() => playSoundHere(s))
     .catch((err) => toast(err.error || "Couldn’t play it."));
   const item = (s) => {
-    const b = h("button", { type: "button", class: "sb-item" }, h("span", { class: "sb-emoji", text: s.emoji || "🔊" }), h("span", { class: "sb-name", text: s.name }));
+    const b = h("button", { type: "button", class: "sb-item" }, soundPic(s, "sb-emoji"), h("span", { class: "sb-name", text: s.name }));
     b.addEventListener("click", () => play(s));
     return b;
   };

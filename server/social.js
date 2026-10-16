@@ -146,12 +146,12 @@ function resolveExtras(body, me, chat = null) {
   if (body.mySound) {
     const s = (me.sounds || []).find((x) => x.id === body.mySound);
     if (!s) throw httpError(404, "That sound isn’t in your collection.");
-    return { kind: "sound", url: s.url, name: s.name, emoji: s.emoji, shared: true };
+    return { kind: "sound", url: s.url, name: s.name, emoji: s.emoji, ...(s.image ? { image: s.image } : {}), shared: true };
   }
   if (body.groupSound) {
     const s = chat?.kind === "group" && (chat.sounds || []).find((x) => x.id === body.groupSound);
     if (!s) throw httpError(404, "That group sound is gone.");
-    return { kind: "sound", url: s.url, name: s.name, emoji: s.emoji, shared: true };
+    return { kind: "sound", url: s.url, name: s.name, emoji: s.emoji, ...(s.image ? { image: s.image } : {}), shared: true };
   }
   if (body.builtinSound) {
     if (chat?.kind !== "group") throw httpError(400, "Built-in sounds are for groups. Send one of your own sounds.");
@@ -2025,8 +2025,10 @@ async function handleSocial(req, res, url, me) {
     }
   }
 
-  // My sounds: GET /api/me/sounds · POST { name, emoji, url } · DELETE /api/me/sounds/:id
+  // My sounds: GET /api/me/sounds · POST { name, emoji, url, image } · PATCH /api/me/sounds/:id { image } · DELETE /api/me/sounds/:id
+  // (image: a picture for the sound, shown instead of the emoji; null takes it away)
   if (a === "me" && b === "sounds") {
+    if (!Array.isArray(me.sounds)) me.sounds = []; // (a brand-new account doesn't have the list yet)
     if (m === "GET" && parts.length === 2) { sendJSON(res, 200, { sounds: me.sounds }); return true; }
     if (m === "POST" && parts.length === 2) {
       const body = await readJSON(req);
@@ -2039,9 +2041,27 @@ async function handleSocial(req, res, url, me) {
       if ((db.uploads[file.url.replace("/media/", "")]?.size || 0) > 2 * 1024 * 1024) throw httpError(400, "Keep sounds short (under 2 MB).");
       if (me.sounds.length >= 40) throw httpError(400, "You can keep up to 40 sounds. Remove some first.");
       markUsed(file.url, "mysound:" + me.id);
-      me.sounds.unshift({ id: crypto.randomUUID().slice(0, 8), name, emoji, url: file.url, createdAt: new Date().toISOString() });
+      const img = body.image ? ownedMedia(body.image, me.id, "image") : null;
+      if (body.image && !img) throw httpError(400, "That picture couldn’t be found. Upload it again.");
+      if (img) markUsed(img.url, "mysound:" + me.id);
+      me.sounds.unshift({ id: crypto.randomUUID().slice(0, 8), name, emoji, url: file.url, ...(img ? { image: img.url } : {}), createdAt: new Date().toISOString() });
       save("users");
       sendJSON(res, 201, { sounds: me.sounds });
+      return true;
+    }
+    if (m === "PATCH" && parts[2] && parts.length === 3) {
+      const snd = me.sounds.find((x) => x.id === parts[2]);
+      if (!snd) throw httpError(404, "That sound is gone.");
+      const body = await readJSON(req);
+      if (body.image === null) delete snd.image;
+      else {
+        const img = ownedMedia(body.image, me.id, "image");
+        if (!img) throw httpError(400, "That picture couldn’t be found. Upload it again.");
+        markUsed(img.url, "mysound:" + me.id);
+        snd.image = img.url;
+      }
+      save("users");
+      sendJSON(res, 200, { sounds: me.sounds });
       return true;
     }
     if (m === "DELETE" && parts[2]) {

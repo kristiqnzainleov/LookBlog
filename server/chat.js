@@ -108,7 +108,7 @@ function preview(msg) {
   if (msg.text) return msg.text.slice(0, 120);
   if (msg.media?.sticker) return "Sent a sticker";
   if (msg.media?.gif) return "Sent a GIF";
-  if (msg.media) return msg.media.kind === "file" ? `📎 ${msg.media.name || "File"}` : msg.media.kind === "audio" ? (msg.media.file ? `🎵 ${msg.media.name || "Audio"}` : "🎤 Voice message") : msg.media.kind === "video" ? "Sent a video" : "Sent a photo";
+  if (msg.media) return msg.media.kind === "file" ? `📎 ${msg.media.name || "File"}` : msg.media.kind === "audio" ? (msg.media.file ? `🎵 ${msg.media.name || "Audio"}` : "🎤 Voice message") : msg.media.kind === "sound" ? `🔊 ${msg.media.name || "Sound"}` : msg.media.sticker ? "Sent a sticker" : msg.media.gif ? "Sent a GIF" : msg.media.kind === "video" ? "Sent a video" : "Sent a photo";
   if (msg.postId) return "Shared a post";
   if (msg.commentId) return "Shared a reply";
   if (msg.songId || msg.songYt) return "🎵 Sent a song";

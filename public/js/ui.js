@@ -527,3 +527,22 @@ export function sentAnim(btn, label = "Sent ✓") {
   }
   setTimeout(() => { btn.classList.remove("sent-pop"); if (btn.textContent.startsWith(label)) btn.textContent = was; }, 1100);
 }
+
+// A sound's picture (if it has one) or its emoji
+export function soundPic(s, cls = "snd-emoji") {
+  return s?.image ? h("img", { class: cls + " snd-img", src: s.image, alt: "", loading: "lazy" }) : h("span", { class: cls, text: s?.emoji || "🔊" });
+}
+// Pick a picture from the device and upload it: onUrl(url)
+export function pickPicture(onUrl) {
+  const input = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", hidden: true });
+  input.addEventListener("change", async () => {
+    const f = input.files[0];
+    input.remove();
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) return toast("Pictures can be up to 8 MB.");
+    try { toast("Uploading the picture…"); const { upload } = await import("./api.js"); const { url } = await upload(f); onUrl(url); }
+    catch (err) { toast(err.error || "Couldn’t upload the picture."); }
+  });
+  document.body.append(input);
+  input.click();
+}

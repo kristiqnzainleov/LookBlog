@@ -3,7 +3,7 @@
 // moderators, and viewers can send a picture, a short video or a sound that pops up on the stream.
 // A stream can also be scheduled: then /live/:id is its "upcoming" page with a "Notify me" button.
 // When the streamer ends, the recording is uploaded and shows up under "Streams" on their profile.
-import { h, icon, avatar, tick, toast, empty, spinner, modal, richText, count as fmtCount } from "../ui.js";
+import { h, icon, avatar, tick, toast, empty, spinner, modal, richText, count as fmtCount, soundPic } from "../ui.js";
 import { api, upload } from "../api.js";
 import { on, state } from "../state.js";
 import { navigate, profileHref } from "../router.js";
@@ -558,7 +558,7 @@ function openSendToStream(st) {
           const play = h("button", { type: "button", class: "btn btn-xs btn-outline-light", title: "Listen", text: "▶", onclick: () => previewSound({ url: s.url }) });
           const b = h("button", { type: "button", class: "btn btn-xs btn-primary", text: "Send" });
           b.addEventListener("click", () => send({ kind: "sound", mySound: s.id }, b));
-          return h("div", { class: "lv-sound" }, h("span", { class: "lv-sound-emoji", text: s.emoji }), h("b", { text: s.name }), play, b);
+          return h("div", { class: "lv-sound" }, soundPic(s, "lv-sound-emoji"), h("b", { text: s.name }), play, b);
         }));
         if (!sounds.length) mine.append(h("p", { class: "muted", text: "You don’t have your own sounds yet." }));
         mine.append(h("button", { type: "button", class: "snd-add", text: "＋ Add your own sound", onclick: () => import("../components/sounds.js").then((m2) => m2.addMySound(() => paint())) }));

@@ -7223,3 +7223,15 @@ a.file-card:hover { background: rgba(0, 0, 0, 0.32); }
 .sched-chip { align-self: flex-start; margin: 0 0 6px 8px; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(255, 79, 163, 0.4); background: rgba(255, 79, 163, 0.12); color: var(--pink); font: 700 0.78rem var(--body); cursor: pointer; }
 .sched-chip[hidden] { display: none; }
 .sched-mark { font-size: 0.8em; }
+/* Sounds with a picture */
+img.snd-img { object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.snd-row img.snd-emoji, .snd-chip img.snd-emoji { width: 28px; height: 28px; }
+.sb-item img.sb-emoji { width: 40px; height: 40px; border-radius: 10px; }
+.sound-row img.sb-emoji { width: 36px; height: 36px; }
+.snd-pic-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.snd-pic-preview { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 12px; background: var(--ink); border: 1px dashed var(--line); font-size: 1.6rem; overflow: hidden; }
+.snd-pic-preview img { width: 100% !important; height: 100% !important; border-radius: 0; }
+.snd-own { display: inline-flex; gap: 2px; }
+.snd-picbtn { font-size: 0.85rem; }
+img.st-img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; }
+img.lv-sound-emoji { width: 30px; height: 30px; }

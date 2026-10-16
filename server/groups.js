@@ -110,7 +110,7 @@ function groupExtras(chat, me, voiceRooms) {
     perms: permsOf(chat, me),
     allPerms: PERMS,
     myRank: rank(chat, me.id),
-    sounds: (chat.sounds || []).map((x) => ({ id: x.id, name: x.name, emoji: x.emoji, url: x.url })),
+    sounds: (chat.sounds || []).map((x) => ({ id: x.id, name: x.name, emoji: x.emoji, url: x.url, image: x.image || null })),
     stickers: (chat.stickers || []).map((x) => ({ id: x.id, url: x.url })),
     events: chat.events.filter((e) => new Date(e.startsAt).getTime() > now - 6 * 3600 * 1000)
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map((e) => eventView(chat, e, me)),
@@ -335,11 +335,32 @@ async function handleGroupRoutes(req, res, me, chat, parts, helpers) {
     if (size > 2 * 1024 * 1024) throw httpError(400, "Keep sounds short (under 2 MB).");
     if (chat.sounds.length >= 40) throw httpError(400, "A group can have up to 40 sounds.");
     markUsed(file.url, "sound:" + chat.id);
-    const snd = { id: id8(), name, emoji, url: file.url, by: me.id, createdAt: new Date().toISOString() };
+    const img = body.image ? ownedMedia(body.image, me.id, "image") : null;
+    if (body.image && !img) throw httpError(400, "That picture couldn’t be found. Upload it again.");
+    if (img) markUsed(img.url, "sound:" + chat.id);
+    const snd = { id: id8(), name, emoji, url: file.url, ...(img ? { image: img.url } : {}), by: me.id, createdAt: new Date().toISOString() };
     chat.sounds.push(snd);
     save("chats");
     tell(chat, "sounds");
-    sendJSON(res, 201, { sound: { id: snd.id, name, emoji, url: snd.url } });
+    sendJSON(res, 201, { sound: { id: snd.id, name, emoji, url: snd.url, image: snd.image || null } });
+    return true;
+  }
+  // A picture for a sound: PATCH /api/groups/:id/sounds/:sid { image } (null takes it away)
+  if (c === "sounds" && m === "PATCH" && d && parts.length === 4) {
+    const snd = chat.sounds.find((x) => x.id === d);
+    if (!snd) throw httpError(404, "That sound is gone.");
+    if (snd.by !== me.id) need("manage_sounds");
+    const body = await readJSON(req);
+    if (body.image === null) delete snd.image;
+    else {
+      const img = ownedMedia(body.image, me.id, "image");
+      if (!img) throw httpError(400, "That picture couldn’t be found. Upload it again.");
+      markUsed(img.url, "sound:" + chat.id);
+      snd.image = img.url;
+    }
+    save("chats");
+    tell(chat, "sounds");
+    sendJSON(res, 200, { sound: { id: snd.id, name: snd.name, emoji: snd.emoji, url: snd.url, image: snd.image || null } });
     return true;
   }
   if (c === "sounds" && m === "DELETE" && d && parts.length === 4) {
