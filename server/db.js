@@ -144,4 +144,12 @@ ready().catch((err) => console.error("[db] first load failed, will retry:", err.
 const sync = () => (store.enabled ? store.sync(db) : Promise.resolve());
 const flush = () => (store.enabled ? store.flush(db) : Promise.resolve());
 
-module.exports = { VERIFIED, db, save, flushAll, onLoad, ready, sync, flush, findUser, findByUsername, findPost, findChat, DATA_DIR, UPLOAD_DIR };
+// Usernames that come with powers (the owners in ADMINS, the auto-verified ones): nobody else can take them,
+// even if the person who had one changes their @ (otherwise a stranger could pick it up and get those powers)
+const reservedUsername = (name, me = null) => {
+  const n = String(name || "").toLowerCase();
+  const owners = String(process.env.ADMINS || "ko6i").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  if (!owners.includes(n) && !VERIFIED.includes(n)) return false;
+  return !(me && me.username.toLowerCase() === n);
+};
+module.exports = { VERIFIED, reservedUsername, db, save, flushAll, onLoad, ready, sync, flush, findUser, findByUsername, findPost, findChat, DATA_DIR, UPLOAD_DIR };

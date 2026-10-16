@@ -1,7 +1,7 @@
 // Accounts: sign up, log in, log out, sessions, forgot / reset password.
 
 const crypto = require("crypto");
-const { db, save, findUser, findByUsername, VERIFIED } = require("./db");
+const { db, save, findUser, findByUsername, VERIFIED, reservedUsername } = require("./db");
 const { sendJSON, httpError, readJSON, parseCookies, rateLimit } = require("./http");
 const { every } = require("./ticker");
 
@@ -172,7 +172,7 @@ function validateSignup({ name, username, email, password }) {
   else if (name.length > 50) errors.name = "Keep your name under 50 characters.";
 
   if (!USERNAME_RE.test(username)) errors.username = "3–15 characters: letters, numbers and _ only.";
-  else if (findByUsername(username)) errors.username = "That username is taken.";
+  else if (findByUsername(username) || (reservedUsername(username) && db.users.length > 0)) errors.username = "That username is taken.";
 
   if (!EMAIL_RE.test(email) || email.length > 254) errors.email = "That email address doesn’t look right.";
   else if (db.users.some((u) => u.email === email)) errors.email = "There’s already an account with this email.";
@@ -444,7 +444,7 @@ async function handleAuth(req, res, url, { port }) {
       let base = email.split("@")[0].replace(/[^A-Za-z0-9_]/g, "").slice(0, 12) || "user";
       if (base.length < 3) base = (base + "user").slice(0, 12);
       let username = base, n = 1;
-      while (findByUsername(username)) username = (base.slice(0, 12) + (++n)).slice(0, 15);
+      while (findByUsername(username) || reservedUsername(username)) username = (base.slice(0, 12) + (++n)).slice(0, 15);
       user = {
         id: crypto.randomUUID(), name: String(profile.name || username).slice(0, 50), username, email,
         passwordHash: hashPassword(crypto.randomBytes(24).toString("hex")), googleId: profile.sub,

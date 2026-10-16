@@ -3,7 +3,7 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { db, save, findUser, findByUsername, findPost } = require("./db");
+const { db, save, findUser, findByUsername, findPost, reservedUsername } = require("./db");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { ownedMedia, markUsed, deleteMedia } = require("./media");
 const { broadcast, sendTo, presence } = require("./realtime");
@@ -1948,7 +1948,7 @@ async function handleSocial(req, res, url, me) {
     const username = String((await readJSON(req)).username || "").trim().replace(/^@/, "");
     if (!/^[A-Za-z0-9_]{3,15}$/.test(username)) throw httpError(400, "3–15 characters: letters, numbers and _ only.");
     const taken = findByUsername(username);
-    if (taken && taken.id !== me.id) throw httpError(400, "That username is taken.");
+    if ((taken && taken.id !== me.id) || reservedUsername(username, me)) throw httpError(400, "That username is taken.");
     const old = me.username;
     me.username = username;
     save("users");

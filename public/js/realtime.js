@@ -43,7 +43,12 @@ function handle(ev) {
       el.textContent = ev.idle ? "Idle" : lastSeenText(ev.online, ev.lastSeen);
     });
   }
-  if (ev.type === "post:edited") repaintPost(ev);
+  // An edit: take the text from the server, not from the event (anyone can send events on the shared channel)
+  if (ev.type === "post:edited") {
+    import("./api.js").then(({ api }) => api(`/api/posts/${encodeURIComponent(ev.id)}`)).then(({ post }) => {
+      if (post) repaintPost({ id: post.id, text: post.text, title: post.title, mentions: post.mentions, editedAt: post.editedAt });
+    }).catch(() => {});
+  }
   emit(ev.type, ev);
 }
 

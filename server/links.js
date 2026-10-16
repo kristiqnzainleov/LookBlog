@@ -11,10 +11,16 @@ const DAY = 86400000;
 function privateIp(ip) {
   if (net.isIPv4(ip)) {
     const [a, b] = ip.split(".").map(Number);
-    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || (a === 198 && (b === 18 || b === 19)) || (a === 192 && b === 0) || a >= 224;
   }
   const v = ip.toLowerCase();
-  return v === "::1" || v === "::" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80") || v.startsWith("::ffff:") && privateIp(v.slice(7));
+  // An IPv4 address written as IPv6 (::ffff:1.2.3.4 or ::ffff:7f00:1): check the IPv4 inside
+  const mapped = v.match(/^::ffff:(?:0:)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (mapped) { const a = parseInt(mapped[1], 16), b = parseInt(mapped[2], 16); return privateIp(`${a >> 8}.${a & 255}.${b >> 8}.${b & 255}`); }
+  if (/^::ffff:(0:)?\d/.test(v)) return privateIp(v.replace(/^::ffff:(0:)?/, ""));
+  // (also: any other "::" form of an IPv4 address, and 64:ff9b:: translation, are never fetched)
+  if (/^::[0-9a-f]/.test(v) || v.startsWith("64:ff9b:")) return true;
+  return v === "::1" || v === "::" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80");
 }
 async function safeUrl(raw) {
   let u;
