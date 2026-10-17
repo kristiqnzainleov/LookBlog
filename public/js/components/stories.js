@@ -437,8 +437,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     return b;
   }
   // Comments: they stay on the story; everyone who can see it sees them
-  function commentsBtn(s) {
-    const b = h("button", { type: "button", class: "sv-pill sv-comments-btn", title: "Comments", "aria-label": "Comments" }, icon("comment"), h("span", { class: "sv-cc", text: s.comments ? String(s.comments) : "" }));
+  function commentsBtn(s, round = false) {
+    const b = h("button", { type: "button", class: round ? "sv-gif sv-comments-btn sv-cmt-round" : "sv-pill sv-comments-btn", title: "Comments", "aria-label": "Comments" }, icon("comment"), h("span", { class: "sv-cc", text: s.comments ? String(s.comments) : "" }));
     b.classList.toggle("has", !!s.comments);
     b.addEventListener("click", () => showComments(s));
     return b;
@@ -615,7 +615,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
         });
         return b;
       }));
-      const input = h("input", { type: "text", class: "sv-reply", placeholder: `Message ${group().user.name.split(" ")[0]} privately…`, maxlength: 1000 });
+      const input = h("input", { type: "text", class: "sv-reply", placeholder: `Message ${group().user.name.split(" ")[0]}…`, title: "A private message (only they see it)", maxlength: 1000 });
       const send = h("button", { type: "button", class: "sv-send", "aria-label": "Send", disabled: true }, icon("send"));
       input.addEventListener("focus", () => pause(true));
       input.addEventListener("blur", () => pause(false));
@@ -654,7 +654,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
           catch (err) { toast(err.error || "Couldn’t add it."); repost.disabled = false; }
         });
       }
-      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts, commentsBtn(s)), h("div", { class: "sv-reply-row" }, input, gifBtn, send));
+      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts), h("div", { class: "sv-reply-row" }, commentsBtn(s, true), input, gifBtn, send));
     }
   }
   // A reaction floats up over the story

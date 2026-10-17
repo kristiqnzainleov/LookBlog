@@ -7659,3 +7659,15 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sv-cmts.empty { -webkit-mask: none; mask: none; }
 .sv-cmt-more { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.25); font-size: 0.82rem; backdrop-filter: blur(8px); text-shadow: none; transition: background 0.15s, border-color 0.15s; }
 .sv-cmts:hover .sv-cmt-more, .sv-cmts:focus-visible .sv-cmt-more { background: rgba(255, 79, 163, 0.35); border-color: var(--pink); }
+/* The comments button next to the message box: round like GIF and send, with the number on a badge */
+.sv-cmt-round { position: relative; padding: 0; gap: 0; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.6); background: rgba(0, 0, 0, 0.35); }
+.sv-cmt-round svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sv-cmt-round.has { box-shadow: none; border-color: var(--pink); }
+.sv-cmt-round:hover { border-color: var(--pink); color: var(--pink); }
+.sv-cmt-round .sv-cc { position: absolute; top: -5px; right: -6px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: var(--pink); color: #000; font: 800 0.68rem/19px var(--body); text-align: center; border: 2px solid #111; }
+.sv-cmt-round .sv-cc:empty { display: none; }
+.sv-react-row .sv-reacts { justify-content: space-between; }
+/* All 8 reactions fit, however narrow the story is */
+.sv-react-row .sv-reacts { overflow: visible; gap: 4px; }
+.sv-react-row .sv-react { flex: 1 1 0; min-width: 0; width: auto; max-width: 40px; height: auto; aspect-ratio: 1; font-size: clamp(1rem, 4.6cqw, 1.3rem); padding: 0; display: grid; place-items: center; }
+.story-frame { container-type: size; }
