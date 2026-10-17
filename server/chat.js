@@ -112,6 +112,8 @@ function preview(msg) {
   if (msg.postId) return "Shared a post";
   if (msg.commentId) return "Shared a reply";
   if (msg.songId || msg.songYt) return "🎵 Sent a song";
+  if (msg.storyId) return "📖 Shared a story";
+  if (msg.highlightId) return "⭐ Shared a highlight";
   return "";
 }
 
@@ -298,6 +300,9 @@ function messageViewFull(msg, me) {
     post,
     comment: msg.commentId ? sharedCommentView(msg.commentId, me) : null,
     songYt: msg.songYt ? { kind: "youtube", id: "yt-" + msg.songYt.id, yt: msg.songYt.id, title: msg.songYt.title, artist: { name: msg.songYt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${msg.songYt.id}/hqdefault.jpg` } : null,
+    // A story or a highlight someone shared here (shown only to people who may see it)
+    story: msg.storyId ? require("./stories").storyCard(msg.storyId, me) : null,
+    highlight: msg.highlightId ? require("./stories").highlightCard(msg.highlightId, me) : null,
     song: msg.songId ? (() => { const sg = db.songs.find((x) => x.id === msg.songId); return sg ? require("./music").songView(sg, me) : { deleted: true }; })() : null,
     pinned: Boolean(chat?.pins?.includes(msg.id)),
     mentions: usernamesOf(msg.mentions),
@@ -848,7 +853,11 @@ async function handleChat(req, res, url, me) {
         if (!songYt.title || !songYt.author) { const info = await require("./social").youtubeTitle(songYt.id); if (info) { songYt.title = songYt.title || info.title; songYt.author = songYt.author || info.author; } }
         if (!songYt.title) songYt.title = "YouTube";
       }
-      if (!text && !media && !post && !commentRef && !songRef && !songYt) throw httpError(400, "Write a message or add something to send.");
+      // A story or a highlight (sharing it here)
+      let storyRef = null, highlightRef = null;
+      if (body.storyId) { const c = require("./stories").storyCard(String(body.storyId), me); if (c.gone) throw httpError(404, "That story is gone."); storyRef = c.id; }
+      if (body.highlightId) { const c = require("./stories").highlightCard(String(body.highlightId), me); if (c.gone) throw httpError(404, "That highlight is gone."); highlightRef = c.id; }
+      if (!text && !media && !post && !commentRef && !songRef && !songYt && !storyRef && !highlightRef) throw httpError(400, "Write a message or add something to send.");
       if (chars(text) > 2000) throw httpError(400, "Keep messages under 2000 characters.");
 
       let replyTo = null;
@@ -857,7 +866,7 @@ async function handleChat(req, res, url, me) {
         if (!orig) throw httpError(404, "The message you’re replying to was deleted.");
         replyTo = orig.id;
       }
-      const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media, postId: post ? post.id : null, commentId: commentRef, songId: songRef, ...(songYt ? { songYt } : {}), replyTo, mentions: findMentions(text), createdAt: new Date().toISOString() };
+      const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text, media, postId: post ? post.id : null, commentId: commentRef, songId: songRef, ...(songYt ? { songYt } : {}), ...(storyRef ? { storyId: storyRef } : {}), ...(highlightRef ? { highlightId: highlightRef } : {}), replyTo, mentions: findMentions(text), createdAt: new Date().toISOString() };
       // Sent with an effect (like iMessage): everyone sees it play when it arrives
       if (MSG_EFFECTS.includes(body.effect)) msg.effect = body.effect;
       if (msg.effect === "capsule") {

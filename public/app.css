@@ -7338,3 +7338,22 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 /* New photo decorations */
 .av-deco[data-deco="tophat"] b, .av-deco[data-deco="rainbow"] b, .av-deco[data-deco="frog"] b { left: 50%; top: -20%; transform: translateX(-50%) rotate(-6deg); font-size: calc(var(--av, 120px) * 0.38); }
 .av-deco[data-deco="wand"] b, .av-deco[data-deco="clover"] b, .av-deco[data-deco="butterfly"] b, .av-deco[data-deco="strawberry"] b, .av-deco[data-deco="controller"] b, .av-deco[data-deco="rocket"] b, .av-deco[data-deco="gem"] b { right: -4%; bottom: -2%; font-size: calc(var(--av, 120px) * 0.3); transform: rotate(10deg); }
+/* A shared story / highlight in a chat */
+.story-card { display: flex; flex-direction: column; gap: 6px; padding: 0; border: none; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.story-card .sc-thumb { position: relative; display: block; width: 150px; aspect-ratio: 9 / 16; border-radius: 16px; background: #222 center / cover no-repeat; box-shadow: 0 0 0 2px var(--pink); overflow: hidden; }
+.story-card.highlight .sc-thumb { width: 120px; aspect-ratio: 1; border-radius: 50%; box-shadow: 0 0 0 3px #161414, 0 0 0 5px var(--pink); }
+.story-card .sc-owner { position: absolute; left: 8px; top: 8px; display: flex; align-items: center; gap: 6px; color: #fff; font-size: 0.78rem; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); }
+.story-card.highlight .sc-owner { top: auto; bottom: -2px; left: 50%; transform: translateX(-50%); }
+.story-card .sc-play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 2rem; text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6); }
+.story-card .sc-label { font-size: 0.82rem; font-weight: 700; }
+.story-card.gone { padding: 8px 4px; opacity: 0.75; font-size: 0.86rem; }
+.sv-head-btns { display: flex; gap: 8px; }
+.sv-share svg { width: 18px !important; height: 18px !important; }
+/* A comment popping up on a story */
+.sv-pop { position: absolute; left: 50%; bottom: calc(var(--foot-h, 120px) + 70px); z-index: 6; display: flex; align-items: center; gap: 10px; max-width: 82%; padding: 8px 14px 8px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.95); color: #111; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); pointer-events: none; transform: translateX(-50%); animation: svPop 3.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.sv-pop .avatar { flex-shrink: 0; box-shadow: 0 0 0 2px var(--pink); }
+.sv-pop-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.sv-pop-text b { font-size: 0.74rem; color: #666; font-weight: 700; }
+.sv-pop-text span { font-size: 0.95rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes svPop { 0% { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.4); } 12% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.08); } 20% { transform: translateX(-50%) scale(1); } 80% { opacity: 1; transform: translateX(-50%) translateY(-24px); } 100% { opacity: 0; transform: translateX(-50%) translateY(-60px) scale(0.9); } }
+@media (prefers-reduced-motion: reduce) { .sv-pop { animation: svPopFade 3.2s linear forwards; } @keyframes svPopFade { 0%, 85% { opacity: 1; } 100% { opacity: 0; } } }

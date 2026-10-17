@@ -85,9 +85,21 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   const tagRow = h("div", { class: "sv-tags" });
   const foot = h("div", { class: "sv-foot" });
   const closeBtn = h("button", { type: "button", class: "sv-close", "aria-label": "Close" }, icon("close"));
+  // Share it: a link (works outside LookBlog too) or as a card in a chat. In a highlight, the whole highlight.
+  const shareBtn = h("button", { type: "button", class: "sv-close sv-share", "aria-label": "Share", title: "Share" }, icon("send"));
+  shareBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = story(), gr = group();
+    if (!s) return;
+    pause(true);
+    const hl = gr.highlight;
+    import("./share.js").then(({ openShareLink }) => openShareLink(hl
+      ? { title: "Share this highlight", url: `${location.origin}/highlight/${hl.id}`, text: `${hl.title || "Highlight"} · @${gr.user.username}`, chatBody: { highlightId: hl.id }, onShared: () => toast("Shared.") }
+      : { title: "Share this story", url: `${location.origin}/story/${s.id}`, text: `@${gr.user.username}’s story`, chatBody: { storyId: s.id }, onShared: () => toast("Shared.") }));
+  });
   const prevZone = h("button", { type: "button", class: "sv-zone left", "aria-label": "Previous" });
   const nextZone = h("button", { type: "button", class: "sv-zone right", "aria-label": "Next" });
-  const frame = h("div", { class: "story-frame" }, stage, caption, tagRow, prevZone, nextZone, h("div", { class: "sv-top" }, bars, h("div", { class: "sv-head" }, who, closeBtn)), foot);
+  const frame = h("div", { class: "story-frame" }, stage, caption, tagRow, prevZone, nextZone, h("div", { class: "sv-top" }, bars, h("div", { class: "sv-head" }, who, h("div", { class: "sv-head-btns" }, shareBtn, closeBtn))), foot);
   const box = h("div", { class: "story-viewer", role: "dialog", "aria-modal": "true", "aria-label": "Story" }, frame);
   document.body.append(box);
   document.body.classList.add("no-scroll");
@@ -154,6 +166,13 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     paintBars(0);
     timer = requestAnimationFrame(tickTime);
   }
+  // A new comment pops up on the story: the commenter's photo and their words (like Instagram)
+  function popComment(c) {
+    if (!c) return;
+    const el = h("div", { class: "sv-pop", "aria-live": "polite" }, avatar(c, 40), h("div", { class: "sv-pop-text" }, h("b", { text: c.mine ? "You commented" : `${c.name} commented` }), h("span", { text: c.text || "GIF" })));
+    frame.append(el);
+    setTimeout(() => el.remove(), 3200);
+  }
   // The newest comments float on the story itself (tap them to see all and write one)
   const onStory = h("button", { type: "button", class: "sv-cmts", "aria-label": "Comments" });
   frame.append(onStory);
@@ -209,8 +228,14 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     };
     const post = async (body) => {
       send.disabled = true;
-      try { paintList((await api(`/api/stories/${s.id}/comments`, { method: "POST", body })).comments); input.value = ""; }
-      catch (err) { toast(err.error || "Couldn’t post it."); }
+      try {
+        const { comments } = await api(`/api/stories/${s.id}/comments`, { method: "POST", body });
+        paintList(comments); input.value = "";
+        // Back to the story, where it pops up with my photo
+        const c = comments[comments.length - 1];
+        md.close();
+        if (c) setTimeout(() => popComment({ name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : ""), mine: true }), 150);
+      } catch (err) { toast(err.error || "Couldn’t post it."); }
       send.disabled = !input.value.trim();
     };
     input.addEventListener("input", () => { send.disabled = !input.value.trim(); });
@@ -352,7 +377,15 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     if (!s || ev.id !== s.id) return;
     s.comments = ev.count;
     frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(ev.count); });
-    api(`/api/stories/${s.id}/comments`).then((r) => { s.latestComments = r.comments.slice(-3).map((c) => ({ id: c.id, name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : ""), byOwner: c.byOwner })); if (story() === s) paintCommentsOnStory(s); }).catch(() => {});
+    const before = new Set((s.latestComments || []).map((c) => c.id));
+    api(`/api/stories/${s.id}/comments`).then((r) => {
+      s.latestComments = r.comments.slice(-3).map((c) => ({ id: c.id, name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : ""), byOwner: c.byOwner }));
+      if (story() !== s) return;
+      paintCommentsOnStory(s);
+      // Someone else just commented while I'm watching: it pops up
+      const fresh = r.comments.filter((c) => !before.has(c.id) && c.author.username !== state.me?.username).slice(-1)[0];
+      if (fresh && !document.querySelector(".app-modal")) popComment({ name: fresh.author.name, username: fresh.author.username, avatar: fresh.author.avatar, text: fresh.text || (fresh.gif ? "GIF" : "") });
+    }).catch(() => {});
   });
   function close() {
     if (closed) return;

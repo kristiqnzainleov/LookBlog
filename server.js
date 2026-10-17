@@ -62,7 +62,7 @@ const TYPES = {
 // Pages of the app (all served by app.html, which shows the right one)
 const APP_PAGES = [
   /^\/feed$/, /^\/shorts$/, /^\/videos$/, /^\/search$/, /^\/post\/[\w-]+$/, /^\/watch\/[\w-]+$/, /^\/u\/[^/]+$/,
-  /^\/playlist\/[\w-]+$/, /^\/messages(\/[\w-]+)?$/, /^\/groups$/, /^\/invite\/[\w-]+$/, /^\/events$/, /^\/cinema$/, /^\/music$/, /^\/history$/, /^\/settings$/, /^\/leaderboard$/, /^\/editor$/, /^\/live\/[\w-]+$/, /^\/album\/[\w-]+$/, /^\/event\/[\w-]+$/, /^\/verified$/, /^\/analytics$/, /^\/people$/, /^\/admin$/,
+  /^\/playlist\/[\w-]+$/, /^\/messages(\/[\w-]+)?$/, /^\/groups$/, /^\/invite\/[\w-]+$/, /^\/events$/, /^\/cinema$/, /^\/music$/, /^\/history$/, /^\/settings$/, /^\/leaderboard$/, /^\/editor$/, /^\/live\/[\w-]+$/, /^\/album\/[\w-]+$/, /^\/event\/[\w-]+$/, /^\/verified$/, /^\/analytics$/, /^\/people$/, /^\/admin$/, /^\/story\/[\w-]+$/, /^\/highlight\/[\w-]+$/,
 ];
 
 function redirect(res, to) {
@@ -340,6 +340,8 @@ async function handle(req, res) {
       let m;
       if ((m = p.match(/^\/(post|watch)\/([\w-]+)$/))) return sp.servePostPage(req, res, m[2], p);
       if ((m = p.match(/^\/u\/([^/]+)$/))) return sp.serveProfilePage(req, res, decodeURIComponent(m[1]), p);
+      if ((m = p.match(/^\/story\/([\w-]+)$/))) return sp.serveStoryPage(req, res, m[1], p);
+      if ((m = p.match(/^\/highlight\/([\w-]+)$/))) return sp.serveHighlightPage(req, res, m[1], p);
     }
     if (APP_PAGES.some((re) => re.test(p))) {
       if (!loggedIn) return redirect(res, "/");

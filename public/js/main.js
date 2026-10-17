@@ -36,6 +36,20 @@ import { analyticsPage } from "./pages/analytics.js";
 import { followButton } from "./pages/profile.js";
 
 route(/^\/feed$/, feedPage);
+// A shared story or highlight: the feed, with it open on top (closing it leaves you on the feed)
+const storyLink = (kind) => async (view, m, q) => {
+  const off = await feedPage(view, m, q);
+  try {
+    const { api } = await import("./api.js");
+    const { openStories } = await import("./components/stories.js");
+    const leave = () => { if (location.pathname.startsWith(`/${kind}/`)) history.replaceState(null, "", "/feed"); };
+    if (kind === "story") { const { group } = await api(`/api/stories/${encodeURIComponent(m[1])}`); openStories([group], 0, leave); }
+    else { const { group, highlight } = await api(`/api/highlights/${encodeURIComponent(m[1])}`); group.highlight = highlight; openStories([group], 0, leave); }
+  } catch (err) { (await import("./ui.js")).toast(err.error || (kind === "story" ? "This story is gone." : "This highlight is gone.")); history.replaceState(null, "", "/feed"); }
+  return off;
+};
+route(/^\/story\/([\w-]+)$/, Object.assign(storyLink("story"), { navName: () => "feed", layout: feedPage.layout }));
+route(/^\/highlight\/([\w-]+)$/, Object.assign(storyLink("highlight"), { navName: () => "feed", layout: feedPage.layout }));
 route(/^\/shorts$/, shortsPage);
 route(/^\/videos$/, videosPage);
 route(/^\/search$/, searchPage);

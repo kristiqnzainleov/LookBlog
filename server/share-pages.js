@@ -31,6 +31,8 @@ function page(res, { base, path, title, desc, image, imageW, imageH, video, auth
   const next = encodeURIComponent(path);
   // Its one small script runs with a one-time nonce (scripts are otherwise only allowed from files)
   const nonce = require("crypto").randomBytes(16).toString("base64");
+  // (every small script in the page gets it: the video player's too)
+  body = String(body || "").replace(/<script type="module">/g, `<script type="module" nonce="${nonce}">`);
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300",
     "Content-Security-Policy": `script-src 'self' 'nonce-${nonce}'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'` });
   res.end(`<!doctype html>
@@ -92,6 +94,14 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
 .btn { display: block; text-align: center; padding: 14px 18px; border-radius: 999px; background: var(--pink); color: #000; font-weight: 800; text-decoration: none; font-size: 1.02rem; box-shadow: 0 10px 30px rgba(255,79,163,.35); margin-top: 8px; }
 .btn.ghost { background: transparent; color: var(--paper); box-shadow: none; border: 1px solid #3a3434; }
 .muted { color: #8a8282; font-size: .85rem; text-align: center; margin-top: 12px; }
+.sp-story { position: relative; display: block; width: min(300px, 100%); aspect-ratio: 9 / 16; margin: 14px auto 0; border-radius: 18px; overflow: hidden; background: #000; box-shadow: 0 0 0 3px #ff4fa3, 0 18px 40px rgba(0,0,0,.5); }
+.sp-story img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sp-story-play { position: absolute; inset: 0; display: grid; place-items: center; font-size: 3rem; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,.6); }
+.sp-story-text { position: absolute; left: 12px; right: 12px; bottom: 14px; padding: 8px 12px; border-radius: 12px; background: rgba(0,0,0,.55); color: #fff; font-weight: 700; text-align: center; }
+.sp-hl { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 16px auto 0; color: inherit; text-decoration: none; }
+.sp-hl-ring { width: 120px; height: 120px; border-radius: 50%; padding: 4px; background: conic-gradient(#ff4fa3, #ffb86b, #9b5cff, #ff4fa3); }
+.sp-hl-ring img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid #161414; display: block; }
+.sp-hl small { color: #a39b9b; }
 </style></head>
 <body><div class="wrap">
   <a class="logo" href="/" aria-label="LookBlog"><span aria-hidden="true">L<span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span><span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span>k<em>Blog</em></span></a>
@@ -177,6 +187,34 @@ function serveProfilePage(req, res, username, path) {
   });
 }
 
+// /story/:id — a story someone shared (a public account's, while it's up or in a highlight)
+function serveStoryPage(req, res, id, path) {
+  const base = origin(req);
+  const found = require("./stories").publicStory(id);
+  if (!found) return page(res, { base, path, title: "A story on LookBlog", desc: "Stories are for followers. Open it in LookBlog to see it.", body: `<h1>A story on LookBlog</h1><p class="text">Log in to see it.</p>` });
+  const { story: s, owner, thumb } = found;
+  const hidden = s.media.nsfw || s.media.sensitive;
+  const img = !hidden && thumb ? mediaAddress(thumb, base) : null;
+  page(res, {
+    base, path, title: `${owner.name}’s story · LookBlog`, desc: clip(s.text || `A story by @${owner.username} on LookBlog`, 200),
+    image: img || avatarUrl(owner, base), imageW: img ? s.media.width : null, imageH: img ? s.media.height : null, author: owner.name, look: lookOf(owner, base), accent: owner.look?.accent,
+    body: `${whoHtml(owner, " · Story")}${img ? `<a class="sp-story" href="/?next=${encodeURIComponent(path)}"><img src="${esc(img)}" alt="">${s.media.kind === "video" ? `<span class="sp-story-play">▶</span>` : ""}${s.text ? `<span class="sp-story-text">${esc(clip(s.text, 140))}</span>` : ""}</a>` : `<p class="text">🔞 Open it in LookBlog to see it.</p>`}`,
+  });
+}
+// /highlight/:id — a highlight from someone's profile
+function serveHighlightPage(req, res, id, path) {
+  const base = origin(req);
+  const found = require("./stories").publicHighlight(id);
+  if (!found) return page(res, { base, path, title: "A highlight on LookBlog", desc: "Open it in LookBlog to see it.", body: `<h1>A highlight on LookBlog</h1><p class="text">Log in to see it.</p>` });
+  const { highlight: hl, owner } = found;
+  const img = hl.cover ? mediaAddress(hl.cover, base) : null;
+  page(res, {
+    base, path, title: `${hl.title || "Highlight"} · ${owner.name} on LookBlog`, desc: `${hl.count} ${hl.count === 1 ? "story" : "stories"} by @${owner.username}`,
+    image: img || avatarUrl(owner, base), author: owner.name, look: lookOf(owner, base), accent: owner.look?.accent,
+    body: `${whoHtml(owner, " · Highlight")}<a class="sp-hl" href="/?next=${encodeURIComponent(path)}"><span class="sp-hl-ring">${img ? `<img src="${esc(img)}" alt="">` : ""}</span><b>${esc(hl.title || "Highlight")}</b><small>${hl.count} ${hl.count === 1 ? "story" : "stories"}</small></a>`,
+  });
+}
+
 // GET /oembed?url= — Discord (and others) show the author's name above the title, and LookBlog as the provider
 function serveOembed(req, res, url) {
   const base = origin(req);
@@ -195,4 +233,4 @@ function serveOembed(req, res, url) {
   res.end(JSON.stringify(out));
 }
 
-module.exports = { servePostPage, serveProfilePage, serveOembed };
+module.exports = { servePostPage, serveProfilePage, serveStoryPage, serveHighlightPage, serveOembed };

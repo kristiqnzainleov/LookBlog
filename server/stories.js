@@ -244,6 +244,12 @@ async function handleStories(req, res, url, me) {
   const reachable = story && owner && (story.userId === me.id || (live(story) && (canSee(owner, me) || (story.tags || []).includes(me.id))) || (inHighlight(story) && canSeeProfile(owner, me)));
   if (!reachable) throw httpError(404, "This story is gone.");
 
+  // Open one story from a link: GET /api/stories/:id
+  if (m === "GET" && parts.length === 2) {
+    sendJSON(res, 200, { group: { user: authorView(owner), isMe: owner.id === me.id, stories: [storyView(story, me)] } });
+    return true;
+  }
+
   // Tagged in it: add it to my story too. POST /api/stories/:id/repost
   if (m === "POST" && parts[2] === "repost") {
     if (!(story.tags || []).includes(me.id)) throw httpError(403, "Only people tagged in this story can add it to theirs.");
@@ -408,4 +414,32 @@ function deleteHighlight(hl) {
   save("highlights");
 }
 
-module.exports = { handleStories, storyState, storyPreview, REACTIONS };
+/* ---------- Shared stories and highlights ---------- */
+const thumbOf = (s) => (s.media.kind === "video" ? s.media.poster || null : s.media.url);
+// Who may open it: the owner; while it's up, their followers (and people tagged); in a highlight, whoever sees the profile
+const storyReachable = (s, owner, me) => s.userId === me.id || (live(s) && (canSee(owner, me) || (s.tags || []).includes(me.id))) || (inHighlight(s) && canSeeProfile(owner, me));
+// A card for a chat message: a story or a highlight someone sent
+function storyCard(id, me) {
+  const s = db.stories.find((x) => x.id === id), owner = s && findUser(s.userId);
+  if (!s || !owner || !storyReachable(s, owner, me)) return { id, gone: true };
+  return { id, owner: authorView(owner), thumb: thumbOf(s), video: s.media.kind === "video", text: s.text || "", live: live(s) };
+}
+function highlightCard(id, me) {
+  const hl = (db.highlights || []).find((x) => x.id === id), owner = hl && findUser(hl.userId);
+  if (!hl || !owner || !canSeeProfile(owner, me)) return { id, gone: true };
+  const v = highlightView(hl);
+  return { id, owner: authorView(owner), title: v.title, cover: v.cover, count: v.count };
+}
+// For the page shown outside LookBlog: only what anyone could see (a public account's story while it's up, or in a highlight)
+function publicStory(id) {
+  const s = db.stories.find((x) => x.id === id), owner = s && findUser(s.userId);
+  if (!s || !owner || owner.private || owner.banned || !(live(s) || inHighlight(s))) return null;
+  return { story: s, owner, thumb: thumbOf(s) };
+}
+function publicHighlight(id) {
+  const hl = (db.highlights || []).find((x) => x.id === id), owner = hl && findUser(hl.userId);
+  if (!hl || !owner || owner.private || owner.banned) return null;
+  return { highlight: highlightView(hl), owner };
+}
+
+module.exports = { storyCard, highlightCard, publicStory, publicHighlight, handleStories, storyState, storyPreview, REACTIONS };

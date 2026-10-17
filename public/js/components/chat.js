@@ -245,6 +245,25 @@ async function react(msg, chat, emoji) {
   } catch (err) { toast(err.error || "Couldn’t react to that."); }
 }
 
+/* ---------- A story or a highlight someone shared in the chat ---------- */
+function storyChatCard(c, kind) {
+  if (c.gone) return h("div", { class: "story-card gone" }, h("span", { text: kind === "story" ? "📖 This story isn’t available anymore." : "⭐ This highlight isn’t available anymore." }));
+  const img = kind === "story" ? c.thumb : c.cover;
+  const card = h("button", { type: "button", class: "story-card " + kind, title: kind === "story" ? "Open the story" : "Open the highlight" },
+    h("span", { class: "sc-thumb", style: img ? `background-image:url("${img}")` : "" }, kind === "story" && c.video ? h("span", { class: "sc-play", text: "▶" }) : null,
+      h("span", { class: "sc-owner" }, avatar(c.owner, 22), h("b", { text: c.owner.username }))),
+    h("span", { class: "sc-label", text: kind === "story" ? (c.live ? "📖 Story" : "📖 Story (in a highlight)") : `⭐ ${c.title || "Highlight"} · ${c.count} ${c.count === 1 ? "story" : "stories"}` }));
+  card.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    try {
+      const { openStories } = await import("./stories.js");
+      if (kind === "story") { const { group } = await api(`/api/stories/${c.id}`); openStories([group], 0); }
+      else { const { group, highlight } = await api(`/api/highlights/${c.id}`); group.highlight = highlight; openStories([group], 0); }
+    } catch (err) { toast(err.error || "It isn’t available anymore."); }
+  });
+  return card;
+}
+
 /* ---------- Stickers stuck on messages ---------- */
 // They sit on a corner of the bubble, a little turned. Tap one of yours (or any on your message) twice to take it off.
 function stuckEl(msg, chat) {
@@ -876,6 +895,8 @@ function messageEl(msg, chat, onRemoved) {
     })(),
     msg.song ? songChatCard(msg.song, msg.id) : null,
     msg.songYt ? vinylSlot(msg.songYt, null, msg.id) : null,
+    msg.story ? storyChatCard(msg.story, "story") : null,
+    msg.highlight ? storyChatCard(msg.highlight, "highlight") : null,
     h("span", { class: "bubble-time" }, msg.scheduled ? h("span", { class: "sched-mark", title: "Scheduled message", text: "⏰ " }) : null, timeEl(msg.createdAt))
   );
 
