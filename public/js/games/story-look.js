@@ -87,6 +87,8 @@ export function cleanStoryEdit(e) {
         f: STORY_FONTS.some((f) => f[0] === x.f) ? x.f : "classic", s: STORY_TEXT_STYLES.some((s) => s[0] === x.s) ? x.s : "plain" };
     }
     if (x.k === "e" && typeof x.v === "string" && x.v.length <= 16 && EMOJI_ONE.test(x.v)) return { k: "e", v: x.v, ...base };
+    // one of my stickers (a picture from LookBlog's own storage; the server checks it's in my collection)
+    if (x.k === "s" && typeof x.v === "string" && /^\/media\/[\w-]+\.(png|jpe?g|webp|gif)$/.test(x.v)) return { k: "s", v: x.v, ...base };
     return null;
   }).filter(Boolean);
   if (!out.o.length) delete out.o;

@@ -16,6 +16,8 @@ export function styleStoryMedia(el, edit) {
   el.style.transform = transform === "translate(0%, 0%) rotate(0deg) scale(1)" ? "" : transform;
 }
 export function overlayEl(o) {
+  // one of my stickers (a picture)
+  if (o.k === "s") return h("div", { class: "so-item so-sticker", style: `left:${o.x}%;top:${o.y}%;--z:${o.z};--rot:${o.r || 0}deg` }, h("img", { src: o.v, alt: "", draggable: "false" }));
   const font = STORY_FONTS.find((f) => f[0] === o.f)?.[2];
   const el = h("div", { class: "so-item " + (o.k === "t" ? "so-text so-" + (o.s || "plain") : "so-emoji"),
     style: `left:${o.x}%;top:${o.y}%;--z:${o.z};--rot:${o.r || 0}deg;${o.k === "t" ? `--c:${o.c || "#fff"};font-family:${font || "inherit"}` : ""}` }, h("span", { text: o.v }));
@@ -35,11 +37,14 @@ const REACTIONS = ["😂", "😮", "😍", "😢", "👏", "🔥", "❤️", "�
 
 /* ---------- Posting a story ---------- */
 export async function addStory() {
-  const input = h("input", { type: "file", accept: "image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm", hidden: true });
+  // (several photos at once: they go into a collage)
+  const input = h("input", { type: "file", accept: "image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm", multiple: true, hidden: true });
   document.body.append(input);
-  const file = await new Promise((resolve) => { input.addEventListener("change", () => resolve(input.files[0] || null)); input.click(); });
+  const files = await new Promise((resolve) => { input.addEventListener("change", () => resolve([...input.files])); input.click(); });
   input.remove();
+  const file = files[0];
   if (!file) return false;
+  const morePhotos = file.type.startsWith("video/") ? [] : files.slice(1, 6).filter((f) => f.type.startsWith("image/")).map((f) => URL.createObjectURL(f));
   const isVideo = file.type.startsWith("video/");
   let info = null;
   if (isVideo) {
@@ -51,7 +56,7 @@ export async function addStory() {
   // The editor: filters, adjustments, text, stickers, a song, tags
   const { openStoryEditor } = await import("./story-editor.js");
   return new Promise((resolve) => {
-    openStoryEditor({ url, isVideo,
+    openStoryEditor({ url, isVideo, more: morePhotos,
       onClose: () => { URL.revokeObjectURL(url); resolve(false); },
       onShare: async ({ edit, songRef, text, tags, file: cropped }) => {
         const pic = cropped || file; // (cropped with Crop & size)
@@ -248,7 +253,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   frame.append(stuckLayer); // (above the tap zones, so a sticker can be tapped)
   function paintStuck(s) {
     stuckLayer.replaceChildren(...(s.stuck || []).map((x) => {
-      const canOff = x.byId === state.me?.id || s.mine;
+      const canOff = s.mine; // (only the author changes the stickers on their story)
       const img = h("img", { class: "st-item" + (canOff ? " movable" : ""), src: x.url, alt: "Sticker", draggable: "false", title: `Sticker from @${x.by}${canOff ? " · drag to move it, tap twice to take it off" : ""}`, style: `left:${x.x}%;top:${x.y}%;--rot:${x.rot}deg` });
       // Drag it somewhere else on the story
       let mv = null, moved = false;
@@ -489,7 +494,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
           catch (err) { toast(err.error || "Couldn’t add it."); repost.disabled = false; }
         });
       }
-      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts, stickBtn(s), commentsBtn(s)), h("div", { class: "sv-reply-row" }, input, gifBtn, send));
+      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts, commentsBtn(s)), h("div", { class: "sv-reply-row" }, input, gifBtn, send));
     }
   }
   // A reaction floats up over the story

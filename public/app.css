@@ -7516,3 +7516,31 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .st-item.movable { cursor: grab; touch-action: none; }
 .st-item.moving { cursor: grabbing; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.12); filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.5)); }
 .sv-cmts { -webkit-mask: linear-gradient(transparent, #000 14%, #000 88%, transparent); mask: linear-gradient(transparent, #000 14%, #000 88%, transparent); padding-bottom: 14px; }
+.so-sticker img { display: block; width: calc(var(--z) * 1cqw * 2.2); height: auto; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35)); pointer-events: none; }
+/* The story editor now has 7 tabs */
+.se-tabs { grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); }
+.se-sub { font-size: 0.82rem; margin-top: 4px; }
+.se-mystickers { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+.se-mysticker { aspect-ratio: 1; padding: 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--ink); cursor: pointer; }
+.se-mysticker:hover { border-color: var(--pink); }
+.se-mysticker img { width: 100%; height: 100%; object-fit: contain; }
+.se-layer .so-sticker.on { outline: 2px dashed rgba(255, 255, 255, 0.85); outline-offset: 4px; border-radius: 8px; }
+/* Collage maker */
+.app-modal:has(.cl) { max-width: 920px; width: calc(100vw - 32px); }
+.cl { display: flex; gap: 18px; align-items: flex-start; }
+.cl-left { width: min(300px, 42%); flex-shrink: 0; }
+.cl-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.cl-title { font-size: 0.86rem; }
+.cl-stage { position: relative; width: 100%; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+.cl-cell { position: absolute; overflow: hidden; background: rgba(0, 0, 0, 0.08); cursor: grab; touch-action: none; }
+.cl-cell.empty { display: grid; place-items: center; cursor: pointer; background: rgba(0, 0, 0, 0.12); outline: 2px dashed rgba(0, 0, 0, 0.25); outline-offset: -8px; }
+.cl-cell img { position: absolute; max-width: none; user-select: none; pointer-events: none; }
+.cl-add { font: 800 0.82rem var(--body); color: #333; background: rgba(255, 255, 255, 0.85); padding: 6px 10px; border-radius: 999px; }
+.cl-swap { position: absolute; right: 6px; top: 6px; width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(0, 0, 0, 0.55); color: #fff; font-weight: 900; cursor: pointer; }
+.cl-layouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 8px; }
+.cl-layout { position: relative; aspect-ratio: 9 / 16; border-radius: 8px; border: 2px solid var(--line); background: var(--ink); cursor: pointer; padding: 0; overflow: hidden; }
+.cl-layout.on { border-color: var(--pink); }
+.cl-layout i { position: absolute; box-sizing: border-box; border: 2px solid var(--ink); background: color-mix(in srgb, var(--paper) 55%, transparent); border-radius: 3px; }
+.cl-layout.on i { background: color-mix(in srgb, var(--pink) 70%, transparent); }
+.cl-look { display: flex; flex-direction: column; gap: 8px; }
+@media (max-width: 760px) { .cl { flex-direction: column; align-items: center; } .cl-left { width: min(260px, 80%); } .cl-right { width: 100%; } }

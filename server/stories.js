@@ -245,6 +245,8 @@ async function handleStories(req, res, url, me) {
     if (media.kind === "video" && media.duration && media.duration > 60.5) throw httpError(400, "Story videos can be up to 60 seconds.");
     const text = clean(body.text);
     const edit = cleanStoryEdit(body.edit), song = cleanStorySong(body.song, me);
+    // (a sticker on it must be one of mine)
+    if (edit?.o) { const mineSt = new Set((me.stickers || []).map((x) => x.url)); edit.o = edit.o.filter((o) => o.k !== "s" || mineSt.has(o.v)); if (!edit.o.length) delete edit.o; }
     if (chars(text) > 120) throw httpError(400, "Keep the text under 120 characters.");
     require("./sensitive").refuseSensitive([text], [media]); // violence, weapons… aren't allowed
     // Tag people (up to 10): @usernames
@@ -355,7 +357,11 @@ async function handleStories(req, res, url, me) {
   //   { sticker, x, y, rot }  ·  move one: { move: <id>, x, y }  ·  take one off: { remove: <id> }
   //   (moving and taking off: your own, or any on your own story)
   if (m === "POST" && parts[2] === "stick" && parts.length === 3) {
+    // Stickers are put on a story by its author, in the story editor; others can't stick things on it.
+    // (This is left only so the author can move or take off ones that were stuck before.)
+    if (story.userId !== me.id) throw httpError(403, "Only the story’s author can change its stickers.");
     const body = await readJSON(req);
+    if (!body.move && !body.remove) throw httpError(400, "Add stickers in the story editor.");
     story.stuck = story.stuck || [];
     if (body.move) {
       const st = story.stuck.find((x) => x.id === body.move);

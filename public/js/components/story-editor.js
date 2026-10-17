@@ -8,7 +8,7 @@ import { attachMentions } from "./mentions.js";
 const EMOJIS = ["😂", "😍", "🔥", "✨", "💖", "😎", "🥳", "😭", "🤯", "👀", "💯", "🙏", "👑", "🌸", "⭐", "🌈", "☀️", "🌙", "🎉", "🎵", "📍", "☕", "🍕", "🐶", "🐱", "🦋", "💪", "🤍", "💀", "🫶"];
 
 // Opens the editor for a picked file. onShare({ edit, song, songRef, text, tags }) posts it.
-export function openStoryEditor({ url, isVideo, onShare, onClose }) {
+export function openStoryEditor({ url, isVideo, more = [], onShare, onClose }) {
   // (new stories show the whole photo, with it blurred behind: nothing is cut off unless you choose Fill)
   const edit = { f: "", a: { b: 0, c: 0, s: 0, w: 0 }, t: { z: 1, x: 0, y: 0, r: 0 }, bg: "blur", m: "fit", o: [] };
   let song = null, songRef = null, selected = null, tab = "filters";
@@ -43,6 +43,7 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
     el.addEventListener("pointerdown", (e) => {
       e.preventDefault(); e.stopPropagation();
       if (selected !== o) { selected = o; tab = o.k === "t" ? "text" : "stickers"; paintTabs(); paintLayer(); return; }
+
       const r = stage.getBoundingClientRect(), sx = e.clientX, sy = e.clientY, ox = o.x, oy = o.y;
       const move = (ev) => { o.x = Math.max(0, Math.min(100, ox + ((ev.clientX - sx) / r.width) * 100)); o.y = Math.max(0, Math.min(100, oy + ((ev.clientY - sy) / r.height) * 100)); el.style.left = o.x + "%"; el.style.top = o.y + "%"; };
       const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
@@ -62,7 +63,19 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
   stage.addEventListener("wheel", (e) => { e.preventDefault(); edit.t.z = Math.max(0.5, Math.min(4, edit.t.z * (e.deltaY < 0 ? 1.06 : 0.94))); paintMedia(); if (tab === "adjust") paintPanel(); }, { passive: false });
 
   // The tools
-  const TABS = [["filters", "✨", "Filters"], ["adjust", "🎚️", "Adjust"], ["text", "Aa", "Text"], ["stickers", "😀", "Stickers"], ["music", "🎵", "Music"], ["tag", "👥", "Tag"]];
+  const TABS = [["filters", "✨", "Filters"], ["adjust", "🎚️", "Adjust"], ...(isVideo ? [] : [["collage", "🖼️", "Collage"]]), ["text", "Aa", "Text"], ["stickers", "😀", "Stickers"], ["music", "🎵", "Music"], ["tag", "👥", "Tag"]];
+  // A collage: two or more photos in frames (made into one picture)
+  async function makeCollage(extra = []) {
+    const { openCollage } = await import("./collage.js");
+    const r = await openCollage({ photos: [url, ...extra] });
+    if (!r) return;
+    cropped = new File([r.blob], "collage.jpg", { type: "image/jpeg" });
+    const u = URL.createObjectURL(cropped);
+    media.src = u; poster = u; dims = [r.width, r.height];
+    edit.m = ""; edit.t = { z: 1, x: 0, y: 0, r: 0 }; // (it's already the shape of a story)
+    paintMedia(); if (tab === "collage" || tab === "adjust") paintPanel();
+  }
+  let myStickers = null;
   const tabs = h("div", { class: "se-tabs", role: "tablist" });
   const panel = h("div", { class: "se-panel" });
   function paintTabs() {
@@ -132,14 +145,28 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
       else panel.append(h("p", { class: "se-hint", text: "Add text, then drag it anywhere on the story. Tap a text to change its font, colour and style." }), caption);
       setTimeout(() => input.focus(), 30);
     } else if (tab === "stickers") {
-      const e = selected?.k === "e" ? selected : null;
+      const e = selected?.k === "e" || selected?.k === "s" ? selected : null;
       panel.replaceChildren(h("div", { class: "se-emojis" }, ...EMOJIS.map((em) => h("button", { type: "button", class: "se-emoji", text: em, onclick: () => {
         if (edit.o.length >= 12) return toast("That’s a lot already: up to 12 texts and stickers.");
         const o = { k: "e", v: em, x: 30 + Math.random() * 40, y: 30 + Math.random() * 40, z: 14, r: Math.round(Math.random() * 30 - 15) };
         edit.o.push(o); selected = o; paintLayer(); paintPanel();
       } }))));
+      // My own stickers (from my collection)
+      const mine = h("div", { class: "se-mystickers" }, h("small", { class: "muted", text: "Loading your stickers…" }));
+      panel.append(h("b", { class: "se-sub", text: "Your stickers" }), mine);
+      const paintMine = () => mine.replaceChildren(...(myStickers.length ? myStickers.map((st) => h("button", { type: "button", class: "se-mysticker", onclick: () => {
+        if (edit.o.length >= 12) return toast("That’s a lot already: up to 12 texts and stickers.");
+        const o = { k: "s", v: st.url, x: 30 + Math.random() * 40, y: 30 + Math.random() * 40, z: 12, r: Math.round(Math.random() * 20 - 10) };
+        edit.o.push(o); selected = o; paintLayer(); paintPanel();
+      } }, h("img", { src: st.url, alt: "Sticker", loading: "lazy" }))) : [h("small", { class: "muted", text: "No stickers yet — make some from photos in a chat’s sticker panel." })]));
+      if (myStickers) paintMine(); else import("../api.js").then(({ api }) => api("/api/me/stickers")).then((r) => { myStickers = r.stickers || []; if (tab === "stickers") paintMine(); }).catch(() => mine.replaceChildren(h("small", { class: "muted", text: "Couldn’t load your stickers." })));
       if (e) panel.append(slider("Size", e.z, 4, 30, 0.5, (v) => { e.z = v; paintLayer(); }), slider("Turn", e.r, -180, 180, 1, (v) => { e.r = v; paintLayer(); }),
         h("div", { class: "se-row" }, chip("🗑 Remove", false, () => { edit.o = edit.o.filter((x) => x !== e); selected = null; paintLayer(); paintPanel(); }, "danger")));
+    } else if (tab === "collage") {
+      panel.replaceChildren(
+        h("p", { class: "se-hint", text: "Put two or more photos together in frames: side by side, a grid, polaroids… and choose the gap, the frame colour and how round they are." }),
+        h("div", { class: "se-row" }, h("button", { type: "button", class: "btn btn-primary btn-sm", text: cropped ? "🖼️ Change the collage" : "🖼️ Make a collage", onclick: () => makeCollage() }),
+          cropped ? chip("Back to one photo", false, () => { cropped = null; media.src = url; poster = url; edit.m = "fit"; paintMedia(); paintPanel(); }) : null));
     } else if (tab === "music") {
       const pick = h("button", { type: "button", class: "btn btn-primary btn-sm", text: song ? "🎵 Change song" : "🎵 Add a song" });
       pick.addEventListener("click", () => import("./song-picker.js").then(({ openSongPicker }) => openSongPicker({ title: "A song for your story", onPick: (view, ref) => { song = view; songRef = ref; paintSong(); paintPanel(); } })));
@@ -168,4 +195,6 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
     else { share.disabled = false; share.querySelector("span").textContent = "Share to your story"; }
   });
   paintMedia(); paintLayer(); paintTabs();
+  // Several photos picked at once: straight to the collage
+  if (more.length && !isVideo) { tab = "collage"; paintTabs(); setTimeout(() => makeCollage(more), 200); }
 }
