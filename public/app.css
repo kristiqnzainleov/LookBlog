@@ -7655,3 +7655,7 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sv-song-album { font-size: 0.8rem; }
 .sv-song-btns { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .sv-song-btns .btn { width: 100%; justify-content: center; }
+/* "Add a comment" is always on the story (also before anyone has commented) */
+.sv-cmts.empty { -webkit-mask: none; mask: none; }
+.sv-cmt-more { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.25); font-size: 0.82rem; backdrop-filter: blur(8px); text-shadow: none; transition: background 0.15s, border-color 0.15s; }
+.sv-cmts:hover .sv-cmt-more, .sv-cmts:focus-visible .sv-cmt-more { background: rgba(255, 79, 163, 0.35); border-color: var(--pink); }

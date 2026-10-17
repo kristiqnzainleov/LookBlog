@@ -359,7 +359,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   onStory.addEventListener("click", (e) => { e.stopPropagation(); if (dragged) { dragged = false; return; } const s = story(); if (s) showComments(s); });
   function paintCommentsOnStory(s) {
     const list = s.latestComments || [];
-    onStory.hidden = !list.length;
+    onStory.hidden = false; // (with no comments yet: just "Add a comment")
+    onStory.classList.toggle("empty", !list.length);
     onStory.replaceChildren(...list.map((c) => h("div", { class: "sv-cmt" + (c.reply ? " reply" : "") }, avatar(c, 28),
       h("div", { class: "sv-cmt-text" }, h("b", { text: c.name + (c.byOwner ? " · Author" : "") }), c.text ? h("span", { text: c.text }) : null),
       c.sticker ? h("img", { class: "sv-cmt-sticker", src: c.sticker, alt: "" }) : null,
@@ -614,7 +615,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
         });
         return b;
       }));
-      const input = h("input", { type: "text", class: "sv-reply", placeholder: `Reply to ${group().user.name}…`, maxlength: 1000 });
+      const input = h("input", { type: "text", class: "sv-reply", placeholder: `Message ${group().user.name.split(" ")[0]} privately…`, maxlength: 1000 });
       const send = h("button", { type: "button", class: "sv-send", "aria-label": "Send", disabled: true }, icon("send"));
       input.addEventListener("focus", () => pause(true));
       input.addEventListener("blur", () => pause(false));
