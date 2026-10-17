@@ -546,3 +546,41 @@ export function pickPicture(onUrl) {
   document.body.append(input);
   input.click();
 }
+
+// Swipe right on a reply / comment to answer it (like in chats). The page still scrolls up and down normally.
+export function swipeToReply(el, onReply) {
+  const LIMIT = 80, TRIGGER = 56;
+  const arrow = h("span", { class: "swipe-reply-ic", "aria-hidden": "true", text: "↩" });
+  el.classList.add("swipeable");
+  el.prepend(arrow);
+  let start = null, dx = 0, going = false, armed = false;
+  const reset = () => { el.style.transition = "transform 0.2s cubic-bezier(.2, .9, .3, 1.2)"; el.style.transform = ""; arrow.style.opacity = "0"; setTimeout(() => (el.style.transition = ""), 220); };
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest("button, a, input, textarea, video, .no-swipe")) return;
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId }; dx = 0; going = false; armed = false;
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!start || e.pointerId !== start.id) return;
+    const mx = e.clientX - start.x, my = e.clientY - start.y;
+    if (!going) {
+      if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) { start = null; return; } // scrolling, not swiping
+      if (mx < 12) return;
+      going = true;
+      try { el.setPointerCapture(e.pointerId); } catch {}
+    }
+    dx = Math.max(0, Math.min(LIMIT, mx));
+    el.style.transform = `translateX(${dx}px)`;
+    arrow.style.opacity = String(Math.min(1, dx / TRIGGER));
+    if (dx >= TRIGGER && !armed) { armed = true; navigator.vibrate?.(8); arrow.classList.add("armed"); }
+    if (dx < TRIGGER && armed) { armed = false; arrow.classList.remove("armed"); }
+  });
+  const end = () => {
+    if (!start) return;
+    const fire = going && armed;
+    start = null; going = false; arrow.classList.remove("armed");
+    reset();
+    if (fire) onReply();
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}

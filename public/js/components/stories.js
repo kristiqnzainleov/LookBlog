@@ -1,5 +1,5 @@
 // Stories: the bar at the top of the feed, posting one, and the full-screen viewer.
-import { h, icon, avatar, timeAgo, toast, modal, tick } from "../ui.js";
+import { h, icon, avatar, timeAgo, toast, modal, tick, swipeToReply } from "../ui.js";
 import { api, upload } from "../api.js";
 import { on, state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
@@ -165,6 +165,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     const back = storyBack(s.edit, s.media.kind === "video" ? s.media.poster : s.media.url);
     if (back) stage.prepend(back);
     if (s.edit?.o?.length) stage.append(storyLayer(s.edit));
+    paintStuck(s);
     playStorySong(s);
     // Sensitive (18+): blurred until you tap "View"
     const warnNsfw = s.media.nsfw && !state.me.showNsfw, warnSens = s.media.sensitive && !state.me.showSensitive;
@@ -203,7 +204,31 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   // The newest comments float on the story itself (tap them to see all and write one)
   const onStory = h("button", { type: "button", class: "sv-cmts", "aria-label": "Comments" });
   frame.append(onStory);
-  onStory.addEventListener("click", (e) => { e.stopPropagation(); const s = story(); if (s) showComments(s); });
+  let cmtShift = 0;
+  try { cmtShift = Number(localStorage.getItem("lb-story-cmts-y")) || 0; } catch {}
+  const placeCmts = () => { onStory.style.transform = cmtShift ? `translateY(${cmtShift}px)` : ""; };
+  placeCmts();
+  let cmtDrag = null, dragged = false;
+  onStory.addEventListener("pointerdown", (e) => { e.stopPropagation(); cmtDrag = { y: e.clientY, from: cmtShift }; dragged = false; try { onStory.setPointerCapture(e.pointerId); } catch {} });
+  onStory.addEventListener("pointermove", (e) => {
+    if (!cmtDrag) return;
+    const dy = e.clientY - cmtDrag.y;
+    if (!dragged && Math.abs(dy) < 6) return;
+    if (!dragged) { dragged = true; pause(true); onStory.classList.add("dragging"); }
+    // stays inside the story: not above the top bar, not below the box at the bottom
+    const fr = frame.getBoundingClientRect(), r = onStory.getBoundingClientRect();
+    const base = r.top - cmtShift;
+    cmtShift = Math.max(fr.top + 90 - base, Math.min(0, cmtDrag.from + dy));
+    placeCmts();
+  });
+  const dropCmts = () => {
+    if (!cmtDrag) return;
+    cmtDrag = null;
+    if (dragged) { onStory.classList.remove("dragging"); try { localStorage.setItem("lb-story-cmts-y", String(Math.round(cmtShift))); } catch {} pause(false); }
+  };
+  onStory.addEventListener("pointerup", dropCmts);
+  onStory.addEventListener("pointercancel", dropCmts);
+  onStory.addEventListener("click", (e) => { e.stopPropagation(); if (dragged) { dragged = false; return; } const s = story(); if (s) showComments(s); });
   function paintCommentsOnStory(s) {
     const list = s.latestComments || [];
     onStory.hidden = !list.length;
@@ -218,6 +243,39 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       onStory.style.bottom = cap && cap.height ? `${Math.round(fr.bottom - cap.top + 8)}px` : "";
     });
   }
+  // Stickers stuck on the story (by anyone watching): on a free spot, a little turned. Tap one of yours twice
+  // (or any, on your own story) to take it off.
+  const stuckLayer = h("div", { class: "st-stuck" });
+  frame.append(stuckLayer); // (above the tap zones, so a sticker can be tapped)
+  function paintStuck(s) {
+    stuckLayer.replaceChildren(...(s.stuck || []).map((x) => {
+      const canOff = x.byId === state.me?.id || s.mine;
+      const img = h("img", { class: "st-item", src: x.url, alt: "Sticker", draggable: "false", title: `Sticker from @${x.by}${canOff ? " · tap twice to take it off" : ""}`, style: `left:${x.x}%;top:${x.y}%;--rot:${x.rot}deg` });
+      img.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!canOff) return;
+        if (!img.classList.contains("armed")) { img.classList.add("armed"); pause(true); setTimeout(() => img.classList.remove("armed"), 2500); return; }
+        try { s.stuck = (await api(`/api/stories/${s.id}/stick`, { method: "POST", body: { remove: x.id } })).stuck; paintStuck(s); pause(false); } catch (err) { toast(err.error || "Couldn’t take it off."); }
+      });
+      return img;
+    }));
+  }
+  function stickBtn(s) {
+    const b = h("button", { type: "button", class: "sv-pill sv-stick-btn", title: "Stick a sticker on it", "aria-label": "Stick a sticker" }, h("span", { text: "🏷️" }));
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pause(true);
+      import("./stickers.js").then(({ openStickers }) => openStickers(b, async (st) => {
+        try {
+          const r = await api(`/api/stories/${s.id}/stick`, { method: "POST", body: { sticker: st.id, x: 20 + Math.random() * 60, y: 22 + Math.random() * 45, rot: Math.round(Math.random() * 40 - 20) } });
+          s.stuck = r.stuck; paintStuck(s);
+          stuckLayer.lastElementChild?.classList.add("just");
+        } catch (err) { toast(err.error || "Couldn’t stick it."); }
+        pause(false);
+      }));
+    });
+    return b;
+  }
   // Comments: they stay on the story; everyone who can see it sees them
   function commentsBtn(s) {
     const b = h("button", { type: "button", class: "sv-pill sv-comments-btn", title: "Comments", "aria-label": "Comments" }, h("span", { text: "💬" }), h("span", { class: "sv-cc", text: String(s.comments || 0) }));
@@ -230,7 +288,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     const input = h("input", { type: "text", class: "text-input sc-input", placeholder: s.mine ? "Add a comment…" : `Comment on ${group().user.name.split(" ")[0]}’s story…`, maxlength: 500 });
     const send = h("button", { type: "button", class: "btn btn-primary sc-send", text: "Post", disabled: true });
     const gifBtn = h("button", { type: "button", class: "sv-gif sc-gif", title: "GIF", "aria-label": "Comment with a GIF" }, h("span", { text: "GIF" }));
-    const stickBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-stick", title: "Sticker", "aria-label": "Comment with a sticker" }, h("span", { text: "🏷️" }));
+    const emojiBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-emoji", title: "Emoji", "aria-label": "Emoji" }, h("span", { text: "🙂" }));
     // Answering a comment: a bar above the box ("Replying to @…  ✕")
     let replyTo = null;
     const replyBar = h("div", { class: "sc-replying", hidden: true });
@@ -252,7 +310,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
         try { paintList((await api(`/api/stories/${s.id}/comments/${c.id}`, { method: "DELETE" })).comments); } catch (err) { toast(err.error || "Couldn’t delete it."); }
       });
       const reply = h("button", { type: "button", class: "sc-act", text: "Reply", onclick: () => setReply(c) });
-      return h("div", { class: "sc-row" + (isReply ? " sc-reply" : "") + (c.mine ? " mine" : "") },
+      const el = h("div", { class: "sc-row" + (isReply ? " sc-reply" : "") + (c.mine ? " mine" : "") },
         h("a", { href: profileHref(c.author.username), class: "sc-av" }, avatar(c.author, isReply ? 28 : 36)),
         h("div", { class: "sc-body" },
           h("div", { class: "sc-bubble" },
@@ -262,6 +320,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
             c.sticker ? h("img", { class: "sc-sticker", src: c.sticker, alt: "Sticker", loading: "lazy" }) : null),
           h("div", { class: "sc-meta" }, h("small", { class: "muted", text: timeAgo(c.at) }), reply, del)),
         like);
+      swipeToReply(el, () => setReply(c)); // swipe right to answer
+      return el;
     };
     const paintList = (comments) => {
       s.comments = comments.length;
@@ -291,9 +351,14 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter" && input.value.trim()) post({ text: input.value }); });
     send.addEventListener("click", () => input.value.trim() && post({ text: input.value }));
     gifBtn.addEventListener("click", () => openGifs(gifBtn, (gf) => post({ text: input.value, ...gifBody(gf) })));
-    stickBtn.addEventListener("click", () => import("./stickers.js").then(({ openStickers }) => openStickers(stickBtn, (st) => post({ text: input.value, sticker: st.id }))));
-    const md = modal({ title: "Comments", onClose: () => { closeGifs(); import("./stickers.js").then((m) => m.closeStickers?.()).catch(() => {}); offC(); if (!closed) pause(false); },
-      body: h("div", { class: "sc-sheet" }, list, replyBar, h("div", { class: "sc-compose" }, input, stickBtn, gifBtn, send)) });
+    emojiBtn.addEventListener("click", () => import("./emoji.js").then(({ openEmojiPicker }) => openEmojiPicker(emojiBtn, (e) => {
+      const at = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? at;
+      input.value = input.value.slice(0, at) + e + input.value.slice(end);
+      input.focus(); input.setSelectionRange(at + e.length, at + e.length);
+      send.disabled = !input.value.trim();
+    })));
+    const md = modal({ title: "Comments", onClose: () => { closeGifs(); import("./emoji.js").then((m) => m.closeEmojiPicker?.()).catch(() => {}); offC(); if (!closed) pause(false); },
+      body: h("div", { class: "sc-sheet" }, list, replyBar, h("div", { class: "sc-compose" }, input, emojiBtn, gifBtn, send)) });
     const load = () => api(`/api/stories/${s.id}/comments`).then((r) => paintList(r.comments)).catch(() => list.replaceChildren(h("p", { class: "muted", text: "Couldn’t load the comments." })));
     const offC = on("story:comments", (ev) => { if (ev.id === s.id) load(); });
     load();
@@ -396,7 +461,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
           catch (err) { toast(err.error || "Couldn’t add it."); repost.disabled = false; }
         });
       }
-      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts, commentsBtn(s)), h("div", { class: "sv-reply-row" }, input, gifBtn, send));
+      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts, stickBtn(s), commentsBtn(s)), h("div", { class: "sv-reply-row" }, input, gifBtn, send));
     }
   }
   // A reaction floats up over the story
@@ -423,6 +488,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     const btn = foot.querySelector(".sv-pill span");
     if (btn) btn.textContent = `${ev.count} ${ev.count === 1 ? "viewer" : "viewers"}`;
   });
+  const offStuck = on("story:stuck", (ev) => { const s = story(); if (s && ev.id === s.id) { s.stuck = ev.stuck; paintStuck(s); } });
   const offComments = on("story:comments", (ev) => {
     const s = story();
     if (!s || ev.id !== s.id) return;
@@ -443,7 +509,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     closed = true;
     stopStorySong();
     closeGifs();
-    offViewed(); offComments();
+    offViewed(); offComments(); offStuck();
     cancelAnimationFrame(timer);
     video?.pause();
     document.removeEventListener("keydown", onKey);

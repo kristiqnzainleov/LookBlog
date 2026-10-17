@@ -1,6 +1,6 @@
 // Replies under a post. People answer publicly with text, a photo or a video,
 // react to replies with emoji, and answer each other in threads (one level deep).
-import { h, icon, avatar, timeEl, toast, confirmClick, plural, richText, tick, linkTimes, fmtTime, likeAnim, sentAnim } from "../ui.js";
+import { h, icon, avatar, timeEl, toast, confirmClick, plural, richText, tick, linkTimes, fmtTime, likeAnim, sentAnim, swipeToReply } from "../ui.js";
 import { attachMentions } from "./mentions.js";
 import { api } from "../api.js";
 import { state, on, emit } from "../state.js";
@@ -165,6 +165,8 @@ function commentEl(c, { onReply, onGif, onRemoved, post }) {
     )
   );
   el._comment = c;
+  // Swipe right on it to answer (like in chats)
+  if (!post?.noReplies) swipeToReply(el, () => onReply(c));
   paintHeart(el, c);
   if (c.canDelete) {
     const del = h("button", { class: "act act-delete reply-delete", "aria-label": "Delete reply" }, icon("trash"));
@@ -288,6 +290,14 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
       text.value = ""; text.style.height = ""; setReplying(null);
     } catch (ex) { showErr(ex.error || `Couldn’t send the ${what}.`); }
   }
+  // Emoji, put where you're typing
+  const emojiBtn = h("button", { type: "button", class: "tool-btn", title: "Emoji", "aria-label": "Emoji" }, icon("smile"));
+  emojiBtn.addEventListener("click", () => openEmojiPicker(emojiBtn, (e) => {
+    const at = text.selectionStart ?? text.value.length, end = text.selectionEnd ?? at;
+    text.value = text.value.slice(0, at) + e + text.value.slice(end);
+    text.focus(); text.setSelectionRange(at + e.length, at + e.length);
+    text.dispatchEvent(new Event("input"));
+  }));
   const stickerBtn = h("button", { type: "button", class: "tool-btn", title: "Your stickers", "aria-label": "Stickers" }, icon("sticker"));
   stickerBtn.addEventListener("click", () => openStickers(stickerBtn, (st) => sendExtra({ sticker: st.id }, "sticker")));
   const soundBtn = h("button", { type: "button", class: "tool-btn", title: "Your sounds", "aria-label": "Sounds" }, h("span", { class: "tool-emoji", text: "🔊" }));
@@ -298,7 +308,7 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
       replyingBar,
       text,
       picker.previews,
-      h("div", { class: "composer-bar" }, picker.button, gifBtn, stickerBtn, soundBtn, atChip, h("span", { class: "composer-hint", text: atChip ? "Shows up on the video at that moment" : getTime ? "Tip: write a time like 1:23 to point at a moment" : "Reply with text, a photo, a GIF or a video" }), submit),
+      h("div", { class: "composer-bar" }, picker.button, emojiBtn, gifBtn, stickerBtn, soundBtn, atChip, h("span", { class: "composer-hint", text: atChip ? "Shows up on the video at that moment" : getTime ? "Tip: write a time like 1:23 to point at a moment" : "Reply with text, a photo, a GIF or a video" }), submit),
       err
     )
   );

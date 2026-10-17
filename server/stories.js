@@ -48,12 +48,17 @@ function dropMedia(story, gone = new Set([story.id])) {
   }
 }
 
+// Stickers on a story: who stuck them and where (x / y in %, a little turned)
+function storyStuck(s, me) {
+  return (s.stuck || []).map((x) => { const u = findUser(x.by); return u ? { id: x.id, url: x.url, x: x.x, y: x.y, rot: x.rot, by: u.username, byId: u.id } : null; }).filter(Boolean);
+}
 function storyView(s, me) {
   const out = {
     id: s.id,
     media: s.media,
     text: s.text,
     edit: s.edit || null,
+    stuck: storyStuck(s, me),
     song: storySongView(s, me),
     createdAt: s.createdAt,
     expiresAt: new Date(new Date(s.createdAt).getTime() + DAY).toISOString(),
@@ -346,6 +351,33 @@ async function handleStories(req, res, url, me) {
     const ids = new Set([story.userId, ...story.viewers.map((v) => v.userId), ...(story.comments || []).map((c) => c.userId)]);
     sendTo([...ids], { type: "story:comments", id: story.id, count: (story.comments || []).length });
   };
+  // Stickers stuck on the story by people watching it (like on a message): POST /api/stories/:id/stick
+  //   { sticker, x, y, rot }  ·  take one off: { remove: <id> } (yours, or any on your own story)
+  if (m === "POST" && parts[2] === "stick" && parts.length === 3) {
+    const body = await readJSON(req);
+    story.stuck = story.stuck || [];
+    if (body.remove) {
+      const st = story.stuck.find((x) => x.id === body.remove);
+      if (!st) throw httpError(404, "That sticker is gone.");
+      if (st.by !== me.id && story.userId !== me.id) throw httpError(403, "You can only take off your own stickers.");
+      story.stuck = story.stuck.filter((x) => x !== st);
+    } else {
+      rateLimit("stick:" + me.id, 60, 60 * 1000, "Easy on the stickers!");
+      const url = require("./social").resolveExtras({ sticker: body.sticker }, me)?.url;
+      if (!url) throw httpError(400, "Pick a sticker.");
+      if (story.stuck.length >= 20) throw httpError(400, "This story is full of stickers already.");
+      if (story.stuck.filter((x) => x.by === me.id).length >= 3) throw httpError(400, "You can put up to 3 stickers on one story.");
+      const num = (v, lo, hi, d) => (Number.isFinite(Number(v)) ? Math.max(lo, Math.min(hi, Math.round(Number(v)))) : d);
+      story.stuck.push({ id: crypto.randomUUID().slice(0, 8), by: me.id, url, x: num(body.x, 5, 95, 50), y: num(body.y, 10, 85, 50), rot: num(body.rot, -30, 30, 0), at: new Date().toISOString() });
+      if (story.userId !== me.id) notify(story.userId, "story-comment", me, { text: "put a sticker on your story", storyId: story.id });
+    }
+    save("stories");
+    const stuck = storyStuck(story, me);
+    const ids = new Set([story.userId, ...story.viewers.map((v) => v.userId)]);
+    sendTo([...ids], { type: "story:stuck", id: story.id, stuck: storyStuck(story, null) });
+    sendJSON(res, 200, { stuck });
+    return true;
+  }
   // GET /api/stories/:id/comments
   if (m === "GET" && parts[2] === "comments" && parts.length === 3) {
     sendJSON(res, 200, { comments: commentsOf() });

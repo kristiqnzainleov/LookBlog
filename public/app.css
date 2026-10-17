@@ -7490,3 +7490,19 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sc-replying[hidden] { display: none; }
 .sc-reply-x { margin-left: auto; border: none; background: none; color: var(--muted); font-size: 0.95rem; cursor: pointer; }
 .sc-stick span { font-size: 1rem; }
+/* Stickers stuck on a story */
+.st-stuck { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.st-item { position: absolute; width: 24%; aspect-ratio: 1; object-fit: contain; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)); filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4)); pointer-events: auto; user-select: none; }
+.st-item.armed { outline: 2px dashed #ff6b7e; outline-offset: 4px; border-radius: 10px; animation: stuckWiggle 0.4s ease infinite alternate; }
+.st-item.just { animation: stuckDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.sv-stick-btn span { font-size: 1.05rem; }
+/* The comments on a story can be dragged up and down */
+.sv-cmts { touch-action: none; transition: transform 0.05s linear; }
+.sv-cmts.dragging { cursor: grabbing; transition: none; }
+.sv-cmts.dragging .sv-cmt { box-shadow: 0 0 0 2px rgba(255, 79, 163, 0.6), 0 8px 20px rgba(0, 0, 0, 0.4); }
+/* Swipe right to answer a reply / comment */
+.swipeable { position: relative; touch-action: pan-y; }
+.swipe-reply-ic { position: absolute; left: -34px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); border: 1px solid var(--line); color: var(--muted); font-weight: 900; opacity: 0; pointer-events: none; transition: background 0.15s, color 0.15s; }
+.swipe-reply-ic.armed { background: var(--pink); color: #111; border-color: var(--pink); }
+.replies-list, .sc-list { overflow-x: hidden; }
+.sc-emoji span { font-size: 1.05rem; }
