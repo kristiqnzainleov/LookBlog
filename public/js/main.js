@@ -62,11 +62,17 @@ route(/^\/analytics$/, analyticsPage);
 route(/^\/people$/, peoplePage);
 
 /* ---------- Unread messages badge ---------- */
-async function loadUnread() {
+// Chats I just read here: online, the next answer can come from a server that hasn't heard about the read yet,
+// so a chat I read counts as read until a newer message comes in
+const readHere = new Map(); // chatId -> when I read it
+const paintUnread = (n) => { $("msgBadge").textContent = n > 99 ? "99+" : String(n); $("msgBadge").hidden = !n; };
+async function loadUnread(ev) {
+  if (ev?.readChat) { readHere.set(ev.readChat, ev.at || new Date().toISOString()); if (typeof ev.unread === "number") paintUnread(ev.unread); return; }
   try {
-    const { unread } = await api("/api/chats");
-    $("msgBadge").textContent = unread > 99 ? "99+" : String(unread);
-    $("msgBadge").hidden = !unread;
+    const { chats, unread } = await api("/api/chats");
+    let n = unread;
+    if (Array.isArray(chats)) n = chats.reduce((sum, c) => sum + (readHere.has(c.id) && readHere.get(c.id) >= (c.lastAt || "") ? 0 : c.unread || 0), 0);
+    paintUnread(n);
   } catch {}
 }
 

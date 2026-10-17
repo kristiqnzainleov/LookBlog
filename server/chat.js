@@ -1393,7 +1393,9 @@ async function handleChat(req, res, url, me) {
         save("chats");
         sendTo(chat.members.filter((id) => id !== me.id), { type: "chat:read", chatId: chat.id, user: { ...authorView(me), at } });
       }
-      sendJSON(res, 200, { ok: true });
+      // (the new total comes from this server, which already has the read: another one might not yet)
+      const total = db.chats.filter((ch) => isMember(ch, me) && (ch.kind === "group" || lastMessage(ch))).reduce((n, ch) => n + unread(ch, me), 0);
+      sendJSON(res, 200, { ok: true, unread: total, at: chat.reads?.[me.id] || null });
       return true;
     }
 

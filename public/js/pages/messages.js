@@ -143,9 +143,12 @@ export function messagesPage(view, m) {
     return item;
   }
 
+  // Chats I just read count as read (online, the list can come from a server that hasn't heard about it yet)
+  const readHere = new Map();
   async function loadList() {
     try {
       const { chats } = await api("/api/chats");
+      for (const c of chats) if (readHere.has(c.id) && readHere.get(c.id) >= (c.lastAt || "")) c.unread = 0;
       watchInboxTyping(listEl);
       listEl.replaceChildren();
       if (!chats.length) {
@@ -192,7 +195,7 @@ export function messagesPage(view, m) {
 
   loadList();
   const offMsg = on("message", loadList);
-  const offChanged = on("chats:changed", loadList);
+  const offChanged = on("chats:changed", (ev) => { if (ev?.readChat) readHere.set(ev.readChat, ev.at || new Date().toISOString()); loadList(); });
   return () => { stopped = true; unfit(); convo?.stop(); offMsg(); offChanged(); };
 }
 messagesPage.navName = () => "messages";

@@ -1899,7 +1899,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     if (!chat?.member) return;
     if (!canSee()) { readPending = true; return; }
     readPending = false;
-    api(`/api/chats/${chatId}/read`, { method: "POST" }).then(() => emit("chats:changed")).catch(() => {});
+    api(`/api/chats/${chatId}/read`, { method: "POST" }).then((r) => emit("chats:changed", { readChat: chatId, unread: r.unread, at: r.at })).catch(() => {});
   };
   const lookedBack = () => {
     if (!list.isConnected) { document.removeEventListener("visibilitychange", lookedBack); removeEventListener("focus", lookedBack); return; }
