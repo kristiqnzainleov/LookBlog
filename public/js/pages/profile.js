@@ -750,7 +750,8 @@ export async function profilePage(view, m, params) {
     specialEl,
     rolesEl,
     bioWrap,
-    h("p", { class: "joined" }, icon("calendar"), "Joined " + new Date(profile.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })),
+    // The whole date they joined (hover: the time too)
+    h("p", { class: "joined", title: new Date(profile.createdAt).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" }) }, icon("calendar"), "Joined " + new Date(profile.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })),
     h("p", { class: "stats" },
       h("button", { class: "stat-btn", onclick: () => openConnections(profile, "following") }, followingEl, " Following"),
       h("button", { class: "stat-btn", onclick: () => openConnections(profile, "followers") }, followersEl, " Followers"),

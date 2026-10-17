@@ -131,7 +131,11 @@ function fillChats(list, send) {
 
 /* ---------- Share any link (a live stream, an upcoming video): copy it or send it in a chat ---------- */
 // chatBody: what a chat gets instead of the link as text (e.g. { storyId } → a card)
-export function openShareLink({ title = "Share", url, text, onShared, chatBody = null }) {
+export function openShareLink(opts) {
+  return modal({ title: opts.title || "Share", body: shareLinkBody(opts) });
+}
+// The same, as content to put anywhere (a story shows it inside itself)
+export function shareLinkBody({ url, text, onShared, chatBody = null }) {
   const linkBox = h("input", { type: "text", class: "text-input share-link", value: url, readonly: true, "aria-label": "Link" });
   linkBox.addEventListener("focus", () => linkBox.select());
   const copyBtn = h("button", { type: "button", class: "btn btn-primary btn-sm" }, icon("link"), h("span", { text: "Copy link" }));
@@ -146,10 +150,11 @@ export function openShareLink({ title = "Share", url, text, onShared, chatBody =
   nativeBtn?.addEventListener("click", () => navigator.share({ title: text || "LookBlog", url }).then(() => onShared?.()).catch(() => {}));
   const note = h("input", { type: "text", class: "text-input", placeholder: "Add a message (optional)", maxlength: 300 });
   const list = h("div", { class: "conn-list" }, spinner());
-  modal({ title, body: [h("div", { class: "share-row" }, linkBox, copyBtn, nativeBtn), h("h3", { class: "side-title share-sub", text: "Send in a chat" }), note, list] });
+  const body = h("div", { class: "share-body" }, h("div", { class: "share-row" }, linkBox, copyBtn, nativeBtn), h("h3", { class: "side-title share-sub", text: "Send in a chat" }), note, list);
   const path = url.replace(location.origin, "");
   fillChats(list, async (chatId) => {
     await api(`/api/chats/${chatId}/messages`, { method: "POST", body: chatBody ? { ...chatBody, text: note.value.trim() } : { text: [note.value.trim(), `${text ? text + " · " : ""}${path}`].filter(Boolean).join("\n") } });
     onShared?.();
   });
+  return body;
 }

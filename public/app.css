@@ -7548,3 +7548,34 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sv-sound-tap { position: absolute; left: 50%; top: 104px; z-index: 6; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: none; border-radius: 999px; background: rgba(0, 0, 0, 0.6); color: #fff; font: 700 0.86rem var(--body); cursor: pointer; backdrop-filter: blur(6px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); animation: popIn 0.25s ease-out; }
 .sv-sound-tap[hidden] { display: none; }
 .sc-stick span { font-size: 1rem; }
+/* A panel inside the story (comments, sharing): part of the story screen */
+.sv-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; max-height: 78%; display: flex; flex-direction: column; border-radius: 22px 22px 0 0; background: rgba(22, 20, 20, 0.97); color: var(--paper); box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.5); backdrop-filter: blur(16px); animation: svSheetIn 0.26s cubic-bezier(0.2, 0.9, 0.3, 1); transition: transform 0.2s; }
+.sv-sheet.out { animation: svSheetOut 0.22s ease-in forwards; }
+@keyframes svSheetIn { from { transform: translateY(100%); } }
+@keyframes svSheetOut { to { transform: translateY(100%); } }
+.sv-sheet-grip { align-self: center; width: 44px; height: 5px; margin: 8px 0 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.3); cursor: grab; touch-action: none; }
+.sv-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 14px 10px; border-bottom: 1px solid var(--line); }
+.sv-sheet-head b { font-size: 1rem; }
+.sv-sheet-x { width: 32px; height: 32px; display: grid; place-items: center; border: none; border-radius: 50%; background: rgba(255, 255, 255, 0.08); color: #fff; cursor: pointer; }
+.sv-sheet-x svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; }
+.sv-sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 14px; overscroll-behavior: contain; }
+.sv-sheet .sc-sheet { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.sv-sheet .sc-list { max-height: none; flex: 1; min-height: 120px; }
+.sv-sheet .sc-compose { position: sticky; bottom: 0; padding-top: 6px; background: rgba(22, 20, 20, 0.97); }
+.sv-sheet .sc-input { min-width: 0; flex: 1; }
+.sv-sheet .share-body { display: flex; flex-direction: column; gap: 10px; }
+.sv-sheet .share-row { flex-wrap: wrap; }
+.sv-sheet .share-link { min-width: 0; flex: 1 1 100%; }
+/* Story comments: a clear button, and a roomy box in the panel (typing on its own row) */
+.sv-comments-btn { gap: 5px; padding: 9px 13px; background: rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.22); }
+.sv-comments-btn svg { width: 19px; height: 19px; }
+.sv-comments-btn.has { box-shadow: inset 0 0 0 1.5px rgba(255, 79, 163, 0.75); }
+.sv-comments-btn .sv-cc:empty { display: none; }
+.sv-comments-btn:active { transform: scale(0.94); }
+.sc-compose { flex-direction: column; align-items: stretch; gap: 6px; }
+.sc-type { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); }
+.sc-type:focus-within { border-color: var(--pink); }
+.sc-type .sc-input { flex: 1; min-width: 0; padding: 8px 0; border: none; background: none; color: #fff; outline: none; box-shadow: none; font-size: 0.95rem; }
+.sc-type .sc-send { flex-shrink: 0; padding: 8px 16px; border-radius: 999px; min-height: 0; }
+.sc-extras { display: flex; gap: 6px; }
+.sv-sheet .sc-input { flex: 1; }

@@ -89,6 +89,27 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   const tagRow = h("div", { class: "sv-tags" });
   const foot = h("div", { class: "sv-foot" });
   const closeBtn = h("button", { type: "button", class: "sv-close", "aria-label": "Close" }, icon("close"));
+  // A panel that slides up inside the story itself (comments, sharing): part of the story screen, not a window over the page
+  let sheetOpen = null;
+  function frameSheet({ title, body, onClose }) {
+    sheetOpen?.close();
+    const x = h("button", { type: "button", class: "sv-sheet-x", "aria-label": "Close" }, icon("close"));
+    const grip = h("span", { class: "sv-sheet-grip", "aria-hidden": "true" });
+    const el = h("div", { class: "sv-sheet", role: "dialog", "aria-label": title }, grip, h("div", { class: "sv-sheet-head" }, h("b", { text: title }), x), h("div", { class: "sv-sheet-body" }, body));
+    // taps inside it don't move the story on
+    for (const t of ["pointerdown", "pointerup", "click", "keydown"]) el.addEventListener(t, (e) => e.stopPropagation());
+    let gone = false;
+    const sheet = { el, close() { if (gone) return; gone = true; sheetOpen = null; el.classList.add("out"); setTimeout(() => el.remove(), 220); onClose?.(); } };
+    x.addEventListener("click", () => sheet.close());
+    // drag the grip down to close it
+    let dy0 = null;
+    grip.addEventListener("pointerdown", (e) => { dy0 = e.clientY; try { grip.setPointerCapture(e.pointerId); } catch {} });
+    grip.addEventListener("pointermove", (e) => { if (dy0 == null) return; el.style.transform = `translateY(${Math.max(0, e.clientY - dy0)}px)`; });
+    grip.addEventListener("pointerup", (e) => { if (dy0 == null) return; const d = e.clientY - dy0; dy0 = null; el.style.transform = ""; if (d > 80) sheet.close(); });
+    frame.append(el);
+    sheetOpen = sheet;
+    return sheet;
+  }
   // Share it: a link (works outside LookBlog too) or as a card in a chat. In a highlight, the whole highlight.
   const shareBtn = h("button", { type: "button", class: "sv-close sv-share", "aria-label": "Share", title: "Share" }, icon("send"));
   shareBtn.addEventListener("click", (e) => {
@@ -97,9 +118,12 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     if (!s) return;
     pause(true);
     const hl = gr.highlight;
-    import("./share.js").then(({ openShareLink }) => openShareLink(hl
-      ? { title: "Share this highlight", url: `${location.origin}/highlight/${hl.id}`, text: `${hl.title || "Highlight"} · @${gr.user.username}`, chatBody: { highlightId: hl.id }, onShared: () => toast("Shared.") }
-      : { title: "Share this story", url: `${location.origin}/story/${s.id}`, text: `@${gr.user.username}’s story`, chatBody: { storyId: s.id }, onShared: () => toast("Shared.") }));
+    import("./share.js").then(({ shareLinkBody }) => {
+      const o = hl
+        ? { title: "Share this highlight", url: `${location.origin}/highlight/${hl.id}`, text: `${hl.title || "Highlight"} · @${gr.user.username}`, chatBody: { highlightId: hl.id }, onShared: () => toast("Shared.") }
+        : { title: "Share this story", url: `${location.origin}/story/${s.id}`, text: `@${gr.user.username}’s story`, chatBody: { storyId: s.id }, onShared: () => toast("Shared.") };
+      frameSheet({ title: o.title, body: shareLinkBody(o), onClose: () => { if (!closed) pause(false); } });
+    });
   });
   const prevZone = h("button", { type: "button", class: "sv-zone left", "aria-label": "Previous" });
   const nextZone = h("button", { type: "button", class: "sv-zone right", "aria-label": "Next" });
@@ -330,7 +354,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   }
   // Comments: they stay on the story; everyone who can see it sees them
   function commentsBtn(s) {
-    const b = h("button", { type: "button", class: "sv-pill sv-comments-btn", title: "Comments", "aria-label": "Comments" }, h("span", { text: "💬" }), h("span", { class: "sv-cc", text: String(s.comments || 0) }));
+    const b = h("button", { type: "button", class: "sv-pill sv-comments-btn", title: "Comments", "aria-label": "Comments" }, icon("comment"), h("span", { class: "sv-cc", text: s.comments ? String(s.comments) : "" }));
+    b.classList.toggle("has", !!s.comments);
     b.addEventListener("click", () => showComments(s));
     return b;
   }
@@ -381,7 +406,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       s.comments = comments.length;
       s.latestComments = comments.slice(-30).map(onStoryOf);
       if (story() === s) paintCommentsOnStory(s);
-      frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(comments.length); });
+      frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = comments.length ? String(comments.length) : ""; x.parentElement.classList.toggle("has", !!comments.length); });
       // Each comment, with its answers under it
       const tops = comments.filter((c) => !c.parentId || !comments.some((x) => x.id === c.parentId));
       list.replaceChildren(...(tops.length ? tops.flatMap((c) => [row(c, false), ...comments.filter((x) => x.parentId === c.id).map((x) => row(x, true))])
@@ -411,8 +436,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       input.focus(); input.setSelectionRange(at + e.length, at + e.length);
       send.disabled = !input.value.trim();
     })));
-    const md = modal({ title: "Comments", onClose: () => { closeGifs(); import("./emoji.js").then((m) => m.closeEmojiPicker?.()).catch(() => {}); import("./stickers.js").then((m) => m.closeStickers?.()).catch(() => {}); offC(); if (!closed) pause(false); },
-      body: h("div", { class: "sc-sheet" }, list, replyBar, h("div", { class: "sc-compose" }, input, emojiBtn, stickBtn, gifBtn, send)) });
+    const md = frameSheet({ title: `Comments${s.comments ? ` · ${s.comments}` : ""}`, onClose: () => { closeGifs(); import("./emoji.js").then((m) => m.closeEmojiPicker?.()).catch(() => {}); import("./stickers.js").then((m) => m.closeStickers?.()).catch(() => {}); offC(); if (!closed) pause(false); },
+      body: h("div", { class: "sc-sheet" }, list, replyBar, h("div", { class: "sc-compose" }, h("div", { class: "sc-type" }, input, send), h("div", { class: "sc-extras" }, emojiBtn, stickBtn, gifBtn))) });
     const load = () => api(`/api/stories/${s.id}/comments`).then((r) => paintList(r.comments)).catch(() => list.replaceChildren(h("p", { class: "muted", text: "Couldn’t load the comments." })));
     const offC = on("story:comments", (ev) => { if (ev.id === s.id) load(); });
     load();
@@ -547,7 +572,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     const s = story();
     if (!s || ev.id !== s.id) return;
     s.comments = ev.count;
-    frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(ev.count); });
+    frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = ev.count ? String(ev.count) : ""; x.parentElement.classList.toggle("has", !!ev.count); });
     const before = new Set((s.latestComments || []).map((c) => c.id));
     api(`/api/stories/${s.id}/comments`).then((r) => {
       s.latestComments = r.comments.slice(-30).map(onStoryOf);
@@ -555,12 +580,13 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       paintCommentsOnStory(s);
       // Someone else just commented while I'm watching: it pops up
       const fresh = r.comments.filter((c) => !before.has(c.id) && c.author.username !== state.me?.username).slice(-1)[0];
-      if (fresh && !document.querySelector(".app-modal")) popComment(onStoryOf(fresh));
+      if (fresh && !sheetOpen && !document.querySelector(".app-modal")) popComment(onStoryOf(fresh));
     }).catch(() => {});
   });
   function close() {
     if (closed) return;
     closed = true;
+    sheetOpen?.close();
     stopStorySong();
     closeGifs();
     offViewed(); offComments(); offStuck();
@@ -582,7 +608,9 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   closeBtn.addEventListener("click", close);
   box.addEventListener("click", (e) => { if (e.target === box) close(); });
   const onKey = (e) => {
-    if (e.target.closest?.("input") || document.querySelector(".app-overlay")) return; // (a window on top, like the comments, handles its own keys)
+    if (e.target.closest?.("input") || document.querySelector(".app-overlay")) return; // (a window on top handles its own keys)
+    // a panel open inside the story (comments, sharing): Esc closes the panel, the arrows don't move the story
+    if (sheetOpen) { if (e.key === "Escape") sheetOpen.close(); return; }
     if (e.key === "Escape") close();
     else if (e.key === "ArrowRight") next();
     else if (e.key === "ArrowLeft") prev();
