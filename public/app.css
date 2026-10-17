@@ -7579,3 +7579,49 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sc-type .sc-send { flex-shrink: 0; padding: 8px 16px; border-radius: 999px; min-height: 0; }
 .sc-extras { display: flex; gap: 6px; }
 .sv-sheet .sc-input { flex: 1; }
+/* Story panels (comments, share): cleaner, like Instagram — and they can be pulled down */
+.sv-sheet { background: rgba(18, 17, 17, 0.98); border-top: 1px solid rgba(255, 255, 255, 0.08); touch-action: auto; }
+.sv-sheet.pulling { transition: none; animation: none; }
+.sv-sheet-grip { width: 40px; height: 4px; margin: 10px 0 4px; }
+.sv-sheet-head { justify-content: center; position: relative; padding: 4px 48px 12px; cursor: grab; user-select: none; touch-action: none; }
+.sv-sheet-head b { font-size: 0.98rem; font-weight: 800; }
+.sv-sheet-x { position: absolute; right: 12px; top: -2px; width: 30px; height: 30px; }
+.sv-sheet-body { padding: 10px 14px 12px; }
+.sv-sheet .sc-sheet { gap: 6px; }
+.sv-sheet .sc-list { gap: 16px; padding: 4px 0; }
+.sv-sheet .sc-row .avatar { flex-shrink: 0; }
+.sv-sheet .sc-bubble, .sv-sheet .sc-row.mine .sc-bubble { padding: 0; border: none; border-radius: 0; background: none; }
+.sv-sheet .sc-bubble .sc-head b { font-size: 0.82rem; }
+.sv-sheet .sc-bubble .sc-text { font-size: 0.93rem; color: rgba(255, 255, 255, 0.92); }
+.sv-sheet .sc-body { gap: 3px; }
+.sv-sheet .sc-meta { padding-left: 0; gap: 14px; }
+.sv-sheet .sc-meta small, .sv-sheet .sc-act { font-size: 0.72rem; color: rgba(255, 255, 255, 0.5); }
+.sv-sheet .sc-act:hover { color: #fff; }
+.sv-sheet .sc-row > .sc-like { align-self: flex-start; padding-top: 6px; font-size: 0.85rem; }
+.sv-sheet .sc-row > .sc-like small { color: rgba(255, 255, 255, 0.5); }
+.sv-sheet .sc-compose { margin: 0 -14px -12px; padding: 10px 14px 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(18, 17, 17, 0.98); gap: 8px; }
+.sv-sheet .sc-extras { gap: 6px; }
+.sv-sheet .sc-extras .sc-gif { width: auto; height: 32px; padding: 0 12px; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; border: none; background: rgba(255, 255, 255, 0.08); color: #fff; }
+.sv-sheet .sc-extras .sc-gif:hover { background: rgba(255, 79, 163, 0.25); }
+.sv-sheet .sc-extras .sc-gif span { border: none; padding: 0; font-size: 1rem; line-height: 1; background: none; }
+.sv-sheet .sc-extras .sc-gif:not(.sc-emoji):not(.sc-stick) span { font: 800 0.72rem var(--body); letter-spacing: 0.04em; }
+.sv-sheet .sc-extras small { font: 700 0.76rem var(--body); }
+.sv-sheet .sc-type { background: rgba(255, 255, 255, 0.07); }
+.sv-sheet .sc-send:disabled { opacity: 0.45; }
+.sv-sheet .sc-replying { background: rgba(255, 79, 163, 0.14); }
+.story-frame.pulling { transition: none; }
+.story-frame { transition: transform 0.2s; }
+.story-viewer { background: rgba(8, 7, 7, calc(0.96 - var(--pull, 0) * 0.5)); }
+.sv-zone { touch-action: none; }
+/* (the comments list scrolls by itself; the box to type in stays at the bottom) */
+.sv-sheet-body:has(> .sc-sheet) { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 0; }
+.sv-sheet-body > .sc-sheet { flex: 1; min-height: 0; height: auto; }
+.sv-sheet .sc-list { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.2) transparent; }
+.sv-sheet .sc-compose { position: static; margin-bottom: 0; }
+/* Share panel inside the story */
+.sv-sheet .share-body .text-input { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.07); color: #fff; font: 500 0.9rem var(--body); outline: none; }
+.sv-sheet .share-body .text-input:focus { border-color: var(--pink); }
+.sv-sheet .share-body .share-link { color: rgba(255, 255, 255, 0.75); font-size: 0.82rem; text-overflow: ellipsis; }
+.sv-sheet .share-row { gap: 8px; }
+.sv-sheet .share-row .btn { flex: 1; justify-content: center; }
+.sv-sheet .share-sub { margin: 8px 0 0; font-size: 0.95rem; }

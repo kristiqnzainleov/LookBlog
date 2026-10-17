@@ -101,11 +101,40 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     let gone = false;
     const sheet = { el, close() { if (gone) return; gone = true; sheetOpen = null; el.classList.add("out"); setTimeout(() => el.remove(), 220); onClose?.(); } };
     x.addEventListener("click", () => sheet.close());
-    // drag the grip down to close it
-    let dy0 = null;
-    grip.addEventListener("pointerdown", (e) => { dy0 = e.clientY; try { grip.setPointerCapture(e.pointerId); } catch {} });
-    grip.addEventListener("pointermove", (e) => { if (dy0 == null) return; el.style.transform = `translateY(${Math.max(0, e.clientY - dy0)}px)`; });
-    grip.addEventListener("pointerup", (e) => { if (dy0 == null) return; const d = e.clientY - dy0; dy0 = null; el.style.transform = ""; if (d > 80) sheet.close(); });
+    // Pull it down to close it: by the grip or the title, or anywhere once the list is at its top
+    const bodyEl = el.querySelector(".sv-sheet-body");
+    let y0 = null, pulled = 0, how = "";
+    const canPull = (t) => t.closest(".sv-sheet-grip, .sv-sheet-head") || (bodyEl.scrollTop <= 0 && !t.closest("input, textarea, .sc-type"));
+    const pullStart = (y, t, kind) => { if (gone || !canPull(t)) return; y0 = y; pulled = 0; how = kind; };
+    const pullMove = (y, e) => {
+      if (y0 == null) return;
+      const d = y - y0;
+      if (!pulled && d < 6) { if (d < -6) y0 = null; return; } // moving up: it's a scroll
+      pulled = Math.max(0, d);
+      e.cancelable && e.preventDefault();
+      el.classList.add("pulling");
+      el.style.transform = `translateY(${pulled}px)`;
+    };
+    const pullEnd = () => {
+      if (y0 == null) return;
+      y0 = null; el.classList.remove("pulling");
+      if (pulled > 6) { el.dataset.justPulled = "1"; setTimeout(() => delete el.dataset.justPulled, 50); }
+      if (pulled > Math.min(110, el.offsetHeight * 0.25)) { el.style.transform = `translateY(${pulled}px)`; sheet.close(); } else el.style.transform = "";
+      pulled = 0;
+    };
+    // fingers (touch events, so the list can still scroll when you aren't pulling)
+    el.addEventListener("touchstart", (e) => pullStart(e.touches[0].clientY, e.target, "t"), { passive: true });
+    el.addEventListener("touchmove", (e) => how === "t" && pullMove(e.touches[0].clientY, e), { passive: false });
+    el.addEventListener("touchend", () => how === "t" && pullEnd());
+    el.addEventListener("touchcancel", () => how === "t" && pullEnd());
+    // a mouse
+    el.addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse" && e.button === 0) pullStart(e.clientY, e.target, "m"); });
+    const mMove = (e) => how === "m" && pullMove(e.clientY, e), mUp = () => how === "m" && pullEnd();
+    addEventListener("pointermove", mMove, true);
+    addEventListener("pointerup", mUp, true);
+    el.addEventListener("animationend", () => { if (gone) { removeEventListener("pointermove", mMove, true); removeEventListener("pointerup", mUp, true); } });
+    // (a pull isn't a click on what's under it)
+    el.addEventListener("click", (e) => { if (el.dataset.justPulled) { e.preventDefault(); e.stopPropagation(); } }, true);
     frame.append(el);
     sheetOpen = sheet;
     return sheet;
@@ -365,8 +394,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     const input = h("input", { type: "text", class: "text-input sc-input", placeholder: s.mine ? "Add a comment…" : `Comment on ${group().user.name.split(" ")[0]}’s story…`, maxlength: 500 });
     const send = h("button", { type: "button", class: "btn btn-primary sc-send", text: "Post", disabled: true });
     const gifBtn = h("button", { type: "button", class: "sv-gif sc-gif", title: "GIF", "aria-label": "Comment with a GIF" }, h("span", { text: "GIF" }));
-    const emojiBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-emoji", title: "Emoji", "aria-label": "Emoji" }, h("span", { text: "🙂" }));
-    const stickBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-stick", title: "Send a sticker", "aria-label": "Comment with a sticker" }, h("span", { text: "🏷️" }));
+    const emojiBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-emoji", title: "Emoji", "aria-label": "Emoji" }, h("span", { text: "🙂" }), h("small", { text: "Emoji" }));
+    const stickBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-stick", title: "Send a sticker", "aria-label": "Comment with a sticker" }, h("span", { text: "🏷️" }), h("small", { text: "Sticker" }));
     stickBtn.addEventListener("click", () => import("./stickers.js").then(({ openStickers }) => openStickers(stickBtn, (st) => post({ text: input.value, sticker: st.id }))));
     // Answering a comment: a bar above the box ("Replying to @…  ✕")
     let replyTo = null;
@@ -600,9 +629,24 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   }
   // Tap left/right, hold anywhere to pause
   let downAt = 0;
+  // Pull the story down to close it (like Instagram)
+  let swipeY = null, swipeD = 0;
   for (const [zone, fn] of [[prevZone, prev], [nextZone, next]]) {
-    zone.addEventListener("pointerdown", () => { downAt = performance.now(); holding = true; setTimeout(() => holding && pause(true), 180); });
-    zone.addEventListener("pointerup", () => { holding = false; if (performance.now() - downAt < 200) fn(); pause(false); });
+    zone.addEventListener("pointerdown", (e) => { downAt = performance.now(); holding = true; swipeY = e.clientY; swipeD = 0; try { zone.setPointerCapture(e.pointerId); } catch {} setTimeout(() => holding && pause(true), 180); });
+    zone.addEventListener("pointermove", (e) => {
+      if (swipeY == null) return;
+      swipeD = Math.max(0, e.clientY - swipeY);
+      if (swipeD > 8) { frame.classList.add("pulling"); frame.style.transform = `translateY(${swipeD}px) scale(${1 - Math.min(swipeD, 400) / 2000})`; box.style.setProperty("--pull", String(Math.min(swipeD / 300, 1))); }
+    });
+    zone.addEventListener("pointerup", () => {
+      holding = false;
+      const d = swipeD; swipeY = null; swipeD = 0;
+      frame.classList.remove("pulling"); frame.style.transform = ""; box.style.removeProperty("--pull");
+      if (d > 120) return close();
+      if (d <= 8 && performance.now() - downAt < 200) fn();
+      pause(false);
+    });
+    zone.addEventListener("pointercancel", () => { swipeY = null; swipeD = 0; frame.classList.remove("pulling"); frame.style.transform = ""; box.style.removeProperty("--pull"); });
     zone.addEventListener("pointerleave", () => { if (holding) { holding = false; pause(false); } });
   }
   closeBtn.addEventListener("click", close);
