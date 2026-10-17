@@ -201,18 +201,18 @@ const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide",
   "bubbles", "wetpaint", "puddles", "beastly", "moonrocks", "microbe", "dirt", "spray", "vinyl", "iso", "maze", "burned", "distressed", "gems", "storm", "fade80", "doodle", "hatch", "pixels", "scribble", "lines", "fax", "monoone", "comfortaa", "amatic", "neucha", "marck", "badscript", "yeseva", "poiret", "ruslan", "underdog", "kelly", "stalinist", "seymour", "philosopher", "pangolin", "jura", "daysone", "forum", "kurale", "oranienbaum", "montalt", "play", "prosto", "ubuntu"];
 // A custom gradient: 2–4 colours and a direction, e.g. "grad:#ff0000,#00ff88@90"
 const GRAD = /^grad:#[0-9a-f]{6}(,#[0-9a-f]{6}){1,3}@\d{1,3}$/i;
-const NAME_EFFECTS = ["glow", "shine", "shadow", "outline", "chrome", "retro", "fire", "ice", "neonsign"];
-const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white", "xmas", "steel", "forest", "fire", "ice", "galaxy", "candy", "toxic", "pastel", "disco", "lava", "chrome", "royal", "mintice", "sunrise", "rose"];
-const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora", "snow", "candy", "shell", "pinstripe", "hearts", "matrix", "sunrays", "hexagons", "zigzag", "plaid", "circuit", "bokeh", "confetti"];
-const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono", "xmas", "winter", "forest", "turtle", "business", "halloween", "beach", "love", "matrix", "coffee", "pirate", "spring"];
+const NAME_EFFECTS = ["glow", "shine", "shadow", "outline", "chrome", "retro", "fire", "ice", "neonsign", "gold", "holo", "candy", "pop"];
+const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white", "xmas", "steel", "forest", "fire", "ice", "galaxy", "candy", "toxic", "pastel", "disco", "lava", "chrome", "royal", "mintice", "sunrise", "rose", "peach", "midnight", "electric", "bubblegum", "northern", "emerald", "sakura", "bronze"];
+const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora", "snow", "candy", "shell", "pinstripe", "hearts", "matrix", "sunrays", "hexagons", "zigzag", "plaid", "circuit", "bokeh", "confetti", "marble", "clouds", "checker", "triangles", "lavalamp", "paper"];
+const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono", "xmas", "winter", "forest", "turtle", "business", "halloween", "beach", "love", "matrix", "coffee", "pirate", "spring", "vapor", "sunsetcity", "deepsea", "lemonade", "berry", "cyber", "desert", "cottoncandy"];
 const PROFILE_FX = ["snow", "hearts", "sparkles", "stars", "sakura", "confetti", "bubbles", "fire", "leaves", "money",
-  "xmas", "turtles", "pumpkins", "bats", "love", "notes", "charts", "fish", "rain", "coffee", "paws", "petals", "gems", "matrix", "summer", "school", "balls", "food", "sharks"];
-const AVATAR_SHAPES = ["squircle", "hex", "heart", "star", "blob", "diamond", "octagon", "pentagon", "shield", "leaf", "flower", "drop"];
-const NAME_ANIMS = ["wave", "bounce", "pulse", "glitch", "rainbow", "float", "shake", "flicker", "glow", "slide", "zoom", "jelly"];
-const CARD_FRAMES = ["neon", "glass", "gold", "pixel", "comic", "holo", "candy", "ice", "wood", "business", "shell", "rainbow", "fire", "dashed", "double", "sketch", "aurora"];
-const CURSOR_TRAILS = ["sparkle", "hearts", "stars", "bubbles", "fire", "rainbow", "snow", "money", "leaves", "notes", "love", "flowers", "ghosts", "cats", "paws"];
+  "xmas", "turtles", "pumpkins", "bats", "love", "notes", "charts", "fish", "rain", "coffee", "paws", "petals", "gems", "matrix", "summer", "school", "balls", "food", "sharks", "galaxy", "ocean", "sweets", "gaming", "butterflies", "dino", "space", "fruit", "magic", "lucky"];
+const AVATAR_SHAPES = ["squircle", "hex", "heart", "star", "blob", "diamond", "octagon", "pentagon", "shield", "leaf", "flower", "drop", "arch", "egg", "cushion", "gem"];
+const NAME_ANIMS = ["wave", "bounce", "pulse", "glitch", "rainbow", "float", "shake", "flicker", "glow", "slide", "zoom", "jelly", "swing", "tada", "heartbeat"];
+const CARD_FRAMES = ["neon", "glass", "gold", "pixel", "comic", "holo", "candy", "ice", "wood", "business", "shell", "rainbow", "fire", "dashed", "double", "sketch", "aurora", "vapor", "chrome", "love", "toxic", "royal", "polaroid"];
+const CURSOR_TRAILS = ["sparkle", "hearts", "stars", "bubbles", "fire", "rainbow", "snow", "money", "leaves", "notes", "love", "flowers", "ghosts", "cats", "paws", "butterflies", "fruit", "space", "gaming", "dino", "magic", "food", "ocean"];
 const AVATAR_DECOS = ["crown", "halo", "horns", "cat", "headphones", "flowers", "bow", "flame", "star", "cap",
-  "santa", "antlers", "turtle", "tie", "glasses", "pumpkin", "snowflake", "cupid", "gradcap", "cup", "pirate", "gift", "bone", "seashell", "unicorn", "alien"];
+  "santa", "antlers", "turtle", "tie", "glasses", "pumpkin", "snowflake", "cupid", "gradcap", "cup", "pirate", "gift", "bone", "seashell", "unicorn", "alien", "tophat", "wand", "clover", "rainbow", "butterfly", "strawberry", "controller", "rocket", "gem", "frog"];
 const EMOJI_ONE = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u;
 const HEX = /^#[0-9a-f]{6}$/i;
 const YT_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -269,9 +269,9 @@ function cleanLook(b, me) {
   if (NAME_ANIMS.includes(b.anim)) out.anim = b.anim; // my name moves
   if (CARD_FRAMES.includes(b.frame)) out.frame = b.frame; // a frame around my profile
   if (CURSOR_TRAILS.includes(b.trail)) out.trail = b.trail; // a trail behind the pointer on my profile
-  if (["spin", "pulse", "float", "wobble", "glow", "bounce"].includes(b.photoAnim)) out.photoAnim = b.photoAnim; // my photo moves
+  if (["spin", "pulse", "float", "wobble", "glow", "bounce", "swing", "heartbeat", "tilt"].includes(b.photoAnim)) out.photoAnim = b.photoAnim; // my photo moves
   if (typeof b.cursor === "string" && b.cursor.length <= 16 && EMOJI_ONE.test(b.cursor)) out.cursor = b.cursor; // an emoji pointer on my profile
-  if (["card", "note", "terminal", "neon", "quote", "bubble"].includes(b.bioStyle)) out.bioStyle = b.bioStyle; // how my bio looks
+  if (["card", "note", "terminal", "neon", "quote", "bubble", "chalk", "scroll", "receipt", "glass"].includes(b.bioStyle)) out.bioStyle = b.bioStyle; // how my bio looks
   if (["big", "huge"].includes(b.nameSize)) out.nameSize = b.nameSize; // my name, bigger
   if (["kenburns", "pan", "shimmer", "hue", "pulse", "glitch"].includes(b.bannerAnim)) out.bannerAnim = b.bannerAnim; // my banner moves
   if (["underline", "highlight", "wavy", "box", "sparkle", "glowline"].includes(b.nameDeco)) out.nameDeco = b.nameDeco; // a line under my name
