@@ -7544,3 +7544,7 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .cl-layout.on i { background: color-mix(in srgb, var(--pink) 70%, transparent); }
 .cl-look { display: flex; flex-direction: column; gap: 8px; }
 @media (max-width: 760px) { .cl { flex-direction: column; align-items: center; } .cl-left { width: min(260px, 80%); } .cl-right { width: 100%; } }
+/* A story's song that the browser won't start by itself: a button on the story */
+.sv-sound-tap { position: absolute; left: 50%; top: 104px; z-index: 6; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: none; border-radius: 999px; background: rgba(0, 0, 0, 0.6); color: #fff; font: 700 0.86rem var(--body); cursor: pointer; backdrop-filter: blur(6px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); animation: popIn 0.25s ease-out; }
+.sv-sound-tap[hidden] { display: none; }
+.sc-stick span { font-size: 1rem; }

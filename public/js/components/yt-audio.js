@@ -54,8 +54,10 @@ export async function ytToggle(id, meta = {}, key = id) {
   now = { id, key, playing: false, ...meta };
   tell();
   // A phone that won't start it without a tap on the player itself: show the small player to tap
+  // (not for a story's song: the story shows its own "tap for sound" button instead, nothing pops up outside it)
   clearTimeout(failTimer);
-  failTimer = setTimeout(() => { if (now?.id === id && !now.playing) box?.classList.add("show"); }, 3500);
+  box?.classList.remove("show");
+  if (!meta.quiet) failTimer = setTimeout(() => { if (now?.id === id && !now.playing) box?.classList.add("show"); }, 3500);
   if (!player) await makePlayer(id);
   else { await ready; player.loadVideoById({ videoId: id, startSeconds: 0 }); }
 }
