@@ -10,6 +10,26 @@ const { sendTo } = require("./realtime");
 const { buildMedia, authorView, clean, chars } = require("./social");
 const { notify } = require("./notifications");
 const { every } = require("./ticker");
+const { cleanStoryEdit } = require("../public/js/games/story-look.js");
+// A song on a story: one from LookBlog's music, a YouTube one, or my own MP3
+function cleanStorySong(b, me) {
+  if (!b || typeof b !== "object") return null;
+  if (typeof b.song === "string" && db.songs.some((x) => x.id === b.song && !x.deleted)) return { song: b.song };
+  if (b.yt && /^[A-Za-z0-9_-]{11}$/.test(String(b.yt.id || ""))) return { yt: { id: String(b.yt.id), title: clean(String(b.yt.title || "")).slice(0, 120) || "YouTube", author: clean(String(b.yt.author || "")).slice(0, 80) } };
+  if (b.file && typeof b.file === "object") {
+    const f = ownedMedia(b.file.url, me.id, "audio");
+    if (f) return { file: { url: f.url, title: clean(String(b.file.title || "")).slice(0, 100) || "My song" } };
+  }
+  return null;
+}
+function storySongView(s, me) {
+  const x = s.song, owner = findUser(s.userId);
+  if (!x) return null;
+  if (x.yt) return { kind: "youtube", id: "yt-" + x.yt.id, yt: x.yt.id, title: x.yt.title, artist: { name: x.yt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${x.yt.id}/hqdefault.jpg` };
+  if (x.file) return { kind: "file", id: "sf-" + s.id, url: x.file.url, title: x.file.title, artist: { name: owner?.name || "" }, cover: owner?.avatar || null, noCount: true };
+  const sg = db.songs.find((y) => y.id === x.song && !y.deleted);
+  return sg ? require("./music").songView(sg, me) : null;
+}
 
 const DAY = 24 * 60 * 60 * 1000;
 const ARCHIVE_DAYS = 30;
@@ -33,6 +53,8 @@ function storyView(s, me) {
     id: s.id,
     media: s.media,
     text: s.text,
+    edit: s.edit || null,
+    song: storySongView(s, me),
     createdAt: s.createdAt,
     expiresAt: new Date(new Date(s.createdAt).getTime() + DAY).toISOString(),
     live: live(s),
@@ -217,6 +239,7 @@ async function handleStories(req, res, url, me) {
     if (media.kind === "audio" || media.kind === "file") throw httpError(400, "Add a photo or a video.");
     if (media.kind === "video" && media.duration && media.duration > 60.5) throw httpError(400, "Story videos can be up to 60 seconds.");
     const text = clean(body.text);
+    const edit = cleanStoryEdit(body.edit), song = cleanStorySong(body.song, me);
     if (chars(text) > 120) throw httpError(400, "Keep the text under 120 characters.");
     require("./sensitive").refuseSensitive([text], [media]); // violence, weapons… aren't allowed
     // Tag people (up to 10): @usernames
@@ -224,7 +247,8 @@ async function handleStories(req, res, url, me) {
     const tagged = [...new Set((Array.isArray(body.tags) ? body.tags : []).slice(0, 20).map((x) => String(x).replace(/^@/, "").trim().toLowerCase()).filter(Boolean))]
       .map((n) => findByUsername(n)).filter((u) => u && u.id !== me.id && !(u.blocked || []).includes(me.id) && !(me.blocked || []).includes(u.id));
     if (tagged.length > 10) throw httpError(400, "You can tag up to 10 people.");
-    const story = { id: crypto.randomUUID(), userId: me.id, media, text, createdAt: new Date().toISOString(), viewers: [], reactions: {}, ...(tagged.length ? { tags: tagged.map((u) => u.id) } : {}) };
+    const story = { id: crypto.randomUUID(), userId: me.id, media, text, ...(edit ? { edit } : {}), ...(song ? { song } : {}), createdAt: new Date().toISOString(), viewers: [], reactions: {}, ...(tagged.length ? { tags: tagged.map((u) => u.id) } : {}) };
+    if (song?.file) markUsed(song.file.url, "story:" + story.id);
     db.stories.push(story);
     for (const u of tagged) notify(u.id, "story-mention", me, { storyId: story.id, thumb: media.kind === "video" ? media.poster || null : media.url });
     me.storyCount = (me.storyCount || 0) + 1;
@@ -256,7 +280,7 @@ async function handleStories(req, res, url, me) {
     if (!live(story)) throw httpError(400, "This story has ended.");
     if (repostedBy(story, me)) throw httpError(400, "It’s already in your story.");
     rateLimit("story:" + me.id, 30, 60 * 60 * 1000, "You’ve posted a lot of stories. Try again later.");
-    const mine = { id: crypto.randomUUID(), userId: me.id, media: { ...story.media }, text: story.text || "", createdAt: new Date().toISOString(), viewers: [], reactions: {},
+    const mine = { id: crypto.randomUUID(), userId: me.id, media: { ...story.media }, text: story.text || "", ...(story.edit ? { edit: story.edit } : {}), ...(story.song && !story.song.file ? { song: story.song } : {}), createdAt: new Date().toISOString(), viewers: [], reactions: {},
       repostOf: { storyId: story.id, userId: story.userId } };
     db.stories.push(mine);
     me.storyCount = (me.storyCount || 0) + 1;

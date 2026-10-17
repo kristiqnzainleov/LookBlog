@@ -6,6 +6,23 @@ import { profileHref, navigate } from "../router.js";
 import { inspectVideo } from "./media-picker.js";
 import { openGifs, gifBody, closeGifs } from "./gifs.js";
 import { attachMentions } from "./mentions.js";
+import { mediaStyle, STORY_FONTS } from "../games/story-look.js";
+
+/* ---------- A story's edits, drawn: filter + adjustments on the photo, text and emoji on top ---------- */
+export function styleStoryMedia(el, edit) {
+  const { filter, transform } = mediaStyle(edit);
+  el.style.filter = filter || "";
+  el.style.transform = transform === "translate(0%, 0%) rotate(0deg) scale(1)" ? "" : transform;
+}
+export function overlayEl(o) {
+  const font = STORY_FONTS.find((f) => f[0] === o.f)?.[2];
+  const el = h("div", { class: "so-item " + (o.k === "t" ? "so-text so-" + (o.s || "plain") : "so-emoji"),
+    style: `left:${o.x}%;top:${o.y}%;--z:${o.z};--rot:${o.r || 0}deg;${o.k === "t" ? `--c:${o.c || "#fff"};font-family:${font || "inherit"}` : ""}` }, h("span", { text: o.v }));
+  return el;
+}
+export function storyLayer(edit) {
+  return h("div", { class: "so-layer", "aria-hidden": "true" }, ...((edit?.o || []).map(overlayEl)));
+}
 
 const IMAGE_SECONDS = 5;
 const REACTIONS = ["😂", "😮", "😍", "😢", "👏", "🔥", "❤️", "💯"];
@@ -25,34 +42,14 @@ export async function addStory() {
     if (info.duration > 60.5) { toast("Story videos can be up to 60 seconds."); return false; }
   }
   const url = URL.createObjectURL(file);
-  const text = h("input", { type: "text", class: "story-text-input", maxlength: 120, placeholder: "Add text (optional)" });
-  const caption = h("div", { class: "story-caption", hidden: true });
-  text.addEventListener("input", () => { caption.textContent = text.value; caption.hidden = !text.value.trim(); });
-  // Tag people: they get told, and can add it to their own story
-  const tagIn = h("input", { type: "text", class: "story-text-input story-tag-input", placeholder: "👥 Tag people: @username", autocomplete: "off" });
-  const tagChips = h("div", { class: "sv-tags preview-tags" });
-  const tagsOf = () => [...new Set((tagIn.value.match(/@?[\w.]{2,30}/g) || []).map((x) => x.replace(/^@/, "").toLowerCase()))].slice(0, 10);
-  const paintTags = () => tagChips.replaceChildren(...tagsOf().map((u) => h("span", { class: "sv-tag", text: "@" + u })));
-  tagIn.addEventListener("input", paintTags);
-  attachMentions(tagIn);
-  const share = h("button", { type: "button", class: "btn btn-primary btn-full" }, h("span", { text: "Share to your story" }));
-  const media = isVideo ? h("video", { src: url, autoplay: true, muted: true, loop: true, playsInline: true }) : h("img", { src: url, alt: "" });
+  // The editor: filters, adjustments, text, stickers, a song, tags
+  const { openStoryEditor } = await import("./story-editor.js");
   return new Promise((resolve) => {
-    let done = false;
-    const m = modal({ title: "New story", onClose: () => { URL.revokeObjectURL(url); if (!done) resolve(false); },
-      body: h("div", { class: "story-compose" },
-        h("div", { class: "story-frame preview" }, media, caption, tagChips),
-        text,
-        tagIn,
-        h("p", { class: "create-hint", text: "Your followers can see it for 24 hours." }),
-        share) });
-    setTimeout(() => text.focus(), 80);
-    share.addEventListener("click", async () => {
-      share.disabled = true;
-      share.querySelector("span").textContent = "Uploading…";
-      try {
+    openStoryEditor({ url, isVideo,
+      onClose: () => { URL.revokeObjectURL(url); resolve(false); },
+      onShare: async ({ edit, songRef, text, tags }) => {
         const check = import("./nsfw.js").then((m) => m.checkImage(isVideo ? info.posterBlob : file)).catch(() => ({ nsfw: false }));
-        const body = { media: { url: (await upload(file)).url }, text: text.value, tags: tagsOf() };
+        const body = { media: { url: (await upload(file)).url }, text, tags, edit, song: songRef };
         const found = (isVideo ? info.posterBlob : true) ? await check : {};
         // Weapons, violence… aren't allowed on LookBlog
         if (found.sensitive) throw { error: "This isn’t allowed on LookBlog. Violence, blood, weapons, self-harm and other disturbing content go against the LookBlog rules." };
@@ -62,16 +59,11 @@ export async function addStory() {
           if (info.posterBlob) body.media.poster = (await upload(new File([info.posterBlob], "cover.jpg", { type: "image/jpeg" }))).url;
         }
         await api("/api/stories", { method: "POST", body });
-        done = true;
+        URL.revokeObjectURL(url);
         resolve(true);
-        m.close();
         toast("Your story is up for 24 hours.");
-      } catch (err) {
-        toast(err.error || "Couldn’t post the story.");
-        share.disabled = false;
-        share.querySelector("span").textContent = "Share to your story";
-      }
-    });
+        return true;
+      } });
   });
 }
 
@@ -109,7 +101,25 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   const story = () => group()?.stories[i];
   let video = null;
 
-  function duration() { return story()?.media.kind === "video" ? Math.min(60, story().media.duration || video?.duration || 15) : IMAGE_SECONDS; }
+  // (a photo with a song stays up longer, like on Instagram)
+  function duration() { return story()?.media.kind === "video" ? Math.min(60, story().media.duration || video?.duration || 15) : story()?.song ? 15 : IMAGE_SECONDS; }
+  // The story's song: plays while it's on screen (a YouTube one as sound only), with its name on the story
+  let songAudio = null, songYt = null;
+  const songTag = h("div", { class: "sv-song", hidden: true });
+  frame.append(songTag);
+  function stopStorySong() {
+    songAudio?.pause(); songAudio = null;
+    if (songYt) { const k = songYt; songYt = null; import("./yt-audio.js").then((m) => { if (m.ytIsPlaying(k.yt, k.key)) m.stop(); }); }
+    songTag.hidden = true;
+  }
+  function playStorySong(s) {
+    stopStorySong();
+    if (!s.song) return;
+    songTag.replaceChildren(h("span", { class: "sv-song-eq" }, h("i"), h("i"), h("i")), h("b", { text: s.song.title }), h("span", { text: " · " + (s.song.artist?.name || "") }));
+    songTag.hidden = false;
+    if (s.song.kind === "youtube") { songYt = { yt: s.song.yt, key: "story-" + s.id }; import("./yt-audio.js").then((m) => songYt?.key === "story-" + s.id && m.ytToggle(s.song.yt, { title: s.song.title }, "story-" + s.id)); }
+    else if (s.song.url) { songAudio = new Audio(s.song.url); songAudio.loop = true; songAudio.play().catch(() => {}); }
+  }
   function paintBars(progress = 0) {
     const n = group().stories.length;
     if (bars.children.length !== n) bars.replaceChildren(...group().stories.map(() => h("span", {}, h("i"))));
@@ -137,10 +147,16 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       video.addEventListener("waiting", () => { if (!paused) pause(true); });
       video.addEventListener("playing", () => { if (paused && !holding) pause(false); });
       stage.replaceChildren(video);
+      if (s.song) video.muted = true; // the song plays instead
       video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
     } else {
       stage.replaceChildren(h("img", { src: s.media.url, alt: "" }));
     }
+    // Its edits: filter, light, position; text and emoji on top; a background colour around it
+    styleStoryMedia(stage.firstElementChild, s.edit);
+    stage.style.background = s.edit?.bg || "";
+    if (s.edit?.o?.length) stage.append(storyLayer(s.edit));
+    playStorySong(s);
     // Sensitive (18+): blurred until you tap "View"
     const warnNsfw = s.media.nsfw && !state.me.showNsfw, warnSens = s.media.sensitive && !state.me.showSensitive;
     if ((warnNsfw || warnSens) && !s.mine) {
@@ -358,8 +374,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   function pause(on) {
     if (on === paused) return;
     paused = on;
-    if (on) { elapsed += performance.now() - started; video?.pause(); }
-    else { started = performance.now(); video?.play().catch(() => {}); }
+    if (on) { elapsed += performance.now() - started; video?.pause(); songAudio?.pause(); if (songYt) import("./yt-audio.js").then((m) => m.ytIsPlaying(songYt.yt, songYt.key) && m.ytToggle(songYt.yt, {}, songYt.key)); }
+    else { started = performance.now(); video?.play().catch(() => {}); songAudio?.play().catch(() => {}); if (songYt) import("./yt-audio.js").then((m) => !m.ytIsPlaying(songYt.yt, songYt.key) && m.ytToggle(songYt.yt, {}, songYt.key)); }
     frame.classList.toggle("paused", on);
   }
   function next() { if (i < group().stories.length - 1) { i++; show(); } else nextGroup(); }
@@ -390,6 +406,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   function close() {
     if (closed) return;
     closed = true;
+    stopStorySong();
     closeGifs();
     offViewed(); offComments();
     cancelAnimationFrame(timer);
