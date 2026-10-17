@@ -181,17 +181,20 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   // The story's song: plays while it's on screen (a YouTube one as sound only), with its name on the story
   let songAudio = null, songYt = null, songCheck = 0;
   const songTag = h("div", { class: "sv-song", hidden: true });
-  // When the browser won't start the sound by itself: a button on the story (never a player popping up outside it)
-  const soundTap = h("button", { type: "button", class: "sv-sound-tap", hidden: true }, h("span", { text: "🔇" }), h("b", { text: "Tap for sound" }));
-  soundTap.addEventListener("click", (e) => {
-    e.stopPropagation();
-    soundTap.hidden = true;
+  // When the browser won't start the sound by itself: it starts on the first touch of the story (no button on it)
+  let wantSound = false;
+  const startSound = () => {
+    if (!wantSound) return;
+    wantSound = false;
+    if (paused) return;
     if (songAudio) songAudio.play().catch(() => {});
-    else if (songYt) { const k = songYt; import("./yt-audio.js").then((m) => { if (!m.ytIsPlaying(k.yt, k.key)) m.ytToggle(k.yt, { quiet: true }, k.key); }); }
-  });
-  frame.append(songTag, soundTap);
+    else if (songYt) { const k = songYt; import("./yt-audio.js").then((m) => { if (songYt === k && !m.ytIsPlaying(k.yt, k.key)) m.ytToggle(k.yt, { quiet: true }, k.key); }); }
+  };
+  frame.addEventListener("pointerup", startSound, true);
+  frame.addEventListener("keydown", startSound, true);
+  frame.append(songTag);
   function stopStorySong() {
-    clearTimeout(songCheck); soundTap.hidden = true;
+    clearTimeout(songCheck); wantSound = false;
     songAudio?.pause(); songAudio = null;
     if (songYt) { const k = songYt; songYt = null; import("./yt-audio.js").then((m) => { if (m.ytIsPlaying(k.yt, k.key)) m.stop(); }); }
     songTag.hidden = true;
@@ -212,7 +215,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     toggle.addEventListener("click", async () => {
       if (songAudio) { if (songAudio.paused) songAudio.play().catch(() => {}); else songAudio.pause(); }
       else if (songYt) { const m = await import("./yt-audio.js"); m.ytToggle(songYt.yt, { quiet: true }, songYt.key); await new Promise((r) => setTimeout(r, 400)); }
-      soundTap.hidden = true;
+      wantSound = false;
       paint();
     });
     const links = [];
@@ -246,11 +249,11 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
         if (songYt?.key !== "story-" + s.id) return;
         m.ytToggle(s.song.yt, { title: s.song.title, quiet: true }, "story-" + s.id);
         // not playing after a moment: the browser wants a tap first
-        songCheck = setTimeout(() => { if (songYt?.key === "story-" + s.id && !m.ytIsPlaying(s.song.yt, songYt.key)) soundTap.hidden = false; }, 2500);
+        songCheck = setTimeout(() => { if (songYt?.key === "story-" + s.id && !m.ytIsPlaying(s.song.yt, songYt.key)) wantSound = true; }, 2500);
       });
     } else if (s.song.url) {
       songAudio = new Audio(s.song.url); songAudio.loop = true;
-      songAudio.play().catch(() => { if (songAudio) soundTap.hidden = false; });
+      songAudio.play().catch(() => { if (songAudio) wantSound = true; });
     }
   }
   function paintBars(progress = 0) {
