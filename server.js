@@ -322,7 +322,7 @@ async function handle(req, res) {
     if (p === "/" || p === "/index.html") {
       // Logged-in people go straight to their feed (unless they opened a password reset link), or back to a shared link
       const next = url.searchParams.get("next");
-      if (loggedIn && !url.searchParams.has("reset") && !url.searchParams.has("add")) return redirect(res, next && /^\/(post|watch|u)\/[\w@.%-]+$/.test(next) ? next : "/feed");
+      if (loggedIn && !url.searchParams.has("reset") && !url.searchParams.has("add")) return redirect(res, next && /^\/(post|watch|u|story|highlight)\/[\w@.%-]+$/.test(next) ? next : "/feed");
       return servePublic(res, "index.html");
     }
     // The admin panel: its own log in, separate from LookBlog accounts

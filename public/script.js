@@ -1,5 +1,5 @@
 // After logging in from a shared link: back to that post, video or profile
-const NEXT = (() => { const n = new URLSearchParams(location.search).get("next"); return n && /^\/(post|watch|u)\/[\w@.%-]+$/.test(n) ? n : "/feed"; })();
+const NEXT = (() => { const n = new URLSearchParams(location.search).get("next"); return n && /^\/(post|watch|u|story|highlight)\/[\w@.%-]+$/.test(n) ? n : "/feed"; })();
 /* =========================================================
    LookBlog front end: pop-ups, watching eyes, log in, sign up
    ========================================================= */

@@ -33,7 +33,8 @@ function page(res, { base, path, title, desc, image, imageW, imageH, video, auth
   const nonce = require("crypto").randomBytes(16).toString("base64");
   // (every small script in the page gets it: the video player's too)
   body = String(body || "").replace(/<script type="module">/g, `<script type="module" nonce="${nonce}">`);
-  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300",
+  // Not kept by the CDN: it can't tell logged-in people apart, and they must get LookBlog itself, not this page
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store", "Vary": "Cookie",
     "Content-Security-Policy": `script-src 'self' 'nonce-${nonce}'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'` });
   res.end(`<!doctype html>
 <html lang="en"><head>

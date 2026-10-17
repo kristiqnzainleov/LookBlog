@@ -7458,3 +7458,35 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .fc-size { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
 .fc-num { width: 96px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--ink); color: var(--paper); font: 600 0.95rem var(--body); text-align: center; }
 .fc-info { min-width: 56px; }
+/* Story comments, nicer: bubbles, answers under a comment, stickers */
+.sv-cmts { -webkit-mask: linear-gradient(transparent, #000 18%); mask: linear-gradient(transparent, #000 18%); gap: 7px; }
+.sv-cmt { align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 20px; background: rgba(15, 15, 15, 0.5); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+.sv-cmt.reply { margin-left: 22px; }
+.sv-cmt .sv-cmt-text { display: flex; flex-direction: column; min-width: 0; }
+.sv-cmt .sv-cmt-text b { font-size: 0.74rem; opacity: 0.85; }
+.sv-cmt .sv-cmt-text span { font-size: 0.88rem; font-weight: 600; }
+.sv-cmt-sticker { width: 34px; height: 34px; object-fit: contain; }
+.sv-cmt-more { padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); color: #fff; font-weight: 700; font-size: 0.76rem; }
+.sv-pop-sticker { width: 44px; height: 44px; object-fit: contain; }
+.sc-list { gap: 14px; padding: 4px 4px 4px 0; }
+.sc-row { align-items: flex-start; gap: 10px; }
+.sc-row.sc-reply { margin-left: 46px; }
+.sc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sc-bubble { align-self: flex-start; max-width: 100%; padding: 8px 12px; border-radius: 4px 18px 18px 18px; background: var(--ink); border: 1px solid var(--line); }
+.sc-row.mine .sc-bubble { background: color-mix(in srgb, var(--pink) 14%, var(--ink)); border-color: color-mix(in srgb, var(--pink) 35%, transparent); }
+.sc-bubble .sc-head { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.sc-bubble .sc-head b { font-size: 0.86rem; display: inline-flex; align-items: center; gap: 4px; }
+.sc-bubble .sc-text { margin: 0; font-size: 0.95rem; line-height: 1.35; overflow-wrap: anywhere; }
+.sc-sticker { display: block; width: 96px; height: 96px; object-fit: contain; margin-top: 4px; }
+.sc-meta { display: flex; align-items: center; gap: 12px; padding-left: 4px; }
+.sc-meta small { font-size: 0.74rem; }
+.sc-act { padding: 0; border: none; background: none; color: var(--muted); font: 700 0.76rem var(--body); cursor: pointer; }
+.sc-act:hover { color: var(--paper); }
+.sc-act.sure { color: #ff6b7e; }
+.sc-row > .sc-like { align-self: center; flex-shrink: 0; }
+.sc-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 26px 0; }
+.sc-empty span { font-size: 1.8rem; }
+.sc-replying { display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 10px; background: color-mix(in srgb, var(--pink) 12%, var(--ink)); font-size: 0.82rem; margin-bottom: 6px; }
+.sc-replying[hidden] { display: none; }
+.sc-reply-x { margin-left: auto; border: none; background: none; color: var(--muted); font-size: 0.95rem; cursor: pointer; }
+.sc-stick span { font-size: 1rem; }
