@@ -20,7 +20,7 @@ function embed(url) {
   // YouTube (videos, shorts, youtu.be)
   let id = null;
   if (host === "youtu.be") id = u.pathname.slice(1).split("/")[0];
-  else if (host.endsWith("youtube.com")) id = u.searchParams.get("v") || (u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{6,})/) || [])[1];
+  else if (host === "youtube.com" || host.endsWith(".youtube.com")) id = u.searchParams.get("v") || (u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{6,})/) || [])[1];
   if (id && /^[\w-]{6,15}$/.test(id)) {
     const t = u.searchParams.get("t");
     const start = t ? (/^\d+$/.test(t) ? t : String((Number((t.match(/(\d+)m/) || [])[1] || 0) * 60) + Number((t.match(/(\d+)s/) || [])[1] || 0))) : "";
@@ -30,7 +30,7 @@ function embed(url) {
   const ig = host === "instagram.com" && u.pathname.match(/^\/(p|reel|reels|tv)\/([\w-]+)/);
   if (ig) return frame(`https://www.instagram.com/${ig[1] === "reels" ? "reel" : ig[1]}/${ig[2]}/embed`, "insta", "Instagram post");
   // TikTok
-  const tt = host.endsWith("tiktok.com") && u.pathname.match(/\/video\/(\d+)/);
+  const tt = (host === "tiktok.com" || host.endsWith(".tiktok.com")) && u.pathname.match(/\/video\/(\d+)/);
   if (tt) return frame(`https://www.tiktok.com/embed/v2/${tt[1]}`, "tall", "TikTok video");
   // Spotify (track, album, playlist, episode)
   const sp = host === "open.spotify.com" && u.pathname.match(/^\/(?:intl-\w+\/)?(track|album|playlist|episode|artist|show)\/(\w+)/);

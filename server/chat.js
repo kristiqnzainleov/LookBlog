@@ -440,7 +440,7 @@ async function translate(text, to) {
     const j = await r.json();
     if (j.responseStatus !== 200 || !j.responseData?.translatedText) throw new Error("translate " + (j.responseDetails || j.responseStatus));
     const t = j.responseData.translatedText;
-    out = { text: t.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n)).replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&#39;/g, "'"), from: j.responseData.detectedLanguage || null };
+    out = { text: t.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n)).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&"), from: j.responseData.detectedLanguage || null };
   }
   if (translations.size > 2000) translations.clear();
   translations.set(key, out);

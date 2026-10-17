@@ -25,9 +25,13 @@ function handle(ev) {
     document.querySelectorAll(`[data-following="${CSS.escape(ev.by)}"]`).forEach((el) => bump(el, count(ev.byFollowing)));
   }
   if (ev.type === "thumbnail") {
-    document.querySelectorAll(`[data-thumb-for="${CSS.escape(ev.id)}"]`).forEach((el) => {
-      if (el.tagName === "VIDEO") el.setAttribute("poster", ev.poster); else el.src = ev.poster;
-    });
+    // (only a picture from LookBlog itself, or from Supabase where its files live)
+    const poster = String(ev.poster || "");
+    if (/^\/media\/[\w.-]+$/.test(poster) || /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\/media\/[\w.-]+$/.test(poster)) {
+      document.querySelectorAll(`[data-thumb-for="${CSS.escape(ev.id)}"]`).forEach((el) => {
+        if (el.tagName === "VIDEO") el.setAttribute("poster", poster); else el.src = poster;
+      });
+    }
   }
   if (ev.type === "presence") {
     const name = CSS.escape(ev.username);
