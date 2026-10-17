@@ -7430,3 +7430,14 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .so-item { width: max-content; max-width: 88cqw; }
 .se-frame { aspect-ratio: 9 / 16 !important; width: calc(min(70vh, 620px) * 9 / 16) !important; max-width: 100%; }
 @media (max-width: 760px) { .se-frame { width: calc(min(50vh, 440px) * 9 / 16) !important; } }
+/* The picture fitter: zoom out to show it all, with a blur or a colour around it */
+.crop-view { position: relative; overflow: hidden; }
+.crop-img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: center; }
+.crop-back { position: absolute; inset: -10%; width: 120%; height: 120%; object-fit: cover; filter: blur(22px) brightness(0.8); pointer-events: none; }
+.crop-back[hidden] { display: none; }
+.crop-zoom-row .crop-size { min-width: 46px; text-align: right; font-size: 0.8rem; color: var(--muted); }
+.crop-tools, .crop-bg-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
+.crop-bgs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* Behind a story photo that doesn't fill it: the photo, blurred */
+.so-back { position: absolute !important; inset: -8% !important; width: 116% !important; height: 116% !important; object-fit: cover !important; filter: blur(26px) brightness(0.75) !important; transform: none !important; pointer-events: none; }
+.sv-stage > img:not(.so-back), .sv-stage > video, .se-stage > img:not(.so-back), .se-stage > video { z-index: 1; }

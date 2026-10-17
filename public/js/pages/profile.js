@@ -632,7 +632,7 @@ export async function profilePage(view, m, params) {
       const menu = h("div", { class: "pic-menu", role: "menu" });
       const item = (text, fn, cls = "") => {
         const b = h("button", { type: "button", role: "menuitem", class: cls, text });
-        b.addEventListener("click", (ev) => { ev.stopPropagation(); menu.remove(); fn(); });
+        b.addEventListener("click", (ev) => { ev.stopPropagation(); (menu._shut || (() => menu.remove()))(); fn(); });
         menu.append(b);
       };
       if (key === "avatar" && profile.story) item("Watch your story", () => openUserStories(profile.username, refreshStory));
@@ -647,9 +647,16 @@ export async function profilePage(view, m, params) {
       const px = e?.clientX ?? r.left + r.width / 2, py = e?.clientY ?? r.top + r.height / 2;
       menu.style.left = Math.min(px, innerWidth - menu.offsetWidth - 10) + "px";
       menu.style.top = Math.min(py, innerHeight - menu.offsetHeight - 10) + "px";
+      // It closes when you tap elsewhere, scroll, resize the window or press Esc (it never floats over the page)
+      const shut = () => { menu.remove(); document.removeEventListener("pointerdown", away, true); removeEventListener("scroll", shut, true); removeEventListener("resize", shut); removeEventListener("keydown", esc); };
+      menu._shut = shut;
+      const away = (ev) => { if (!menu.contains(ev.target)) shut(); };
+      const esc = (ev) => { if (ev.key === "Escape") shut(); };
       setTimeout(() => {
-        const away = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener("mousedown", away); } };
-        document.addEventListener("mousedown", away);
+        document.addEventListener("pointerdown", away, true);
+        addEventListener("scroll", shut, { capture: true, passive: true });
+        addEventListener("resize", shut);
+        addEventListener("keydown", esc);
       });
     }
     target.addEventListener("click", (e) => { if (e.target.closest(".pic-remove") || e.target === input) return; open(e); });

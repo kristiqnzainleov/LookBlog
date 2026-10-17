@@ -17,12 +17,35 @@ export const STORY_FILTERS = [
   ["fade", "Fade", "contrast(0.8) brightness(1.15) saturate(0.75)"],
   ["drama", "Drama", "contrast(1.5) saturate(1.3) brightness(0.88)"],
   ["sunset", "Sunset", "sepia(0.35) saturate(1.6) hue-rotate(-25deg) contrast(1.1)"],
+  ["valencia", "Valencia", "sepia(0.15) contrast(1.08) brightness(1.08) saturate(1.1)"],
+  ["aden", "Aden", "hue-rotate(-20deg) contrast(0.9) saturate(0.85) brightness(1.2)"],
+  ["reyes", "Reyes", "sepia(0.22) brightness(1.1) contrast(0.85) saturate(0.75)"],
+  ["lofi", "Lo-fi", "saturate(1.1) contrast(1.5)"],
+  ["hudson", "Hudson", "brightness(1.2) contrast(0.9) saturate(1.1) hue-rotate(8deg)"],
+  ["nashville", "Nashville", "sepia(0.2) contrast(1.2) brightness(1.05) saturate(1.2) hue-rotate(-12deg)"],
+  ["rise", "Rise", "brightness(1.05) sepia(0.2) contrast(0.9) saturate(0.9)"],
+  ["slumber", "Slumber", "saturate(0.66) brightness(1.05) sepia(0.15)"],
+  ["crema", "Crema", "sepia(0.3) contrast(0.9) brightness(1.05) saturate(0.8)"],
+  ["mayfair", "Mayfair", "contrast(1.1) saturate(1.1) brightness(1.05) sepia(0.08)"],
+  ["earlybird", "Earlybird", "sepia(0.4) contrast(0.95) brightness(1.05) saturate(0.95)"],
+  ["xpro", "X-Pro", "contrast(1.3) saturate(1.4) sepia(0.15) hue-rotate(-10deg)"],
+  ["toaster", "Toaster", "contrast(1.4) brightness(0.92) sepia(0.25) hue-rotate(-20deg)"],
+  ["walden", "Walden", "brightness(1.1) hue-rotate(-10deg) sepia(0.3) saturate(1.6)"],
+  ["inkwell", "Inkwell", "sepia(0.3) contrast(1.1) brightness(1.1) grayscale(1)"],
+  ["cinema", "Cinema", "contrast(1.25) saturate(1.15) hue-rotate(-8deg) sepia(0.12)"],
+  ["golden", "Golden hour", "sepia(0.35) saturate(1.5) brightness(1.08) hue-rotate(-15deg)"],
+  ["matrix", "Matrix", "hue-rotate(80deg) saturate(1.6) contrast(1.2) brightness(0.9)"],
+  ["vhs", "VHS", "contrast(1.3) saturate(1.5) hue-rotate(-6deg) blur(0.4px)"],
+  ["polaroid", "Polaroid", "sepia(0.18) contrast(0.95) brightness(1.12) saturate(1.2)"],
+  ["frost", "Frost", "hue-rotate(20deg) saturate(0.7) brightness(1.12) contrast(0.95)"],
+  ["candy", "Candy", "saturate(1.8) brightness(1.08) hue-rotate(-28deg)"],
+  ["invert", "Negative", "invert(1) hue-rotate(180deg)"],
 ];
 export const STORY_FONTS = [["classic", "Classic", "Golos Text, system-ui, sans-serif"], ["bold", "Bold", "Unbounded, sans-serif"], ["type", "Typewriter", "ui-monospace, Menlo, monospace"],
   ["neon", "Neon", "'Pacifico', 'Brush Script MT', cursive"], ["serif", "Serif", "Georgia, 'Times New Roman', serif"], ["comic", "Comic", "'Comic Sans MS', 'Marker Felt', cursive"]];
 export const STORY_TEXT_STYLES = [["plain", "Aa"], ["bg", "▣"], ["soft", "▢"], ["outline", "Ⓐ"], ["glow", "✦"]];
 export const STORY_COLORS = ["#ffffff", "#111111", "#ff4fa3", "#ff4757", "#ff8a3d", "#ffd23f", "#2ee6a6", "#4cc9ff", "#3d7bff", "#9b5cff"];
-export const STORY_BGS = ["#000000", "#ff4fa3", "#9b5cff", "#4cc9ff", "#2ee6a6", "#ffd23f", "#ff8a3d", "#ffffff"];
+export const STORY_BGS = ["blur", "#000000", "#ff4fa3", "#9b5cff", "#4cc9ff", "#2ee6a6", "#ffd23f", "#ff8a3d", "#ffffff"];
 
 const filterOf = (id) => STORY_FILTERS.find((f) => f[0] === id)?.[2] || "";
 // The CSS for the photo or video itself
@@ -51,6 +74,8 @@ export function cleanStoryEdit(e) {
   const t = e.t || {}, tt = { z: num(t.z, 0.5, 4, 1, 2), x: num(t.x, -100, 100, 0, 1), y: num(t.y, -100, 100, 0, 1), r: num(t.r, -180, 180, 0) };
   if (tt.z !== 1 || tt.x || tt.y || tt.r) out.t = tt;
   if (HEX.test(e.bg || "")) out.bg = e.bg.toLowerCase();
+  else if (e.bg === "blur") out.bg = "blur";
+  if (e.m === "fit") out.m = "fit"; // the whole photo shows (not cut to fill the story)
   const o = Array.isArray(e.o) ? e.o.slice(0, 12) : [];
   out.o = o.map((x) => {
     if (!x || typeof x !== "object") return null;

@@ -2,14 +2,15 @@
 // a song, and tagging people. Everything is kept as data with the story (see games/story-look.js).
 import { h, toast, modal } from "../ui.js";
 import { STORY_FILTERS, STORY_FONTS, STORY_TEXT_STYLES, STORY_COLORS, STORY_BGS } from "../games/story-look.js";
-import { styleStoryMedia, overlayEl } from "./stories.js";
+import { styleStoryMedia, overlayEl, storyBack } from "./stories.js";
 import { attachMentions } from "./mentions.js";
 
 const EMOJIS = ["😂", "😍", "🔥", "✨", "💖", "😎", "🥳", "😭", "🤯", "👀", "💯", "🙏", "👑", "🌸", "⭐", "🌈", "☀️", "🌙", "🎉", "🎵", "📍", "☕", "🍕", "🐶", "🐱", "🦋", "💪", "🤍", "💀", "🫶"];
 
 // Opens the editor for a picked file. onShare({ edit, song, songRef, text, tags }) posts it.
 export function openStoryEditor({ url, isVideo, onShare, onClose }) {
-  const edit = { f: "", a: { b: 0, c: 0, s: 0, w: 0 }, t: { z: 1, x: 0, y: 0, r: 0 }, bg: "", o: [] };
+  // (new stories show the whole photo, with it blurred behind: nothing is cut off unless you choose Fill)
+  const edit = { f: "", a: { b: 0, c: 0, s: 0, w: 0 }, t: { z: 1, x: 0, y: 0, r: 0 }, bg: "blur", m: "fit", o: [] };
   let song = null, songRef = null, selected = null, tab = "filters";
 
   // The preview: the photo / video, with the text and emoji on top (drag them)
@@ -18,7 +19,15 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
   const stage = h("div", { class: "se-stage" }, media, layer);
   const songTag = h("div", { class: "sv-song se-song", hidden: true });
   const frame = h("div", { class: "story-frame preview se-frame" }, stage, songTag);
-  const paintMedia = () => { styleStoryMedia(media, edit); stage.style.background = edit.bg || ""; };
+  let poster = isVideo ? null : url;
+  if (isVideo) media.addEventListener("loadeddata", () => { try { const c = document.createElement("canvas"); c.width = media.videoWidth; c.height = media.videoHeight; c.getContext("2d").drawImage(media, 0, 0); poster = c.toDataURL("image/jpeg", 0.7); paintMedia(); } catch {} }, { once: true });
+  const paintMedia = () => {
+    styleStoryMedia(media, edit);
+    stage.style.background = edit.bg && edit.bg !== "blur" ? edit.bg : "";
+    stage.querySelector(".so-back")?.remove();
+    const back = storyBack(edit, poster);
+    if (back) stage.prepend(back);
+  };
   const paintLayer = () => {
     layer.replaceChildren(...edit.o.map((o) => {
       const el = overlayEl(o);
@@ -80,13 +89,15 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
         slider("◐ Contrast", edit.a.c, -100, 100, 1, (v) => { edit.a.c = v; paintMedia(); }),
         slider("🎨 Saturation", edit.a.s, -100, 100, 1, (v) => { edit.a.s = v; paintMedia(); }),
         slider("🌡️ Warmth", edit.a.w, -100, 100, 1, (v) => { edit.a.w = v; paintMedia(); }),
-        slider("🔍 Zoom", Math.round(edit.t.z * 100) / 100, 0.5, 4, 0.01, (v) => { edit.t.z = v; paintMedia(); }),
+        h("div", { class: "se-row" }, chip("⤢ Whole photo", edit.m === "fit", () => { edit.m = "fit"; if (!edit.bg) edit.bg = "blur"; paintMedia(); paintPanel(); }), chip("▣ Fill the story", edit.m !== "fit", () => { edit.m = ""; paintMedia(); paintPanel(); })),
+        slider("📏 Size", Math.round(edit.t.z * 100) / 100, 0.5, 4, 0.01, (v) => { edit.t.z = v; paintMedia(); }),
         slider("↻ Turn", edit.t.r, -180, 180, 1, (v) => { edit.t.r = v; paintMedia(); }),
         h("div", { class: "se-row" }, chip("↺ 90°", false, () => { edit.t.r = ((edit.t.r - 90 + 540) % 360) - 180; paintMedia(); paintPanel(); }), chip("↻ 90°", false, () => { edit.t.r = ((edit.t.r + 90 + 540) % 360) - 180; paintMedia(); paintPanel(); }),
-          chip("Reset", false, () => { edit.a = { b: 0, c: 0, s: 0, w: 0 }; edit.t = { z: 1, x: 0, y: 0, r: 0 }; paintMedia(); paintPanel(); })),
-        h("p", { class: "se-hint", text: "Drag the photo to move it · scroll or use Zoom to fit it." }),
-        h("div", { class: "se-row" }, h("small", { class: "muted", text: "Background:" }), chip("None", !edit.bg, () => { edit.bg = ""; paintMedia(); paintPanel(); }),
-          ...STORY_BGS.map((c) => h("button", { type: "button", class: "se-swatch" + (edit.bg === c ? " on" : ""), style: `background:${c}`, "aria-label": c, onclick: () => { edit.bg = c; paintMedia(); paintPanel(); } }))));
+          chip("Reset", false, () => { edit.a = { b: 0, c: 0, s: 0, w: 0 }; edit.t = { z: 1, x: 0, y: 0, r: 0 }; edit.m = "fit"; edit.bg = "blur"; paintMedia(); paintPanel(); })),
+        h("p", { class: "se-hint", text: "Drag the photo to move it · use Size (or scroll) to make it bigger or smaller." }),
+        h("div", { class: "se-row" }, h("small", { class: "muted", text: "Around it:" }),
+          ...STORY_BGS.map((c) => c === "blur" ? chip("Blur", edit.bg === "blur", () => { edit.bg = "blur"; paintMedia(); paintPanel(); })
+            : h("button", { type: "button", class: "se-swatch" + (edit.bg === c ? " on" : ""), style: `background:${c}`, "aria-label": c, onclick: () => { edit.bg = c; paintMedia(); paintPanel(); } }))));
     } else if (tab === "text") {
       const t = selected?.k === "t" ? selected : null;
       const input = h("input", { type: "text", class: "story-text-input", maxlength: 120, placeholder: t ? "Edit the text" : "Type something, then Add", value: t?.v || "" });

@@ -12,6 +12,7 @@ import { mediaStyle, STORY_FONTS } from "../games/story-look.js";
 export function styleStoryMedia(el, edit) {
   const { filter, transform } = mediaStyle(edit);
   el.style.filter = filter || "";
+  el.style.objectFit = edit?.m === "fit" ? "contain" : ""; // the whole photo, not cut to fill the story
   el.style.transform = transform === "translate(0%, 0%) rotate(0deg) scale(1)" ? "" : transform;
 }
 export function overlayEl(o) {
@@ -19,6 +20,11 @@ export function overlayEl(o) {
   const el = h("div", { class: "so-item " + (o.k === "t" ? "so-text so-" + (o.s || "plain") : "so-emoji"),
     style: `left:${o.x}%;top:${o.y}%;--z:${o.z};--rot:${o.r || 0}deg;${o.k === "t" ? `--c:${o.c || "#fff"};font-family:${font || "inherit"}` : ""}` }, h("span", { text: o.v }));
   return el;
+}
+// Behind a photo that doesn't fill the story: the same photo, big and blurred (or a colour, set on the stage)
+export function storyBack(edit, src) {
+  const wanted = edit?.bg === "blur" || (edit?.m === "fit" && !edit?.bg);
+  return wanted && src ? h("img", { class: "so-back", src, alt: "", "aria-hidden": "true", draggable: "false" }) : null;
 }
 export function storyLayer(edit) {
   return h("div", { class: "so-layer", "aria-hidden": "true" }, ...((edit?.o || []).map(overlayEl)));
@@ -154,7 +160,9 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     }
     // Its edits: filter, light, position; text and emoji on top; a background colour around it
     styleStoryMedia(stage.firstElementChild, s.edit);
-    stage.style.background = s.edit?.bg || "";
+    stage.style.background = s.edit?.bg && s.edit.bg !== "blur" ? s.edit.bg : "";
+    const back = storyBack(s.edit, s.media.kind === "video" ? s.media.poster : s.media.url);
+    if (back) stage.prepend(back);
     if (s.edit?.o?.length) stage.append(storyLayer(s.edit));
     playStorySong(s);
     // Sensitive (18+): blurred until you tap "View"
