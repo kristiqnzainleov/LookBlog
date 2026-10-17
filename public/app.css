@@ -7506,3 +7506,13 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .swipe-reply-ic.armed { background: var(--pink); color: #111; border-color: var(--pink); }
 .replies-list, .sc-list { overflow-x: hidden; }
 .sc-emoji span { font-size: 1.05rem; }
+/* Comments on a story: their own scrolling area (the box stays put) */
+.sv-cmts { max-height: 34%; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none; transform: none !important; flex-wrap: nowrap; justify-content: flex-start; padding-top: 18px; }
+.sv-cmts::-webkit-scrollbar { display: none; }
+.sv-cmts > * { flex-shrink: 0; }
+.sv-cmts.dragging { cursor: grabbing; user-select: none; }
+.sv-cmts.dragging .sv-cmt { box-shadow: none; }
+/* Moving a sticker */
+.st-item.movable { cursor: grab; touch-action: none; }
+.st-item.moving { cursor: grabbing; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.12); filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.5)); }
+.sv-cmts { -webkit-mask: linear-gradient(transparent, #000 14%, #000 88%, transparent); mask: linear-gradient(transparent, #000 14%, #000 88%, transparent); padding-bottom: 14px; }

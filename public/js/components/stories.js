@@ -204,30 +204,28 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   // The newest comments float on the story itself (tap them to see all and write one)
   const onStory = h("button", { type: "button", class: "sv-cmts", "aria-label": "Comments" });
   frame.append(onStory);
-  let cmtShift = 0;
-  try { cmtShift = Number(localStorage.getItem("lb-story-cmts-y")) || 0; } catch {}
-  const placeCmts = () => { onStory.style.transform = cmtShift ? `translateY(${cmtShift}px)` : ""; };
-  placeCmts();
+  // When there are more, they scroll: drag up or down (or use the wheel / a finger) and the comments move, not the box.
+  // A tap opens all the comments.
   let cmtDrag = null, dragged = false;
-  onStory.addEventListener("pointerdown", (e) => { e.stopPropagation(); cmtDrag = { y: e.clientY, from: cmtShift }; dragged = false; try { onStory.setPointerCapture(e.pointerId); } catch {} });
+  onStory.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+    if (e.pointerType !== "mouse") return; // a finger scrolls it natively
+    cmtDrag = { y: e.clientY, top: onStory.scrollTop }; dragged = false;
+  });
   onStory.addEventListener("pointermove", (e) => {
     if (!cmtDrag) return;
     const dy = e.clientY - cmtDrag.y;
-    if (!dragged && Math.abs(dy) < 6) return;
-    if (!dragged) { dragged = true; pause(true); onStory.classList.add("dragging"); }
-    // stays inside the story: not above the top bar, not below the box at the bottom
-    const fr = frame.getBoundingClientRect(), r = onStory.getBoundingClientRect();
-    const base = r.top - cmtShift;
-    cmtShift = Math.max(fr.top + 90 - base, Math.min(0, cmtDrag.from + dy));
-    placeCmts();
+    if (!dragged && Math.abs(dy) < 5) return;
+    if (!dragged) { dragged = true; pause(true); onStory.classList.add("dragging"); try { onStory.setPointerCapture(e.pointerId); } catch {} }
+    onStory.scrollTop = cmtDrag.top - dy;
   });
-  const dropCmts = () => {
-    if (!cmtDrag) return;
-    cmtDrag = null;
-    if (dragged) { onStory.classList.remove("dragging"); try { localStorage.setItem("lb-story-cmts-y", String(Math.round(cmtShift))); } catch {} pause(false); }
-  };
+  const dropCmts = () => { if (!cmtDrag) return; cmtDrag = null; if (dragged) { onStory.classList.remove("dragging"); pause(false); } };
   onStory.addEventListener("pointerup", dropCmts);
   onStory.addEventListener("pointercancel", dropCmts);
+  // (a finger scrolling it pauses the story while it moves)
+  let scrollPause = 0;
+  onStory.addEventListener("scroll", () => { if (cmtDrag) return; pause(true); clearTimeout(scrollPause); scrollPause = setTimeout(() => pause(false), 700); }, { passive: true });
+  onStory.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
   onStory.addEventListener("click", (e) => { e.stopPropagation(); if (dragged) { dragged = false; return; } const s = story(); if (s) showComments(s); });
   function paintCommentsOnStory(s) {
     const list = s.latestComments || [];
@@ -236,6 +234,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       h("div", { class: "sv-cmt-text" }, h("b", { text: c.name + (c.byOwner ? " · Author" : "") }), c.text ? h("span", { text: c.text }) : null),
       c.sticker ? h("img", { class: "sv-cmt-sticker", src: c.sticker, alt: "" }) : null)),
       h("small", { class: "sv-cmt-more", text: s.comments > list.length ? `💬 View all ${s.comments} comments` : "💬 Add a comment" }));
+    requestAnimationFrame(() => { onStory.scrollTop = onStory.scrollHeight; }); // the newest at the bottom
     frame.style.setProperty("--foot-h", foot.offsetHeight + "px");
     // (above the story's own words, if it has some)
     requestAnimationFrame(() => {
@@ -250,9 +249,38 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   function paintStuck(s) {
     stuckLayer.replaceChildren(...(s.stuck || []).map((x) => {
       const canOff = x.byId === state.me?.id || s.mine;
-      const img = h("img", { class: "st-item", src: x.url, alt: "Sticker", draggable: "false", title: `Sticker from @${x.by}${canOff ? " · tap twice to take it off" : ""}`, style: `left:${x.x}%;top:${x.y}%;--rot:${x.rot}deg` });
+      const img = h("img", { class: "st-item" + (canOff ? " movable" : ""), src: x.url, alt: "Sticker", draggable: "false", title: `Sticker from @${x.by}${canOff ? " · drag to move it, tap twice to take it off" : ""}`, style: `left:${x.x}%;top:${x.y}%;--rot:${x.rot}deg` });
+      // Drag it somewhere else on the story
+      let mv = null, moved = false;
+      img.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        if (!canOff) return;
+        e.preventDefault();
+        mv = { sx: e.clientX, sy: e.clientY, x: x.x, y: x.y }; moved = false;
+        try { img.setPointerCapture(e.pointerId); } catch {}
+      });
+      img.addEventListener("pointermove", (e) => {
+        if (!mv) return;
+        const fr = frame.getBoundingClientRect(), dx = e.clientX - mv.sx, dy = e.clientY - mv.sy;
+        if (!moved && Math.hypot(dx, dy) < 5) return;
+        if (!moved) { moved = true; pause(true); img.classList.add("moving"); img.classList.remove("armed"); }
+        x.x = Math.max(3, Math.min(97, mv.x + (dx / fr.width) * 100));
+        x.y = Math.max(5, Math.min(95, mv.y + (dy / fr.height) * 100));
+        img.style.left = x.x + "%"; img.style.top = x.y + "%";
+      });
+      const drop = async () => {
+        if (!mv) return;
+        mv = null;
+        if (!moved) return;
+        img.classList.remove("moving");
+        pause(false);
+        try { await api(`/api/stories/${s.id}/stick`, { method: "POST", body: { move: x.id, x: x.x, y: x.y } }); } catch (err) { toast(err.error || "Couldn’t move it."); }
+      };
+      img.addEventListener("pointerup", drop);
+      img.addEventListener("pointercancel", drop);
       img.addEventListener("click", async (e) => {
         e.stopPropagation();
+        if (moved) { moved = false; return; } // (that was a drag)
         if (!canOff) return;
         if (!img.classList.contains("armed")) { img.classList.add("armed"); pause(true); setTimeout(() => img.classList.remove("armed"), 2500); return; }
         try { s.stuck = (await api(`/api/stories/${s.id}/stick`, { method: "POST", body: { remove: x.id } })).stuck; paintStuck(s); pause(false); } catch (err) { toast(err.error || "Couldn’t take it off."); }
@@ -325,7 +353,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     };
     const paintList = (comments) => {
       s.comments = comments.length;
-      s.latestComments = comments.slice(-3).map(onStoryOf);
+      s.latestComments = comments.slice(-30).map(onStoryOf);
       if (story() === s) paintCommentsOnStory(s);
       frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(comments.length); });
       // Each comment, with its answers under it
@@ -496,7 +524,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     frame.querySelectorAll(".sv-cc").forEach((x) => { x.textContent = String(ev.count); });
     const before = new Set((s.latestComments || []).map((c) => c.id));
     api(`/api/stories/${s.id}/comments`).then((r) => {
-      s.latestComments = r.comments.slice(-3).map(onStoryOf);
+      s.latestComments = r.comments.slice(-30).map(onStoryOf);
       if (story() !== s) return;
       paintCommentsOnStory(s);
       // Someone else just commented while I'm watching: it pops up

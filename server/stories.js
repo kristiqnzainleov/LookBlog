@@ -71,8 +71,8 @@ function storyView(s, me) {
     taggedMe: (s.tags || []).includes(me.id),
     canRepost: live(s) && s.userId !== me.id && (s.tags || []).includes(me.id) && !repostedBy(s, me),
     comments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).length,
-    // The newest comments, shown right on the story
-    latestComments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).slice(-3)
+    // The newest comments (up to 30), shown right on the story, where they scroll
+    latestComments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).slice(-30)
       .map((c) => { const u = findUser(c.userId); return { id: c.id, name: u.name, username: u.username, avatar: u.avatar, text: c.text || (c.gif ? "GIF" : ""), sticker: c.sticker || null, reply: Boolean(c.parentId), byOwner: c.userId === s.userId }; }),
     repostOf: s.repostOf ? (() => { const o = findUser(s.repostOf.userId); return o ? { username: o.username, name: o.name } : null; })() : null,
   };
@@ -352,11 +352,18 @@ async function handleStories(req, res, url, me) {
     sendTo([...ids], { type: "story:comments", id: story.id, count: (story.comments || []).length });
   };
   // Stickers stuck on the story by people watching it (like on a message): POST /api/stories/:id/stick
-  //   { sticker, x, y, rot }  ·  take one off: { remove: <id> } (yours, or any on your own story)
+  //   { sticker, x, y, rot }  ·  move one: { move: <id>, x, y }  ·  take one off: { remove: <id> }
+  //   (moving and taking off: your own, or any on your own story)
   if (m === "POST" && parts[2] === "stick" && parts.length === 3) {
     const body = await readJSON(req);
     story.stuck = story.stuck || [];
-    if (body.remove) {
+    if (body.move) {
+      const st = story.stuck.find((x) => x.id === body.move);
+      if (!st) throw httpError(404, "That sticker is gone.");
+      if (st.by !== me.id && story.userId !== me.id) throw httpError(403, "You can only move your own stickers.");
+      const num = (v, lo, hi, d) => (Number.isFinite(Number(v)) ? Math.max(lo, Math.min(hi, Math.round(Number(v)))) : d);
+      st.x = num(body.x, 3, 97, st.x); st.y = num(body.y, 5, 95, st.y);
+    } else if (body.remove) {
       const st = story.stuck.find((x) => x.id === body.remove);
       if (!st) throw httpError(404, "That sticker is gone.");
       if (st.by !== me.id && story.userId !== me.id) throw httpError(403, "You can only take off your own stickers.");
