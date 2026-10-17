@@ -7671,3 +7671,15 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sv-react-row .sv-reacts { overflow: visible; gap: 4px; }
 .sv-react-row .sv-react { flex: 1 1 0; min-width: 0; width: auto; max-width: 40px; height: auto; aspect-ratio: 1; font-size: clamp(1rem, 4.6cqw, 1.3rem); padding: 0; display: grid; place-items: center; }
 .story-frame { container-type: size; }
+/* Sounds on stories */
+.sv-reply-row { gap: 6px; }
+.sv-reply-row .sv-gif { width: 42px; height: 42px; }
+.sv-sound-btn span { border: none; padding: 0; font-size: 1.05rem; }
+.sc-sound-msg { margin-top: 4px; }
+.sv-sheet .sc-sound-msg .snd-chip { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.sv-sheet .sc-extras { flex-wrap: wrap; }
+/* Typing a message: the box takes the whole row (the other buttons come back after) */
+.sv-reply-row:focus-within > :is(.sv-comments-btn, .sv-sound-btn, .sv-gif:not(.sv-send)) { display: none; }
+.sv-sheet .sc-extras { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.sv-sheet .sc-extras::-webkit-scrollbar { display: none; }
+.sv-sheet .sc-extras .sc-gif { flex-shrink: 0; }

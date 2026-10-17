@@ -74,7 +74,7 @@ function storyView(s, me) {
     comments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).length,
     // The newest comments (up to 30), shown right on the story, where they scroll
     latestComments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).slice(-30)
-      .map((c) => { const u = findUser(c.userId); return { id: c.id, name: u.name, username: u.username, avatar: u.avatar, text: c.text || (c.gif ? "GIF" : c.image ? "📷 Photo" : ""), sticker: c.sticker || null, image: c.image?.url || null, reply: Boolean(c.parentId), byOwner: c.userId === s.userId }; }),
+      .map((c) => { const u = findUser(c.userId); return { id: c.id, name: u.name, username: u.username, avatar: u.avatar, text: c.text || (c.gif ? "GIF" : c.image ? "📷 Photo" : c.sound ? `${c.sound.emoji || "🔊"} ${c.sound.name || "Sound"}` : ""), sticker: c.sticker || null, image: c.image?.url || null, reply: Boolean(c.parentId), byOwner: c.userId === s.userId }; }),
     repostOf: s.repostOf ? (() => { const o = findUser(s.repostOf.userId); return o ? { username: o.username, name: o.name } : null; })() : null,
   };
   if (s.userId === me.id) {
@@ -117,7 +117,19 @@ function storyState(user, me) {
 }
 
 // A reply or reaction: a message if the two follow each other (with the story shown), otherwise a notification
-function deliverToOwner(story, me, { text, reaction, gif = null }) {
+// A sound sent to a story (a reply or a comment): one of mine, or a built-in one
+const BUILTIN_NAMES = { airhorn: ["Airhorn", "📯"], tada: ["Ta-da", "🎉"], drum: ["Ba dum tss", "🥁"], boing: ["Boing", "🤪"], ding: ["Ding", "🔔"], sad: ["Sad trombone", "😢"] };
+function storySound(body, me) {
+  if (body.builtinSound) {
+    const { BUILTIN_SOUND_IDS } = require("./social");
+    if (!(BUILTIN_SOUND_IDS || []).includes(body.builtinSound)) throw httpError(400, "Pick a sound.");
+    const [name, emoji] = BUILTIN_NAMES[body.builtinSound] || [body.builtinSound, "🔊"];
+    return { kind: "sound", builtin: body.builtinSound, name, emoji, shared: true };
+  }
+  if (body.mySound) return require("./social").resolveExtras({ mySound: body.mySound }, me);
+  return null;
+}
+function deliverToOwner(story, me, { text, reaction, gif = null, sound = null }) {
   const owner = findUser(story.userId);
   const chatMod = require("./chat");
   const mutual = me.following.includes(owner.id) && owner.following.includes(me.id);
@@ -127,10 +139,10 @@ function deliverToOwner(story, me, { text, reaction, gif = null }) {
     db.chats.push(chat);
   }
   if (!chat) {
-    notify(owner.id, reaction ? "story-reaction" : "story-reply", me, reaction ? { emoji: reaction } : { text: text || "sent a GIF" });
+    notify(owner.id, reaction ? "story-reaction" : "story-reply", me, reaction ? { emoji: reaction } : { text: text || (sound ? "sent a sound 🔊" : "sent a GIF") });
     return { sent: "notification" };
   }
-  const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text: reaction || text, media: gif ? { url: gif.url, kind: "image", gif: true } : null, postId: null, replyTo: null, mentions: [],
+  const msg = { id: crypto.randomUUID(), chatId: chat.id, userId: me.id, text: reaction || text, media: sound || (gif ? { url: gif.url, kind: "image", gif: true } : null), postId: null, replyTo: null, mentions: [],
     storyReply: { storyId: story.id, owner: owner.id, reaction: reaction || null }, createdAt: new Date().toISOString() };
   db.messages.push(msg);
   chat.lastAt = msg.createdAt;
@@ -329,23 +341,24 @@ async function handleStories(req, res, url, me) {
     return true;
   }
 
-  // Reply: POST /api/stories/:id/reply { text }
+  // Reply: POST /api/stories/:id/reply { text, gif, mySound | builtinSound }
   if (m === "POST" && parts[2] === "reply") {
     if (story.userId === me.id) throw httpError(400, "You can’t reply to your own story.");
     rateLimit("story-reply:" + me.id, 60, 10 * 60 * 1000, "You’ve sent a lot of replies. Take a short break.");
     const body = await readJSON(req);
     const text = clean(body.text);
     const gif = body.gif || body.gifUrl ? require("./social").resolveGif(body, me) : null;
-    if (!text && !gif) throw httpError(400, "Write a reply.");
+    const sound = gif ? null : storySound(body, me);
+    if (!text && !gif && !sound) throw httpError(400, "Write a reply.");
     if (chars(text) > 1000) throw httpError(400, "Keep it under 1000 characters.");
-    sendJSON(res, 201, deliverToOwner(story, me, { text, gif }));
+    sendJSON(res, 201, deliverToOwner(story, me, { text: sound ? "" : text, gif, sound }));
     return true;
   }
 
   /* ---------- Comments on a story: they stay on it (in highlights too), everyone who can see it sees them ---------- */
   const commentView = (c) => {
     const u = findUser(c.userId);
-    return u ? { id: c.id, text: c.text, gif: c.gif || null, sticker: c.sticker || null, image: c.image || null, parentId: c.parentId || null, at: c.at, author: authorView(u), mine: c.userId === me.id, canDelete: c.userId === me.id || story.userId === me.id,
+    return u ? { id: c.id, text: c.text, gif: c.gif || null, sticker: c.sticker || null, image: c.image || null, sound: c.sound || null, parentId: c.parentId || null, at: c.at, author: authorView(u), mine: c.userId === me.id, canDelete: c.userId === me.id || story.userId === me.id,
       likes: (c.likes || []).length, liked: (c.likes || []).includes(me.id), byOwner: c.userId === story.userId } : null;
   };
   const { blockedBetween } = require("./social");
@@ -406,7 +419,8 @@ async function handleStories(req, res, url, me) {
     const sticker = body.sticker ? require("./social").resolveExtras({ sticker: body.sticker }, me)?.url || null : null;
     const photo = body.image ? ownedMedia(body.image.url || body.image, me.id, "image") : null;
     if (body.image && !photo) throw httpError(400, "That photo couldn’t be used. Try picking it again.");
-    if (!text && !gif && !sticker && !photo) throw httpError(400, "Write a comment.");
+    const snd = !gif && !sticker && !photo ? storySound(body, me) : null;
+    if (!text && !gif && !sticker && !photo && !snd) throw httpError(400, "Write a comment.");
     // An answer to a comment (answers to answers go under the same comment, one level like Instagram)
     let parent = body.parentId ? (story.comments || []).find((c) => c.id === body.parentId) : null;
     if (body.parentId && !parent) throw httpError(404, "That comment is gone.");
@@ -414,10 +428,10 @@ async function handleStories(req, res, url, me) {
     if (chars(text) > 500) throw httpError(400, "Keep it under 500 characters.");
     story.comments = story.comments || [];
     if (story.comments.length >= 500) throw httpError(400, "This story has a lot of comments already.");
-    story.comments.push({ id: crypto.randomUUID().slice(0, 12), userId: me.id, text, gif: gif ? { url: gif.url, width: gif.width || null, height: gif.height || null } : null, ...(sticker ? { sticker } : {}), ...(photo ? { image: { url: photo.url, width: Math.round(Number(body.image.width)) || null, height: Math.round(Number(body.image.height)) || null } } : {}), ...(parent ? { parentId: parent.id } : {}), at: new Date().toISOString(), likes: [] });
+    story.comments.push({ id: crypto.randomUUID().slice(0, 12), userId: me.id, text, gif: gif ? { url: gif.url, width: gif.width || null, height: gif.height || null } : null, ...(sticker ? { sticker } : {}), ...(snd ? { sound: { ...(snd.builtin ? { builtin: snd.builtin } : { url: snd.url }), name: snd.name, emoji: snd.emoji || "🔊", ...(snd.image ? { image: snd.image } : {}) } } : {}), ...(photo ? { image: { url: photo.url, width: Math.round(Number(body.image.width)) || null, height: Math.round(Number(body.image.height)) || null } } : {}), ...(parent ? { parentId: parent.id } : {}), at: new Date().toISOString(), likes: [] });
     if (!story.viewers.some((v) => v.userId === me.id) && story.userId !== me.id) story.viewers.push({ userId: me.id, at: new Date().toISOString() });
     save("stories");
-    const what = text || (sticker ? "sent a sticker" : photo ? "commented with a photo" : "commented with a GIF");
+    const what = text || (sticker ? "sent a sticker" : photo ? "commented with a photo" : snd ? "commented with a sound 🔊" : "commented with a GIF");
     if (photo) markUsed(photo.url, "story-comment:" + story.id);
     if (story.userId !== me.id) notify(story.userId, "story-comment", me, { text: what, storyId: story.id });
     // …and the person whose comment I answered

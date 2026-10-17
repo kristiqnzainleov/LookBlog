@@ -5,6 +5,7 @@ import { on, state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
 import { inspectVideo } from "./media-picker.js";
 import { openGifs, gifBody, closeGifs } from "./gifs.js";
+import { openSoundPicker, closeSoundPicker, soundChip } from "./sounds.js";
 import { attachMentions } from "./mentions.js";
 import { mediaStyle, STORY_FONTS } from "../games/story-look.js";
 
@@ -138,6 +139,14 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     frame.append(el);
     sheetOpen = sheet;
     return sheet;
+  }
+  // Pick a sound to send (the story waits while the list is open)
+  function pickStorySound(anchor, onPick, stop = true) {
+    if (stop) pause(true);
+    let picked = false;
+    openSoundPicker(anchor, { builtin: true, onPick: (b) => { picked = true; if (stop) pause(false); onPick(b); } });
+    // (closed without picking: go on)
+    const watch = setInterval(() => { if (!document.querySelector(".snd-panel")) { clearInterval(watch); if (stop && !picked && !closed && !sheetOpen) pause(false); } }, 300);
   }
   // A photo from a comment, big, over the story (tap or Esc to close it)
   function seePhoto(url) {
@@ -321,7 +330,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     paintBars(0);
     timer = requestAnimationFrame(tickTime);
   }
-  const onStoryOf = (c) => ({ id: c.id, name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : c.image ? "📷 Photo" : ""), sticker: c.sticker || null, image: c.image?.url || c.image || null, reply: Boolean(c.parentId), byOwner: c.byOwner });
+  const onStoryOf = (c) => ({ id: c.id, name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : c.image ? "📷 Photo" : c.sound ? `${c.sound.emoji || "🔊"} ${c.sound.name || "Sound"}` : ""), sticker: c.sticker || null, image: c.image?.url || c.image || null, reply: Boolean(c.parentId), byOwner: c.byOwner });
   // A new comment pops up on the story: the commenter's photo and their words (like Instagram)
   function popComment(c) {
     if (!c) return;
@@ -479,6 +488,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       document.body.append(f);
       f.click();
     });
+    const soundBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-sound", title: "Sound", "aria-label": "Comment with a sound" }, h("span", { text: "🔊" }), h("small", { text: "Sound" }));
+    soundBtn.addEventListener("click", () => pickStorySound(soundBtn, (b) => post(b), false));
     stickBtn.addEventListener("click", () => import("./stickers.js").then(({ openStickers }) => openStickers(stickBtn, (st) => post({ text: input.value, sticker: st.id }))));
     // Answering a comment: a bar above the box ("Replying to @…  ✕")
     let replyTo = null;
@@ -509,6 +520,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
             c.text ? h("p", { class: "sc-text", text: c.text }) : null,
             c.gif ? h("img", { class: "sc-gif-img", src: c.gif.url, alt: "GIF", loading: "lazy" }) : null,
             c.sticker ? h("img", { class: "sc-sticker", src: c.sticker, alt: "Sticker", loading: "lazy" }) : null,
+          c.sound ? h("div", { class: "sc-sound-msg" }, soundChip(c.sound)) : null,
           c.image ? h("button", { type: "button", class: "sc-photo-btn", "aria-label": "See the photo", onclick: () => seePhoto(c.image.url) }, h("img", { class: "sc-photo-img", src: c.image.url, alt: "Photo", loading: "lazy", width: c.image.width || undefined, height: c.image.height || undefined })) : null),
           h("div", { class: "sc-meta" }, h("small", { class: "muted", text: timeAgo(c.at) }), reply, del)),
         like);
@@ -550,8 +562,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       input.focus(); input.setSelectionRange(at + e.length, at + e.length);
       send.disabled = !ready() || (photo && !photo.url);
     })));
-    const md = frameSheet({ title: `Comments${s.comments ? ` · ${s.comments}` : ""}`, onClose: () => { closeGifs(); import("./emoji.js").then((m) => m.closeEmojiPicker?.()).catch(() => {}); import("./stickers.js").then((m) => m.closeStickers?.()).catch(() => {}); offC(); if (!closed) pause(false); },
-      body: h("div", { class: "sc-sheet" }, list, replyBar, h("div", { class: "sc-compose" }, photoBar, h("div", { class: "sc-type" }, input, send), h("div", { class: "sc-extras" }, photoBtn, emojiBtn, stickBtn, gifBtn))) });
+    const md = frameSheet({ title: `Comments${s.comments ? ` · ${s.comments}` : ""}`, onClose: () => { closeGifs(); closeSoundPicker(); import("./emoji.js").then((m) => m.closeEmojiPicker?.()).catch(() => {}); import("./stickers.js").then((m) => m.closeStickers?.()).catch(() => {}); offC(); if (!closed) pause(false); },
+      body: h("div", { class: "sc-sheet" }, list, replyBar, h("div", { class: "sc-compose" }, photoBar, h("div", { class: "sc-type" }, input, send), h("div", { class: "sc-extras" }, photoBtn, soundBtn, emojiBtn, stickBtn, gifBtn))) });
     const load = () => api(`/api/stories/${s.id}/comments`).then((r) => paintList(r.comments)).catch(() => list.replaceChildren(h("p", { class: "muted", text: "Couldn’t load the comments." })));
     const offC = on("story:comments", (ev) => { if (ev.id === s.id) load(); });
     load();
@@ -644,6 +656,14 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
           } catch (err) { toast(err.error || "Couldn’t send it."); }
         }, { onClose: () => pause(false) });
       });
+      // …or a sound (one of mine, or a built-in one): it arrives in Messages, and plays there
+      const soundBtn = h("button", { type: "button", class: "sv-gif sv-sound-btn", "aria-label": "Reply with a sound", title: "Sound" }, h("span", { text: "🔊" }));
+      soundBtn.addEventListener("click", () => pickStorySound(soundBtn, async (b) => {
+        try {
+          const r = await api(`/api/stories/${s.id}/reply`, { method: "POST", body: b });
+          toast(r.sent === "message" ? "🔊 Sound sent in Messages." : `🔊 Sent. ${group().user.name.split(" ")[0]} gets it as a notification.`);
+        } catch (err) { toast(err.error || "Couldn’t send it."); }
+      }));
       // Tagged in it: add it to my story (like Instagram)
       let repost = null;
       if (s.canRepost) {
@@ -654,7 +674,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
           catch (err) { toast(err.error || "Couldn’t add it."); repost.disabled = false; }
         });
       }
-      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts), h("div", { class: "sv-reply-row" }, commentsBtn(s, true), input, gifBtn, send));
+      foot.replaceChildren(...(repost ? [repost] : []), h("div", { class: "sv-react-row" }, reacts), h("div", { class: "sv-reply-row" }, commentsBtn(s, true), input, soundBtn, gifBtn, send));
     }
   }
   // A reaction floats up over the story
