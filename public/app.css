@@ -7251,3 +7251,8 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .msg-stuck .stuck.just { animation: stuckDrop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes stuckDrop { from { transform: translate(-50%, -90%) rotate(var(--rot, 0deg)) scale(1.8); opacity: 0; } }
 .msg:has(.msg-stuck img) { margin-top: 12px; margin-bottom: 12px; }
+/* Story footer with "Add to your story": one column, nothing pushed out to the right */
+.sv-foot:has(.sv-reacts):has(.sv-add-story) { flex-wrap: nowrap; }
+.sv-foot:has(.sv-reacts) .sv-add-story { flex: none; width: 100%; }
+.sv-foot .sv-react-row, .sv-foot .sv-reply-row { min-width: 0; max-width: 100%; }
+.sv-foot .sv-reply-row input { min-width: 0; flex: 1; }
