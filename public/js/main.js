@@ -99,6 +99,10 @@ function paintMe() {
   $("menuAdmin").hidden = !me.admin;
 }
 
+/* ---------- The top bar's windows: opening one closes the one open before ---------- */
+export function topbarOpened(name) { document.dispatchEvent(new CustomEvent("topbar:open", { detail: name })); }
+export function onTopbarOpen(name, close) { document.addEventListener("topbar:open", (e) => { if (e.detail !== name) close(); }); }
+
 /* ---------- Account menu in the top bar ---------- */
 function setupMenu() {
   const btn = $("meBtn"), pop = $("mePop");
@@ -107,11 +111,13 @@ function setupMenu() {
     e.stopPropagation();
     pop.hidden = !pop.hidden;
     btn.setAttribute("aria-expanded", String(!pop.hidden));
+    if (!pop.hidden) topbarOpened("me");
     // Other accounts logged in on this browser, to switch quickly
     if (!pop.hidden) import("./components/accounts.js").then((m) => m.paintAccounts($("meAccounts")));
   });
   document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target)) close(); });
   document.addEventListener("keydown", (e) => e.key === "Escape" && close());
+  onTopbarOpen("me", close);
   pop.addEventListener("click", (e) => { if (e.target.closest("a, button")) close(); });
   // Create: upload a video or a short (or write a post) from anywhere
   {
@@ -135,8 +141,10 @@ function setupMenu() {
       pop.hidden = false;
       requestAnimationFrame(() => requestAnimationFrame(() => pop.classList.add("show")));
       btn.setAttribute("aria-expanded", "true");
+      topbarOpened("create");
       setTimeout(() => pop.querySelector(".cs-grid button")?.focus(), 60);
     };
+    onTopbarOpen("create", close);
     btn.addEventListener("click", (e) => { e.stopPropagation(); pop.hidden ? open() : close(); });
     pop.addEventListener("click", (e) => { if (e.target === pop || e.target.closest(".cs-close")) close(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });

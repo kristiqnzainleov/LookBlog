@@ -122,6 +122,7 @@ export function setupNotifications() {
 
   async function open() {
     pop.hidden = false;
+    document.dispatchEvent(new CustomEvent("topbar:open", { detail: "notifications" }));
     btn.setAttribute("aria-expanded", "true");
     list.replaceChildren(spinner());
     try {
@@ -141,6 +142,7 @@ export function setupNotifications() {
   btn.addEventListener("click", (e) => { e.stopPropagation(); pop.hidden ? open() : close(); });
   document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target) && e.target !== btn) close(); });
   document.addEventListener("keydown", (e) => e.key === "Escape" && close());
+  document.addEventListener("topbar:open", (e) => { if (e.detail !== "notifications") close(); });
 
   // Live: count goes up, a short message pops up, and an open list gets the new item on top
   on("notification", (ev) => {
