@@ -202,11 +202,11 @@ const NAME_FONTS = ["display", "serif", "mono", "script", "rounded", "wide",
 // A custom gradient: 2–4 colours and a direction, e.g. "grad:#ff0000,#00ff88@90"
 const GRAD = /^grad:#[0-9a-f]{6}(,#[0-9a-f]{6}){1,3}@\d{1,3}$/i;
 const NAME_EFFECTS = ["glow", "shine", "shadow", "outline", "chrome", "retro", "fire", "ice", "neonsign", "gold", "holo", "candy", "pop"];
-const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white", "xmas", "steel", "forest", "fire", "ice", "galaxy", "candy", "toxic", "pastel", "disco", "lava", "chrome", "royal", "mintice", "sunrise", "rose", "peach", "midnight", "electric", "bubblegum", "northern", "emerald", "sakura", "bronze"];
-const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora", "snow", "candy", "shell", "pinstripe", "hearts", "matrix", "sunrays", "hexagons", "zigzag", "plaid", "circuit", "bokeh", "confetti", "marble", "clouds", "checker", "triangles", "lavalamp", "paper"];
-const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono", "xmas", "winter", "forest", "turtle", "business", "halloween", "beach", "love", "matrix", "coffee", "pirate", "spring", "vapor", "sunsetcity", "deepsea", "lemonade", "berry", "cyber", "desert", "cottoncandy"];
+const RINGS = ["accent", "sunset", "ocean", "gold", "rainbow", "spin", "neon", "white", "xmas", "steel", "forest", "fire", "ice", "galaxy", "candy", "toxic", "pastel", "disco", "lava", "chrome", "royal", "mintice", "sunrise", "rose", "peach", "midnight", "electric", "bubblegum", "northern", "emerald", "sakura", "bronze", "ruby", "sapphire", "amethyst", "citrus", "cotton", "vapor", "ember", "holo"];
+const PROFILE_BGS = ["glow", "gradient", "stars", "grid", "dots", "waves", "aurora", "snow", "candy", "shell", "pinstripe", "hearts", "matrix", "sunrays", "hexagons", "zigzag", "plaid", "circuit", "bokeh", "confetti", "marble", "clouds", "checker", "triangles", "lavalamp", "paper", "chess", "stripes", "pyramids", "ringsbg", "crosses", "dusk", "mesh", "vapor"];
+const BANNERS = ["sunset", "ocean", "aurora", "candy", "fire", "galaxy", "night", "mint", "mono", "xmas", "winter", "forest", "turtle", "business", "halloween", "beach", "love", "matrix", "coffee", "pirate", "spring", "vapor", "sunsetcity", "deepsea", "lemonade", "berry", "cyber", "desert", "cottoncandy", "vaporwave", "peach", "lagoon", "blueberry", "lime", "cocoa", "steelblue", "dusk"];
 const PROFILE_FX = ["snow", "hearts", "sparkles", "stars", "sakura", "confetti", "bubbles", "fire", "leaves", "money",
-  "xmas", "turtles", "pumpkins", "bats", "love", "notes", "charts", "fish", "rain", "coffee", "paws", "petals", "gems", "matrix", "summer", "school", "balls", "food", "sharks", "galaxy", "ocean", "sweets", "gaming", "butterflies", "dino", "space", "fruit", "magic", "lucky"];
+  "xmas", "turtles", "pumpkins", "bats", "love", "notes", "charts", "fish", "rain", "coffee", "paws", "petals", "gems", "matrix", "summer", "school", "balls", "food", "sharks", "galaxy", "ocean", "sweets", "gaming", "butterflies", "dino", "space", "fruit", "magic", "lucky", "clouds", "sunflowers", "cats", "dogs", "aliens", "ghosts", "crowns", "lightning", "birds", "bees", "unicorns", "frogs", "skulls", "eyes"];
 const AVATAR_SHAPES = ["squircle", "hex", "heart", "star", "blob", "diamond", "octagon", "pentagon", "shield", "leaf", "flower", "drop", "arch", "egg", "cushion", "gem"];
 const NAME_ANIMS = ["wave", "bounce", "pulse", "glitch", "rainbow", "float", "shake", "flicker", "glow", "slide", "zoom", "jelly", "swing", "tada", "heartbeat"];
 const CARD_FRAMES = ["neon", "glass", "gold", "pixel", "comic", "holo", "candy", "ice", "wood", "business", "shell", "rainbow", "fire", "dashed", "double", "sketch", "aurora", "vapor", "chrome", "love", "toxic", "royal", "polaroid"];
@@ -277,6 +277,9 @@ function cleanLook(b, me) {
   if (["underline", "highlight", "wavy", "box", "sparkle", "glowline"].includes(b.nameDeco)) out.nameDeco = b.nameDeco; // a line under my name
   if (["fade", "slide", "zoom", "flip", "drop", "blur"].includes(b.intro)) out.intro = b.intro; // how my profile opens
   if (["glass", "neon", "minimal", "bold", "gradient", "outline"].includes(b.statStyle)) out.statStyle = b.statStyle; // how my numbers look
+  if (["underline", "neon", "glass", "boxed", "retro", "gradient"].includes(b.tabStyle)) out.tabStyle = b.tabStyle; // how the tabs on my profile look
+  if (["square", "outline", "neon", "gradient", "glass", "pop"].includes(b.btnStyle)) out.btnStyle = b.btnStyle; // how the buttons on my profile look
+  if (["curve", "wave", "zigzag", "slant", "fade", "rounded"].includes(b.bannerEdge)) out.bannerEdge = b.bannerEdge; // the shape of my banner's bottom edge
   // Up to 3 badges shown next to my name
   if (Array.isArray(b.featured)) { const f = [...new Set(b.featured.map(String).filter((x) => /^[\w:-]{1,40}$/.test(x)))].slice(0, 3); if (f.length) out.featured = f; }
   // A status under my name: an emoji and a few words

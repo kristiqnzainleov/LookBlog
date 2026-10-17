@@ -28,7 +28,8 @@ export const NAME_EFFECTS = [["", "None"], ["glow", "Glow"], ["shine", "Shine"],
 export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["spin", "✨ Spinning"], ["neon", "Neon"], ["white", "White"], ["xmas", "🎄 Candy cane"], ["steel", "Steel"], ["forest", "Forest"],
   ["fire", "🔥 Fire"], ["ice", "🧊 Ice"], ["galaxy", "🌌 Galaxy"], ["candy", "🍬 Candy"], ["toxic", "☢️ Toxic"], ["pastel", "Pastel"], ["disco", "🪩 Disco"],
   ["lava", "🌋 Lava"], ["chrome", "🪞 Chrome"], ["royal", "👑 Royal"], ["mintice", "🌿 Mint"], ["sunrise", "🌅 Sunrise"], ["rose", "🌹 Rose"],
-  ["peach", "🍑 Peach"], ["midnight", "🌃 Midnight"], ["electric", "⚡ Electric"], ["bubblegum", "🍬 Bubblegum"], ["northern", "🌌 Northern lights"], ["emerald", "💚 Emerald"], ["sakura", "🌸 Sakura"], ["bronze", "🥉 Bronze"]];
+  ["peach", "🍑 Peach"], ["midnight", "🌃 Midnight"], ["electric", "⚡ Electric"], ["bubblegum", "🍬 Bubblegum"], ["northern", "🌌 Northern lights"], ["emerald", "💚 Emerald"], ["sakura", "🌸 Sakura"], ["bronze", "🥉 Bronze"],
+  ["ruby", "❤️ Ruby"], ["sapphire", "💙 Sapphire"], ["amethyst", "💜 Amethyst"], ["citrus", "🍋 Citrus"], ["cotton", "🍭 Cotton candy"], ["vapor", "🌆 Vaporwave"], ["ember", "🔥 Ember"], ["holo", "🪩 Holo"]];
 // New: the banner moves, a line under the name, how the profile opens, and how the numbers look
 export const BANNER_ANIMS = [["", "Still"], ["kenburns", "🎥 Slow zoom"], ["pan", "↔️ Pan"], ["shimmer", "✨ Shimmer"], ["hue", "🌈 Colour shift"], ["pulse", "💓 Pulse"], ["glitch", "📺 Glitch"]];
 export const NAME_DECOS = [["", "None"], ["underline", "Underline"], ["highlight", "🖍 Marker"], ["wavy", "〰️ Wavy"], ["box", "▢ Box"], ["sparkle", "✨ Sparkles"], ["glowline", "💡 Glow line"]];
@@ -37,11 +38,13 @@ export const STAT_STYLES = [["", "Normal"], ["glass", "🧊 Glass"], ["neon", "�
 export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradient"], ["aurora", "Aurora"], ["stars", "Stars"], ["grid", "Grid"], ["dots", "Dots"], ["waves", "Waves"],
   ["snow", "❄️ Snow"], ["candy", "🍬 Candy cane"], ["shell", "🐢 Shell"], ["pinstripe", "💼 Pinstripe"], ["hearts", "💗 Hearts"], ["matrix", "💻 Matrix"], ["sunrays", "☀️ Sun rays"],
   ["hexagons", "⬡ Hexagons"], ["zigzag", "〰️ Zigzag"], ["plaid", "🧣 Plaid"], ["circuit", "🔌 Circuit"], ["bokeh", "✨ Bokeh"], ["confetti", "🎊 Confetti"],
-  ["marble", "🪨 Marble"], ["clouds", "☁️ Clouds"], ["checker", "🏁 Checker"], ["triangles", "🔺 Triangles"], ["lavalamp", "🫧 Lava lamp"], ["paper", "📄 Paper"]];
+  ["marble", "🪨 Marble"], ["clouds", "☁️ Clouds"], ["checker", "🏁 Checker"], ["triangles", "🔺 Triangles"], ["lavalamp", "🫧 Lava lamp"], ["paper", "📄 Paper"],
+  ["chess", "🏁 Chess"], ["stripes", "📏 Stripes"], ["pyramids", "🔺 Pyramids"], ["ringsbg", "⭕ Rings"], ["crosses", "➕ Crosses"], ["dusk", "🌇 Dusk"], ["mesh", "🫧 Mesh"], ["vapor", "🌆 Vaporwave"]];
 export const BANNERS = [["", "Default"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["aurora", "Aurora"], ["candy", "Candy"], ["fire", "Fire"], ["galaxy", "Galaxy"], ["night", "Night"], ["mint", "Mint"], ["mono", "Mono"],
   ["xmas", "🎄 Christmas"], ["winter", "❄️ Winter"], ["forest", "🌲 Forest"], ["turtle", "🐢 Turtle"], ["business", "💼 Business"], ["halloween", "🎃 Halloween"],
   ["beach", "🏖️ Beach"], ["love", "💘 Love"], ["matrix", "💻 Matrix"], ["coffee", "☕ Coffee"], ["pirate", "🏴‍☠️ Pirate"], ["spring", "🌷 Spring"],
-  ["vapor", "🌴 Vaporwave"], ["sunsetcity", "🌆 City sunset"], ["deepsea", "🐋 Deep sea"], ["lemonade", "🍋 Lemonade"], ["berry", "🫐 Berry"], ["cyber", "🤖 Cyber"], ["desert", "🏜️ Desert"], ["cottoncandy", "🍭 Cotton candy"]];
+  ["vapor", "🌴 Vaporwave"], ["sunsetcity", "🌆 City sunset"], ["deepsea", "🐋 Deep sea"], ["lemonade", "🍋 Lemonade"], ["berry", "🫐 Berry"], ["cyber", "🤖 Cyber"], ["desert", "🏜️ Desert"], ["cottoncandy", "🍭 Cotton candy"],
+  ["vaporwave", "🌆 Vaporwave"], ["peach", "🍑 Peach"], ["lagoon", "🏝️ Lagoon"], ["blueberry", "🫐 Blueberry"], ["lime", "🍋 Lime"], ["cocoa", "🍫 Cocoa"], ["steelblue", "🛡️ Steel"], ["dusk", "🌇 Dusk"]];
 // Photo shape, name animation, a frame around the profile, a trail behind the pointer
 export const AVATAR_SHAPES = [["", "Circle"], ["squircle", "Squircle"], ["hex", "Hexagon"], ["heart", "Heart"], ["star", "Star"], ["blob", "Blob"], ["diamond", "Diamond"],
   ["octagon", "Octagon"], ["pentagon", "Pentagon"], ["shield", "Shield"], ["leaf", "Leaf"], ["flower", "Flower"], ["drop", "Drop"],
@@ -63,6 +66,9 @@ export const CURSORS = ["", "✨", "💖", "⭐", "🐢", "🔥", "👑", "🎮"
   "🦋", "🎀", "🐸", "🍒", "🪐", "🌈", "🦈", "🍩", "💫", "🐶"];
 export const BIO_STYLES = [["", "Plain"], ["card", "🪪 Card"], ["note", "🗒 Sticky note"], ["terminal", "💻 Terminal"], ["neon", "💡 Neon"], ["quote", "❝ Quote"], ["bubble", "💬 Bubble"],
   ["chalk", "🧑‍🏫 Chalkboard"], ["scroll", "📜 Scroll"], ["receipt", "🧾 Receipt"], ["glass", "🧊 Glass"]];
+export const TAB_STYLES = [["", "Normal"], ["underline", "Underline"], ["neon", "💡 Neon"], ["glass", "🧊 Glass"], ["boxed", "▢ Boxed"], ["retro", "🕹 Retro"], ["gradient", "🎨 Gradient"]];
+export const BTN_STYLES = [["", "Normal"], ["square", "◼ Square"], ["outline", "Outline"], ["neon", "💡 Neon"], ["gradient", "🎨 Gradient"], ["glass", "🧊 Glass"], ["pop", "💥 3D pop"]];
+export const BANNER_EDGES = [["", "Straight"], ["curve", "◡ Curve"], ["wave", "〰️ Wave"], ["zigzag", "⚡ Zigzag"], ["slant", "◢ Slant"], ["fade", "🌫 Fade"], ["rounded", "▢ Rounded"]];
 export const NAME_SIZES = [["", "Normal"], ["big", "Big"], ["huge", "Huge"]];
 // One tap: a whole look at once (in groups)
 const T = (color, font, effect, emoji, accent, ring, bg, banner, fx, deco, shape, anim, frame, trail) => ({ color, font, effect, emoji, accent, ring, bg, banner, fx, deco, shape, anim, frame, trail });
@@ -138,8 +144,9 @@ export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "�
   ["xmas", "🎄 Christmas"], ["turtles", "🐢 Turtles"], ["pumpkins", "🎃 Halloween"], ["bats", "🦇 Bats"], ["love", "💌 Love"], ["notes", "🎵 Music"], ["charts", "📈 Business"],
   ["fish", "🐠 Fish"], ["rain", "💧 Rain"], ["coffee", "☕ Coffee"], ["paws", "🐾 Paws"], ["petals", "🌷 Spring"], ["gems", "💎 Gems"], ["matrix", "💻 Code"],
   ["summer", "🌴 Summer"], ["school", "📚 School"], ["balls", "⚽ Sport"], ["food", "🍕 Food"], ["sharks", "🦈 Sharks"],
-  ["galaxy", "🪐 Galaxy"], ["ocean", "🌊 Ocean"], ["sweets", "🍭 Sweets"], ["gaming", "🎮 Gaming"], ["butterflies", "🦋 Butterflies"], ["dino", "🦖 Dinos"], ["space", "🚀 Space"], ["fruit", "🍓 Fruit"], ["magic", "🪄 Magic"], ["lucky", "🍀 Lucky"]];
-const FX_PARTS = { snow: ["❄️", "❅", "❆"], hearts: ["💗", "💖", "💕", "❤️"], sparkles: ["✨", "💫", "⭐"], stars: ["⭐", "🌟", "✦"], sakura: ["🌸", "🌺", "💮"],
+  ["galaxy", "🪐 Galaxy"], ["ocean", "🌊 Ocean"], ["sweets", "🍭 Sweets"], ["gaming", "🎮 Gaming"], ["butterflies", "🦋 Butterflies"], ["dino", "🦖 Dinos"], ["space", "🚀 Space"], ["fruit", "🍓 Fruit"], ["magic", "🪄 Magic"], ["lucky", "🍀 Lucky"],
+  ["clouds", "☁️ Clouds"], ["sunflowers", "🌻 Sunflowers"], ["cats", "🐱 Cats"], ["dogs", "🐶 Dogs"], ["aliens", "👽 Aliens"], ["ghosts", "👻 Ghosts"], ["crowns", "👑 Royal"], ["lightning", "⚡ Lightning"], ["birds", "🐦 Birds"], ["bees", "🐝 Bees"], ["unicorns", "🦄 Unicorns"], ["frogs", "🐸 Frogs"], ["skulls", "💀 Spooky"], ["eyes", "👀 Eyes"]];
+const FX_PARTS = { clouds: ["☁️", "⛅", "☁️"], sunflowers: ["🌻", "🌼", "🌻"], cats: ["🐱", "🐈", "😺", "🐾"], dogs: ["🐶", "🐕", "🦴", "🐾"], aliens: ["👽", "🛸", "👾"], ghosts: ["👻", "👻", "🕯️"], crowns: ["👑", "💎", "✨"], lightning: ["⚡", "⚡", "🌩️"], birds: ["🐦", "🕊️", "🪶"], bees: ["🐝", "🌼", "🍯"], unicorns: ["🦄", "🌈", "✨"], frogs: ["🐸", "\U0001fab7", "🌿"], skulls: ["💀", "☠️", "🖤"], eyes: ["👀", "👁️", "👀"], snow: ["❄️", "❅", "❆"], hearts: ["💗", "💖", "💕", "❤️"], sparkles: ["✨", "💫", "⭐"], stars: ["⭐", "🌟", "✦"], sakura: ["🌸", "🌺", "💮"],
   confetti: ["🎉", "🎊", "✨", "🟣", "🟡"], bubbles: ["🫧", "○", "◦"], fire: ["🔥", "✨"], leaves: ["🍂", "🍁", "🍃"], money: ["💸", "💵", "🪙"],
   xmas: ["🎄", "🎁", "⭐", "🔔", "❄️", "🍬"], turtles: ["🐢", "🫧", "🐢", "🌿"], pumpkins: ["🎃", "👻", "🦇", "🕸️"], bats: ["🦇", "🦇", "🌙"], love: ["💌", "💘", "💗", "🌹"], notes: ["🎵", "🎶", "🎧", "🎤"],
   charts: ["📈", "💼", "📊", "💹", "💰"], fish: ["🐠", "🐟", "🐡", "🫧"], rain: ["💧", "💧", "☔"], coffee: ["☕", "🥐", "🍩"], paws: ["🐾", "🐾", "🦴"], petals: ["🌷", "🌼", "🌸", "🦋"],
@@ -205,7 +212,7 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
   if (bio) { if (look?.bioStyle) bio.dataset.bs = look.bioStyle; else delete bio.dataset.bs; }
   if (view) {
     if (look?.nameSize) view.dataset.nsz = look.nameSize; else delete view.dataset.nsz;
-    for (const [k, attr] of [["bannerAnim", "ban"], ["nameDeco", "ndeco"], ["intro", "intro"], ["statStyle", "stst"]]) { if (look?.[k]) view.dataset[attr] = look[k]; else delete view.dataset[attr]; }
+    for (const [k, attr] of [["bannerAnim", "ban"], ["nameDeco", "ndeco"], ["intro", "intro"], ["statStyle", "stst"], ["tabStyle", "tabs"], ["btnStyle", "btns"], ["bannerEdge", "bedge"]]) { if (look?.[k]) view.dataset[attr] = look[k]; else delete view.dataset[attr]; }
     // An emoji instead of the mouse pointer on my profile
     view.style.cursor = look?.cursor ? `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><text x='2' y='26' font-size='24'>${look.cursor}</text></svg>`)}") 6 6, auto` : "";
   }
@@ -311,11 +318,13 @@ export function openLookEditor(onSaved, opts = {}) {
   const miniAvatar = h("div", { class: "look-mini-avatar profile-avatar" }, avatar(state.me, 64));
   const previewStatus = h("div", { class: "look-preview-status" });
   const previewWrap = h("div", { class: "look-preview" }, miniBanner, miniAvatar,
-    h("b", { class: "look-preview-b" }, preview, tick(state.me, 24)), h("small", { class: "muted", text: "@" + state.me.username }), previewStatus);
+    h("b", { class: "look-preview-b" }, preview, tick(state.me, 24)), h("small", { class: "muted", text: "@" + state.me.username }), previewStatus,
+    h("div", { class: "look-preview-bits profile-btns" }, h("span", { class: "btn btn-primary btn-sm", text: "Follow" }), h("span", { class: "btn btn-outline-light btn-sm", text: "Message" })),
+    h("div", { class: "tabs profile-tabs look-preview-tabs" }, h("span", { class: "tab active", text: "Posts" }), h("span", { class: "tab", text: "Shorts" }), h("span", { class: "tab", text: "Videos" })));
   const paint = () => {
     applyLook(previewWrap.querySelector(".look-preview-b"), cur);
     applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner, fxBox: previewWrap, statusSlot: previewStatus, card: previewWrap }, cur);
-    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"], [photoAnims, "photoAnim"], [bioStyles, "bioStyle"], [nameSizes, "nameSize"], [cursors, "cursor"], [bannerAnims, "bannerAnim"], [nameDecos, "nameDeco"], [intros, "intro"], [statStyles, "statStyle"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
+    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"], [photoAnims, "photoAnim"], [bioStyles, "bioStyle"], [nameSizes, "nameSize"], [cursors, "cursor"], [bannerAnims, "bannerAnim"], [nameDecos, "nameDeco"], [intros, "intro"], [statStyles, "statStyle"], [tabStyles, "tabStyle"], [btnStyles, "btnStyle"], [bannerEdges, "bannerEdge"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
     songLabel.textContent = songObj ? `${songObj.kind === "youtube" ? "▶️" : songObj.kind === "file" ? "💾" : "🎵"} ${songObj.title} · ${songObj.artist?.name || ""}` : "No song";
     songClear.hidden = !songObj;
     previewWrap.style.setProperty("--accent", cur.accent || "#ff4fa3");
@@ -476,6 +485,9 @@ export function openLookEditor(onSaved, opts = {}) {
   const nameDecos = pickRow(NAME_DECOS, "nameDeco");
   const intros = pickRow(INTROS, "intro");
   const statStyles = pickRow(STAT_STYLES, "statStyle");
+  const tabStyles = pickRow(TAB_STYLES, "tabStyle");
+  const btnStyles = pickRow(BTN_STYLES, "btnStyle");
+  const bannerEdges = pickRow(BANNER_EDGES, "bannerEdge");
   const cursors = h("div", { class: "look-chips" }, ...CURSORS.map((e) => { const b = h("button", { type: "button", class: "look-emo", dataset: { v: e, cursor: e }, text: e || "🖱" }); b.addEventListener("click", () => { cur.cursor = e; paint(); }); return b; }));
   // One-tap themes
   let themeGroup = 0;
@@ -541,6 +553,9 @@ export function openLookEditor(onSaved, opts = {}) {
     h("p", { class: "look-label", text: "✨ Banner movement" }), h("p", { class: "create-hint", text: "Your banner (picture or colours) slowly moves." }), bannerAnims,
     h("p", { class: "look-label", text: "✨ How your profile opens" }), h("p", { class: "create-hint", text: "What people see the moment they open your profile." }), intros,
     h("p", { class: "look-label", text: "✨ Followers & numbers style" }), statStyles,
+    h("p", { class: "look-label", text: "🗂 Tabs style" }), h("p", { class: "create-hint", text: "The Posts, Shorts, Videos… tabs on your profile." }), tabStyles,
+    h("p", { class: "look-label", text: "🔘 Buttons style" }), h("p", { class: "create-hint", text: "Follow, Message and the other buttons on your profile." }), btnStyles,
+    h("p", { class: "look-label", text: "〰️ Banner edge" }), h("p", { class: "create-hint", text: "The shape of the bottom of your banner." }), bannerEdges,
     h("p", { class: "look-label", text: "Banner colours" }), h("p", { class: "create-hint", text: state.me.banner ? "Shown when you remove your banner picture." : "For your banner (you don’t have a banner picture)." }), banners,
     save, reset) });
   const store = async (look) => {
@@ -555,7 +570,7 @@ export function openLookEditor(onSaved, opts = {}) {
     } catch (err) { toast(err.error || "Couldn’t save it."); save.disabled = reset.disabled = false; }
   };
   const KEYS = ["color", "font", "effect", "accent", "ring", "bg", "banner", "emoji", "fx", "deco", "bioFont", "status", "shape", "anim", "frame", "trail",
-    "photoAnim", "bioStyle", "nameSize", "cursor", "bannerAnim", "nameDeco", "intro", "statStyle"];
+    "photoAnim", "bioStyle", "nameSize", "cursor", "bannerAnim", "nameDeco", "intro", "statStyle", "tabStyle", "btnStyle", "bannerEdge"];
   save.addEventListener("click", () => store({ ...Object.fromEntries(KEYS.map((k) => [k, cur[k] || null])), song: songObj && !songObj.kind ? songObj.id : null,
     songYt: songObj?.kind === "youtube" ? { id: songObj.yt, title: songObj.title, author: songObj.artist?.name === "YouTube" ? "" : songObj.artist?.name || "" } : null,
     songFile: songObj?.kind === "file" ? { url: songObj.url, title: songObj.title } : null, featured: cur.featured?.length ? cur.featured : null }));
