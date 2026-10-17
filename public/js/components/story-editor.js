@@ -12,11 +12,13 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
   // (new stories show the whole photo, with it blurred behind: nothing is cut off unless you choose Fill)
   const edit = { f: "", a: { b: 0, c: 0, s: 0, w: 0 }, t: { z: 1, x: 0, y: 0, r: 0 }, bg: "blur", m: "fit", o: [] };
   let song = null, songRef = null, selected = null, tab = "filters";
+  let cropped = null, dims = null; // a cropped copy of the photo (Crop & size), and the photo's size in pixels
 
   // The preview: the photo / video, with the text and emoji on top (drag them)
   const media = isVideo ? h("video", { src: url, autoplay: true, muted: true, loop: true, playsInline: true }) : h("img", { src: url, alt: "", draggable: "false" });
   const layer = h("div", { class: "so-layer se-layer" });
   const stage = h("div", { class: "se-stage" }, media, layer);
+  if (!isVideo) media.addEventListener("load", () => { dims = [media.naturalWidth, media.naturalHeight]; if (tab === "adjust") paintPanel(); });
   const songTag = h("div", { class: "sv-song se-song", hidden: true });
   const frame = h("div", { class: "story-frame preview se-frame" }, stage, songTag);
   let poster = isVideo ? null : url;
@@ -89,6 +91,15 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
         slider("◐ Contrast", edit.a.c, -100, 100, 1, (v) => { edit.a.c = v; paintMedia(); }),
         slider("🎨 Saturation", edit.a.s, -100, 100, 1, (v) => { edit.a.s = v; paintMedia(); }),
         slider("🌡️ Warmth", edit.a.w, -100, 100, 1, (v) => { edit.a.w = v; paintMedia(); }),
+        isVideo ? null : h("div", { class: "se-row" }, h("button", { type: "button", class: "btn btn-primary btn-sm", text: `✂️ Crop & size${dims ? ` · ${dims[0]} × ${dims[1]} px` : ""}`, onclick: async () => {
+          const { openFreeCrop } = await import("./freecrop.js");
+          const r = await openFreeCrop(media.currentSrc || media.src);
+          if (!r) return;
+          cropped = new File([r.blob], "story.jpg", { type: r.blob.type || "image/jpeg" });
+          const u = URL.createObjectURL(cropped);
+          media.src = u; poster = u; dims = [r.width, r.height];
+          paintMedia(); paintPanel();
+        } }), cropped ? chip("Undo crop", false, () => { cropped = null; media.src = url; poster = url; paintMedia(); paintPanel(); }) : null),
         h("div", { class: "se-row" }, chip("⤢ Whole photo", edit.m === "fit", () => { edit.m = "fit"; if (!edit.bg) edit.bg = "blur"; paintMedia(); paintPanel(); }), chip("▣ Fill the story", edit.m !== "fit", () => { edit.m = ""; paintMedia(); paintPanel(); })),
         slider("📏 Size", Math.round(edit.t.z * 100) / 100, 0.5, 4, 0.01, (v) => { edit.t.z = v; paintMedia(); }),
         slider("↻ Turn", edit.t.r, -180, 180, 1, (v) => { edit.t.r = v; paintMedia(); }),
@@ -152,7 +163,7 @@ export function openStoryEditor({ url, isVideo, onShare, onClose }) {
   share.addEventListener("click", async () => {
     share.disabled = true;
     share.querySelector("span").textContent = "Uploading…";
-    const ok = await onShare({ edit: { ...edit, o: edit.o.map(({ ...o }) => o) }, songRef, text: caption.value, tags: tagsOf() }).catch((err) => { toast(err.error || "Couldn’t post the story."); return false; });
+    const ok = await onShare({ edit: { ...edit, o: edit.o.map(({ ...o }) => o) }, songRef, text: caption.value, tags: tagsOf(), file: cropped }).catch((err) => { toast(err.error || "Couldn’t post the story."); return false; });
     if (ok) { done = true; md.close(); }
     else { share.disabled = false; share.querySelector("span").textContent = "Share to your story"; }
   });

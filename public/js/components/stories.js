@@ -53,9 +53,10 @@ export async function addStory() {
   return new Promise((resolve) => {
     openStoryEditor({ url, isVideo,
       onClose: () => { URL.revokeObjectURL(url); resolve(false); },
-      onShare: async ({ edit, songRef, text, tags }) => {
-        const check = import("./nsfw.js").then((m) => m.checkImage(isVideo ? info.posterBlob : file)).catch(() => ({ nsfw: false }));
-        const body = { media: { url: (await upload(file)).url }, text, tags, edit, song: songRef };
+      onShare: async ({ edit, songRef, text, tags, file: cropped }) => {
+        const pic = cropped || file; // (cropped with Crop & size)
+        const check = import("./nsfw.js").then((m) => m.checkImage(isVideo ? info.posterBlob : pic)).catch(() => ({ nsfw: false }));
+        const body = { media: { url: (await upload(pic)).url }, text, tags, edit, song: songRef };
         const found = (isVideo ? info.posterBlob : true) ? await check : {};
         // Weapons, violence… aren't allowed on LookBlog
         if (found.sensitive) throw { error: "This isn’t allowed on LookBlog. Violence, blood, weapons, self-harm and other disturbing content go against the LookBlog rules." };

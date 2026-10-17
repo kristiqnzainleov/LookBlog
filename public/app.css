@@ -7441,3 +7441,20 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 /* Behind a story photo that doesn't fill it: the photo, blurred */
 .so-back { position: absolute !important; inset: -8% !important; width: 116% !important; height: 116% !important; object-fit: cover !important; filter: blur(26px) brightness(0.75) !important; transform: none !important; pointer-events: none; }
 .sv-stage > img:not(.so-back), .sv-stage > video, .se-stage > img:not(.so-back), .se-stage > video { z-index: 1; }
+/* Crop & size */
+.fc { display: flex; flex-direction: column; gap: 12px; }
+.fc-stage { position: relative; width: 100%; user-select: none; touch-action: none; }
+.fc-img { position: absolute; top: 0; max-width: none; pointer-events: none; }
+.fc-shade { position: absolute; inset: 0; pointer-events: none; }
+.fc-box { position: absolute; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); outline: 2px solid #fff; cursor: move; }
+.fc-stage { overflow: hidden; border-radius: 12px; background: #000; }
+.fc-grid { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent 33.1%, rgba(255, 255, 255, 0.35) 33.3%, transparent 33.5%, transparent 66.5%, rgba(255, 255, 255, 0.35) 66.7%, transparent 66.9%), linear-gradient(transparent 33.1%, rgba(255, 255, 255, 0.35) 33.3%, transparent 33.5%, transparent 66.5%, rgba(255, 255, 255, 0.35) 66.7%, transparent 66.9%); }
+.fc-h { position: absolute; width: 18px; height: 18px; background: #fff; border-radius: 4px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); z-index: 2; }
+.fc-nw { left: -9px; top: -9px; cursor: nwse-resize; } .fc-ne { right: -9px; top: -9px; cursor: nesw-resize; }
+.fc-sw { left: -9px; bottom: -9px; cursor: nesw-resize; } .fc-se { right: -9px; bottom: -9px; cursor: nwse-resize; }
+.fc-n { left: calc(50% - 9px); top: -9px; cursor: ns-resize; } .fc-s { left: calc(50% - 9px); bottom: -9px; cursor: ns-resize; }
+.fc-w { left: -9px; top: calc(50% - 9px); cursor: ew-resize; } .fc-e { right: -9px; top: calc(50% - 9px); cursor: ew-resize; }
+.fc-ratios { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.fc-size { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.fc-num { width: 96px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--ink); color: var(--paper); font: 600 0.95rem var(--body); text-align: center; }
+.fc-info { min-width: 56px; }

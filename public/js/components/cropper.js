@@ -30,6 +30,7 @@ export function openCropper(src, { aspect = 1, round = false, outWidth = 800, ti
     const fill = h("button", { type: "button", class: "se-chip", text: "▣ Fill" });
     const fit = h("button", { type: "button", class: "se-chip", text: "⤢ Fit whole photo" });
     const turn = h("button", { type: "button", class: "se-chip", text: "↻ Turn" });
+    const cropBtn = h("button", { type: "button", class: "se-chip", text: "✂️ Crop & size" });
     const bgRow = h("div", { class: "crop-bgs" });
     let done = false;
     const m = modal({
@@ -38,7 +39,7 @@ export function openCropper(src, { aspect = 1, round = false, outWidth = 800, ti
         h("p", { class: "create-hint", text: "Drag to move it. Use the slider (or your mouse wheel) to make it bigger or smaller — zoom out to show the whole picture." }),
         view,
         h("div", { class: "crop-zoom-row" }, h("span", { text: "−" }), zoom, h("span", { text: "+" }), sizeOut),
-        h("div", { class: "crop-tools" }, fill, fit, turn),
+        h("div", { class: "crop-tools" }, fill, fit, turn, cropBtn),
         h("div", { class: "crop-bg-row" }, h("small", { class: "muted", text: "Around it:" }), bgRow),
         h("div", { class: "crop-btns" }, cancel, save)),
       onClose: () => finish(null),
@@ -97,6 +98,15 @@ export function openCropper(src, { aspect = 1, round = false, outWidth = 800, ti
     fill.addEventListener("click", () => { scale = 1; x = 0; y = 0; clamp(); paint(); });
     fit.addEventListener("click", () => { scale = fitScale(); x = 0; y = 0; clamp(); paint(); });
     turn.addEventListener("click", () => { rot = (rot + 90) % 360; x = 0; y = 0; layout(); });
+    // Choose the picture's own size and shape first (then fit it in the frame)
+    cropBtn.addEventListener("click", async () => {
+      const { openFreeCrop } = await import("./freecrop.js");
+      const r = await openFreeCrop(img.src);
+      if (!r) return;
+      const u = URL.createObjectURL(r.blob);
+      img.onload = () => { pic.src = u; back.src = u; scale = 1; x = 0; y = 0; layout(); };
+      img.src = u;
+    });
 
     cancel.addEventListener("click", () => { finish(null); m.close(); });
     save.addEventListener("click", () => {
