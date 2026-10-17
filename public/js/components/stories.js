@@ -196,6 +196,45 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     if (songYt) { const k = songYt; songYt = null; import("./yt-audio.js").then((m) => { if (m.ytIsPlaying(k.yt, k.key)) m.stop(); }); }
     songTag.hidden = true;
   }
+  // Tap the song's name: what's playing (cover, name, artist), with a way to stop it and find it
+  songTag.setAttribute("role", "button");
+  songTag.tabIndex = 0;
+  songTag.setAttribute("aria-label", "What song is this?");
+  const songNow = () => songAudio ? !songAudio.paused : songYt ? import("./yt-audio.js").then((m) => songYt && m.ytIsPlaying(songYt.yt, songYt.key)) : false;
+  async function showSong(e) {
+    e?.stopPropagation();
+    const s = story();
+    if (!s?.song) return;
+    const sg = s.song;
+    holdTime(true); // the story waits; the song keeps playing
+    const toggle = h("button", { type: "button", class: "btn btn-primary sv-song-play" });
+    const paint = async () => { const on = await songNow(); toggle.replaceChildren(h("span", { text: on ? "⏸" : "▶" }), h("span", { text: on ? " Pause the song" : " Play the song" })); };
+    toggle.addEventListener("click", async () => {
+      if (songAudio) { if (songAudio.paused) songAudio.play().catch(() => {}); else songAudio.pause(); }
+      else if (songYt) { const m = await import("./yt-audio.js"); m.ytToggle(songYt.yt, { quiet: true }, songYt.key); await new Promise((r) => setTimeout(r, 400)); }
+      soundTap.hidden = true;
+      paint();
+    });
+    const links = [];
+    if (sg.kind === "youtube") links.push(h("a", { class: "btn btn-outline-light", href: `https://www.youtube.com/watch?v=${encodeURIComponent(sg.yt)}`, target: "_blank", rel: "noopener noreferrer" }, "▶️ Open on YouTube"));
+    else if (sg.kind !== "file" && sg.artist?.username) {
+      links.push(h("a", { class: "btn btn-outline-light", href: profileHref(sg.artist.username), onclick: () => close() }, "👤 " + sg.artist.name));
+      if (sg.albumId) links.push(h("a", { class: "btn btn-outline-light", href: `/album/${sg.albumId}`, onclick: () => close() }, "💿 " + (sg.album || "Album")));
+    }
+    const body = h("div", { class: "sv-song-info" },
+      sg.cover ? h("img", { class: "sv-song-cover", src: sg.cover, alt: "" }) : h("div", { class: "sv-song-cover none", text: "🎵" }),
+      h("div", { class: "sv-song-what" },
+        h("small", { class: "sv-song-label" }, h("span", { class: "sv-song-eq" }, h("i"), h("i"), h("i")), " Song on this story"),
+        h("b", { class: "sv-song-title", text: sg.title || "A song" }),
+        h("span", { class: "sv-song-artist", text: [sg.artist?.name, sg.feat ? "feat. " + sg.feat : ""].filter(Boolean).join(" ") + (sg.kind === "file" ? " · their own sound" : sg.kind === "youtube" ? " · YouTube" : "") }),
+        sg.album ? h("span", { class: "sv-song-album muted", text: sg.album }) : null),
+      h("div", { class: "sv-song-btns" }, toggle, ...links));
+    paint();
+    frameSheet({ title: "Song", body, onClose: () => { if (!closed) holdTime(false); } });
+  }
+  songTag.addEventListener("click", showSong);
+  songTag.addEventListener("pointerdown", (e) => e.stopPropagation());
+  songTag.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showSong(e); } });
   function playStorySong(s) {
     stopStorySong();
     if (!s.song) return;
@@ -621,6 +660,12 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     setTimeout(() => el.remove(), 1400);
   }
   let holding = false;
+  // Stop the clock only (the song and video go on)
+  function holdTime(on) {
+    if (on === paused) return;
+    paused = on;
+    if (on) elapsed += performance.now() - started; else started = performance.now();
+  }
   function pause(on) {
     if (on === paused) return;
     paused = on;

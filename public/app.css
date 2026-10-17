@@ -7639,5 +7639,19 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 /* Hold the story: it stops, and everything on top fades so you can see it */
 .story-frame { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .story-frame :is(.sv-top, .sv-foot, .sv-cmts, .sv-tags, .sv-sound-tap) { transition: opacity 0.2s; }
-.story-frame.holding :is(.sv-top, .sv-foot, .sv-cmts, .sv-tags, .sv-sound-tap) { opacity: 0; pointer-events: none; }
+.story-frame.holding :is(.sv-top, .sv-foot, .sv-cmts, .sv-tags, .sv-sound-tap, .sv-song) { opacity: 0; pointer-events: none; }
 .story-frame input, .story-frame textarea, .story-frame .sv-sheet { -webkit-user-select: text; user-select: text; }
+/* Tap the song on a story: what's playing */
+.sv-song { cursor: pointer; pointer-events: auto; border: 1px solid transparent; transition: background 0.15s, border-color 0.15s; }
+.sv-song:hover, .sv-song:focus-visible { background: rgba(0, 0, 0, 0.62); border-color: rgba(255, 79, 163, 0.6); outline: none; }
+.sv-song::after { content: "›"; margin-left: 2px; font-weight: 800; opacity: 0.7; }
+.sv-song-info { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 6px 0 4px; text-align: center; }
+.sv-song-cover { width: 140px; height: 140px; border-radius: 16px; object-fit: cover; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
+.sv-song-cover.none { display: grid; place-items: center; font-size: 3rem; background: linear-gradient(135deg, var(--pink), #9b5cff); }
+.sv-song-what { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; max-width: 100%; }
+.sv-song-label { display: inline-flex; align-items: center; gap: 6px; color: var(--pink); font-weight: 700; font-size: 0.75rem; }
+.sv-song-title { font-size: 1.15rem; line-height: 1.25; overflow-wrap: anywhere; }
+.sv-song-artist { color: rgba(255, 255, 255, 0.75); font-size: 0.9rem; }
+.sv-song-album { font-size: 0.8rem; }
+.sv-song-btns { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.sv-song-btns .btn { width: 100%; justify-content: center; }
