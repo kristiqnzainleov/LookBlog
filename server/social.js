@@ -453,6 +453,8 @@ function commentReactions(c, me) {
   })).sort((x, y) => y.count - x.count);
 }
 
+// Stickers stuck on a reply: who put them and where (x / y in %, a little turn)
+const commentStuck = (c) => (c.stuck || []).map((x) => ({ id: x.id, url: x.url, x: x.x, y: x.y, rot: x.rot, by: findUser(x.by)?.username || "", byId: x.by }));
 function commentView(c, me, post) {
   return {
     stars: post?.film ? post.stars?.[c.userId] || null : undefined, // a movie review shows the writer's stars
@@ -470,6 +472,8 @@ function commentView(c, me, post) {
     parentId: c.parentId || null,
     at: c.at ?? null,
     reactions: commentReactions(c, me),
+    stuck: commentStuck(c),
+    canUnstickAll: c.userId === me.id || post.userId === me.id,
     canDelete: c.userId === me.id || post.userId === me.id,
   };
 }
@@ -1555,6 +1559,35 @@ async function handleSocial(req, res, url, me) {
     broadcast({ type: "comment:reactions", postId: post.id, commentId: comment.id });
     if (on && !before && comment.userId !== me.id) notify(comment.userId, "creator-heart", me, { postId: post.id, text: comment.text });
     sendJSON(res, 200, { creatorHeart: on });
+    return true;
+  }
+  // Stick a sticker on a comment: POST /api/comments/:id/stick { sticker, x, y, rot } · take one off: { remove: <id> }
+  // (yours, or any on your own comment or on your post)
+  if (m === "POST" && a === "comments" && c === "stick" && parts.length === 3) {
+    const comment = db.comments.find((x) => x.id === b);
+    const post = comment && viewablePost(comment.postId, me);
+    if (!comment || !post) throw httpError(404, "This reply doesn’t exist anymore.");
+    const body = await readJSON(req);
+    comment.stuck = comment.stuck || [];
+    if (body.remove) {
+      const st = comment.stuck.find((x) => x.id === body.remove);
+      if (!st) throw httpError(404, "That sticker is gone.");
+      if (st.by !== me.id && comment.userId !== me.id && post.userId !== me.id) throw httpError(403, "You can only take off your own stickers.");
+      comment.stuck = comment.stuck.filter((x) => x !== st);
+    } else {
+      rateLimit("stick:" + me.id, 60, 60 * 1000, "Easy on the stickers!");
+      const media = resolveExtras({ sticker: body.sticker }, me);
+      if (!media?.sticker) throw httpError(400, "Pick a sticker.");
+      if (comment.stuck.length >= 8) throw httpError(400, "That reply is full of stickers already.");
+      if (comment.stuck.filter((x) => x.by === me.id).length >= 3) throw httpError(400, "You can put up to 3 stickers on one reply.");
+      const num = (v, lo, hi, def) => (Number.isFinite(Number(v)) ? Math.max(lo, Math.min(hi, Math.round(Number(v)))) : def);
+      comment.stuck.push({ id: crypto.randomUUID().slice(0, 8), by: me.id, url: media.url, x: num(body.x, 0, 100, 90), y: num(body.y, 0, 100, 0), rot: num(body.rot, -30, 30, 0), at: new Date().toISOString() });
+      if (comment.userId !== me.id) notify(comment.userId, "reaction", me, { postId: post.id, emoji: "🏷️", text: comment.text });
+    }
+    save("comments");
+    const stuck = commentStuck(comment);
+    broadcast({ type: "comment:stuck", postId: post.id, commentId: comment.id, stuck });
+    sendJSON(res, 200, { stuck });
     return true;
   }
   // React to a comment: POST /api/comments/:id/react { emoji }  (same emoji again removes it)

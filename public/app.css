@@ -7256,3 +7256,8 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sv-foot:has(.sv-reacts) .sv-add-story { flex: none; width: 100%; }
 .sv-foot .sv-react-row, .sv-foot .sv-reply-row { min-width: 0; max-width: 100%; }
 .sv-foot .sv-reply-row input { min-width: 0; flex: 1; }
+/* Stickers stuck on replies (comments) */
+.reply-content { position: relative; display: inline-block; max-width: 100%; min-width: 60px; }
+.reply-content .post-text { margin-right: 6px; }
+.reply-stuck .stuck { width: 40px; height: 40px; }
+.reply-content.has-stuck { padding-right: 46px; margin: 6px 0 8px; min-height: 40px; }

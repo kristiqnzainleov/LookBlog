@@ -64,6 +64,42 @@ function paintReactions(el, c) {
 }
 
 /* ---------- One comment ---------- */
+/* ---------- Stickers stuck on a reply (on a corner of its text, a little turned) ---------- */
+function stuckLayer(c) {
+  const layer = h("div", { class: "msg-stuck reply-stuck" });
+  for (const s of c.stuck || []) {
+    const canOff = s.byId === state.me?.id || c.canUnstickAll;
+    const img = h("img", { class: "stuck", src: s.url, alt: "Sticker", draggable: "false", title: `Sticker from @${s.by}${canOff ? " · tap twice to take it off" : ""}`, style: `left:${s.x}%;top:${s.y}%;--rot:${s.rot}deg` });
+    img.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!canOff) return;
+      if (!img.classList.contains("armed")) { img.classList.add("armed"); setTimeout(() => img.classList.remove("armed"), 2500); return; }
+      try { const r = await api(`/api/comments/${c.id}/stick`, { method: "POST", body: { remove: s.id } }); paintStuck(img.closest(".reply"), r.stuck); }
+      catch (err) { toast(err.error || "Couldn’t take it off."); }
+    });
+    layer.append(img);
+  }
+  return layer;
+}
+function paintStuck(el, stuck) {
+  if (!el?._comment) return;
+  el._comment.stuck = stuck;
+  const content = el.querySelector(":scope > .reply-body > .reply-content");
+  content?.querySelector(":scope > .reply-stuck")?.replaceWith(stuckLayer(el._comment));
+  content?.classList.toggle("has-stuck", Boolean(stuck.length));
+}
+async function stickOnComment(c, st) {
+  // A corner of the reply, a little off and turned
+  // (always on the right, in the space the text leaves for it, so the words stay readable)
+  const x = 95 + Math.random() * 5, y = 40 + Math.random() * 25;
+  try {
+    const r = await api(`/api/comments/${c.id}/stick`, { method: "POST", body: { sticker: st.id, x, y, rot: Math.round(Math.random() * 40 - 20) } });
+    const el = document.querySelector(`.reply[data-id="${CSS.escape(c.id)}"]`);
+    paintStuck(el, r.stuck);
+    el?.querySelector(".reply-stuck .stuck:last-child")?.classList.add("just");
+  } catch (err) { toast(err.error || "Couldn’t add the sticker."); }
+}
+
 function commentEl(c, { onReply, onGif, onRemoved, post }) {
   // "X replied with a video": a card that opens the reply video
   if (c.videoReply) {
@@ -99,7 +135,10 @@ function commentEl(c, { onReply, onGif, onRemoved, post }) {
 
   // ❤️ Liked by creator (like YouTube): the creator's photo with a pink heart
   const heartSlot = h("span", { class: "creator-heart-slot" });
-  const actions = h("div", { class: "comment-actions" }, h("div", { class: "reactions" }), heartSlot, more, replyBtn, gifRep, sendBtn, quick);
+  // 🏷️ Put a sticker on it
+  const stickBtn = h("button", { type: "button", class: "comment-link stick-btn", title: "Put a sticker on it", "aria-label": "Add a sticker" }, h("span", { text: "🏷️" }));
+  stickBtn.addEventListener("click", () => openStickers(stickBtn, (st) => stickOnComment(c, st)));
+  const actions = h("div", { class: "comment-actions" }, h("div", { class: "reactions" }), heartSlot, more, replyBtn, gifRep, stickBtn, sendBtn, quick);
 
   const el = h("article", { class: "reply" + (c.parentId ? " is-child" : ""), dataset: { id: c.id } },
     h("a", { href, tabindex: "-1" }, avatar(c.author, c.parentId ? 32 : 38)),
@@ -112,14 +151,16 @@ function commentEl(c, { onReply, onGif, onRemoved, post }) {
         h("span", { class: "muted" }, timeEl(c.createdAt)),
         c.at != null ? h("button", { type: "button", class: "at-badge", title: "Jump to this moment", text: "📍 " + fmtTime(c.at), onclick: () => { const v = document.querySelector(".watch-main video, .lb-player video"); if (v) { v.currentTime = c.at; v.play().catch(() => {}); v.scrollIntoView({ behavior: "smooth", block: "center" }); } } }) : null
       ),
-      c.text ? (() => {
-        const t = h("p", { class: "post-text" }, richText(c.text, c.mentions));
-        // On videos and shorts, "1:23" jumps the player to that moment
-        const dur = post?.media?.[0]?.duration;
-        if (post && post.type !== "post" && dur) linkTimes(t, (sec) => emit("player:seek", { postId: post.id, seconds: sec }), dur);
-        return t;
-      })() : null,
-      commentMedia(c.media),
+      h("div", { class: "reply-content" + (c.stuck?.length ? " has-stuck" : "") },
+        c.text ? (() => {
+          const t = h("p", { class: "post-text" }, richText(c.text, c.mentions));
+          // On videos and shorts, "1:23" jumps the player to that moment
+          const dur = post?.media?.[0]?.duration;
+          if (post && post.type !== "post" && dur) linkTimes(t, (sec) => emit("player:seek", { postId: post.id, seconds: sec }), dur);
+          return t;
+        })() : null,
+        commentMedia(c.media),
+        stuckLayer(c)),
       actions
     )
   );
@@ -324,6 +365,10 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
     if (ev.postId !== post.id) return;
     remove({ id: ev.commentId });
   });
+  const offStuck = on("comment:stuck", (ev) => {
+    if (ev.postId !== post.id) return;
+    paintStuck(list.querySelector(`.reply[data-id="${CSS.escape(ev.commentId)}"]`), ev.stuck);
+  });
   const offReact = on("comment:reactions", async (ev) => {
     if (ev.postId !== post.id) return;
     const el = list.querySelector(`.reply[data-id="${CSS.escape(ev.commentId)}"]`);
@@ -350,5 +395,5 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
   const el = h("section", { class: "replies" }, h("div", { class: "replies-head" }, heading, sortBar), closedNote, home, list);
   // "Reply with a video": jump to the box and open the file picker
   const replyWithVideo = () => { home.append(form); el.scrollIntoView({ behavior: "smooth", block: "start" }); text.focus(); picker.open(); };
-  return { el, replyWithVideo, stop: () => { offNew(); offDel(); offReact(); closeEmojiPicker(); closeGifs(); } };
+  return { el, replyWithVideo, stop: () => { offNew(); offDel(); offReact(); offStuck(); closeEmojiPicker(); closeGifs(); } };
 }
