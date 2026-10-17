@@ -7625,3 +7625,19 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sv-sheet .share-row { gap: 8px; }
 .sv-sheet .share-row .btn { flex: 1; justify-content: center; }
 .sv-sheet .share-sub { margin: 8px 0 0; font-size: 0.95rem; }
+/* Photos in story comments */
+.sc-photo-btn { display: block; margin-top: 6px; padding: 0; border: none; background: none; cursor: zoom-in; }
+.sc-photo-img { display: block; width: auto; height: auto; max-width: min(200px, 100%); max-height: 220px; border-radius: 14px; object-fit: cover; background: rgba(255, 255, 255, 0.06); }
+.sc-photo-pick { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 14px; background: rgba(255, 255, 255, 0.07); font-size: 0.8rem; }
+.sc-photo-pick[hidden] { display: none; }
+.sc-photo-pick img { width: 46px; height: 46px; border-radius: 10px; object-fit: cover; }
+.sv-cmt-photo { border-radius: 8px; object-fit: cover; }
+.sv-photo-view { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.88); cursor: zoom-out; animation: svSheetFade 0.18s ease-out; }
+.sv-photo-view img { max-width: 100%; max-height: 100%; border-radius: 14px; object-fit: contain; }
+.sv-photo-view .sv-sheet-x { position: absolute; top: 14px; right: 14px; }
+@keyframes svSheetFade { from { opacity: 0; } }
+/* Hold the story: it stops, and everything on top fades so you can see it */
+.story-frame { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.story-frame :is(.sv-top, .sv-foot, .sv-cmts, .sv-tags, .sv-sound-tap) { transition: opacity 0.2s; }
+.story-frame.holding :is(.sv-top, .sv-foot, .sv-cmts, .sv-tags, .sv-sound-tap) { opacity: 0; pointer-events: none; }
+.story-frame input, .story-frame textarea, .story-frame .sv-sheet { -webkit-user-select: text; user-select: text; }

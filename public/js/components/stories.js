@@ -139,6 +139,16 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     sheetOpen = sheet;
     return sheet;
   }
+  // A photo from a comment, big, over the story (tap or Esc to close it)
+  function seePhoto(url) {
+    const el = h("div", { class: "sv-photo-view", role: "dialog", "aria-label": "Photo" }, h("img", { src: url, alt: "Photo" }), h("button", { type: "button", class: "sv-sheet-x", "aria-label": "Close" }, icon("close")));
+    for (const t of ["pointerdown", "pointerup", "keydown"]) el.addEventListener(t, (e) => e.stopPropagation());
+    const shut = () => { el.remove(); removeEventListener("keydown", esc, true); };
+    const esc = (e) => { if (e.key === "Escape") { e.stopPropagation(); shut(); } };
+    el.addEventListener("click", (e) => { e.stopPropagation(); shut(); });
+    addEventListener("keydown", esc, true);
+    frame.append(el);
+  }
   // Share it: a link (works outside LookBlog too) or as a card in a chat. In a highlight, the whole highlight.
   const shareBtn = h("button", { type: "button", class: "sv-close sv-share", "aria-label": "Share", title: "Share" }, icon("send"));
   shareBtn.addEventListener("click", (e) => {
@@ -269,12 +279,13 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     paintBars(0);
     timer = requestAnimationFrame(tickTime);
   }
-  const onStoryOf = (c) => ({ id: c.id, name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : ""), sticker: c.sticker || null, reply: Boolean(c.parentId), byOwner: c.byOwner });
+  const onStoryOf = (c) => ({ id: c.id, name: c.author.name, username: c.author.username, avatar: c.author.avatar, text: c.text || (c.gif ? "GIF" : c.image ? "📷 Photo" : ""), sticker: c.sticker || null, image: c.image?.url || c.image || null, reply: Boolean(c.parentId), byOwner: c.byOwner });
   // A new comment pops up on the story: the commenter's photo and their words (like Instagram)
   function popComment(c) {
     if (!c) return;
     const el = h("div", { class: "sv-pop", "aria-live": "polite" }, avatar(c, 40), h("div", { class: "sv-pop-text" }, h("b", { text: c.mine ? "You commented" : `${c.name} commented` }), c.text ? h("span", { text: c.text }) : null),
-      c.sticker ? h("img", { class: "sv-pop-sticker", src: c.sticker, alt: "Sticker" }) : null);
+      c.sticker ? h("img", { class: "sv-pop-sticker", src: c.sticker, alt: "Sticker" }) : null,
+      c.image ? h("img", { class: "sv-pop-sticker sv-cmt-photo", src: c.image, alt: "Photo" }) : null);
     frame.append(el);
     setTimeout(() => el.remove(), 3200);
   }
@@ -309,7 +320,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     onStory.hidden = !list.length;
     onStory.replaceChildren(...list.map((c) => h("div", { class: "sv-cmt" + (c.reply ? " reply" : "") }, avatar(c, 28),
       h("div", { class: "sv-cmt-text" }, h("b", { text: c.name + (c.byOwner ? " · Author" : "") }), c.text ? h("span", { text: c.text }) : null),
-      c.sticker ? h("img", { class: "sv-cmt-sticker", src: c.sticker, alt: "" }) : null)),
+      c.sticker ? h("img", { class: "sv-cmt-sticker", src: c.sticker, alt: "" }) : null,
+      c.image ? h("img", { class: "sv-cmt-sticker sv-cmt-photo", src: c.image, alt: "" }) : null)),
       h("small", { class: "sv-cmt-more", text: s.comments > list.length ? `💬 View all ${s.comments} comments` : "💬 Add a comment" }));
     requestAnimationFrame(() => { onStory.scrollTop = onStory.scrollHeight; }); // the newest at the bottom
     frame.style.setProperty("--foot-h", foot.offsetHeight + "px");
@@ -396,6 +408,34 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     const gifBtn = h("button", { type: "button", class: "sv-gif sc-gif", title: "GIF", "aria-label": "Comment with a GIF" }, h("span", { text: "GIF" }));
     const emojiBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-emoji", title: "Emoji", "aria-label": "Emoji" }, h("span", { text: "🙂" }), h("small", { text: "Emoji" }));
     const stickBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-stick", title: "Send a sticker", "aria-label": "Comment with a sticker" }, h("span", { text: "🏷️" }), h("small", { text: "Sticker" }));
+    // A photo: pick one, see it above the box (with words too, if you like), then Post
+    const photoBtn = h("button", { type: "button", class: "sv-gif sc-gif sc-photo", title: "Photo", "aria-label": "Comment with a photo" }, h("span", { text: "📷" }), h("small", { text: "Photo" }));
+    const photoBar = h("div", { class: "sc-photo-pick", hidden: true });
+    let photo = null;
+    const ready = () => Boolean(input.value.trim() || photo);
+    const setPhoto = (p) => {
+      photo = p;
+      photoBar.hidden = !p;
+      photoBar.replaceChildren(...(p ? [h("img", { src: p.preview, alt: "" }), h("span", { class: "muted", text: p.url ? "Photo ready — add words if you like" : "Uploading…" }),
+        h("button", { type: "button", class: "sc-reply-x", "aria-label": "Remove the photo", text: "✕", onclick: () => setPhoto(null) })] : []));
+      send.disabled = !ready() || (p && !p.url);
+    };
+    photoBtn.addEventListener("click", () => {
+      const f = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", hidden: true });
+      f.addEventListener("change", async () => {
+        const file = f.files[0];
+        f.remove();
+        if (!file) return;
+        if (file.size > 8 * 1024 * 1024) return toast("Pictures can be up to 8 MB.");
+        const p = { preview: URL.createObjectURL(file) };
+        setPhoto(p);
+        const size = await new Promise((r) => { const im = new Image(); im.onload = () => r({ width: im.naturalWidth, height: im.naturalHeight }); im.onerror = () => r({}); im.src = p.preview; });
+        try { const { url } = await upload(file); if (photo !== p) return; setPhoto({ ...p, ...size, url }); input.focus(); }
+        catch (err) { if (photo === p) setPhoto(null); toast(err.error || "Couldn’t upload the photo."); }
+      });
+      document.body.append(f);
+      f.click();
+    });
     stickBtn.addEventListener("click", () => import("./stickers.js").then(({ openStickers }) => openStickers(stickBtn, (st) => post({ text: input.value, sticker: st.id }))));
     // Answering a comment: a bar above the box ("Replying to @…  ✕")
     let replyTo = null;
@@ -425,7 +465,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
             h("div", { class: "sc-head" }, h("b", {}, c.author.name, tick(c.author, 13)), c.byOwner ? h("span", { class: "sc-owner", text: "Author" }) : null),
             c.text ? h("p", { class: "sc-text", text: c.text }) : null,
             c.gif ? h("img", { class: "sc-gif-img", src: c.gif.url, alt: "GIF", loading: "lazy" }) : null,
-            c.sticker ? h("img", { class: "sc-sticker", src: c.sticker, alt: "Sticker", loading: "lazy" }) : null),
+            c.sticker ? h("img", { class: "sc-sticker", src: c.sticker, alt: "Sticker", loading: "lazy" }) : null,
+          c.image ? h("button", { type: "button", class: "sc-photo-btn", "aria-label": "See the photo", onclick: () => seePhoto(c.image.url) }, h("img", { class: "sc-photo-img", src: c.image.url, alt: "Photo", loading: "lazy", width: c.image.width || undefined, height: c.image.height || undefined })) : null),
           h("div", { class: "sc-meta" }, h("small", { class: "muted", text: timeAgo(c.at) }), reply, del)),
         like);
       swipeToReply(el, () => setReply(c)); // swipe right to answer
@@ -446,27 +487,28 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       send.disabled = true;
       try {
         const { comments } = await api(`/api/stories/${s.id}/comments`, { method: "POST", body: { ...body, parentId: replyTo?.id || null } });
-        paintList(comments); input.value = "";
+        paintList(comments); input.value = ""; setPhoto(null);
         const answered = Boolean(replyTo);
         setReply(null);
         // A new comment: back to the story, where it pops up with my photo (an answer stays here, in the list)
         const c = comments.filter((x) => x.mine).slice(-1)[0];
         if (!answered) { md.close(); if (c) setTimeout(() => popComment({ ...onStoryOf(c), mine: true }), 150); }
       } catch (err) { toast(err.error || "Couldn’t post it."); }
-      send.disabled = !input.value.trim();
+      send.disabled = !ready();
     };
-    input.addEventListener("input", () => { send.disabled = !input.value.trim(); });
-    input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter" && input.value.trim()) post({ text: input.value }); });
-    send.addEventListener("click", () => input.value.trim() && post({ text: input.value }));
+    const withPhoto = () => ({ text: input.value, ...(photo?.url ? { image: { url: photo.url, width: photo.width, height: photo.height } } : {}) });
+    input.addEventListener("input", () => { send.disabled = !ready() || (photo && !photo.url); });
+    input.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter" && ready() && !(photo && !photo.url)) post(withPhoto()); });
+    send.addEventListener("click", () => ready() && post(withPhoto()));
     gifBtn.addEventListener("click", () => openGifs(gifBtn, (gf) => post({ text: input.value, ...gifBody(gf) })));
     emojiBtn.addEventListener("click", () => import("./emoji.js").then(({ openEmojiPicker }) => openEmojiPicker(emojiBtn, (e) => {
       const at = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? at;
       input.value = input.value.slice(0, at) + e + input.value.slice(end);
       input.focus(); input.setSelectionRange(at + e.length, at + e.length);
-      send.disabled = !input.value.trim();
+      send.disabled = !ready() || (photo && !photo.url);
     })));
     const md = frameSheet({ title: `Comments${s.comments ? ` · ${s.comments}` : ""}`, onClose: () => { closeGifs(); import("./emoji.js").then((m) => m.closeEmojiPicker?.()).catch(() => {}); import("./stickers.js").then((m) => m.closeStickers?.()).catch(() => {}); offC(); if (!closed) pause(false); },
-      body: h("div", { class: "sc-sheet" }, list, replyBar, h("div", { class: "sc-compose" }, h("div", { class: "sc-type" }, input, send), h("div", { class: "sc-extras" }, emojiBtn, stickBtn, gifBtn))) });
+      body: h("div", { class: "sc-sheet" }, list, replyBar, h("div", { class: "sc-compose" }, photoBar, h("div", { class: "sc-type" }, input, send), h("div", { class: "sc-extras" }, photoBtn, emojiBtn, stickBtn, gifBtn))) });
     const load = () => api(`/api/stories/${s.id}/comments`).then((r) => paintList(r.comments)).catch(() => list.replaceChildren(h("p", { class: "muted", text: "Couldn’t load the comments." })));
     const offC = on("story:comments", (ev) => { if (ev.id === s.id) load(); });
     load();
@@ -632,22 +674,30 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   // Pull the story down to close it (like Instagram)
   let swipeY = null, swipeD = 0;
   for (const [zone, fn] of [[prevZone, prev], [nextZone, next]]) {
-    zone.addEventListener("pointerdown", (e) => { downAt = performance.now(); holding = true; swipeY = e.clientY; swipeD = 0; try { zone.setPointerCapture(e.pointerId); } catch {} setTimeout(() => holding && pause(true), 180); });
+    zone.addEventListener("pointerdown", (e) => {
+      if (e.button > 0) return;
+      downAt = performance.now(); holding = true; swipeY = e.clientY; swipeD = 0;
+      try { zone.setPointerCapture(e.pointerId); } catch {}
+      const at = downAt;
+      // hold: it stops (and the buttons fade away, so you can see the whole story)
+      setTimeout(() => { if (holding && downAt === at && swipeD <= 8) { pause(true); frame.classList.add("holding"); } }, 180);
+    });
     zone.addEventListener("pointermove", (e) => {
       if (swipeY == null) return;
       swipeD = Math.max(0, e.clientY - swipeY);
       if (swipeD > 8) { frame.classList.add("pulling"); frame.style.transform = `translateY(${swipeD}px) scale(${1 - Math.min(swipeD, 400) / 2000})`; box.style.setProperty("--pull", String(Math.min(swipeD / 300, 1))); }
     });
     zone.addEventListener("pointerup", () => {
-      holding = false;
+      holding = false; frame.classList.remove("holding");
       const d = swipeD; swipeY = null; swipeD = 0;
       frame.classList.remove("pulling"); frame.style.transform = ""; box.style.removeProperty("--pull");
       if (d > 120) return close();
       if (d <= 8 && performance.now() - downAt < 200) fn();
       pause(false);
     });
-    zone.addEventListener("pointercancel", () => { swipeY = null; swipeD = 0; frame.classList.remove("pulling"); frame.style.transform = ""; box.style.removeProperty("--pull"); });
-    zone.addEventListener("pointerleave", () => { if (holding) { holding = false; pause(false); } });
+    zone.addEventListener("pointercancel", () => { if (holding) { holding = false; pause(false); } frame.classList.remove("holding"); swipeY = null; swipeD = 0; frame.classList.remove("pulling"); frame.style.transform = ""; box.style.removeProperty("--pull"); });
+    zone.addEventListener("pointerleave", () => { if (holding && swipeY == null) { holding = false; frame.classList.remove("holding"); pause(false); } });
+    zone.addEventListener("contextmenu", (e) => e.preventDefault()); // (a long press doesn't open the phone's menu)
   }
   closeBtn.addEventListener("click", close);
   box.addEventListener("click", (e) => { if (e.target === box) close(); });

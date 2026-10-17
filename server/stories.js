@@ -46,6 +46,7 @@ function dropMedia(story, gone = new Set([story.id])) {
   for (const url of [story.media.url, story.media.poster].filter(Boolean)) {
     if (!db.stories.some((x) => !gone.has(x.id) && (x.media.url === url || x.media.poster === url))) deleteMedia(url);
   }
+  for (const c of story.comments || []) if (c.image) deleteMedia(c.image.url); // photos in its comments
 }
 
 // Stickers on a story: who stuck them and where (x / y in %, a little turned)
@@ -73,7 +74,7 @@ function storyView(s, me) {
     comments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).length,
     // The newest comments (up to 30), shown right on the story, where they scroll
     latestComments: (s.comments || []).filter((c) => { const u = findUser(c.userId); return u && !require("./social").blockedBetween?.(u, me); }).slice(-30)
-      .map((c) => { const u = findUser(c.userId); return { id: c.id, name: u.name, username: u.username, avatar: u.avatar, text: c.text || (c.gif ? "GIF" : ""), sticker: c.sticker || null, reply: Boolean(c.parentId), byOwner: c.userId === s.userId }; }),
+      .map((c) => { const u = findUser(c.userId); return { id: c.id, name: u.name, username: u.username, avatar: u.avatar, text: c.text || (c.gif ? "GIF" : c.image ? "📷 Photo" : ""), sticker: c.sticker || null, image: c.image?.url || null, reply: Boolean(c.parentId), byOwner: c.userId === s.userId }; }),
     repostOf: s.repostOf ? (() => { const o = findUser(s.repostOf.userId); return o ? { username: o.username, name: o.name } : null; })() : null,
   };
   if (s.userId === me.id) {
@@ -344,7 +345,7 @@ async function handleStories(req, res, url, me) {
   /* ---------- Comments on a story: they stay on it (in highlights too), everyone who can see it sees them ---------- */
   const commentView = (c) => {
     const u = findUser(c.userId);
-    return u ? { id: c.id, text: c.text, gif: c.gif || null, sticker: c.sticker || null, parentId: c.parentId || null, at: c.at, author: authorView(u), mine: c.userId === me.id, canDelete: c.userId === me.id || story.userId === me.id,
+    return u ? { id: c.id, text: c.text, gif: c.gif || null, sticker: c.sticker || null, image: c.image || null, parentId: c.parentId || null, at: c.at, author: authorView(u), mine: c.userId === me.id, canDelete: c.userId === me.id || story.userId === me.id,
       likes: (c.likes || []).length, liked: (c.likes || []).includes(me.id), byOwner: c.userId === story.userId } : null;
   };
   const { blockedBetween } = require("./social");
@@ -396,14 +397,16 @@ async function handleStories(req, res, url, me) {
     sendJSON(res, 200, { comments: commentsOf() });
     return true;
   }
-  // POST /api/stories/:id/comments { text, gif, sticker, parentId }  (a sticker of mine; parentId: answering a comment)
+  // POST /api/stories/:id/comments { text, gif, sticker, image, parentId }  (a sticker of mine; image: a photo I just uploaded; parentId: answering a comment)
   if (m === "POST" && parts[2] === "comments" && parts.length === 3) {
     rateLimit("story-comment:" + me.id, 60, 10 * 60 * 1000, "You’ve written a lot of comments. Take a short break.");
     const body = await readJSON(req);
     const text = clean(body.text);
     const gif = body.gif || body.gifUrl ? require("./social").resolveGif(body, me) : null;
     const sticker = body.sticker ? require("./social").resolveExtras({ sticker: body.sticker }, me)?.url || null : null;
-    if (!text && !gif && !sticker) throw httpError(400, "Write a comment.");
+    const photo = body.image ? ownedMedia(body.image.url || body.image, me.id, "image") : null;
+    if (body.image && !photo) throw httpError(400, "That photo couldn’t be used. Try picking it again.");
+    if (!text && !gif && !sticker && !photo) throw httpError(400, "Write a comment.");
     // An answer to a comment (answers to answers go under the same comment, one level like Instagram)
     let parent = body.parentId ? (story.comments || []).find((c) => c.id === body.parentId) : null;
     if (body.parentId && !parent) throw httpError(404, "That comment is gone.");
@@ -411,10 +414,11 @@ async function handleStories(req, res, url, me) {
     if (chars(text) > 500) throw httpError(400, "Keep it under 500 characters.");
     story.comments = story.comments || [];
     if (story.comments.length >= 500) throw httpError(400, "This story has a lot of comments already.");
-    story.comments.push({ id: crypto.randomUUID().slice(0, 12), userId: me.id, text, gif: gif ? { url: gif.url, width: gif.width || null, height: gif.height || null } : null, ...(sticker ? { sticker } : {}), ...(parent ? { parentId: parent.id } : {}), at: new Date().toISOString(), likes: [] });
+    story.comments.push({ id: crypto.randomUUID().slice(0, 12), userId: me.id, text, gif: gif ? { url: gif.url, width: gif.width || null, height: gif.height || null } : null, ...(sticker ? { sticker } : {}), ...(photo ? { image: { url: photo.url, width: Math.round(Number(body.image.width)) || null, height: Math.round(Number(body.image.height)) || null } } : {}), ...(parent ? { parentId: parent.id } : {}), at: new Date().toISOString(), likes: [] });
     if (!story.viewers.some((v) => v.userId === me.id) && story.userId !== me.id) story.viewers.push({ userId: me.id, at: new Date().toISOString() });
     save("stories");
-    const what = text || (sticker ? "sent a sticker" : "commented with a GIF");
+    const what = text || (sticker ? "sent a sticker" : photo ? "commented with a photo" : "commented with a GIF");
+    if (photo) markUsed(photo.url, "story-comment:" + story.id);
     if (story.userId !== me.id) notify(story.userId, "story-comment", me, { text: what, storyId: story.id });
     // …and the person whose comment I answered
     if (parent && parent.userId !== me.id && parent.userId !== story.userId) notify(parent.userId, "story-comment", me, { text: "replied: " + what, storyId: story.id });
@@ -435,6 +439,7 @@ async function handleStories(req, res, url, me) {
   // Delete: DELETE /api/stories/:id/comments/:cid  (mine, or any on my story)
   if (m === "DELETE" && comment && parts.length === 4) {
     if (comment.userId !== me.id && story.userId !== me.id) throw httpError(403, "You can only delete your own comments.");
+    for (const c of story.comments) if ((c === comment || c.parentId === comment.id) && c.image) deleteMedia(c.image.url); // (photos go too)
     story.comments = story.comments.filter((c) => c !== comment && c.parentId !== comment.id); // (its answers go with it)
     save("stories");
     tellWatchers();
