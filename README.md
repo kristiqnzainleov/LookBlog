@@ -10,6 +10,7 @@
 
 **LookBlog** is a full social network built from scratch by **Kristiqn Zainelov**. It brings together what people usually need several apps for:
 - a feed like Twitter or Instagram;
+- stories like Instagram;
 - shorts like TikTok and videos like YouTube;
 - live streams like Twitch;
 - chats, groups and voice rooms like Discord;
@@ -56,6 +57,23 @@ The design is pink (`#ff4fa3`) on black. The interface is in English and can be 
   - topics;
   - what similar people liked;
   - quality, meaning likes per view and watch time.
+
+### Stories
+- **Stories** last 24 hours, then move to your archive; **highlights** keep them on your profile.
+- **Editor:**
+  - 39 filters;
+  - brightness, contrast, saturation and warmth;
+  - move, resize and turn the photo, with **Crop & size** to pick its exact shape and pixel size;
+  - the whole photo shows with a blurred background, or it fills the story.
+- **Text and stickers:**
+  - text you drag anywhere, with 6 fonts, 5 styles and 10 colours;
+  - emoji stickers.
+- **Music:** a song from LookBlog, YouTube or your own MP3 plays while the story is open.
+- **Tags and reposts:** tag people, and they can add your story to theirs.
+- **Comments:** a new comment pops up on the story with the writer's photo, live for everyone watching.
+- **Sharing:**
+  - send a story or a highlight in a chat as a card;
+  - or share its link outside LookBlog, which shows a preview page.
 
 ### Live streaming (WebRTC)
 - **What you can stream:** your camera, your screen, or both at once. The camera sits picture-in-picture and you can move and resize it.
