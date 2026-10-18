@@ -27,7 +27,23 @@ function write(event, filter = null) {
 // Online, idle (LookBlog is open but in the background, or nobody's touched it for a while) or offline
 function presence(userId) {
   const u = findUser(userId), online = isOnline(userId);
-  return { online, idle: online && Boolean(u?.idle), lastSeen: u?.lastSeen || null };
+  return { online, idle: online && Boolean(u?.idle), lastSeen: online ? null : lastSeenOf(u) };
+}
+// When they were last here: when they left, or their last ping, or (accounts from before this was kept) the last thing they did
+const lastDone = new Map(); // userId -> [time worked out, answer]
+function lastSeenOf(u) {
+  if (!u) return null;
+  const known = [u.lastSeen, u.pingAt ? new Date(u.pingAt).toISOString() : null].filter(Boolean).sort().pop();
+  if (known) return known;
+  const c = lastDone.get(u.id);
+  if (c && Date.now() - c[0] < 10 * 60 * 1000) return c[1];
+  let at = "";
+  for (const m of db.messages) if (m.userId === u.id && m.createdAt > at) at = m.createdAt;
+  for (const p of db.posts) if (p.userId === u.id && p.createdAt > at) at = p.createdAt;
+  for (const c2 of db.comments) if (c2.userId === u.id && c2.createdAt > at) at = c2.createdAt;
+  const ans = at || u.createdAt || null;
+  lastDone.set(u.id, [Date.now(), ans]);
+  return ans;
 }
 function isOnline(userId) {
   if (store.enabled) { const u = findUser(userId); return Boolean(u?.pingAt && Date.now() - u.pingAt < PING_ONLINE_MS); }
@@ -35,7 +51,7 @@ function isOnline(userId) {
 }
 
 function announce(user, online) {
-  broadcast({ type: "presence", username: user.username, online, idle: online && Boolean(user.idle), lastSeen: user.lastSeen || null });
+  broadcast({ type: "presence", username: user.username, online, idle: online && Boolean(user.idle), lastSeen: online ? null : lastSeenOf(user) });
 }
 // Closed LookBlog: offline straight away (unless another tab is still open: it pings again and I'm back)
 function goOffline(me) {

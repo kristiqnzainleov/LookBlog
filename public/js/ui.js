@@ -253,19 +253,24 @@ export function lastSeenText(online, lastSeen) {
   if (online) return "Online";
   if (!lastSeen) return "Offline";
   const s = Math.max(0, (Date.now() - new Date(lastSeen)) / 1000);
-  if (s < 60) return "Active just now";
-  if (s < 3600) return `Active ${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `Active ${Math.floor(s / 3600)}h ago`;
-  if (s < 7 * 86400) return `Active ${Math.floor(s / 86400)}d ago`;
-  return "Offline";
+  if (!Number.isFinite(s)) return "Offline";
+  if (s < 60) return "Last online just now";
+  if (s < 3600) return `Last online ${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `Last online ${Math.floor(s / 3600)}h ago`;
+  if (s < 2 * 86400) return "Last online yesterday";
+  if (s < 7 * 86400) return `Last online ${Math.floor(s / 86400)} days ago`;
+  if (s < 30 * 86400) { const w = Math.floor(s / (7 * 86400)); return `Last online ${w} ${w === 1 ? "week" : "weeks"} ago`; }
+  if (s < 365 * 86400) { const m = Math.floor(s / (30 * 86400)); return `Last online ${m} ${m === 1 ? "month" : "months"} ago`; }
+  const y = Math.floor(s / (365 * 86400));
+  return `Last online ${y} ${y === 1 ? "year" : "years"} ago`;
 }
 export function presenceDot(user) {
   const idle = user.online && user.idle;
-  return h("span", { class: "presence-dot" + (idle ? " idle" : user.online ? " online" : ""), "data-presence-dot": user.username, title: idle ? "Idle" : user.online ? "Online" : lastSeenText(false, user.lastSeen) });
+  return h("span", { class: "presence-dot" + (idle ? " idle" : user.online ? " online" : ""), "data-presence-dot": user.username, title: idle ? "Idle" : user.online ? "Online" : lastSeenText(false, user.lastSeen) + (user.lastSeen ? ` · ${new Date(user.lastSeen).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}` : "") });
 }
 export function presenceText(user) {
   const idle = user.online && user.idle;
-  return h("span", { class: "presence-text" + (idle ? " idle" : user.online ? " online" : ""), "data-presence-text": user.username, "data-last-seen": user.lastSeen || "", text: idle ? "Idle" : lastSeenText(user.online, user.lastSeen) });
+  return h("span", { class: "presence-text" + (idle ? " idle" : user.online ? " online" : ""), "data-presence-text": user.username, "data-last-seen": user.lastSeen || "", title: !user.online && user.lastSeen ? new Date(user.lastSeen).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" }) : null, text: idle ? "Idle" : lastSeenText(user.online, user.lastSeen) });
 }
 // An avatar with a green dot when the person is online
 export function avatarWithPresence(user, size = 42) {

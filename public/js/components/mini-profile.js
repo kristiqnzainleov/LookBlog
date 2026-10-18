@@ -1,5 +1,5 @@
 // A small profile card that pops up when you tap a name (yours or someone's) in a group or chat
-import { h, avatar, tick, toast } from "../ui.js";
+import { h, avatar, tick, toast, presenceDot, presenceText } from "../ui.js";
 import { api } from "../api.js";
 import { state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
@@ -48,6 +48,7 @@ export async function miniProfile(username, anchor, { extra = null } = {}) {
     h("div", { class: "mp-body" },
       h("div", { class: "mp-av" }, avatar(p, 92)),
       name, h("span", { class: "muted mp-handle", text: "@" + p.username + (extra?.nickname ? ` · “${extra.nickname}” here` : "") }),
+      p.username !== state.me?.username && "online" in p ? h("span", { class: "mp-presence handle-presence" }, presenceDot(p), presenceText(p)) : null,
       look.status ? h("p", { class: "mp-status", text: `${look.status.emoji || ""} ${look.status.text || ""}`.trim() }) : null,
       extra?.groupStatus ? h("p", { class: "mp-status", text: `${extra.groupStatus.emoji || "💬"} ${extra.groupStatus.text || ""}` }) : null,
       p.bio ? h("p", { class: "mp-bio", text: p.bio }) : null,

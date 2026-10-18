@@ -1,7 +1,7 @@
 // Voice channels in groups (like Discord): everyone in a channel talks to everyone else.
 // Each pair of people has its own WebRTC connection; the server only passes set-up messages along.
 // You can mute, deafen, turn on your camera and share your screen.
-import { h, icon, avatar, toast, tick, modal, soundPic } from "../ui.js";
+import { h, icon, avatar, toast, tick, modal, soundPic, lastSeenText } from "../ui.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { setupMusic, applyMusic, openMusicPanel, leaveMusic, setMusicDeaf, musicState, musicNeedsTap, resumeMusic, setDj, currentDj, musicFadeOut, musicFadeIn, musicCut, musicEcho, musicBrake, musicTransform, musicStutter, musicDip, myVolumeRow, musicGate, musicPump, musicTremolo, musicSwell, musicBlackout, musicHalf } from "./voice-music.js";
@@ -569,7 +569,7 @@ async function openVoiceInvite() {
       const b = h("button", { type: "button", class: "btn btn-xs " + (sent.has(u.username) ? "btn-outline-light" : "btn-primary"), text: sent.has(u.username) ? "Invited ✓" : "Invite", disabled: sent.has(u.username) });
       b.addEventListener("click", () => send([u.username]));
       return h("div", { class: "conn-row vi-row" }, avatar(u, 38),
-        h("div", { class: "who" }, h("b", {}, u.nickname || u.name, tick(u, 13)), h("span", { class: "muted" }, u.online ? h("span", { class: "vi-on", text: "● Online" }) : "Offline", " · @" + u.username)), b);
+        h("div", { class: "who" }, h("b", {}, u.nickname || u.name, tick(u, 13)), h("span", { class: "muted" }, u.online ? h("span", { class: "vi-on", text: "● Online" }) : lastSeenText(false, u.lastSeen), " · @" + u.username)), b);
     }) : [h("p", { class: "muted", text: "Everyone from the group is already here 🎉" })]));
   };
   const send = async (names) => {

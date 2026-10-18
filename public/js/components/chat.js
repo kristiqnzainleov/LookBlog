@@ -1055,7 +1055,7 @@ function membersDrawer(chat, manage) {
   const row = (u) => {
     const b = h("button", { type: "button", class: "md-row" + (u.online ? "" : " off") }, avatarWithPresence(u, 36),
       h("span", { class: "md-who" }, h("b", {}, u.nickname || u.name, tick(u, 13), u.isOwner ? h("span", { class: "md-crown", title: "Owner", text: "👑" }) : null),
-        u.groupStatus ? h("small", { class: "muted", text: `${u.groupStatus.emoji || "💬"} ${u.groupStatus.text || ""}` }) : h("small", { class: "muted", text: "@" + u.username })));
+        u.groupStatus ? h("small", { class: "muted", text: `${u.groupStatus.emoji || "💬"} ${u.groupStatus.text || ""}` }) : u.online ? h("small", { class: "muted", text: "@" + u.username }) : h("small", { class: "muted" }, "@" + u.username + " · ", presenceText(u))));
     b.addEventListener("click", () => import("./mini-profile.js").then((m) => m.miniProfile(u.username, b, { extra: { nickname: u.nickname, groupStatus: u.groupStatus } })));
     return b;
   };
