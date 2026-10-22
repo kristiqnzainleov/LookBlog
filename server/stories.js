@@ -41,6 +41,23 @@ const canSeeProfile = (owner, me) => owner.id === me.id || !owner.private || me.
 const highlightsOf = (userId) => (db.highlights || []).filter((x) => x.userId === userId);
 const inHighlight = (s) => (db.highlights || []).some((x) => x.storyIds.includes(s.id));
 const repostedBy = (s, me) => db.stories.some((x) => x.userId === me.id && x.repostOf?.storyId === s.id);
+// The team removes a reported story (or one comment on it)
+function removeStory(story) {
+  dropMedia(story);
+  db.stories = db.stories.filter((s) => s !== story);
+  save("stories");
+  for (const hl of (db.highlights || []).filter((x) => x.storyIds.includes(story.id))) {
+    hl.storyIds = hl.storyIds.filter((id) => id !== story.id);
+    if (!hl.storyIds.length) deleteHighlight(hl);
+  }
+  save("highlights");
+}
+function removeStoryComment(story, commentId) {
+  const gone = (story.comments || []).filter((c) => c.id === commentId || c.parentId === commentId);
+  for (const c of gone) if (c.image) deleteMedia(c.image.url);
+  story.comments = (story.comments || []).filter((c) => !gone.includes(c));
+  save("stories");
+}
 // A story's files are deleted with it, unless another story (a repost) still shows them
 function dropMedia(story, gone = new Set([story.id])) {
   for (const url of [story.media.url, story.media.poster].filter(Boolean)) {
@@ -355,6 +372,27 @@ async function handleStories(req, res, url, me) {
     return true;
   }
 
+  // Report a story: POST /api/stories/:id/report { reason, details }  ·  one of its comments: POST /api/stories/:id/comments/:cid/report
+  if (m === "POST" && (parts[2] === "report" && parts.length === 3 || parts[2] === "comments" && parts[4] === "report" && parts.length === 5)) {
+    rateLimit("report:" + me.id, 20, 60 * 60 * 1000, "You’ve sent a lot of reports. Try again later.");
+    const body = await readJSON(req);
+    const { REPORT_REASONS } = require("./social");
+    const reason = REPORT_REASONS.includes(body.reason) ? body.reason : null;
+    if (!reason) throw httpError(400, "Choose a reason.");
+    const cm = parts[2] === "comments" ? (story.comments || []).find((x) => x.id === parts[3]) : null;
+    if (parts[2] === "comments" && !cm) throw httpError(404, "That comment is gone.");
+    const authorId = cm ? cm.userId : story.userId;
+    if (authorId === me.id) throw httpError(400, "You can’t report your own.");
+    const kind = cm ? "storycomment" : "story";
+    if (!db.reports.some((r) => r.kind === kind && r.storyId === story.id && (r.commentId || null) === (cm?.id || null) && r.reporterId === me.id)) {
+      db.reports.push({ id: crypto.randomUUID(), kind, storyId: story.id, ...(cm ? { commentId: cm.id, text: clean(cm.text || "").slice(0, 500) } : {}), authorId, reporterId: me.id, reason, details: clean(body.details).slice(0, 500), createdAt: new Date().toISOString(), status: "open" });
+      save("reports");
+      require("./admin").pingAdmins();
+    }
+    sendJSON(res, 200, { ok: true });
+    return true;
+  }
+
   /* ---------- Comments on a story: they stay on it (in highlights too), everyone who can see it sees them ---------- */
   const commentView = (c) => {
     const u = findUser(c.userId);
@@ -538,4 +576,4 @@ function publicHighlight(id) {
   return { highlight: highlightView(hl), owner };
 }
 
-module.exports = { storyCard, highlightCard, publicStory, publicHighlight, handleStories, storyState, storyPreview, REACTIONS };
+module.exports = { removeStory, removeStoryComment, storyCard, highlightCard, publicStory, publicHighlight, handleStories, storyState, storyPreview, REACTIONS };

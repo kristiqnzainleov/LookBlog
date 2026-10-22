@@ -16,6 +16,28 @@ const REASONS = [
   ["other", "Something else"],
 ];
 
+// Report a reply, a story or a story comment: what = "reply" | "story" | "comment", url = where to send it
+export function openReportContent({ what, url, quote = "", onClose }) {
+  let reason = null;
+  const list = h("div", { class: "report-list", role: "radiogroup" });
+  const details = h("textarea", { class: "text-input", rows: 3, maxlength: 500, placeholder: "Anything else we should know? (optional)" });
+  const send = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Send report", disabled: true });
+  for (const [id, label] of REASONS) {
+    const b = h("button", { type: "button", role: "radio", class: "report-reason", "aria-checked": "false", text: label });
+    b.addEventListener("click", () => { reason = id; list.querySelectorAll("button").forEach((x) => { x.classList.toggle("active", x === b); x.setAttribute("aria-checked", String(x === b)); }); send.disabled = false; });
+    list.append(b);
+  }
+  const m = modal({ title: `Report ${what}`, onClose, body: h("div", { class: "create-form" },
+    h("p", { class: "create-hint", text: (quote ? `“${quote.slice(0, 80)}” — ` : "") + `Why are you reporting this ${what}? The person won’t know it was you.` }),
+    list, details, send) });
+  send.addEventListener("click", async () => {
+    send.disabled = true; send.textContent = "Sending…";
+    try { await api(url, { method: "POST", body: { reason, details: details.value } }); m.close(); toast("Thanks. We got your report."); }
+    catch (err) { toast(err.error || "Couldn’t send the report."); send.disabled = false; send.textContent = "Send report"; }
+  });
+  return m;
+}
+
 export function openReport(post) {
   let reason = null;
   const list = h("div", { class: "report-list", role: "radiogroup" });

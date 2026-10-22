@@ -17,7 +17,7 @@ const TABS = [
   ["badges", "🏅 Badges"],
   ["bans", "🚫 Bans"],
 ];
-const TYPE_LABEL = { post: "📝 Post", user: "👤 Account", live: "🔴 Live", chat: "💬 Live chat" };
+const TYPE_LABEL = { post: "📝 Post", user: "👤 Account", live: "🔴 Live", chat: "💬 Live chat", comment: "💬 Reply", story: "⭕ Story", storycomment: "💬 Story comment" };
 const POST_WORD = { post: "post", video: "video", short: "short" };
 const typeName = (id) => VERIFY_TYPES.find((t) => t[0] === id)?.[1] || id;
 const postLink = (id, type) => (type === "video" ? `/watch/${encodeURIComponent(id)}` : type === "short" ? `/shorts?id=${encodeURIComponent(id)}` : postHref(id));
@@ -131,6 +131,13 @@ export function adminPage(view, _m, params) {
         t.thumb ? h("img", { class: "adm-thumb", src: t.thumb, alt: "" }) : null,
         h("div", { class: "adm-target-text" }, h("b", { text: t.title || "Live stream" }), t.live ? chip("🔴 Live now", "red") : null,
           h("div", { class: "adm-meta" }, who(t.author, 28), t.exists ? h("a", { class: "btn btn-xs btn-outline-light", href: t.live || !t.postId ? `/live/${encodeURIComponent(t.streamId)}` : `/watch/${encodeURIComponent(t.postId)}`, text: "Open ↗" }) : chip("Already deleted"))));
+    } else if (t.type === "comment" || t.type === "story" || t.type === "storycomment") {
+      const href = t.type === "comment" ? postLink(t.postId, t.postType) : `/story/${encodeURIComponent(t.storyId)}`;
+      preview = h("div", { class: "adm-target" },
+        t.thumb ? h("img", { class: "adm-thumb", src: t.thumb, alt: "" }) : null,
+        h("div", { class: "adm-target-text" },
+          h("p", { class: "adm-quote", text: t.text || (t.type === "story" ? "(a story)" : "(no text)") }),
+          h("div", { class: "adm-meta" }, who(t.author, 28), t.exists ? h("a", { class: "btn btn-xs btn-outline-light", href, text: (t.type === "comment" ? "Open the post" : "Open the story") + " ↗" }) : chip("Already deleted"))));
     } else {
       preview = h("div", { class: "adm-target" }, h("div", { class: "adm-target-text" },
         h("p", { class: "adm-quote", text: t.text || "(no text)" }),
@@ -149,7 +156,7 @@ export function adminPage(view, _m, params) {
     if (c.status === "open") {
       const note = noteInput("Note (optional): sent to the author if you remove it");
       const dismiss = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Dismiss" });
-      const remove = t.type !== "user" && t.exists ? h("button", { type: "button", class: "btn btn-sm btn-danger", text: { post: `Remove ${POST_WORD[t.postType] || "post"}`, live: t.live ? "End & remove live" : "Remove live", chat: "Delete message" }[t.type] }) : null;
+      const remove = t.type !== "user" && t.exists ? h("button", { type: "button", class: "btn btn-sm btn-danger", text: { post: `Remove ${POST_WORD[t.postType] || "post"}`, live: t.live ? "End & remove live" : "Remove live", chat: "Delete message", comment: "Remove reply", story: "Remove story", storycomment: "Remove comment" }[t.type] }) : null;
       const banTarget = t.type === "user" ? t.user : t.author;
       const banBtn = banTarget && !banTarget.gone && !banTarget.banned ? h("button", { type: "button", class: "btn btn-sm btn-danger-outline", text: t.type === "user" ? "Suspend account" : "Suspend author" }) : null;
       const act = async (action) => {

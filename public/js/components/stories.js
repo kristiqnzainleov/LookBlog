@@ -173,9 +173,18 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       frameSheet({ title: o.title, body: shareLinkBody(o), onClose: () => { if (!closed) pause(false); } });
     });
   });
+  // ⚑ Report someone else's story
+  const reportBtn = h("button", { type: "button", class: "sv-close sv-report", "aria-label": "Report this story", title: "Report" }, icon("flag"));
+  reportBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = story();
+    if (!s || s.mine) return;
+    pause(true);
+    import("./report.js").then((m) => m.openReportContent({ what: "story", url: `/api/stories/${s.id}/report`, onClose: () => { if (!closed) pause(false); } }));
+  });
   const prevZone = h("button", { type: "button", class: "sv-zone left", "aria-label": "Previous" });
   const nextZone = h("button", { type: "button", class: "sv-zone right", "aria-label": "Next" });
-  const frame = h("div", { class: "story-frame" }, stage, caption, tagRow, prevZone, nextZone, h("div", { class: "sv-top" }, bars, h("div", { class: "sv-head" }, who, h("div", { class: "sv-head-btns" }, shareBtn, closeBtn))), foot);
+  const frame = h("div", { class: "story-frame" }, stage, caption, tagRow, prevZone, nextZone, h("div", { class: "sv-top" }, bars, h("div", { class: "sv-head" }, who, h("div", { class: "sv-head-btns" }, reportBtn, shareBtn, closeBtn))), foot);
   const box = h("div", { class: "story-viewer", role: "dialog", "aria-modal": "true", "aria-label": "Story" }, frame);
   document.body.append(box);
   document.body.classList.add("no-scroll");
@@ -281,6 +290,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     cancelAnimationFrame(timer);
     const s = story();
     if (!s) return close();
+    reportBtn.hidden = Boolean(s.mine);
     elapsed = 0; started = performance.now(); paused = false;
     const u = group().user;
     who.replaceChildren(h("a", { href: profileHref(u.username), onclick: (e) => { e.preventDefault(); close(); navigate(profileHref(u.username)); } }, avatar(u, 34)),
@@ -512,6 +522,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
         try { paintList((await api(`/api/stories/${s.id}/comments/${c.id}`, { method: "DELETE" })).comments); } catch (err) { toast(err.error || "Couldn’t delete it."); }
       });
       const reply = h("button", { type: "button", class: "sc-act", text: "Reply", onclick: () => setReply(c) });
+      const rep = c.mine ? null : h("button", { type: "button", class: "sc-act", text: "Report", onclick: () => import("./report.js").then((m) => m.openReportContent({ what: "comment", url: `/api/stories/${s.id}/comments/${c.id}/report`, quote: c.text || "" })) });
       const el = h("div", { class: "sc-row" + (isReply ? " sc-reply" : "") + (c.mine ? " mine" : "") },
         h("a", { href: profileHref(c.author.username), class: "sc-av" }, avatar(c.author, isReply ? 28 : 36)),
         h("div", { class: "sc-body" },
@@ -522,7 +533,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
             c.sticker ? h("img", { class: "sc-sticker", src: c.sticker, alt: "Sticker", loading: "lazy" }) : null,
           c.sound ? h("div", { class: "sc-sound-msg" }, soundChip(c.sound)) : null,
           c.image ? h("button", { type: "button", class: "sc-photo-btn", "aria-label": "See the photo", onclick: () => seePhoto(c.image.url) }, h("img", { class: "sc-photo-img", src: c.image.url, alt: "Photo", loading: "lazy", width: c.image.width || undefined, height: c.image.height || undefined })) : null),
-          h("div", { class: "sc-meta" }, h("small", { class: "muted", text: timeAgo(c.at) }), reply, del)),
+          h("div", { class: "sc-meta" }, h("small", { class: "muted", text: timeAgo(c.at) }), reply, del, rep)),
         like);
       swipeToReply(el, () => setReply(c)); // swipe right to answer
       return el;

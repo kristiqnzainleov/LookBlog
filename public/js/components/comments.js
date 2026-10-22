@@ -138,7 +138,11 @@ function commentEl(c, { onReply, onGif, onRemoved, post }) {
   // 🏷️ Put a sticker on it
   const stickBtn = h("button", { type: "button", class: "comment-link stick-btn", title: "Put a sticker on it", "aria-label": "Add a sticker" }, h("span", { text: "🏷️" }));
   stickBtn.addEventListener("click", () => openStickers(stickBtn, (st) => stickOnComment(c, st)));
-  const actions = h("div", { class: "comment-actions" }, h("div", { class: "reactions" }), heartSlot, more, replyBtn, gifRep, stickBtn, sendBtn, quick);
+  // ⚑ Report it (not my own)
+  const mine = c.author?.username === state.me?.username;
+  const reportBtn = mine ? null : h("button", { type: "button", class: "comment-link report-link", title: "Report this reply", "aria-label": "Report this reply" }, icon("flag"));
+  reportBtn?.addEventListener("click", () => import("./report.js").then((m) => m.openReportContent({ what: "reply", url: `/api/comments/${c.id}/report`, quote: c.text || "" })));
+  const actions = h("div", { class: "comment-actions" }, h("div", { class: "reactions" }), heartSlot, more, replyBtn, gifRep, stickBtn, sendBtn, reportBtn, quick);
 
   const el = h("article", { class: "reply" + (c.parentId ? " is-child" : ""), dataset: { id: c.id } },
     h("a", { href, tabindex: "-1" }, avatar(c.author, c.parentId ? 32 : 38)),

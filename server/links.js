@@ -34,7 +34,7 @@ async function safeUrl(raw) {
   return u;
 }
 // Fetch a page, connecting only to an address that was checked (the DNS answer can't change in between: no "DNS rebinding")
-function safeGet(u) {
+function safeGet(u, accept = "text/html") {
   const mod = u.protocol === "https:" ? require("https") : require("http");
   const lookup = (host, opts, cb) => dns.lookup(host, { all: true }).then((list) => {
     const ok = list.filter((x) => !privateIp(x.address));
@@ -43,7 +43,7 @@ function safeGet(u) {
     cb(null, ok[0].address, ok[0].family);
   }, cb);
   return new Promise((resolve, reject) => {
-    const req = mod.get(u, { lookup, timeout: 6000, headers: { "User-Agent": "Mozilla/5.0 (compatible; LookBlogPreview/1.0)", Accept: "text/html" } }, (res) => resolve(res));
+    const req = mod.get(u, { lookup, timeout: 6000, headers: { "User-Agent": "Mozilla/5.0 (compatible; LookBlogPreview/1.0)", Accept: accept } }, (res) => resolve(res));
     req.on("timeout", () => req.destroy(new Error("timeout")));
     req.on("error", reject);
   });
@@ -97,11 +97,42 @@ async function preview(raw) {
   return data;
 }
 
+// A preview's picture comes through LookBlog, so the other site never sees who is looking at it (Privacy Policy).
+// Only pictures our own previews pointed at can be fetched (signed), so this isn't an open proxy.
+const crypto = require("crypto");
+const imgSig = (u) => crypto.createHmac("sha256", process.env.SUPABASE_SERVICE_KEY || "lb-preview").update("preview-img:" + u).digest("base64url").slice(0, 22);
+const viaUs = (u) => (u ? `/api/link-preview/image?u=${encodeURIComponent(u)}&s=${imgSig(u)}` : null);
+const IMG_TYPES = /^image\/(png|jpeg|gif|webp|avif)$/;
+async function proxyImage(req, res, url) {
+  const raw = String(url.searchParams.get("u") || "").slice(0, 2000);
+  const sig = String(url.searchParams.get("s") || "");
+  const want = imgSig(raw);
+  if (sig.length !== want.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) { res.writeHead(403); return res.end(); }
+  let u = await safeUrl(raw), r;
+  for (let i = 0; u && i < 4; i++) {
+    try { r = await safeGet(u, "image/*"); } catch { r = null; break; }
+    if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) { r.resume(); u = await safeUrl(new URL(r.headers.location, u).href); r = null; continue; }
+    break;
+  }
+  const type = String(r?.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+  if (!r || r.statusCode !== 200 || !IMG_TYPES.test(type) || Number(r.headers["content-length"] || 0) > 3e6) { r?.resume(); res.writeHead(404); return res.end(); }
+  const parts = []; let size = 0;
+  r.on("data", (c) => { size += c.length; if (size > 3e6) r.destroy(); else parts.push(c); });
+  r.on("end", () => { res.writeHead(200, { "Content-Type": type, "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'" }); res.end(Buffer.concat(parts)); });
+  r.on("error", () => { if (!res.headersSent) { res.writeHead(404); res.end(); } });
+  r.on("close", () => { if (size > 3e6 && !res.headersSent) { res.writeHead(413); res.end(); } });
+}
+
 async function handleLinks(req, res, url, me) {
+  if (req.method === "GET" && url.pathname === "/api/link-preview/image") {
+    rateLimit("preview-img:" + me.id, 300, 10 * 60 * 1000, "Too many pictures at once.");
+    await proxyImage(req, res, url);
+    return true;
+  }
   if (req.method !== "GET" || url.pathname !== "/api/link-preview") return false;
   rateLimit("preview:" + me.id, 120, 10 * 60 * 1000, "Too many links at once.");
   const raw = String(url.searchParams.get("url") || "").slice(0, 2000);
-  try { sendJSON(res, 200, { preview: await preview(raw) }); }
+  try { const p = await preview(raw); sendJSON(res, 200, { preview: { ...p, image: viaUs(p.image) } }); }
   catch (err) { sendJSON(res, err.status || 400, { error: err.expose ? err.message : "No preview for that link." }); }
   return true;
 }

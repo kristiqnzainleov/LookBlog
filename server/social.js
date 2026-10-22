@@ -132,6 +132,18 @@ async function giphy(q, offset) {
 }
 // Stickers and sounds you can send anywhere: yours, the group's (only inside that group), or a built-in sound
 const BUILTIN_SOUND_IDS = ["airhorn", "tada", "drum", "boing", "ding", "sad"];
+// What can be given as a reason when reporting content
+const REPORT_REASONS = ["spam", "harassment", "hate", "violence", "self-harm", "sensitive", "nudity", "misinformation", "copyright", "illegal", "other"];
+// A reply goes, with the answers under it (also used when the team removes a reported one)
+function removeComment(comment) {
+  const post = findPost(comment.postId);
+  const gone = db.comments.filter((x) => x.id === comment.id || x.parentId === comment.id);
+  db.comments = db.comments.filter((x) => !gone.includes(x));
+  for (const x of gone) if (x.media && !x.media.gif && !x.media.sticker && !x.media.shared) { deleteMedia(x.media.url); if (x.media.poster) deleteMedia(x.media.poster); }
+  save("comments");
+  if (post) { post.commentCount = Math.max(0, post.commentCount - gone.length); save("posts"); sendStats(post); }
+  for (const x of gone) broadcast({ type: "comment:deleted", postId: comment.postId, commentId: x.id });
+}
 function resolveExtras(body, me, chat = null) {
   if (body.sticker) {
     const s = (me.stickers || []).find((x) => x.id === body.sticker);
@@ -1619,12 +1631,25 @@ async function handleSocial(req, res, url, me) {
     const comment = db.comments[i];
     const post = findPost(comment.postId);
     if (comment.userId !== me.id && (!post || post.userId !== me.id)) throw httpError(403, "You can’t delete this reply.");
-    const gone = db.comments.filter((x) => x.id === comment.id || x.parentId === comment.id);
-    db.comments = db.comments.filter((x) => !gone.includes(x));
-    for (const x of gone) if (x.media && !x.media.gif && !x.media.sticker && !x.media.shared) { deleteMedia(x.media.url); if (x.media.poster) deleteMedia(x.media.poster); }
-    save("comments");
-    if (post) { post.commentCount = Math.max(0, post.commentCount - gone.length); save("posts"); sendStats(post); }
-    for (const x of gone) broadcast({ type: "comment:deleted", postId: comment.postId, commentId: x.id });
+    removeComment(comment);
+    sendJSON(res, 200, { ok: true });
+    return true;
+  }
+
+  // Report a reply: POST /api/comments/:id/report { reason, details }
+  if (m === "POST" && a === "comments" && c === "report" && parts.length === 3) {
+    rateLimit("report:" + me.id, 20, 60 * 60 * 1000, "You’ve sent a lot of reports. Try again later.");
+    const comment = db.comments.find((x) => x.id === b);
+    if (!comment || !viewablePost(comment.postId, me)) throw httpError(404, "This reply doesn’t exist anymore.");
+    if (comment.userId === me.id) throw httpError(400, "You can’t report your own reply.");
+    const body = await readJSON(req);
+    const reason = REPORT_REASONS.includes(body.reason) ? body.reason : null;
+    if (!reason) throw httpError(400, "Choose a reason.");
+    if (!db.reports.some((r) => r.kind === "comment" && r.commentId === comment.id && r.reporterId === me.id)) {
+      db.reports.push({ id: crypto.randomUUID(), kind: "comment", commentId: comment.id, postId: comment.postId, authorId: comment.userId, reporterId: me.id, reason, details: clean(body.details).slice(0, 500), text: clean(comment.text || "").slice(0, 500), createdAt: new Date().toISOString(), status: "open" });
+      save("reports");
+      require("./admin").pingAdmins();
+    }
     sendJSON(res, 200, { ok: true });
     return true;
   }
@@ -2575,4 +2600,4 @@ function removePost(post) {
   broadcast({ type: "post:deleted", id: post.id });
 }
 
-module.exports = { youtubeTitle, activeNote, removePost, starsView, notPlainVideo, resolveExtras, BUILTIN_SOUND_IDS, cleanClip, handleSocial, resolveGif, canView, blockedBetween, canMakeFilms, canMakeMusic, postView, authorView, buildMedia, claim, findMentions, usernamesOf, clean, chars };
+module.exports = { REPORT_REASONS, removeComment, youtubeTitle, activeNote, removePost, starsView, notPlainVideo, resolveExtras, BUILTIN_SOUND_IDS, cleanClip, handleSocial, resolveGif, canView, blockedBetween, canMakeFilms, canMakeMusic, postView, authorView, buildMedia, claim, findMentions, usernamesOf, clean, chars };

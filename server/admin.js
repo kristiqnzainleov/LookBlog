@@ -51,6 +51,9 @@ function pingAdmins() {
    Several people can report the same thing, so reports are grouped into cases by what they point at. */
 function caseKey(r) {
   if (r.kind === "user") return "user:" + r.userId;
+  if (r.kind === "comment") return "comment:" + r.commentId;
+  if (r.kind === "story") return "story:" + r.storyId;
+  if (r.kind === "storycomment") return `scomment:${r.storyId}:${r.commentId}`;
   if (r.streamId) return r.messageId ? `chat:${r.streamId}:${r.messageId}` : "live:" + r.streamId;
   return "post:" + r.postId;
 }
@@ -58,6 +61,16 @@ function caseTarget(r) {
   if (r.kind === "user") {
     const u = findUser(r.userId);
     return { type: "user", user: person(u), userId: r.userId, followers: u ? followersOf(u.id) : 0, posts: u ? postsOf(u.id) : 0, exists: Boolean(u) };
+  }
+  if (r.kind === "comment") {
+    const cm = db.comments.find((x) => x.id === r.commentId), post = db.posts.find((p) => p.id === r.postId);
+    return { type: "comment", commentId: r.commentId, postId: r.postId, postType: post?.type || "post", text: clip(cm?.text ?? r.text, 400), thumb: cm?.media?.kind === "image" ? cm.media.url : null, author: person(findUser(r.authorId)), exists: Boolean(cm) };
+  }
+  if (r.kind === "story" || r.kind === "storycomment") {
+    const st = db.stories.find((x) => x.id === r.storyId);
+    if (r.kind === "story") return { type: "story", storyId: r.storyId, text: clip(st?.text, 400), thumb: st ? (st.media.kind === "image" ? st.media.url : st.media.poster || null) : null, author: person(findUser(r.authorId)), exists: Boolean(st) };
+    const cm = st?.comments?.find((x) => x.id === r.commentId);
+    return { type: "storycomment", storyId: r.storyId, commentId: r.commentId, text: clip(cm?.text ?? r.text, 400), thumb: cm?.image?.url || cm?.sticker || null, author: person(findUser(r.authorId)), exists: Boolean(cm) };
   }
   if (r.streamId) {
     const st = db.streams.find((x) => x.id === r.streamId);
@@ -133,6 +146,16 @@ function resolveCase(key, action, note, me) {
       const st = db.streams.find((x) => x.id === target.streamId);
       authorId = open[0].authorId;
       if (st) require("./streams").removeChatMessage(st, open[0].messageId);
+    } else if (target.type === "comment") {
+      const cm = db.comments.find((x) => x.id === target.commentId);
+      if (cm) { authorId = cm.userId; require("./social").removeComment(cm); }
+    } else if (target.type === "story") {
+      const st = db.stories.find((x) => x.id === target.storyId);
+      if (st) { authorId = st.userId; require("./stories").removeStory(st); }
+    } else if (target.type === "storycomment") {
+      const st = db.stories.find((x) => x.id === target.storyId);
+      const cm = st?.comments?.find((x) => x.id === target.commentId);
+      if (cm) { authorId = cm.userId; require("./stories").removeStoryComment(st, cm.id); }
     } else throw httpError(400, "An account can’t be removed this way. Suspend it instead.");
   } else if (action === "ban") {
     const id = target.type === "user" ? target.userId : open[0].authorId || (target.author && target.author.id);
@@ -148,7 +171,7 @@ function resolveCase(key, action, note, me) {
   save("reports");
 
   // Let the people who reported it know
-  const what = { post: "post", user: "account", live: "live stream", chat: "live chat message" }[target.type];
+  const what = { post: "post", user: "account", live: "live stream", chat: "live chat message", comment: "reply", story: "story", storycomment: "story comment" }[target.type];
   const msg = action === "dismiss"
     ? `We reviewed the ${what} you reported. It doesn’t go against our rules, so it stays up. Thanks for looking out for LookBlog.`
     : `Thanks for your report. We reviewed the ${what} and took action.`;
@@ -271,7 +294,7 @@ async function handleAdmin(req, res, url, me) {
     if (m === "GET" && !b) {
       const kind = ["support", "bug", "deletion"].includes(url.searchParams.get("kind")) ? url.searchParams.get("kind") : "support";
       const status = url.searchParams.get("status") === "closed" ? "closed" : "open";
-      const list = db.support.filter((t) => (t.kind || "support") === kind && (kind === "deletion" || (status === "open" ? t.status === "open" : t.status !== "open")));
+      const list = db.support.filter((t) => ((t.kind || "support") === kind || (kind === "support" && t.kind === "contact")) && (kind === "deletion" || (status === "open" ? t.status === "open" : t.status !== "open")));
       list.sort((x, y) => y.createdAt.localeCompare(x.createdAt));
       sendJSON(res, 200, { tickets: list.slice(0, 200).map(ticketView), counts: counts() });
       return true;
