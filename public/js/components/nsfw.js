@@ -1,13 +1,17 @@
 // The automatic checks on photos (and a video's first frame) when they're picked, before they're posted,
 // right in the browser: NSFW (NSFWJS) and sensitive things like weapons (MobileNet).
+// Everything (the libraries and the models) comes from LookBlog itself: the photo and your address go nowhere else.
 // Marked ones are shown covered to others and left out of recommendations.
 let modelP = null;
-const add = (src) => new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("load " + src)); document.head.append(s); });
+// (TensorFlow's bundle assigns a global "regeneratorRuntime"; if it isn't there yet it falls back to Function(),
+// which our Content Security Policy blocks, and the whole library fails to load. So it exists first.)
+const add = (src) => { if (!("regeneratorRuntime" in window)) window.regeneratorRuntime = undefined; return addScript(src); };
+const addScript = (src) => new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("load " + src)); document.head.append(s); });
 function model() {
   if (!modelP) {
     modelP = (async () => {
-      if (!window.tf) await add("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js");
-      if (!window.nsfwjs) await add("https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/browser/nsfwjs.min.js");
+      if (!window.tf) await add("/js/lib/tf.min.js");
+      if (!window.nsfwjs) await add("/js/lib/nsfwjs.min.js");
       window.tf.enableProdMode?.();
       return window.nsfwjs.load("/models/nsfw/model.json", { size: 224 });
     })();
@@ -23,25 +27,31 @@ const toImage = (src) => new Promise((ok, no) => {
   img.onerror = () => { URL.revokeObjectURL(url); no(new Error("image")); };
   img.src = url;
 });
-// Sensitive (violence): a general picture model (MobileNet) that knows weapons
+// Sensitive (violence): a general picture model (MobileNet v2, ImageNet) that knows weapons.
+// Loaded straight with TensorFlow from LookBlog's own copy.
 let objectsP = null;
 function objects() {
   if (!objectsP) {
     objectsP = (async () => {
-      if (!window.tf) await add("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js");
-      if (!window.mobilenet) await add("https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js");
-      return window.mobilenet.load({ version: 2, alpha: 0.5 });
+      if (!window.tf) await add("/js/lib/tf.min.js");
+      return window.tf.loadGraphModel("/models/mobilenet/model.json");
     })();
     objectsP.catch(() => { objectsP = null; });
   }
   return objectsP;
 }
-const WEAPONS = ["assault rifle", "revolver", "rifle", "holster", "guillotine"];
+// ImageNet classes (the model has a "background" class first, so +1): assault rifle, revolver, rifle, holster, guillotine
+const WEAPON_IDS = [413, 763, 764, 597, 583].map((i) => i + 1);
 async function hasWeapon(img) {
   try {
-    const preds = await (await objects()).classify(img, 5);
-    return preds.some((p) => WEAPONS.some((w) => p.className.startsWith(w)) && p.probability >= 0.35);
-  } catch { return false; }
+    const net = await objects(), tf = window.tf;
+    const probs = tf.tidy(() => {
+      const x = tf.browser.fromPixels(img).resizeBilinear([224, 224]).toFloat().div(127.5).sub(1).expandDims(0);
+      const out = net.predict(x);
+      return tf.softmax(Array.isArray(out) ? out[0] : out).dataSync();
+    });
+    return WEAPON_IDS.some((i) => probs[i] >= 0.35);
+  } catch (err) { console.warn("[sensitive check]", err?.message); return false; }
 }
 
 // → { nsfw, sensitive, scores } (both false when the check can't run, so nothing is ever blocked by mistake)

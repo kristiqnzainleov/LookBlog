@@ -85,7 +85,7 @@ function servePublic(res, relPath) {
   fs.createReadStream(file).pipe(res);
 }
 
-const SCRIPT_SRC = "script-src 'self' 'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com https://cdn.jsdelivr.net";
+const SCRIPT_SRC = "script-src 'self' 'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com";
 
 async function handleApi(req, res, url) {
   // Every write must carry this header. Other sites can't add it without permission, which blocks CSRF.

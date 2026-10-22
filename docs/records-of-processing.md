@@ -39,7 +39,7 @@ No special categories of data (Art. 9) are collected on purpose. No automated de
 | TURN relay (Metered or own) | Processor, only when calls can't connect directly | Encrypted call audio | Depends on the configured server |
 | TikTok, Instagram, Spotify, SoundCloud, Vimeo | Third party, only after the user taps "Load" on a link | IP address, their own cookies | Their own terms |
 
-Fonts are self-hosted. Link preview pages and pictures are fetched by our server, so those sites don't see visitors.
+Fonts and the photo-check libraries and models (TensorFlow.js, NSFWJS, MobileNet) are self-hosted. Link preview pages and pictures are fetched by our server, so those sites don't see visitors.
 
 ## Technical and organisational security measures (Art. 32)
 
