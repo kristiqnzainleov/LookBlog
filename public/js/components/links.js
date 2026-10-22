@@ -16,7 +16,19 @@ function embed(url) {
   let u;
   try { u = new URL(url); } catch { return null; }
   const host = u.hostname.replace(/^www\.|^m\./, "");
-  const frame = (src, cls, title) => h("div", { class: "embed " + cls }, h("iframe", { src, title, loading: "lazy", allow: "autoplay; encrypted-media; picture-in-picture; clipboard-write; fullscreen", allowfullscreen: true, referrerpolicy: "strict-origin-when-cross-origin", frameborder: "0" }));
+  // Nothing loads from the other site until you tap: its player can set its own cookies (Cookie Policy)
+  const frame = (src, cls, title) => {
+    const site = title.split(" ")[0];
+    const box = h("div", { class: "embed embed-wait " + cls });
+    const go = h("button", { type: "button", class: "embed-load" }, h("b", { text: "▶ Load " + title }), h("small", { text: `This loads content from ${site}, which may set its own cookies.` }));
+    go.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      box.classList.remove("embed-wait");
+      box.replaceChildren(h("iframe", { src: src + (/youtube-nocookie|vimeo/.test(src) ? (src.includes("?") ? "&" : "?") + "autoplay=1" : ""), title, allow: "autoplay; encrypted-media; picture-in-picture; clipboard-write; fullscreen", allowfullscreen: true, referrerpolicy: "strict-origin-when-cross-origin", frameborder: "0" }));
+    });
+    box.append(go);
+    return box;
+  };
   // YouTube (videos, shorts, youtu.be)
   let id = null;
   if (host === "youtu.be") id = u.pathname.slice(1).split("/")[0];

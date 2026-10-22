@@ -7745,3 +7745,10 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .mp-presence { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--muted); }
 /* Recovery codes */
 .rec-codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 1rem; letter-spacing: 0.06em; text-align: center; }
+/* Players from other sites: tap to load (nothing from them loads before) */
+.embed-wait { display: grid; place-items: center; background: linear-gradient(135deg, #1c1a1a, #0d0c0c); border: 1px solid var(--line); }
+.embed-wait.insta { height: auto; aspect-ratio: 4 / 5; background: linear-gradient(135deg, #1c1a1a, #0d0c0c); }
+.embed-wait[class*="spotify"] { min-height: 120px; }
+.embed-load { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 280px; padding: 18px; border: none; background: none; color: var(--paper); text-align: center; cursor: pointer; }
+.embed-load b { padding: 10px 18px; border-radius: 999px; background: var(--pink); color: #000; font-size: 0.9rem; }
+.embed-load small { color: var(--muted); font-size: 0.76rem; line-height: 1.4; }
