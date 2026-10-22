@@ -44,8 +44,7 @@ function page(res, { base, path, title, desc, image, imageW, imageH, video, auth
 ${head}
 <link rel="canonical" href="${esc(url)}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Golos+Text:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="/fonts/26761d630a.css" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 <style>
 :root { --pink: #ff4fa3; --ink: #0d0c0c; --paper: #f5f0f0; --card: #161414; --card-2: #1f1c1c; --text: #f5f0f0; --muted: #a39b9b; --line: #2a2626; --body: "Golos Text", system-ui, sans-serif; --display: Unbounded, sans-serif; }

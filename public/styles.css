@@ -506,3 +506,10 @@ a { color: inherit; }
   .home { gap: 22px !important; }
   body:has(.overlay.open) .logo-big { font-size: clamp(5rem, 26vw, 6.6rem) !important; }
 }
+/* Signing up: confirm your age and the terms */
+.check-row { display: flex; align-items: flex-start; gap: 10px; margin: 6px 0 2px; cursor: pointer; font-size: 0.84rem; line-height: 1.45; color: var(--muted); text-align: left; }
+.check-row input { flex: none; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--pink); }
+.check-row input.invalid { outline: 2px solid #ff4757; outline-offset: 2px; }
+.check-row a { color: var(--pink); text-decoration: none; }
+.check-row b { color: var(--paper, #f5f0eb); }
+.modal-text.small { font-size: 0.8rem; }

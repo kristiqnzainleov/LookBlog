@@ -197,7 +197,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     wantSound = false;
     if (paused) return;
     if (songAudio) songAudio.play().catch(() => {});
-    else if (songYt) { const k = songYt; import("./yt-audio.js").then((m) => { if (songYt === k && !m.ytIsPlaying(k.yt, k.key)) m.ytToggle(k.yt, { quiet: true }, k.key); }); }
+    else if (songYt) { const k = songYt; import("./yt-audio.js").then((m) => { if (songYt === k && !m.ytIsPlaying(k.yt, k.key)) m.ytToggle(k.yt, { anchor: frame }, k.key); }); }
   };
   frame.addEventListener("pointerup", startSound, true);
   frame.addEventListener("keydown", startSound, true);
@@ -223,7 +223,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     const paint = async () => { const on = await songNow(); toggle.replaceChildren(h("span", { text: on ? "⏸" : "▶" }), h("span", { text: on ? " Pause the song" : " Play the song" })); };
     toggle.addEventListener("click", async () => {
       if (songAudio) { if (songAudio.paused) songAudio.play().catch(() => {}); else songAudio.pause(); }
-      else if (songYt) { const m = await import("./yt-audio.js"); m.ytToggle(songYt.yt, { quiet: true }, songYt.key); await new Promise((r) => setTimeout(r, 400)); }
+      else if (songYt) { const m = await import("./yt-audio.js"); m.ytToggle(songYt.yt, { anchor: frame }, songYt.key); await new Promise((r) => setTimeout(r, 400)); }
       wantSound = false;
       paint();
     });
@@ -256,7 +256,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
       songYt = { yt: s.song.yt, key: "story-" + s.id };
       import("./yt-audio.js").then((m) => {
         if (songYt?.key !== "story-" + s.id) return;
-        m.ytToggle(s.song.yt, { title: s.song.title, quiet: true }, "story-" + s.id);
+        m.ytToggle(s.song.yt, { title: s.song.title, artist: s.song.artist?.name, anchor: frame }, "story-" + s.id);
         // not playing after a moment: the browser wants a tap first
         songCheck = setTimeout(() => { if (songYt?.key === "story-" + s.id && !m.ytIsPlaying(s.song.yt, songYt.key)) wantSound = true; }, 2500);
       });
@@ -693,8 +693,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
   function pause(on) {
     if (on === paused) return;
     paused = on;
-    if (on) { elapsed += performance.now() - started; video?.pause(); songAudio?.pause(); if (songYt) import("./yt-audio.js").then((m) => songYt && m.ytIsPlaying(songYt.yt, songYt.key) && m.ytToggle(songYt.yt, { quiet: true }, songYt.key)); }
-    else { started = performance.now(); video?.play().catch(() => {}); songAudio?.play().catch(() => {}); if (songYt) import("./yt-audio.js").then((m) => songYt && !m.ytIsPlaying(songYt.yt, songYt.key) && m.ytToggle(songYt.yt, { quiet: true }, songYt.key)); }
+    if (on) { elapsed += performance.now() - started; video?.pause(); songAudio?.pause(); if (songYt) import("./yt-audio.js").then((m) => songYt && m.ytIsPlaying(songYt.yt, songYt.key) && m.ytToggle(songYt.yt, { anchor: frame }, songYt.key)); }
+    else { started = performance.now(); video?.play().catch(() => {}); songAudio?.play().catch(() => {}); if (songYt) import("./yt-audio.js").then((m) => songYt && !m.ytIsPlaying(songYt.yt, songYt.key) && m.ytToggle(songYt.yt, { anchor: frame }, songYt.key)); }
     frame.classList.toggle("paused", on);
   }
   function next() { if (i < group().stories.length - 1) { i++; show(); } else nextGroup(); }

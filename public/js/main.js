@@ -177,6 +177,23 @@ function setupMenu() {
   });
 }
 
+// "We updated our Terms and Privacy Policy" — confirm your age and agree (shown again next time if closed)
+async function askTerms() {
+  const { modal } = await import("./ui.js");
+  const box = h("input", { type: "checkbox", id: "termsAge" });
+  const go = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Agree and continue", disabled: true });
+  box.addEventListener("change", () => { go.disabled = !box.checked; });
+  const m = modal({ title: "We updated our Terms and Privacy Policy", body: h("div", { class: "create-form" },
+    h("p", { class: "create-hint" }, "We made our ", h("a", { href: "/privacy", target: "_blank", text: "Privacy Policy" }), " clearer (who runs LookBlog, which services we use, how long things are kept, your rights) and updated the ",
+      h("a", { href: "/terms", target: "_blank", text: "Terms of Service" }), ". LookBlog is now for people who are 14 or older."),
+    h("label", { class: "check-row", for: "termsAge" }, box, h("span", { text: "I’m at least 14 years old and I agree to the Terms of Service and the Privacy Policy." })), go) });
+  go.addEventListener("click", async () => {
+    go.disabled = true;
+    try { await api("/api/me/consent", { method: "POST", body: { ageOk: true } }); state.me.termsOk = true; m.close(); }
+    catch (err) { toast(err.error || "Couldn’t save it."); go.disabled = false; }
+  });
+}
+
 (async function start() {
   try {
     state.me = (await api("/api/me")).user;
@@ -204,6 +221,8 @@ function setupMenu() {
   $("meLang").textContent = i18n.LANGS.find((l) => l.id === i18n.currentLang())?.native || "English";
   paintMe();
   on("me:updated", paintMe);
+  // Updated Terms / Privacy Policy (or an account from before they were agreed to at sign-up): ask once
+  if (!state.me.termsOk) setTimeout(askTerms, 1200);
   // The LookBlog team: a badge on the Admin menu item with what's waiting
   if (state.me.admin) {
     const paintAdmin = (c) => { const n = c.reports + c.verifications + c.support + c.bugs; $("adminBadge").textContent = n > 99 ? "99+" : String(n); $("adminBadge").hidden = !n; };

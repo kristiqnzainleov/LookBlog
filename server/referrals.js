@@ -59,8 +59,7 @@ function serveJoinPage(req, res, code) {
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(desc)}"><meta name="twitter:image" content="${esc(img)}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Golos+Text:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="/fonts/26761d630a.css" rel="stylesheet">
 <style>
 :root { --pink: #ff4fa3; --ink: #0d0c0c; --paper: #f5f0f0; }
 * { box-sizing: border-box; }

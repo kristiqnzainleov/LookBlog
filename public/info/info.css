@@ -130,3 +130,15 @@ b { color: var(--paper); }
 .top .logo { font-family: "Lexend", var(--display); font-size: 1.9rem; white-space: nowrap; text-decoration: none; color: var(--paper); }
 .top .logo .eye { width: 0.56em; height: 0.56em; vertical-align: 0; }
 @media (max-width: 640px) { .top .logo { font-size: 1.5rem; } }
+
+/* Contact form */
+.contact-form { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+.contact-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 0.92rem; }
+.contact-form small { color: var(--muted); font-weight: 400; }
+.contact-form input, .contact-form select, .contact-form textarea { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--paper); font: 400 1rem "Golos Text", system-ui, sans-serif; }
+.contact-form input:focus, .contact-form select:focus, .contact-form textarea:focus { outline: none; border-color: var(--pink); }
+.contact-note { font-size: 0.85rem; color: var(--muted); }
+.contact-msg { padding: 10px 14px; border-radius: 12px; background: rgba(255, 71, 87, 0.12); color: #ffb3bb; }
+.contact-msg.ok { background: rgba(46, 230, 166, 0.12); color: #9ff0d2; }
+.contact-send { align-self: flex-start; padding: 12px 26px; border: none; border-radius: 999px; background: var(--pink); color: #000; font: 700 1rem "Golos Text", system-ui, sans-serif; cursor: pointer; }
+.contact-send:disabled { opacity: 0.6; cursor: default; }

@@ -7,6 +7,7 @@ const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { deleteMedia } = require("./media");
 const { sendTo } = require("./realtime");
 
+const TERMS_VERSION = "2026-10-22";
 const REASONS = ["break", "privacy", "too-much-time", "not-useful", "bugs", "safety", "other-account", "other"];
 
 function scrypt(password, stored) {
@@ -75,6 +76,9 @@ function wipe(me) {
   for (const [name, meta] of Object.entries(db.uploads)) if (meta.ownerId === id) files.add("/media/" + name);
   for (const f of [me.avatar, me.banner, ...(me.stickers || []).map((s) => s.url), ...(me.gifs || []).filter((g) => String(g.url).startsWith("/media/")).map((g) => g.url)]) if (f) files.add(f);
   for (const f of files) deleteMedia(f);
+  // Messages I sent the team stay (they may be needed to answer a legal question) but without who I was
+  for (const t of db.support) if (t.userId === id) { t.userId = null; t.username = null; t.email = null; }
+  save("support");
   // Sessions and the account itself
   for (const [k, s] of Object.entries(db.sessions)) if (s.userId === id) delete db.sessions[k];
   db.users = db.users.filter((u) => u.id !== id);
@@ -82,7 +86,65 @@ function wipe(me) {
   if (db.albums) save("albums");
 }
 
+// A copy of everything about me (GDPR: access and portability). Other people's private things aren't in it:
+// for chats, only what I wrote; for people, only their @usernames.
+function exportOf(me) {
+  const uname = (id) => db.users.find((u) => u.id === id)?.username || null;
+  const SECRET = new Set(["passwordHash", "twoFactor", "recovery", "pingAt", "offlineSaid", "lock"]);
+  const account = Object.fromEntries(Object.entries(me).filter(([k]) => !SECRET.has(k)));
+  account.following = (me.following || []).map(uname).filter(Boolean);
+  account.twoStepVerification = Boolean(me.twoFactor?.on);
+  const mine = (list, key = "userId") => (list || []).filter((x) => x[key] === me.id);
+  const strip = (o, drop) => Object.fromEntries(Object.entries(o).filter(([k]) => !drop.includes(k)));
+  const OTHERS = ["viewedBy", "viewLog", "likes", "dislikes", "cools", "hypes", "reposts", "reminders", "stars", "moments", "watch", "reactions", "viewers", "comments", "stuck"];
+  const myChats = db.chats.filter((c) => (c.members || []).includes(me.id));
+  return {
+    about: "Your LookBlog data, exported " + new Date().toISOString() + ". Files (photos, videos, sounds) are listed by their address on LookBlog; open them while logged in to download them.",
+    account,
+    followers: db.users.filter((u) => (u.following || []).includes(me.id)).map((u) => u.username),
+    posts: mine(db.posts).map((p) => ({ ...strip(p, OTHERS), counts: { likes: (p.likes || []).length, dislikes: (p.dislikes || []).length, views: p.views ?? (p.viewedBy || []).length, comments: p.commentCount || 0 } })),
+    comments: mine(db.comments).map((c) => strip(c, ["reactions", "stuck"])),
+    likedPosts: db.posts.filter((p) => (p.likes || []).includes(me.id)).map((p) => p.id),
+    stories: mine(db.stories).map((x) => ({ ...strip(x, OTHERS), viewers: (x.viewers || []).length, comments: (x.comments || []).length })),
+    storyComments: db.stories.flatMap((x) => (x.comments || []).filter((c) => c.userId === me.id).map((c) => ({ storyId: x.id, ...strip(c, ["likes"]) }))),
+    highlights: mine(db.highlights),
+    chats: myChats.map((c) => ({ id: c.id, kind: c.kind, name: c.name || null, members: (c.members || []).map(uname).filter(Boolean), createdAt: c.createdAt })),
+    messagesISent: mine(db.messages).map((m) => strip(m, ["reactions", "hypes", "stuck", "notes"])),
+    playlists: mine(db.playlists), songs: mine(db.songs).map((x) => strip(x, ["likes", "plays", "reactions", "comments"])), albums: mine(db.albums),
+    events: (db.events || []).filter((e) => e.hostId === me.id),
+    notifications: mine(db.notifications).slice(-500),
+    uploads: Object.entries(db.uploads || {}).filter(([, m]) => m.ownerId === me.id).map(([name, m]) => ({ url: "/media/" + name, kind: m.kind, size: m.size, createdAt: m.createdAt })),
+    messagesToTheTeam: mine(db.support),
+  };
+}
+
 async function handleAccount(req, res, url, me) {
+  // A copy of my data: GET /api/me/export (a JSON file)
+  if (req.method === "GET" && url.pathname === "/api/me/export") {
+    rateLimit("export:" + me.id, 5, 60 * 60 * 1000, "You’ve downloaded your data a few times already. Try again in an hour.");
+    const body = JSON.stringify(exportOf(me), null, 2);
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Content-Disposition": `attachment; filename="lookblog-${me.username}-data.json"`, "Cache-Control": "no-store" });
+    res.end(body);
+    return true;
+  }
+  // Agreeing to the updated Terms and Privacy Policy: POST /api/me/consent { ageOk: true }
+  if (req.method === "POST" && url.pathname === "/api/me/consent") {
+    const body = await readJSON(req);
+    if (body.ageOk !== true) throw httpError(400, "Please confirm you’re at least 14.");
+    me.consent = { terms: TERMS_VERSION, privacy: TERMS_VERSION, age14: true, at: new Date().toISOString() };
+    save("users");
+    sendJSON(res, 200, { ok: true });
+    return true;
+  }
+  // Show or hide when I'm online / was last online: POST /api/me/status { hide }
+  if (req.method === "POST" && url.pathname === "/api/me/status") {
+    const body = await readJSON(req);
+    me.hideStatus = Boolean(body.hide);
+    save("users");
+    require("./realtime").announceStatus?.(me);
+    sendJSON(res, 200, { hideStatus: me.hideStatus });
+    return true;
+  }
   // POST /api/me/delete { password, reason, details, confirm }
   if (req.method !== "POST" || url.pathname !== "/api/me/delete") return false;
   rateLimit("delete:" + me.id, 5);

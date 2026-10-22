@@ -87,7 +87,7 @@ export function openWatch(w, { skew = 0, send, onStop, canStop, gesture = false,
     youtubeApi().then(() => {
       if (!win || win.el !== el) return;
       win.yt = new window.YT.Player(holder, {
-        videoId: w.id, width: "100%", height: "100%",
+        videoId: w.id, width: "100%", height: "100%", host: "https://www.youtube-nocookie.com",
         playerVars: { autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1, start: Math.floor(targetOf(w, skew)), mute: win.muted ? 1 : 0 },
         events: {
           onReady: () => { if (win.muted) soundBtn.hidden = false; applyWatch(win.w, win.skew, true); },

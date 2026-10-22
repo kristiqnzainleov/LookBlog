@@ -1,9 +1,11 @@
-// YouTube songs as sound only (no video on the screen): one small hidden YouTube player for the whole site,
-// with our own play / pause. Used by profile songs, note songs and songs sent in chats (the spinning records).
-// If a phone refuses to start it from the hidden player, a small player shows so it can be tapped.
+// YouTube songs: one small YouTube player for the whole site, with our own play / pause.
+// Used by profile songs, note songs, songs sent in chats (the spinning records) and story songs.
+// YouTube's rules: the player stays visible while it plays (at least 200×200), it's never hidden or shrunk,
+// and it comes from youtube-nocookie.com (no YouTube cookies until you play something).
+// On a story it sits on the story itself (anchor), so nothing pops up outside it.
 import { h } from "../ui.js";
 
-let api = null, player = null, box = null, now = null, ready = null, failTimer = 0;
+let api = null, player = null, box = null, now = null, ready = null, anchorEl = null;
 const tell = () => dispatchEvent(new Event("lb-yt-audio"));
 
 function loadApi() {
@@ -17,21 +19,33 @@ function loadApi() {
   return api;
 }
 
+// Where the card sits: on the element it belongs to (a story), or in the corner of the screen
+function place() {
+  if (!box) return;
+  const a = anchorEl?.isConnected ? anchorEl.getBoundingClientRect() : null;
+  box.classList.toggle("on-anchor", Boolean(a));
+  if (a) { box.style.left = Math.round(a.right - box.offsetWidth - 12) + "px"; box.style.top = Math.round(a.top + 96) + "px"; box.style.bottom = "auto"; }
+  else { box.style.left = box.style.top = box.style.bottom = ""; }
+}
+addEventListener("resize", place);
+
 function makePlayer(id) {
-  box = h("div", { class: "yt-audio-box", "aria-hidden": "true" }, h("div", { id: "lb-yt-audio" }));
-  const close = h("button", { type: "button", class: "yt-audio-close", "aria-label": "Close", text: "✕", onclick: () => { stop(); } });
-  box.append(close);
+  const title = h("b", { class: "yt-audio-title" });
+  const close = h("button", { type: "button", class: "yt-audio-close", "aria-label": "Stop and close", text: "✕", onclick: (e) => { e.stopPropagation(); stop(); } });
+  box = h("div", { class: "yt-audio-box", role: "region", "aria-label": "YouTube player" },
+    h("div", { class: "yt-audio-head" }, h("span", { class: "yt-audio-logo", text: "▶" }), title, close), h("div", { id: "lb-yt-audio" }));
+  // (taps on it don't reach a story underneath)
+  for (const t of ["pointerdown", "pointerup", "click"]) box.addEventListener(t, (e) => e.stopPropagation());
   document.body.append(box);
   ready = loadApi().then((YT) => new Promise((ok) => {
     player = new YT.Player("lb-yt-audio", {
-      width: 200, height: 113, videoId: id,
+      width: 200, height: 200, videoId: id, host: "https://www.youtube-nocookie.com",
       playerVars: { autoplay: 1, playsinline: 1, controls: 1, rel: 0, modestbranding: 1 },
       events: {
         onReady: () => { ok(player); player.playVideo(); },
         onStateChange: (e) => {
           if (!now) return;
           now.playing = e.data === 1;
-          if (e.data === 1) { clearTimeout(failTimer); box.classList.remove("show"); }
           if (e.data === 0) { now.playing = false; now.ended = true; }
           tell();
         },
@@ -43,6 +57,7 @@ function makePlayer(id) {
 
 // Play (or pause, if it's the one playing) a YouTube song by its video id
 // (key: where it's played from — a profile, a note, one message. The same song somewhere else starts from the beginning.)
+// meta.anchor: the element the player sits on (a story's frame)
 export async function ytToggle(id, meta = {}, key = id) {
   if (now?.id === id && now.key === key && player?.getPlayerState) {
     const st = player.getPlayerState();
@@ -52,18 +67,20 @@ export async function ytToggle(id, meta = {}, key = id) {
   // The site's own music player stops (one thing plays at a time)
   import("./music.js").then((m) => { if (!m.player.audio.paused) m.player.audio.pause(); }).catch(() => {});
   now = { id, key, playing: false, ...meta };
+  anchorEl = meta.anchor || null;
   tell();
-  // A phone that won't start it without a tap on the player itself: show the small player to tap
-  // (not for a story's song: the story shows its own "tap for sound" button instead, nothing pops up outside it)
-  clearTimeout(failTimer);
-  box?.classList.remove("show");
-  if (!meta.quiet) failTimer = setTimeout(() => { if (now?.id === id && !now.playing) box?.classList.add("show"); }, 3500);
-  if (!player) await makePlayer(id);
+  const first = !player ? makePlayer(id) : null;
+  // (shown before it starts: it never plays out of sight)
+  box.querySelector(".yt-audio-title").textContent = [meta.title, meta.artist].filter(Boolean).join(" · ") || "YouTube";
+  box.classList.add("show");
+  place();
+  if (first) await first;
   else { await ready; player.loadVideoById({ videoId: id, startSeconds: 0 }); }
 }
 export function stop() {
   try { player?.stopVideo(); } catch {}
-  box?.classList.remove("show");
+  box?.classList.remove("show", "on-anchor");
+  anchorEl = null;
   if (now) now.playing = false;
   tell();
 }

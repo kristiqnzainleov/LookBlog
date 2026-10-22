@@ -26,7 +26,9 @@ function write(event, filter = null) {
 
 // Online, idle (LookBlog is open but in the background, or nobody's touched it for a while) or offline
 function presence(userId) {
-  const u = findUser(userId), online = isOnline(userId);
+  const u = findUser(userId);
+  if (u?.hideStatus) return { online: false, idle: false, lastSeen: null }; // they chose not to show it
+  const online = isOnline(userId);
   return { online, idle: online && Boolean(u?.idle), lastSeen: online ? null : lastSeenOf(u) };
 }
 // When they were last here: when they left, or their last ping, or (accounts from before this was kept) the last thing they did
@@ -51,8 +53,11 @@ function isOnline(userId) {
 }
 
 function announce(user, online) {
+  if (user.hideStatus) return broadcast({ type: "presence", username: user.username, online: false, idle: false, lastSeen: null });
   broadcast({ type: "presence", username: user.username, online, idle: online && Boolean(user.idle), lastSeen: online ? null : lastSeenOf(user) });
 }
+// Turned "show my status" on or off: tell everyone now
+function announceStatus(user) { announce(user, isOnline(user.id)); }
 // Closed LookBlog: offline straight away (unless another tab is still open: it pings again and I'm back)
 function goOffline(me) {
   if (!store.enabled) return; // (locally the live connection closing does this)
@@ -209,4 +214,4 @@ if (!store.enabled) setInterval(() => {
 
 if (store.enabled) require("./ticker").every(sweepOffline, 20 * 1000);
 
-module.exports = { handleEvents, broadcast, sendTo, isOnline, presence, realtimeInfo, ping, setIdle, goOffline, sweepOffline, flushRealtime };
+module.exports = { handleEvents, broadcast, sendTo, isOnline, presence, announceStatus, realtimeInfo, ping, setIdle, goOffline, sweepOffline, flushRealtime };

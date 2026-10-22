@@ -195,7 +195,7 @@ async function syncDeckB(m) {
       deckB.box = h("div", { class: "vm-yt deck-b" }, h("div", { class: "vm-yt-head" }, h("span", { text: "🎚 Deck B · " + item.title })), h("div", { id: "vm-ytb-" + item.id }));
       document.body.append(deckB.box);
       const me = deckB;
-      me.yt = new YT.Player("vm-ytb-" + item.id, { width: 200, height: 112, videoId: item.ref,
+      me.yt = new YT.Player("vm-ytb-" + item.id, { width: 200, height: 200, videoId: item.ref, host: "https://www.youtube-nocookie.com",
         playerVars: { autoplay: 1, controls: 0, disablekb: 1, playsinline: 1, start: Math.floor(pos()), rel: 0 },
         events: {
           onReady: (e) => { e.target.unMute(); e.target.setVolume(Math.round(level() * mixX())); e.target.seekTo(pos(), true); e.target.playVideo(); },
@@ -348,11 +348,11 @@ export async function applyMusic(m) {
   if (current?.now?.id !== item.id) return;
   if (!yt) {
     // A small visible player (browsers don't always play hidden ones)
-    ytBox = h("div", { class: "vm-yt" }, h("div", { class: "vm-yt-head" }, h("span", { text: "🎧 " + item.title }), h("button", { type: "button", class: "vm-yt-min", title: "Smaller", text: "–", onclick: () => ytBox.classList.toggle("min") })), h("div", { id: "vm-yt-" + item.id }));
+    ytBox = h("div", { class: "vm-yt" }, h("div", { class: "vm-yt-head" }, h("span", { text: "🎧 " + item.title })), h("div", { id: "vm-yt-" + item.id })); // (it stays this size: YouTube's rules say the player is never hidden)
     document.body.append(ytBox);
     await new Promise((resolve) => {
       yt = new YT.Player("vm-yt-" + item.id, {
-        width: 200, height: 112, videoId: item.ref,
+        width: 200, height: 200, videoId: item.ref, host: "https://www.youtube-nocookie.com",
         playerVars: { autoplay: 1, controls: 0, disablekb: 1, playsinline: 1, start: Math.floor(position(m)), rel: 0 },
         events: {
           onReady: (e) => {

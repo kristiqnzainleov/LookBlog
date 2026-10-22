@@ -37,7 +37,7 @@ const firstField = { login: $("email"), signup: $("suName"), forgot: $("fpEmail"
 
 function openModal(name) {
   // Carry the email over from the login form to "forgot password"
-  if (name === "forgot" && !$("fpEmail").value && EMAIL_RE.test($("email").value.trim())) {
+  if (name === "forgot" && !$("fpEmail").value && $("email").value.trim()) {
     $("fpEmail").value = $("email").value.trim();
   }
   Object.values(overlays).forEach((o) => o.classList.remove("open"));
@@ -170,11 +170,14 @@ function validateSignup() {
   if (!USERNAME_RE.test(username)) errors.username = "3–15 characters: letters, numbers and _ only.";
   if (!EMAIL_RE.test(email)) errors.email = "That email address doesn’t look right.";
   if (password.length < 8) errors.password = "Use at least 8 characters.";
-  return { errors, data: { name, username, email, password } };
+  const ok = $("suTerms").checked;
+  if (!ok) errors.terms = "Please confirm you’re at least 14 and agree to the Terms and Privacy Policy.";
+  return { errors, data: { name, username, email, password, ageOk: ok, terms: ok } };
 }
 
 function showSignupErrors(errors) {
   Object.keys(su).forEach((f) => setError(su[f], suError(f), errors[f]));
+  setError($("suTerms"), suError("terms"), errors.terms);
 }
 
 // Live check: is the username free?
@@ -227,27 +230,32 @@ forgotForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const input = $("fpEmail");
   const email = input.value.trim();
+  const code = $("fpCode").value.trim();
   const btn = $("forgotBtn");
   showFormError($("forgotError"), "");
 
-  if (!EMAIL_RE.test(email)) {
-    setError(input, $("fpEmailError"), email ? "That email address doesn’t look right." : "Please enter your email.");
+  if (!email) {
+    setError(input, $("fpEmailError"), "Please enter your email or @username.");
     return shake($("forgotCard"));
   }
   setError(input, $("fpEmailError"), "");
+  if (!code) {
+    showFormError($("forgotError"), "Enter one of your recovery codes (or your 2-step code).");
+    $("fpCode").focus();
+    return shake($("forgotCard"));
+  }
 
   setBusy(btn, true, "Checking…");
   try {
-    // The right email opens "Choose a new password" right here (no email is sent)
-    const r = await api("/api/forgot-password", { method: "POST", body: JSON.stringify({ email, code: $("fpCode").value.trim() || undefined }) });
+    // The right account + code opens "Choose a new password" right here
+    const r = await api("/api/forgot-password", { method: "POST", body: JSON.stringify(EMAIL_RE.test(email) ? { email, code } : { username: email, code }) });
     resetToken = r.token;
     $("resetTitle").textContent = `New password for @${r.username}`;
+    $("fpCode").value = "";
     openModal("reset");
   } catch (err) {
     if (err.errors?.email) setError(input, $("fpEmailError"), err.errors.email);
     else showFormError($("forgotError"), err.error || "Something went wrong. Try again.");
-    // This account has 2-step verification: its code is needed too
-    if (err.needCode) { $("fpCodeField").hidden = false; setTimeout(() => $("fpCode").focus(), 50); }
     shake($("forgotCard"));
   } finally {
     setBusy(btn, false, "Continue");

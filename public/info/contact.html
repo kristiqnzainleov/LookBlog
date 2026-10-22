@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact · LookBlog</title>
+  <meta name="description" content="Write to the LookBlog team — no account needed." />
+  <link href="/fonts/1fde0644c2.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/info/info.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="logo" href="/" aria-label="LookBlog"><span aria-hidden="true">L<span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span><span class="eye"><span class="pupil"></span><span class="lid lid-top"></span><span class="lid lid-bottom"></span></span>k<em>Blog</em></span></a>
+    <nav class="tabs"><a href="/about">About</a><a href="/help">Help</a><a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a><a href="/cookies">Cookie Policy</a><a href="/contact" class="on">Contact</a></nav>
+  </header>
+  <main class="doc">
+    <p class="kicker">No account needed</p>
+    <h1>Contact us</h1>
+    <p class="lead">Locked out, a privacy request, a copyright notice, illegal content, or a message from an authority — write to the LookBlog team here. You can write in English or Bulgarian.</p>
+    <form class="contact-form" id="contactForm" novalidate>
+      <label>What is it about?
+        <select id="cTopic">
+          <option value="locked-out">I can’t get into my account</option>
+          <option value="privacy">My data and privacy (a copy, a correction, deletion…)</option>
+          <option value="illegal-content">Illegal or harmful content</option>
+          <option value="copyright">Copyright — my work is used without permission</option>
+          <option value="authority">I write for an authority or court</option>
+          <option value="other">Something else (or disagreeing with a decision)</option>
+        </select>
+      </label>
+      <label>Your email <small>(so we can answer you)</small><input type="email" id="cEmail" autocomplete="email" maxlength="254" required /></label>
+      <label>Your name <small>(optional)</small><input type="text" id="cName" autocomplete="name" maxlength="80" /></label>
+      <label>Your LookBlog @username <small>(if you have one)</small><input type="text" id="cUser" autocomplete="username" maxlength="40" /></label>
+      <label>Your message <small>(add links to what it’s about)</small><textarea id="cMsg" rows="7" maxlength="5000" required></textarea></label>
+      <p class="contact-note">We use what you send only to answer you and handle your request (see the <a href="/privacy">Privacy Policy</a>). To get back into an account, we’ll ask you things only its owner would know.</p>
+      <p class="contact-msg" id="cOut" role="status" hidden></p>
+      <button type="submit" class="contact-send" id="cSend">Send</button>
+    </form>
+  </main>
+  <script src="/eyes.js" defer></script>
+  <script src="/info/contact.js" defer></script>
+  <footer class="foot"><a href="/about">About</a><a href="/help">Help</a><a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a><a href="/cookies">Cookie Policy</a><a href="/contact">Contact</a><span>© 2026 LookBlog</span></footer>
+</body>
+</html>

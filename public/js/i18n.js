@@ -83,7 +83,7 @@ const BG = {
   "This account is private": "Този профил е личен", "Send report": "Изпрати доклад", "What happened? (optional)": "Какво се случи? (по желание)",
   "Spam or a fake account": "Спам или фалшив профил", "Pretending to be someone else": "Представя се за някой друг", "Harassment or bullying": "Тормоз",
   "Hate speech": "Реч на омразата", "Violence or threats": "Насилие или заплахи", "Nudity or sexual content": "Голота или сексуално съдържание",
-  "Self-harm or suicide": "Самонараняване", "They might be under 13": "Може да е под 13 години", "Something else": "Нещо друго",
+  "Self-harm or suicide": "Самонараняване", "They might be under 14": "Може да е под 14 години", "Illegal content (breaks the law)": "Незаконно съдържание", "Illegal content or activity": "Незаконно съдържание или действия", "Something else": "Нещо друго",
   "Spam or scam": "Спам или измама", "False information": "Невярна информация", "Uses my work without permission": "Използва моя труд без разрешение",
   // Profile
   "Tell people a little about yourself": "Разкажи малко за себе си", "What do you do?": "С какво се занимаваш?", "Not in the list?": "Няма го в списъка?",

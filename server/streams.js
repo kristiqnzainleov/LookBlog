@@ -240,7 +240,7 @@ async function handleStreams(req, res, url, me) {
     rateLimit("report:" + me.id, 20, 60 * 60 * 1000, "You’ve sent a lot of reports. Try again later.");
     if (isHost) throw httpError(400, "You can’t report your own live.");
     const body = await readJSON(req);
-    const REASONS = ["spam", "harassment", "hate", "violence", "nudity", "misinformation", "copyright", "self-harm", "other"];
+    const REASONS = ["spam", "harassment", "hate", "violence", "nudity", "misinformation", "copyright", "illegal", "self-harm", "other"];
     if (!REASONS.includes(body.reason)) throw httpError(400, "Choose a reason.");
     const msg = body.messageId ? st.chat.find((x) => x.id === body.messageId) : null;
     if (body.messageId && !msg) throw httpError(404, "That message is gone.");

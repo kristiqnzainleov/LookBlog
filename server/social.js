@@ -1177,7 +1177,7 @@ async function handleSocial(req, res, url, me) {
     if (!post) throw httpError(404, "This post doesn’t exist anymore.");
     if (post.userId === me.id) throw httpError(400, "You can’t report your own post.");
     const body = await readJSON(req);
-    const REASONS = ["spam", "harassment", "hate", "violence", "self-harm", "sensitive", "nudity", "misinformation", "copyright", "other"];
+    const REASONS = ["spam", "harassment", "hate", "violence", "self-harm", "sensitive", "nudity", "misinformation", "copyright", "illegal", "other"];
     const reason = REASONS.includes(body.reason) ? body.reason : null;
     if (!reason) throw httpError(400, "Choose a reason.");
     const details = clean(body.details).slice(0, 500);
@@ -1193,7 +1193,7 @@ async function handleSocial(req, res, url, me) {
           const author = findUser(post.userId);
           removePost(post);
           save("posts"); save("comments");
-          if (author) notify(author.id, "team", { id: "team", name: "LookBlog Team" }, { text: "We removed one of your posts: violence, blood, weapons, self-harm and other disturbing content aren’t allowed on LookBlog (see Terms).", link: "/terms" });
+          if (author) notify(author.id, "team", { id: "team", name: "LookBlog Team" }, { text: "We removed one of your posts automatically: 3 different people reported it as violence, blood, weapons, self-harm or other disturbing content, which isn’t allowed on LookBlog (Terms, section 3). If you think this was a mistake, write to us at /contact or Menu → Help → Still need help? and a person will look again.", link: "/terms" });
           broadcast({ type: "post:deleted", id: post.id });
           sendJSON(res, 200, { ok: true, removed: true });
           return true;
@@ -1215,7 +1215,7 @@ async function handleSocial(req, res, url, me) {
     if (!user) throw httpError(404, "This account doesn’t exist.");
     if (user.id === me.id) throw httpError(400, "You can’t report yourself.");
     const body = await readJSON(req);
-    const REASONS = ["spam", "harassment", "hate", "violence", "nudity", "impersonation", "underage", "self-harm", "other"];
+    const REASONS = ["spam", "harassment", "hate", "violence", "nudity", "impersonation", "underage", "illegal", "self-harm", "other"];
     const reason = REASONS.includes(body.reason) ? body.reason : null;
     if (!reason) throw httpError(400, "Choose a reason.");
     const details = clean(body.details).slice(0, 500);

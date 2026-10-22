@@ -55,6 +55,7 @@ const TYPES = {
   ".jpg": "image/jpeg",
   ".ico": "image/x-icon",
   ".gif": "image/gif",
+  ".woff2": "font/woff2",
   ".json": "application/json; charset=utf-8",
   ".bin": "application/octet-stream",
 };
@@ -79,7 +80,7 @@ function servePublic(res, relPath) {
     return res.end("Not found");
   }
   // The GIF pack never changes, so browsers may keep it
-  const cache = relPath.startsWith("gifs/pack/") ? "public, max-age=604800" : "no-store";
+  const cache = relPath.startsWith("gifs/pack/") || relPath.startsWith("fonts/") ? "public, max-age=604800" : "no-store";
   res.writeHead(200, { "Content-Type": type, "Cache-Control": cache, "X-Content-Type-Options": "nosniff" });
   fs.createReadStream(file).pipe(res);
 }
@@ -95,6 +96,28 @@ async function handleApi(req, res, url) {
   }
 
   if (await handleAuth(req, res, url, { port: PORT })) return;
+
+  // Write to the LookBlog team without an account (locked out, a privacy request, a legal notice, an authority):
+  // POST /api/contact { email, name, topic, message }
+  if (req.method === "POST" && url.pathname === "/api/contact") {
+    const { db } = require("./server/db");
+    const { rateLimit } = require("./server/http");
+    const ip = (process.env.TRUST_PROXY && String(req.headers["x-real-ip"] || "").trim()) || req.socket.remoteAddress;
+    rateLimit("contact:" + ip, 5, 60 * 60 * 1000, "You’ve sent a few messages already. We’ll get back to you soon.");
+    const body = await readJSON(req);
+    const TOPICS = ["locked-out", "privacy", "copyright", "illegal-content", "authority", "other"];
+    const topic = TOPICS.includes(body.topic) ? body.topic : "other";
+    const email = String(body.email || "").trim().slice(0, 254);
+    const message = String(body.message || "").trim().slice(0, 5000);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendJSON(res, 400, { error: "Add an email address we can answer you at." });
+    if (message.length < 10) return sendJSON(res, 400, { error: "Tell us a bit more (at least 10 characters)." });
+    const t = { id: crypto.randomUUID().slice(0, 8), kind: "contact", userId: null, username: String(body.username || "").replace(/^@/, "").slice(0, 40) || null, name: String(body.name || "").trim().slice(0, 80) || null, email, topic, message, page: "/contact", userAgent: String(req.headers["user-agent"] || "").slice(0, 200), status: "open", createdAt: new Date().toISOString() };
+    db.support.push(t);
+    save("support");
+    require("./server/admin").pingAdmins();
+    console.log(`[contact] #${t.id} ${topic}`);
+    return sendJSON(res, 201, { ok: true, id: t.id });
+  }
 
   // The admin panel (/admin-panel) has its own accounts
   if (url.pathname.startsWith("/api/panel/")) { await handlePanel(req, res, url); return; }
@@ -328,7 +351,7 @@ async function handle(req, res) {
     // The admin panel: its own log in, separate from LookBlog accounts
     if (p === "/admin-panel") return servePublic(res, "admin-panel.html");
     // About, Help and the policies: open to everyone
-    const info = { "/about": "about", "/help": "help", "/terms": "terms", "/privacy": "privacy", "/cookies": "cookies" }[p];
+    const info = { "/about": "about", "/help": "help", "/terms": "terms", "/privacy": "privacy", "/cookies": "cookies", "/contact": "contact" }[p];
     if (info) return servePublic(res, `info/${info}.html`);
     // An invite link: "Join LookBlog" (with the logo when it's shared)
     if (/^\/join\/[a-z0-9]{4,12}$/i.test(p)) return serveJoinPage(req, res, p.slice(6));

@@ -7,9 +7,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LookBlog. Follow people, not the algorithm.</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Lexend:wght@900&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link href="/fonts/3dcd4a0cf9.css" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -149,9 +147,14 @@
               <small class="error" data-error-for="password"></small>
             </div>
 
+            <label class="check-row" for="suTerms">
+              <input type="checkbox" id="suTerms" />
+              <span>I’m at least <b>14 years old</b> and I agree to the <a href="/terms" target="_blank">Terms of Service</a> and the <a href="/privacy" target="_blank">Privacy Policy</a>.</span>
+            </label>
+            <small class="error" data-error-for="terms"></small>
+
             <p class="form-error" id="signupError" role="alert" hidden></p>
             <button type="submit" class="btn btn-primary btn-full" id="signupBtn">Create account</button>
-            <p class="legal">By signing up, you agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</p>
           </form>
 
           <div class="success" id="signupSuccess" hidden>
@@ -181,16 +184,17 @@
           <h2 id="forgotTitle">Forgot your password?</h2>
 
           <form id="forgotForm" novalidate>
-            <div class="field" id="fpCodeField" hidden>
-              <label for="fpCode">2-step code</label>
-              <input type="text" id="fpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="12" />
-            </div>
-            <p class="modal-text">Enter the email of your account. If it’s right, you can choose a new password straight away.</p>
+            <p class="modal-text">To keep your account safe, your email alone isn’t enough. Enter your email (or @username) and one of the <b>recovery codes</b> you saved from Settings → Recovery codes — or your 2-step code, if you use one.</p>
             <div class="field">
-              <label for="fpEmail">Email</label>
-              <input type="email" id="fpEmail" autocomplete="email" spellcheck="false" />
+              <label for="fpEmail">Email or @username</label>
+              <input type="text" id="fpEmail" autocomplete="username" spellcheck="false" autocapitalize="off" />
               <small class="error" id="fpEmailError"></small>
             </div>
+            <div class="field" id="fpCodeField">
+              <label for="fpCode">Recovery code or 2-step code</label>
+              <input type="text" id="fpCode" autocomplete="one-time-code" spellcheck="false" autocapitalize="characters" maxlength="20" placeholder="XXXXX-XXXXX" />
+            </div>
+            <p class="modal-text small">No code? <a class="link" href="/contact?topic=locked-out" target="_blank" rel="noopener">Ask us for help</a> — we’ll check it’s really you first.</p>
             <p class="form-error" id="forgotError" role="alert" hidden></p>
             <button type="submit" class="btn btn-primary btn-full" id="forgotBtn">Continue</button>
           </form>

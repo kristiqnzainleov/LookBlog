@@ -9,6 +9,7 @@ const SESSION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const RESET_MS = 30 * 60 * 1000; // 30 minutes
 const USERNAME_RE = /^[A-Za-z0-9_]{3,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const TERMS_VERSION = "2026-10-22"; // the Terms / Privacy Policy people agree to when they sign up
 const sha256 = (v) => crypto.createHash("sha256").update(v).digest("hex");
 
 /* ---------- Passwords ---------- */
@@ -113,6 +114,17 @@ const codeOk = (u, code) => {
   const a = Buffer.from(String(code || "").replace(/\s+/g, "")), b = Buffer.from(String(u.twoFactor.code));
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
+// Recovery codes (for a forgotten password): stored hashed, each one works once
+const normCode = (c) => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+function useRecoveryCode(user, code) {
+  const list = user.recovery?.codes || [];
+  const want = Buffer.from(sha256(normCode(code)));
+  const i = list.findIndex((x) => { const b = Buffer.from(x); return b.length === want.length && crypto.timingSafeEqual(b, want); });
+  if (i < 0) return false;
+  list.splice(i, 1);
+  save("users");
+  return true;
+}
 // Short-lived tickets live in db.tokens (hashed), so any server can finish what another one started
 function tokenMap(kind) {
   const k = (key) => kind + ":" + key;
@@ -159,6 +171,8 @@ function meView(u) {
     ...(require("./admin").isAdmin(u) ? { admin: true, owner: require("./admin").isOwner(u) } : {}),
     private: Boolean(u.private),
     categories: u.categories || [],
+    hideStatus: Boolean(u.hideStatus),
+    termsOk: u.consent?.terms === TERMS_VERSION,
   };
 }
 
@@ -226,7 +240,10 @@ async function handleAuth(req, res, url, { port }) {
 
   if (route === "POST /api/register") {
     rateLimit("reg:" + ip, 10);
-    const { errors, clean } = validateSignup(await readJSON(req));
+    const regBody = await readJSON(req);
+    const { errors, clean } = validateSignup(regBody);
+    // Old enough (14 — the age for agreeing on your own in Bulgaria and many EU countries) and agreeing to the terms
+    if (regBody.ageOk !== true || regBody.terms !== true) errors.terms = "Please confirm you’re at least 14 and agree to the Terms and Privacy Policy.";
     if (Object.keys(errors).length) {
       sendJSON(res, 400, { errors });
       return true;
@@ -247,6 +264,7 @@ async function handleAuth(req, res, url, { port }) {
       categories: [],
       note: null,
       verified: VERIFIED.includes(clean.username.toLowerCase()),
+      consent: { terms: TERMS_VERSION, privacy: TERMS_VERSION, age14: true, at: new Date().toISOString() }, // what they agreed to, and when
     };
     db.users.push(user);
     save("users");
@@ -493,32 +511,48 @@ async function handleAuth(req, res, url, { port }) {
     return true;
   }
 
+  // Forgot password: POST /api/forgot-password { email | username, code }
+  // There's no email to send a link to, so knowing the email alone is never enough: it takes one of the account's
+  // recovery codes (Settings → Security) or its 2-step code. A wrong answer never says whether the account exists.
   if (route === "POST /api/forgot-password") {
-    rateLimit("forgot:" + ip, 5);
-    const body2fa = await readJSON(req);
-    const email = String(body2fa.email || "").trim().toLowerCase();
-    if (!EMAIL_RE.test(email)) {
-      sendJSON(res, 400, { errors: { email: "That email address doesn’t look right." } });
-      return true;
-    }
-    // No email is sent: the right email lets you choose a new password straight away
-    // (the token below is good for 10 minutes and for this one change only).
-    const user = db.users.find((u) => u.email === email);
-    if (!user) {
-      sendJSON(res, 404, { errors: { email: "There’s no LookBlog account with that email." } });
-      return true;
-    }
-    if (twoFA(user)) {
-      const code = (await Promise.resolve(body2fa))?.code;
-      if (!code) { sendJSON(res, 401, { needCode: true, error: "This account has 2-step verification. Enter your code to continue." }); return true; }
-      checkLock(user);
-      if (!codeOk(user, code)) { failedTry(user); sendJSON(res, 401, { needCode: true, error: "That 2-step code isn’t right." }); return true; }
-    }
+    rateLimit("forgot:" + ip, 8, 15 * 60 * 1000, "You’ve tried a lot of times. Try again in 15 minutes.");
+    const body = await readJSON(req);
+    const who = String(body.email || body.username || "").trim().toLowerCase().replace(/^@/, "");
+    const code = String(body.code || "").trim();
+    if (!who) { sendJSON(res, 400, { errors: { email: "Enter your email or @username." } }); return true; }
+    if (!code) { sendJSON(res, 400, { needCode: true, error: "Enter one of your recovery codes (or your 2-step code)." }); return true; }
+    const user = db.users.find((u) => String(u.email || "").toLowerCase() === who || u.username.toLowerCase() === who);
+    const nope = () => { sendJSON(res, 400, { needCode: true, error: "That account and code don’t match. Check them, or ask us for help." }); return true; };
+    if (!user) { sha256(code); return nope(); } // (same work either way)
+    checkLock(user);
+    const rec = useRecoveryCode(user, code);
+    if (!rec && !(twoFA(user) && codeOk(user, code))) { failedTry(user); return nope(); }
     for (const [k, v] of resetTokens) if (v.userId === user.id) resetTokens.delete(k);
     const token = crypto.randomBytes(32).toString("hex");
     resetTokens.set(sha256(token), { userId: user.id, expires: Date.now() + 10 * 60 * 1000 });
-    console.log(`[password reset] started for @${user.username}`);
-    sendJSON(res, 200, { token, name: user.name, username: user.username });
+    console.log(`[password reset] started for @${user.username} (${rec ? "recovery code" : "2-step code"})`);
+    sendJSON(res, 200, { token, name: user.name, username: user.username, codesLeft: (user.recovery?.codes || []).length });
+    return true;
+  }
+
+  // Recovery codes: GET → how many are left; POST { password } → 8 new ones (shown once; the old ones stop working)
+  if (route === "GET /api/me/recovery-codes") {
+    const me = sessionUser(req);
+    if (!me) throw httpError(401, "Not logged in.");
+    sendJSON(res, 200, { left: (me.recovery?.codes || []).length, at: me.recovery?.at || null });
+    return true;
+  }
+  if (route === "POST /api/me/recovery-codes") {
+    const me = sessionUser(req);
+    if (!me) throw httpError(401, "Not logged in.");
+    rateLimit("recovery:" + me.id, 10, 60 * 60 * 1000, "You’ve tried a lot of times. Try again in an hour.");
+    const body = await readJSON(req);
+    if (me.passwordHash && !verifyPassword(String(body.password || ""), me.passwordHash)) throw httpError(401, "Your password isn’t right.");
+    const codes = Array.from({ length: 8 }, () => { const x = crypto.randomBytes(5).toString("hex").toUpperCase(); return x.slice(0, 5) + "-" + x.slice(5); });
+    me.recovery = { codes: codes.map((c) => sha256(normCode(c))), at: new Date().toISOString() };
+    save("users");
+    require("./notifications").notify(me.id, "security", me, { text: "New recovery codes were made for your account. The old ones don’t work any more." });
+    sendJSON(res, 200, { codes });
     return true;
   }
 

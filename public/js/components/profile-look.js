@@ -169,11 +169,11 @@ let fontsLoaded = false;
 export function loadFonts() {
   if (fontsLoaded) return;
   fontsLoaded = true;
-  document.head.append(h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Space+Mono:wght@700&family=Pacifico&family=Fredoka:wght@600&display=swap" }),
-    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lobster&family=Permanent+Marker&family=Press+Start+2P&family=Orbitron:wght@800&family=Caveat:wght@700&family=Righteous&family=Bungee&family=Bangers&family=Cinzel:wght@700&family=Monoton&family=Great+Vibes&family=Creepster&family=Audiowide&display=swap" }),
-    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@700&family=Luckiest+Guy&family=Teko:wght@600&family=Black+Ops+One&family=Silkscreen:wght@700&family=Rubik+Glitch&family=Russo+One&family=VT323&display=swap" }),
-    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Rubik+Bubbles&family=Rubik+Wet+Paint&family=Rubik+Puddles&family=Rubik+Beastly&family=Rubik+Moonrocks&family=Rubik+Microbe&family=Rubik+Dirt&family=Rubik+Spray+Paint&family=Rubik+Vinyl&family=Rubik+Iso&family=Rubik+Maze&family=Rubik+Burned&family=Rubik+Distressed&family=Rubik+Gemstones&family=Rubik+Storm&family=Rubik+80s+Fade&family=Rubik+Doodle+Shadow&family=Rubik+Marker+Hatch&family=Rubik+Pixels&family=Rubik+Scribble&family=Rubik+Lines&family=Rubik+Broken+Fax&family=Rubik+Mono+One&display=swap" }),
-    h("link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Amatic+SC:wght@700&family=Neucha&family=Marck+Script&family=Bad+Script&family=Yeseva+One&family=Poiret+One&family=Ruslan+Display&family=Underdog&family=Kelly+Slab&family=Stalinist+One&family=Seymour+One&family=Philosopher:wght@700&family=Pangolin&family=Jura:wght@700&family=Days+One&family=Forum&family=Kurale:wght@700&family=Oranienbaum&family=Montserrat+Alternates:wght@700&family=Play:wght@700&family=Prosto+One&family=Ubuntu:wght@700&display=swap" }));
+  document.head.append(h("link", { rel: "stylesheet", href: "/fonts/98eb023f86.css" }),
+    h("link", { rel: "stylesheet", href: "/fonts/0fde423050.css" }),
+    h("link", { rel: "stylesheet", href: "/fonts/428774b3ae.css" }),
+    h("link", { rel: "stylesheet", href: "/fonts/894b822a94.css" }),
+    h("link", { rel: "stylesheet", href: "/fonts/6bda0c8521.css" }));
 }
 // A custom gradient is saved as "grad:#aaaaaa,#bbbbbb@90" (colours, then the direction in degrees)
 const parseGrad = (c) => { const [cols, deg] = c.slice(5).split("@"); return { cols: cols.split(","), deg: Number(deg) || 90 }; };

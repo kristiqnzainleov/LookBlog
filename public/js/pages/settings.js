@@ -29,6 +29,17 @@ function showCode(code) {
   modal({ title: "Your 2-step code", body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "You’ll be asked for this code every time you log in (and to reset your password). Keep it somewhere safe. You can see it again here in Settings." }), box, copy) });
 }
 
+function showRecovery(codes) {
+  const text = codes.join("\n");
+  const copy = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Copy" });
+  copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(text); copy.textContent = "Copied!"; } catch {} });
+  const save = h("a", { class: "btn btn-sm btn-outline-light", download: "lookblog-recovery-codes.txt", href: "data:text/plain;charset=utf-8," + encodeURIComponent("LookBlog recovery codes for @" + state.me.username + "\nEach one works once.\n\n" + text), text: "Save as a file" });
+  modal({ title: "Your recovery codes", body: h("div", { class: "create-form" },
+    h("p", { class: "create-hint", text: "Write them down or save them now — you won’t see them again. Each code works once. Making new codes stops these ones." }),
+    h("div", { class: "code-box rec-codes" }, ...codes.map((c) => h("span", { text: c }))),
+    h("div", { class: "set-row" }, copy, save)) });
+}
+
 export function settingsPage(view) {
   document.title = "Settings / LookBlog";
   view.classList.add("page-settings");
@@ -153,11 +164,45 @@ export function settingsPage(view) {
   });
   pwAgain.addEventListener("keydown", (e) => { if (e.key === "Enter") pwBtn.click(); });
 
+  // Recovery codes: the way back in if you forget your password
+  const recBox = h("div", {}, spinner());
+  const paintRec = () => api("/api/me/recovery-codes").then(({ left, at }) => {
+    const make = h("button", { type: "button", class: "btn btn-sm btn-primary", text: left ? "Make new codes" : "Make my recovery codes" });
+    make.addEventListener("click", () => {
+      const go = async (password, m) => {
+        const { codes } = await api("/api/me/recovery-codes", { method: "POST", body: { password } });
+        m?.close(); showRecovery(codes); paintRec();
+      };
+      if (state.me.googleOnly) go("", null).catch((err) => toast(err.error || "Couldn’t make them.")); else askPassword("Recovery codes", go);
+    });
+    recBox.replaceChildren(
+      h("p", { class: "set-status " + (left ? "on" : "off") }, h("span", { class: "dot" }), left ? `${left} of 8 codes left${at ? " · made " + new Date(at).toLocaleDateString("en-US", { dateStyle: "medium" }) : ""}` : "No codes yet — make them now, so you can get back in if you forget your password"),
+      h("div", { class: "set-row" }, make));
+  }).catch(() => recBox.replaceChildren(h("p", { class: "muted", text: "Couldn’t load this." })));
+  paintRec();
+
+  // Activity status: show (or not) when I'm online and when I was last online
+  const statusOn = () => !state.me.hideStatus;
+  const statusState = h("p", { class: "set-status" }, h("span", { class: "dot" }));
+  const statusBtn = h("button", { type: "button", class: "btn btn-sm btn-outline-light" });
+  const paintStatus = () => { statusState.className = "set-status " + (statusOn() ? "on" : "off"); statusState.replaceChildren(h("span", { class: "dot" }), statusOn() ? "Shown — people can see when you’re online and when you were last online" : "Hidden — you look offline to everyone"); statusBtn.textContent = statusOn() ? "Hide my activity status" : "Show my activity status"; };
+  statusBtn.addEventListener("click", async () => {
+    try { const r = await api("/api/me/status", { method: "POST", body: { hide: statusOn() } }); state.me.hideStatus = r.hideStatus; paintStatus(); toast(r.hideStatus ? "Your activity status is hidden." : "Your activity status is shown."); }
+    catch (err) { toast(err.error || "Couldn’t change it."); }
+  });
+  paintStatus();
+
+  // A copy of my data
+  const dl = h("a", { class: "btn btn-sm btn-outline-light", href: "/api/me/export", download: "", text: "⬇️ Download my data" });
+
   view.append(
-    section("Email", "You log in with it and get password reset links there.", emailNow, h("div", { class: "set-row" }, emailIn, emailBtn)),
+    section("Email", "You log in with it.", emailNow, h("div", { class: "set-row" }, emailIn, emailBtn)),
     section("Password", "Changing it logs you out on your other devices. (Signed up with Google? Leave the current one empty to set a password.)", h("div", { class: "set-pass" }, now.el, neu.el, h("div", { class: "pw-strength" }, meter, meterText), again.el, pwErr, pwBtn)),
     section("Two-step verification (2FA)", "When it’s on, LookBlog asks for your code after your password — so knowing your password (or email) isn’t enough to get into your account. LookBlog can make the code for you, or you can pick your own.", twoBox),
+    section("🔑 Recovery codes", "If you forget your password, one of these codes (with your email or @username) lets you choose a new one. Each code works once. Keep them somewhere safe — not in your messages here.", recBox),
     section("Preferences", null, h("div", { class: "set-row" }, lang, priv)),
+    section("🟢 Activity status", "Whether people see the green dot when you’re online, and “Last online …” when you’re not.", statusState, h("div", { class: "set-row" }, statusBtn)),
+    section("📦 Your data", "Download a copy of your account: your profile, posts, comments, stories, messages you sent, and more (a JSON file).", h("div", { class: "set-row" }, dl)),
     section("🔞 Sensitive content (NSFW)", "LookBlog checks photos and videos when they’re posted. Sensitive ones (nudity and other 18+ things) are blurred and aren’t recommended to people who didn’t ask for them.", h("div", { class: "set-row" }, nsfwState, nsfwBtn)),
     section("🤖 AI filter", "Photos and videos made with AI tools are found automatically (from the marks those tools leave in the file), and anyone can mark their post as “Made with AI”. They get a 🤖 AI-generated label.", h("div", { class: "set-row" }, aiState, aiBtn)),
     section("Delete account", "This removes your profile, posts, videos, songs, messages and everything else you made. It can’t be undone.", del));

@@ -12,6 +12,7 @@ const REASONS = [
   ["nudity", "Nudity or sexual content"],
   ["misinformation", "False information"],
   ["copyright", "Uses my work without permission"],
+  ["illegal", "Illegal content (breaks the law)"],
   ["other", "Something else"],
 ];
 
@@ -79,7 +80,8 @@ const PERSON_REASONS = [
   ["violence", "Violence or threats"],
   ["nudity", "Nudity or sexual content"],
   ["self-harm", "Self-harm or suicide"],
-  ["underage", "They might be under 13"],
+  ["underage", "They might be under 14"],
+  ["illegal", "Illegal content or activity"],
   ["other", "Something else"],
 ];
 export function openReportUser(user, { message = null, onBlocked } = {}) {

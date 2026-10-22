@@ -154,7 +154,7 @@ function resolveCase(key, action, note, me) {
     : `Thanks for your report. We reviewed the ${what} and took action.`;
   for (const id of new Set(open.map((r) => r.reporterId))) teamNote(id, msg, null);
   // And the author, when their content was removed (a suspended account can't see it anyway)
-  if (action === "remove" && authorId) teamNote(authorId, `Your ${what} was removed because it goes against our rules (${reason}).${note ? " " + clip(note, 300) : ""}`, null);
+  if (action === "remove" && authorId) teamNote(authorId, `Your ${what} was removed by the LookBlog team because it goes against our rules (${reason}), after people reported it.${note ? " " + clip(note, 300) : ""} ${APPEAL}`, null);
   pingAdmins();
 }
 
@@ -167,6 +167,9 @@ function verifyView(r) {
     user: person(u), followers: u ? followersOf(u.id) : 0, posts: u ? postsOf(u.id) : 0, joined: u?.createdAt || null,
   };
 }
+
+// How to disagree with a decision (every notice about removed content says it)
+const APPEAL = "If you think this was a mistake, write to us at /contact (or Menu → Help → Still need help?) and we’ll look again. You can also take it to an out-of-court dispute body or a court.";
 
 /* ---------- Support messages and bug reports ---------- */
 function ticketView(t) {
