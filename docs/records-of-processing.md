@@ -30,8 +30,8 @@ No special categories of data (Art. 9) are collected on purpose. No automated de
 
 | Recipient | Role | What they get | Location / transfer safeguard |
 |---|---|---|---|
-| Vercel Inc. | Processor: hosting | All traffic | Functions run in Frankfurt (fra1). US company: EU–US Data Privacy Framework / SCCs in Vercel's DPA |
-| Supabase Inc. | Processor: database, file storage, realtime | All stored data | eu-central-1 (Frankfurt). US company: SCCs in Supabase's DPA |
+| Vercel Inc. | Processor: hosting | All traffic | Functions run in Frankfurt (fra1). **DPA: not covered.** The team "look-blog" is on the Hobby plan, and Vercel's DPA (with 2021 SCCs) applies only to Pro and Enterprise plans (checked 23 Oct 2026). To close the gap: upgrade to Pro, or move hosting to a provider whose DPA covers free plans |
+| Supabase Inc. | Processor: database, file storage, realtime | All stored data | eu-central-1 (Frankfurt). **DPA: in place.** Supabase's DPA is part of its Terms of Service and applies to every customer without a separate signature; it includes the 2021 EU SCCs (modules 2 and 3) plus UK and Swiss addenda (checked 23 Oct 2026) |
 | Google (YouTube) | Third party, only when a YouTube song or video is played | IP address, what is played (youtube-nocookie.com) | USA: Data Privacy Framework |
 | GIPHY | Third party | GIF searches (through our server), IP address when GIF pictures load | USA |
 | Google Translate, MyMemory | Third party, only on "translate" | The text being translated | USA / EU |
