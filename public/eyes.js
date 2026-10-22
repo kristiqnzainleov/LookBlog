@@ -90,6 +90,12 @@ function updateShyness() {
   });
 }
 document.addEventListener("focusin", updateShyness);
+// "hide" pressed: the eyes squeeze shut (and stay closed while you type); "show": they pop open and peek
+function eyesReact(kind) {
+  const cls = kind === "hide" ? "squeeze" : "surprise";
+  logos.forEach((logo) => { logo.classList.remove("squeeze", "surprise"); void logo.offsetWidth; logo.classList.add(cls); });
+  setTimeout(() => logos.forEach((logo) => logo.classList.remove(cls)), 650);
+}
 document.addEventListener("focusout", () => setTimeout(updateShyness, 0));
 
 // Blink now and then

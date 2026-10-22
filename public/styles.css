@@ -513,3 +513,21 @@ a { color: inherit; }
 .check-row a { color: var(--pink); text-decoration: none; }
 .check-row b { color: var(--paper, #f5f0eb); }
 .modal-text.small { font-size: 0.8rem; }
+
+/* Show / hide password: the eyes react */
+.logo.squeeze .eye { --close: 1; animation: eyeSqueeze 0.55s cubic-bezier(0.3, 1.4, 0.5, 1); }
+.logo.squeeze .lid { transition-duration: 0.12s; }
+@keyframes eyeSqueeze {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.1, 0.78); }
+  60% { transform: scale(0.95, 1.06); }
+  100% { transform: scale(1, 1); }
+}
+.logo.surprise .eye { animation: eyeSurprise 0.55s ease-out; }
+.logo.surprise .lid { transition-duration: 0.18s; }
+@keyframes eyeSurprise {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .logo.squeeze .eye, .logo.surprise .eye { animation: none; } }

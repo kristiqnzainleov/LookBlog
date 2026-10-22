@@ -80,6 +80,7 @@ document.querySelectorAll(".toggle-pass").forEach((btn) => {
     input.type = hidden ? "text" : "password";
     btn.textContent = hidden ? "hide" : "show";
     updateShyness();
+    eyesReact(hidden ? "show" : "hide");
   });
 });
 
@@ -171,7 +172,7 @@ function validateSignup() {
   if (!EMAIL_RE.test(email)) errors.email = "That email address doesn’t look right.";
   if (password.length < 8) errors.password = "Use at least 8 characters.";
   const ok = $("suTerms").checked;
-  if (!ok) errors.terms = "Please confirm you’re at least 14 and agree to the Terms and Privacy Policy.";
+  if (!ok) errors.terms = "Please agree to the Terms of Service and the Privacy Policy.";
   return { errors, data: { name, username, email, password, ageOk: ok, terms: ok } };
 }
 

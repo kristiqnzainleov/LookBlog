@@ -243,7 +243,7 @@ async function handleAuth(req, res, url, { port }) {
     const regBody = await readJSON(req);
     const { errors, clean } = validateSignup(regBody);
     // Old enough (14 — the age for agreeing on your own in Bulgaria and many EU countries) and agreeing to the terms
-    if (regBody.ageOk !== true || regBody.terms !== true) errors.terms = "Please confirm you’re at least 14 and agree to the Terms and Privacy Policy.";
+    if (regBody.ageOk !== true || regBody.terms !== true) errors.terms = "Please agree to the Terms of Service and the Privacy Policy.";
     if (Object.keys(errors).length) {
       sendJSON(res, 400, { errors });
       return true;
