@@ -194,6 +194,17 @@ async function askTerms() {
   });
 }
 
+// A photo or video that doesn't load (for example an old link the browser remembered): try once more, fresh
+document.addEventListener("error", (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLImageElement || el instanceof HTMLVideoElement || el instanceof HTMLSourceElement || el instanceof HTMLAudioElement)) return;
+  const src = el.getAttribute("src") || "";
+  if (!src.startsWith("/media/") || el.dataset.retried) return;
+  el.dataset.retried = "1";
+  el.setAttribute("src", src + (src.includes("?") ? "&" : "?") + "r=" + Date.now().toString(36));
+  if (el instanceof HTMLSourceElement) el.parentElement?.load?.();
+}, true);
+
 (async function start() {
   try {
     state.me = (await api("/api/me")).user;
