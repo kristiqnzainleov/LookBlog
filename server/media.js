@@ -57,7 +57,24 @@ const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 const ONLINE_MAX = 50 * MB; // the largest file Supabase's free plan takes
 const sbHeaders = () => ({ apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` });
-const publicUrl = (name) => `${SB_URL}/storage/v1/object/public/media/${name}`;
+// The file as the server reads it (with its key: the bucket is private)
+const storedUrl = (name) => `${SB_URL}/storage/v1/object/authenticated/media/${name}`;
+// A short-lived address the browser is sent to, once we've checked it may see the file
+const SIGNED_FOR = 3600; // seconds
+const signedCache = new Map(); // name -> { url, until }
+async function signedUrl(name, download) {
+  const key = name + (download ? "|dl" : "");
+  const hit = signedCache.get(key);
+  if (hit && hit.until > Date.now()) return hit.url;
+  const r = await fetch(`${SB_URL}/storage/v1/object/sign/media/${name}`, { method: "POST", headers: { ...sbHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ expiresIn: SIGNED_FOR }), signal: AbortSignal.timeout(8000) });
+  if (!r.ok) return null;
+  const { signedURL } = await r.json();
+  if (!signedURL) return null;
+  const url = `${SB_URL}/storage/v1${signedURL}${download ? "&download=" + encodeURIComponent(name) : ""}`;
+  if (signedCache.size > 5000) signedCache.clear();
+  signedCache.set(key, { url, until: Date.now() + (SIGNED_FOR - 600) * 1000 }); // (handed out with at least 10 minutes left)
+  return url;
+}
 const sign = (text) => crypto.createHmac("sha256", SB_KEY).update(text).digest("base64url");
 const limitOf = (t) => (store.enabled ? Math.min(t.max, ONLINE_MAX) : t.max);
 const tooBigFor = (t) => httpError(413, `${{ image: "Photos", video: "Videos", audio: "Sounds", file: "Files" }[t.kind]} can be up to ${limitOf(t) / MB} MB.`);
@@ -84,7 +101,7 @@ async function finishUpload(req, res, me, body) {
   const t = TYPES[type];
   if (!t || !NAME_RE.test(name) || !name.endsWith("." + t.ext) || body.ticket !== sign(`${me.id}:${name}:${type}`)) throw httpError(400, "That upload isn’t valid.");
   if (db.uploads[name]) return sendJSON(res, 201, { url: "/media/" + name, kind: t.kind });
-  const r = await fetch(publicUrl(name) + "?t=" + Date.now(), { headers: { Range: "bytes=0-15" } });
+  const r = await fetch(storedUrl(name), { headers: { ...sbHeaders(), Range: "bytes=0-15" } });
   const head = r.ok ? Buffer.from(await r.arrayBuffer()).subarray(0, 16) : Buffer.alloc(0);
   const size = Number(String(r.headers.get("content-range") || "").split("/")[1]) || Number(r.headers.get("content-length")) || 0;
   const bad = !r.ok ? httpError(400, "The file didn’t arrive. Try again.") : size > limitOf(t) ? tooBigFor(t)
@@ -93,7 +110,7 @@ async function finishUpload(req, res, me, body) {
   db.uploads[name] = { ownerId: me.id, kind: t.kind, size, createdAt: new Date().toISOString() };
   if (t.kind === "image" || t.kind === "video") {
     try {
-      const r2 = await fetch(publicUrl(name) + "?t=" + Date.now(), { headers: { Range: "bytes=0-524287" }, signal: AbortSignal.timeout(8000) });
+      const r2 = await fetch(storedUrl(name), { headers: { ...sbHeaders(), Range: "bytes=0-524287" }, signal: AbortSignal.timeout(8000) });
       const ai = r2.ok ? aiMark(Buffer.from(await r2.arrayBuffer())) : null;
       if (ai) db.uploads[name].ai = ai;
     } catch {}
@@ -235,14 +252,18 @@ function deleteMedia(url) {
 }
 
 /* ---------- GET /media/<file>  (supports Range so videos can seek) ---------- */
-function serveMedia(req, res, name) {
-  if (!NAME_RE.test(name) || !db.uploads[name]) {
-    res.writeHead(404, { "Content-Type": "text/plain" });
+// viewer: the logged-in person (or null). A file is only sent to people who may see what it's attached to.
+async function serveMedia(req, res, name, viewer = null, team = false) {
+  if (!NAME_RE.test(name) || !db.uploads[name] || !(team || require("./media-access").mediaAllowed(db.uploads[name], viewer))) {
+    res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "private, no-store" });
     return res.end("Not found");
   }
-  // Online the file is in Supabase Storage (it handles seeking and caching)
+  // Online the file is in Supabase Storage (it handles seeking and caching): a short-lived signed address
   if (store.enabled) {
-    res.writeHead(302, { Location: publicUrl(name), "Cache-Control": "public, max-age=86400" });
+    const doc = db.uploads[name].kind === "file" && !/\.pdf$/.test(name);
+    const url = await signedUrl(name, doc);
+    if (!url) { res.writeHead(503, { "Content-Type": "text/plain", "Retry-After": "5" }); return res.end("Try again"); }
+    res.writeHead(302, { Location: url, "Cache-Control": "private, max-age=1800", Vary: "Cookie" });
     return res.end();
   }
   const file = path.join(UPLOAD_DIR, name);
@@ -285,7 +306,7 @@ function serveMedia(req, res, name) {
 function mediaAddress(url, base) {
   const name = String(url || "").replace(/^\/media\//, "");
   if (!NAME_RE.test(name) || !db.uploads[name]) return null;
-  return store.enabled ? publicUrl(name) : base + "/media/" + name;
+  return base + "/media/" + name; // (our address: it checks who may see it, then sends them on)
 }
 
 const aiOf = (url) => db.uploads[String(url || "").replace(/^\/media\//, "")]?.ai || null;

@@ -44,7 +44,10 @@ Fonts and the photo-check libraries and models (TensorFlow.js, NSFWJS, MobileNet
 ## Technical and organisational security measures (Art. 32)
 
 - HTTPS everywhere. HttpOnly, SameSite session cookies. A CSRF header is required on every write.
-- Passwords hashed with scrypt. Per-account and per-IP lockouts. Optional 2-step verification. One-time recovery codes are stored hashed.
+- Passwords hashed with scrypt. Per-account lockouts and per-IP limits on log-in, sign-up and reset, shared by all servers (stored in the database).
+- Optional 2-step verification with an authenticator app (TOTP). The secret is stored encrypted (AES-256-GCM, key `MFA_KEY`) and each code works only once. Old fixed codes are stored only as hashes. One-time recovery codes are stored hashed.
+- The admin panel requires 2-step verification for every admin, and every admin action is kept in a team log for 12 months.
+- Uploaded files live in a private storage bucket. They are opened only through LookBlog, which checks whether the viewer may see what the file is attached to (a chat, a post, a story) and then sends a signed link that expires within an hour.
 - Password reset needs a recovery code or 2-step code. It never says whether an account exists.
 - Content Security Policy. Server-signed realtime events. Uploads limited by type and size. Server-side link fetching blocks private addresses (SSRF).
 - Secrets live in environment variables, never in the code. GitHub secret scanning, push protection, Dependabot and CodeQL are on.

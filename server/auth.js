@@ -2,7 +2,7 @@
 
 const crypto = require("crypto");
 const { db, save, findUser, findByUsername, VERIFIED, reservedUsername } = require("./db");
-const { sendJSON, httpError, readJSON, parseCookies, rateLimit } = require("./http");
+const { sendJSON, httpError, readJSON, parseCookies, rateLimit, sharedRateLimit } = require("./http");
 const { every } = require("./ticker");
 
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -108,12 +108,38 @@ every(() => {
   if (changed) save("sessions");
 }, 60 * 60 * 1000).unref();
 
-/* ---------- Two-step verification (2FA): a code LookBlog gives you, or one you choose ---------- */
-const twoFA = (u) => Boolean(u?.twoFactor?.on && u.twoFactor.code);
-const codeOk = (u, code) => {
-  const a = Buffer.from(String(code || "").replace(/\s+/g, "")), b = Buffer.from(String(u.twoFactor.code));
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-};
+/* ---------- Two-step verification (2FA) ----------
+   Now: an authenticator app (TOTP, a new 6-digit code every 30 seconds; the secret is stored encrypted).
+   Before: one fixed code. Those still work until people switch, but only as a hash (never readable). */
+const totp = require("./totp");
+const twoFA = (u) => Boolean(u?.twoFactor?.on && (u.twoFactor.totp || u.twoFactor.hash || u.twoFactor.code));
+const twoFAKind = (u) => (!twoFA(u) ? null : u.twoFactor.totp ? "app" : "fixed");
+function codeOk(u, code) {
+  const tf = u.twoFactor || {};
+  if (tf.totp) {
+    const step = totp.check(tf.totp, code, tf.lastStep || 0);
+    if (step) { tf.lastStep = step; save("users"); }
+    return Boolean(step);
+  }
+  const c = String(code || "").replace(/\s+/g, "");
+  if (tf.hash) return Boolean(c) && verifyPassword(c, tf.hash);
+  if (tf.code) { // (an old fixed code still in plain text: checked, then stored as a hash)
+    const a = Buffer.from(c), b = Buffer.from(String(tf.code));
+    const ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+    if (ok) { tf.hash = hashPassword(c); delete tf.code; save("users"); }
+    return ok;
+  }
+  return false;
+}
+// On start: old fixed codes that are still readable become hashes
+require("./db").onLoad(() => {
+  let n = 0;
+  for (const u of db.users) if (u.twoFactor?.code) { u.twoFactor.hash = hashPassword(String(u.twoFactor.code)); delete u.twoFactor.code; n++; }
+  if (n) { save("users"); console.log(`[2fa] ${n} fixed codes stored as hashes`); }
+});
+// Waiting to be confirmed: the secret shown in Settings, until the first code from the app proves it was added
+const pendingTotp = tokenMapLater("totp");
+function tokenMapLater(kind) { return { get: (k) => db.tokens[kind + ":" + k], set: (k, v) => { db.tokens[kind + ":" + k] = v; save("tokens"); }, delete: (k) => { delete db.tokens[kind + ":" + k]; save("tokens"); } }; }
 // Recovery codes (for a forgotten password): stored hashed, each one works once
 const normCode = (c) => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 function useRecoveryCode(user, code) {
@@ -239,7 +265,7 @@ async function handleAuth(req, res, url, { port }) {
   }
 
   if (route === "POST /api/register") {
-    rateLimit("reg:" + ip, 10);
+    sharedRateLimit("reg:" + ip, 10);
     const regBody = await readJSON(req);
     const { errors, clean } = validateSignup(regBody);
     // Old enough (14 — the age for agreeing on your own in Bulgaria and many EU countries) and agreeing to the terms
@@ -274,7 +300,7 @@ async function handleAuth(req, res, url, { port }) {
   }
 
   if (route === "POST /api/login") {
-    rateLimit("login:" + ip, 10);
+    sharedRateLimit("login:" + ip, 10);
     const body = await readJSON(req);
     const id = String(body.login || "").trim().replace(/^@/, "");
     const password = String(body.password || "");
@@ -295,7 +321,7 @@ async function handleAuth(req, res, url, { port }) {
 
   // The 2FA code after the password (or Google): POST /api/login/code { ticket, code }
   if (route === "POST /api/login/code") {
-    rateLimit("2fa:" + ip, 20);
+    sharedRateLimit("2fa:" + ip, 20);
     const body = await readJSON(req);
     const key = sha256(String(body.ticket || ""));
     const t = pending2fa.get(key);
@@ -337,7 +363,7 @@ async function handleAuth(req, res, url, { port }) {
   if (route === "GET /api/me/2fa") {
     const me = sessionUser(req);
     if (!me) throw httpError(401, "Not logged in.");
-    sendJSON(res, 200, { on: twoFA(me), hasPassword: !me.googleOnly });
+    sendJSON(res, 200, { on: twoFA(me), kind: twoFAKind(me), since: me.twoFactor?.since || null, hasPassword: !me.googleOnly });
     return true;
   }
   // POST /api/me/2fa { action: enable|disable|show|change, password, code }
@@ -388,17 +414,27 @@ async function handleAuth(req, res, url, { port }) {
     const body = await readJSON(req);
     if (!verifyPassword(String(body.password || ""), me.passwordHash)) throw httpError(401, "Your password isn’t right.");
     if (body.action === "disable") { me.twoFactor = { on: false }; save("users"); sendJSON(res, 200, { on: false }); return true; }
-    if (body.action === "show") { if (!twoFA(me)) throw httpError(400, "2-step verification is off."); sendJSON(res, 200, { on: true, code: me.twoFactor.code }); return true; }
-    // enable / change: your own code (6–10 digits) or one LookBlog makes for you
-    let code = String(body.code || "").replace(/\s+/g, "");
-    if (code && !/^\d{6,10}$/.test(code)) throw httpError(400, "Use 6 to 10 digits.");
-    if (code && /^(\d)\1+$/.test(code)) throw httpError(400, "Pick a code that isn’t the same digit over and over.");
-    if (!code) code = String(crypto.randomInt(100000, 1000000));
-    me.twoFactor = { on: true, code, since: new Date().toISOString() };
-    save("users");
-    require("./notifications").notify(me.id, "security", me, { text: "2-step verification is on. You’ll need your code every time you log in." });
-    sendJSON(res, 200, { on: true, code });
-    return true;
+    // Set up an authenticator app: { action: "app-start" } → the secret and its QR address;
+    // { action: "app-confirm", code } → on, once the app's first code is right
+    if (body.action === "app-start") {
+      const s = totp.newSecret("@" + me.username);
+      pendingTotp.set(me.id, { sealed: s.sealed, expires: Date.now() + 10 * 60 * 1000 });
+      sendJSON(res, 200, { secret: s.secret, uri: s.uri });
+      return true;
+    }
+    if (body.action === "app-confirm") {
+      const p = pendingTotp.get(me.id);
+      if (!p || p.expires < Date.now()) throw httpError(400, "That took too long. Start again.");
+      const step = totp.check(p.sealed, body.code);
+      if (!step) throw httpError(400, "That code isn’t right. Check the time on your phone and try the newest code.");
+      pendingTotp.delete(me.id);
+      me.twoFactor = { on: true, totp: p.sealed, lastStep: step, since: new Date().toISOString() };
+      save("users");
+      require("./notifications").notify(me.id, "security", me, { text: "2-step verification is on with your authenticator app. You’ll need a code from it every time you log in." });
+      sendJSON(res, 200, { on: true, kind: "app" });
+      return true;
+    }
+    throw httpError(400, "Use an authenticator app for 2-step verification.");
   }
 
   /* ---------- Switching accounts ---------- */
@@ -413,7 +449,7 @@ async function handleAuth(req, res, url, { port }) {
   }
   // POST /api/accounts/add { login, password } — log in to one more account and switch to it
   if (route === "POST /api/accounts/add") {
-    rateLimit("login:" + ip, 10);
+    sharedRateLimit("login:" + ip, 10);
     const me = sessionUser(req);
     if (!me) throw httpError(401, "Not logged in.");
     const body = await readJSON(req);
@@ -515,7 +551,7 @@ async function handleAuth(req, res, url, { port }) {
   // There's no email to send a link to, so knowing the email alone is never enough: it takes one of the account's
   // recovery codes (Settings → Security) or its 2-step code. A wrong answer never says whether the account exists.
   if (route === "POST /api/forgot-password") {
-    rateLimit("forgot:" + ip, 8, 15 * 60 * 1000, "You’ve tried a lot of times. Try again in 15 minutes.");
+    sharedRateLimit("forgot:" + ip, 8, 15 * 60 * 1000, "You’ve tried a lot of times. Try again in 15 minutes.");
     const body = await readJSON(req);
     const who = String(body.email || body.username || "").trim().toLowerCase().replace(/^@/, "");
     const code = String(body.code || "").trim();
@@ -557,7 +593,7 @@ async function handleAuth(req, res, url, { port }) {
   }
 
   if (route === "POST /api/reset-password") {
-    rateLimit("reset:" + ip, 10);
+    sharedRateLimit("reset:" + ip, 10);
     const body = await readJSON(req);
     const key = sha256(String(body.token || ""));
     const entry = resetTokens.get(key);

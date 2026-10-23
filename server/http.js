@@ -63,4 +63,17 @@ function rateLimit(key, limit, windowMs, message = "Too many attempts. Try again
   if (tooMany(key, limit, windowMs)) throw httpError(429, message);
 }
 
-module.exports = { sendJSON, httpError, readJSON, parseCookies, rateLimit };
+// The same limit, but counted in the database, so every server shares it (logging in, sign-ups, resets…).
+// The key is stored hashed (it often holds an IP address) and is removed when its window ends.
+function sharedRateLimit(key, limit = 10, windowMs = 15 * 60 * 1000, message = "Too many attempts. Try again in a few minutes.") {
+  rateLimit(key, limit, windowMs, message); // (the quick local check first)
+  const { db, save } = require("./db");
+  const id = "rl:" + require("crypto").createHash("sha256").update(key).digest("hex").slice(0, 32);
+  const now = Date.now(), e = db.tokens[id];
+  if (!e || e.expires < now) db.tokens[id] = { count: 1, expires: now + windowMs };
+  else e.count++;
+  save("tokens");
+  if (db.tokens[id].count > limit) throw httpError(429, message);
+}
+
+module.exports = { sendJSON, httpError, readJSON, parseCookies, rateLimit, sharedRateLimit };

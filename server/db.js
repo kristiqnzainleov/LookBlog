@@ -44,6 +44,7 @@ const db = {
   liveViewers: load("liveViewers", {}),
   badgeDefs: load("badgeDefs", []), // badges the team designed (name, emoji or picture, colour)
   admins: load("admins", []), // admin panel accounts (separate from LookBlog accounts)
+  adminLog: load("adminLog", []), // what the team did (bans, deletions, new admins…), kept 12 months
   adminSessions: load("adminSessions", {}), // sha256(token) -> { adminId, expires } // who is watching each live right now // who is in which voice channel right now, and its music // groups of stories that stay on a profile
   tokens: load("tokens", {}), // short-lived: 2-step login tickets and password reset links (hashed)
 };

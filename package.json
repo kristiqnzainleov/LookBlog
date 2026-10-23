@@ -8,5 +8,11 @@
   },
   "engines": {
     "node": "24.x"
-  }
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "4.22.0",
+    "nsfwjs": "4.2.1",
+    "qrcode-generator": "1.4.4"
+  },
+  "vendoredDependencies": "Not installed: copies of these packages are served from public/js/lib/ (tf.min.js, nsfwjs.min.js, qrcode.js). They are listed here so GitHub can warn about known vulnerabilities; when one is updated, replace its file in public/js/lib/ too."
 }

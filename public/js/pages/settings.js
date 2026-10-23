@@ -22,13 +22,32 @@ function askPassword(title, onOk) {
   pw.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
   setTimeout(() => pw.focus(), 60);
 }
-function showCode(code) {
-  const box = h("div", { class: "code-box", text: code.replace(/(\d{3})(?=\d)/g, "$1 ") });
-  const copy = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Copy" });
-  copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(code); copy.textContent = "Copied!"; } catch {} });
-  modal({ title: "Your 2-step code", body: h("div", { class: "create-form" }, h("p", { class: "create-hint", text: "You’ll be asked for this code every time you log in (and to reset your password). Keep it somewhere safe. You can see it again here in Settings." }), box, copy) });
+// Set up an authenticator app: scan the QR code (or type the key), then type the first code it shows
+function showAppSetup({ secret, uri }, password, done) {
+  const qrBox = h("div", { class: "totp-qr" }, h("span", { class: "muted", text: "Loading…" }));
+  import("../components/qr.js").then(({ qrSvg }) => qrSvg(uri, 200)).then((svg) => qrBox.replaceChildren(svg)).catch(() => qrBox.replaceChildren(h("span", { class: "muted", text: "Couldn’t draw the QR code — type the key instead." })));
+  const keyText = secret.replace(/(.{4})/g, "$1 ").trim();
+  const copy = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Copy key" });
+  copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(secret); copy.textContent = "Copied!"; } catch {} });
+  const code = h("input", { type: "text", class: "text-input totp-code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: 6, placeholder: "123456" });
+  const go = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Turn on" });
+  const m = modal({ title: "Authenticator app", body: h("div", { class: "create-form" },
+    h("p", { class: "create-hint", text: "1. Open an authenticator app (Google Authenticator, Microsoft Authenticator, Authy, 1Password…) and scan this code." }),
+    qrBox,
+    h("p", { class: "create-hint" }, "Can’t scan? Add it by hand with this key: ", h("code", { class: "totp-key", text: keyText }), " ", copy),
+    h("p", { class: "create-hint", text: "2. Type the 6-digit code the app shows now." }),
+    code, go) });
+  const run = async () => {
+    go.disabled = true;
+    try {
+      await api("/api/me/2fa", { method: "POST", body: { action: "app-confirm", password, code: code.value } });
+      m.close(); toast("2-step verification is on."); done();
+    } catch (err) { toast(err.error || "That code isn’t right."); go.disabled = false; code.select(); }
+  };
+  go.addEventListener("click", run);
+  code.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+  setTimeout(() => code.focus(), 80);
 }
-
 function showRecovery(codes) {
   const text = codes.join("\n");
   const copy = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Copy" });
@@ -47,29 +66,18 @@ export function settingsPage(view) {
   view.append(h("header", { class: "column-head" }, h("div", { class: "head-row" }, h("div", { class: "head-text" }, h("h1", { text: "Settings" }), h("p", { class: "page-sub", text: `@${state.me.username} · ${state.me.email || ""}` })))));
 
   async function paint2fa() {
-    const { on } = await api("/api/me/2fa");
-    const status = h("p", { class: "set-status " + (on ? "on" : "off") }, h("span", { class: "dot" }), on ? "On — your code is needed to log in" : "Off");
-    const own = h("input", { type: "text", inputmode: "numeric", class: "text-input", maxlength: 10, placeholder: "Your own code (6–10 digits)", autocomplete: "off" });
-    const make = h("button", { type: "button", class: "btn btn-primary btn-sm", text: on ? "Get a new code from LookBlog" : "Turn on with a code from LookBlog" });
-    const setOwn = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: on ? "Change to my code" : "Turn on with my code" });
-    const reveal = on ? h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "Show my code" }) : null;
+    const { on, kind } = await api("/api/me/2fa");
+    const status = h("p", { class: "set-status " + (on ? "on" : "off") }, h("span", { class: "dot" }),
+      !on ? "Off" : kind === "app" ? "On — a code from your authenticator app is needed to log in" : "On, with an old fixed code — switch to an authenticator app, it’s much safer");
+    const setup = h("button", { type: "button", class: "btn btn-primary btn-sm", text: !on ? "Turn on with an authenticator app" : kind === "app" ? "Move to a new phone or app" : "Switch to an authenticator app" });
     const off = on ? h("button", { type: "button", class: "btn btn-sm btn-danger", text: "Turn off" }) : null;
-    const enable = (code) => askPassword("2-step verification", async (password, m) => {
-      const r = await api("/api/me/2fa", { method: "POST", body: { action: "enable", password, code } });
-      m.close(); showCode(r.code); paint2fa();
-    });
-    make.addEventListener("click", () => enable(""));
-    setOwn.addEventListener("click", () => {
-      const v = own.value.replace(/\s+/g, "");
-      if (!/^\d{6,10}$/.test(v)) { toast("Use 6 to 10 digits."); return own.focus(); }
-      enable(v);
-    });
-    reveal?.addEventListener("click", () => askPassword("Show my code", async (password, m) => { const r = await api("/api/me/2fa", { method: "POST", body: { action: "show", password } }); m.close(); showCode(r.code); }));
+    setup.addEventListener("click", () => askPassword("2-step verification", async (password, m) => {
+      const r = await api("/api/me/2fa", { method: "POST", body: { action: "app-start", password } });
+      m.close();
+      showAppSetup(r, password, paint2fa);
+    }));
     off?.addEventListener("click", () => askPassword("Turn off 2-step verification", async (password, m) => { await api("/api/me/2fa", { method: "POST", body: { action: "disable", password } }); m.close(); toast("2-step verification is off."); paint2fa(); }));
-    twoBox.replaceChildren(status,
-      h("div", { class: "set-row" }, make, reveal, off),
-      h("b", { class: "vis-label", text: on ? "Or choose your own code" : "Or choose your own code" }),
-      h("div", { class: "set-row" }, own, setOwn));
+    twoBox.replaceChildren(status, h("div", { class: "set-row" }, setup, off));
   }
   paint2fa().catch(() => twoBox.replaceChildren(h("p", { class: "muted", text: "Couldn’t load this." })));
 
@@ -198,7 +206,7 @@ export function settingsPage(view) {
   view.append(
     section("Email", "You log in with it.", emailNow, h("div", { class: "set-row" }, emailIn, emailBtn)),
     section("Password", "Changing it logs you out on your other devices. (Signed up with Google? Leave the current one empty to set a password.)", h("div", { class: "set-pass" }, now.el, neu.el, h("div", { class: "pw-strength" }, meter, meterText), again.el, pwErr, pwBtn)),
-    section("Two-step verification (2FA)", "When it’s on, LookBlog asks for your code after your password — so knowing your password (or email) isn’t enough to get into your account. LookBlog can make the code for you, or you can pick your own.", twoBox),
+    section("Two-step verification (2FA)", "When it’s on, LookBlog asks for a code from an authenticator app on your phone after your password — so knowing your password (or email) isn’t enough to get into your account. The code changes every 30 seconds.", twoBox),
     section("🔑 Recovery codes", "If you forget your password, one of these codes (with your email or @username) lets you choose a new one. Each code works once. Keep them somewhere safe — not in your messages here.", recBox),
     section("Preferences", null, h("div", { class: "set-row" }, lang, priv)),
     section("🟢 Activity status", "Whether people see the green dot when you’re online, and “Last online …” when you’re not.", statusState, h("div", { class: "set-row" }, statusBtn)),

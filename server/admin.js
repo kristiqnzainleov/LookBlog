@@ -4,7 +4,7 @@
 //   Admins: owners, and accounts an owner made admin (user.admin).
 
 const { db, save, findUser, findByUsername } = require("./db");
-const { sendJSON, httpError, readJSON, parseCookies, rateLimit } = require("./http");
+const { sendJSON, httpError, readJSON, parseCookies, rateLimit, sharedRateLimit } = require("./http");
 const { sendTo } = require("./realtime");
 const crypto = require("crypto");
 
@@ -45,6 +45,16 @@ function counts() {
 function pingAdmins() {
   const ids = db.users.filter(isAdmin).map((u) => u.id);
   if (ids.length) sendTo(ids, { type: "admin:update", counts: counts() });
+}
+
+/* ---------- The team's log: every admin action, kept 12 months (it can't be edited or deleted from the panel) ---------- */
+function logAdmin(actor, action, targetId, note = "") {
+  db.adminLog = db.adminLog || [];
+  db.adminLog.push({ id: crypto.randomUUID(), at: now(), by: actor?.id || null, byName: actor?.username || null, panel: Boolean(actor?.role), action, target: targetId || null, note: clip(note, 300) || null });
+  const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+  if (db.adminLog.length && new Date(db.adminLog[0].at).getTime() < cutoff) db.adminLog = db.adminLog.filter((x) => new Date(x.at).getTime() >= cutoff);
+  save("adminLog");
+  console.log(`[admin] @${actor?.username || "?"} ${action}`); // (who and what only: the details stay in the log)
 }
 
 /* ---------- Reports ----------
@@ -167,6 +177,7 @@ function resolveCase(key, action, note, me) {
     ban(user, note || reason, me);
   } else if (action !== "dismiss") throw httpError(400, "Unknown action.");
 
+  logAdmin(me, "report-" + action, authorId || target.userId || null, `${key} (${reason})${note ? ": " + clip(note, 200) : ""}`);
   for (const r of open) Object.assign(r, { status: "closed", resolution: action === "dismiss" ? "dismissed" : action === "remove" ? "removed" : "banned", note: clip(note, 500) || null, resolvedAt: now(), resolvedBy: me.id });
   save("reports");
 
@@ -390,7 +401,7 @@ async function handleAdmin(req, res, url, me) {
       if (isOwner(user)) throw httpError(403, "Owners can’t be banned.");
       if (isAdmin(user) && !isOwner(me)) throw httpError(403, "Only an owner can ban another admin.");
       ban(user, body.reason, me);
-      console.log(`[admin] @${me.username} banned @${user.username}`);
+      logAdmin(me, "ban", user.id, `@${user.username}: ${clip(body.reason, 200) || ""}`);
       sendJSON(res, 201, { ok: true });
       return true;
     }
@@ -467,12 +478,12 @@ async function handleAdmin(req, res, url, me) {
         if (String(body.confirm || "").toLowerCase() !== user.username.toLowerCase()) throw httpError(400, `Type ${user.username} to confirm.`);
         sendTo([user.id], { type: "account:banned" });
         require("./account").wipe(user);
-        console.log(`[admin] @${me.username} deleted @${user.username}`);
+        logAdmin(me, "delete-account", user.id, `@${user.username}`);
         sendJSON(res, 200, { ok: true, deleted: true });
         return true;
       } else throw httpError(400, "Unknown action.");
       save("users");
-      console.log(`[admin] @${me.username}: ${act} @${user.username}`);
+      logAdmin(me, act, user.id, `@${user.username}`);
       sendJSON(res, 200, { user: userRow(user) });
       return true;
     }
@@ -529,20 +540,20 @@ async function handlePanel(req, res, url) {
 
   // POST /api/panel/register { username, name, password, code }
   if (route === "POST /api/panel/register") {
-    rateLimit("panel-reg:" + ip, 10, 60 * 60 * 1000, "Too many tries. Wait an hour.");
+    sharedRateLimit("panel-reg:" + ip, 10, 60 * 60 * 1000, "Too many tries. Wait an hour.");
     const body = await readJSON(req);
     if (!codeMatches(body.code)) throw httpError(403, "That setup code isn’t right.");
     const a = newAdmin(body);
     if (!db.admins.some((x) => x.role === "owner")) a.role = "owner"; // the first admin owns the panel
     db.admins.push(a);
     save("admins");
-    console.log(`[panel] new admin @${a.username} (${a.role})`);
+    logAdmin(me || a, "new-admin", a.id, `@${a.username} (${a.role})`);
     sendJSON(res, 201, { admin: adminView(a) }, { "Set-Cookie": startPanelSession(req, a) });
     return true;
   }
   // POST /api/panel/login { username, password }
   if (route === "POST /api/panel/login") {
-    rateLimit("panel-login:" + ip, 10, 15 * 60 * 1000, "Too many tries. Wait 15 minutes.");
+    sharedRateLimit("panel-login:" + ip, 10, 15 * 60 * 1000, "Too many tries. Wait 15 minutes.");
     const body = await readJSON(req);
     const a = db.admins.find((x) => x.username.toLowerCase() === clip(body.username, 20).replace(/^@/, "").toLowerCase());
     const auth = require("./auth");
@@ -550,6 +561,36 @@ async function handlePanel(req, res, url) {
     dummyHash = dummyHash || auth.hashPassword("not-a-real-password"); // same time for unknown names
     const ok = auth.verifyPassword(String(body.password || ""), a ? a.passwordHash : dummyHash) && a;
     if (!ok) { auth.failedTry(a, "admins"); throw httpError(401, "Wrong username or password."); }
+    // 2-step verification is required for the panel: a code from an authenticator app (or a recovery code)
+    const totp = require("./totp");
+    const code = String(body.code || "").trim();
+    if (a.totp) {
+      if (!code) throw httpError(401, "Enter the code from your authenticator app.", { needCode: true });
+      const step = totp.check(a.totp, code, a.lastStep || 0);
+      const recIdx = step ? -1 : (a.recovery || []).findIndex((h) => auth.verifyPassword(code.toUpperCase().replace(/[^A-Z0-9]/g, ""), h));
+      if (!step && recIdx < 0) { auth.failedTry(a, "admins"); throw httpError(401, "That code isn’t right.", { needCode: true }); }
+      if (step) a.lastStep = step; else a.recovery.splice(recIdx, 1);
+      save("admins");
+    } else {
+      // Not set up yet: show the QR code, and finish logging in once the app's first code is right
+      const pend = a.totpPending && a.totpPending.expires > Date.now() ? a.totpPending : null;
+      const step = pend && code ? totp.check(pend.sealed, code) : 0;
+      if (!step) {
+        if (code && pend) { auth.failedTry(a, "admins"); throw httpError(401, "That code isn’t right. Try the newest one from the app.", { needSetup: true, setup: pend.show }); }
+        const n = totp.newSecret("admin @" + a.username);
+        a.totpPending = { sealed: n.sealed, expires: Date.now() + 15 * 60 * 1000, show: { secret: n.secret, uri: n.uri } };
+        save("admins");
+        throw httpError(401, "Set up 2-step verification to use the admin panel.", { needSetup: true, setup: a.totpPending.show });
+      }
+      const codes = Array.from({ length: 8 }, () => { const x = crypto.randomBytes(5).toString("hex").toUpperCase(); return x.slice(0, 5) + "-" + x.slice(5); });
+      Object.assign(a, { totp: pend.sealed, lastStep: step, recovery: codes.map((c) => auth.hashPassword(c.replace("-", ""))), totpSince: now() });
+      delete a.totpPending;
+      save("admins");
+      auth.goodTry(a, "admins");
+      logAdmin(a, "2fa-on", a.id);
+      sendJSON(res, 200, { admin: adminView(a), recoveryCodes: codes }, { "Set-Cookie": startPanelSession(req, a) });
+      return true;
+    }
     auth.goodTry(a, "admins");
     sendJSON(res, 200, { admin: adminView(a) }, { "Set-Cookie": startPanelSession(req, a) });
     return true;
@@ -564,6 +605,12 @@ async function handlePanel(req, res, url) {
 
   if (!me) throw httpError(403, "Log in to the admin panel.", { needLogin: true });
   // The team: GET /api/panel/admins · POST /api/panel/admins { username, name, password } · DELETE /api/panel/admins/:id
+  // The team's log (owners): GET /api/panel/log
+  if (route === "GET /api/panel/log") {
+    if (me.role !== "owner") throw httpError(403, "Only the owner can see the log.");
+    sendJSON(res, 200, { log: (db.adminLog || []).slice(-300).reverse() });
+    return true;
+  }
   if (route === "GET /api/panel/admins") { sendJSON(res, 200, { admins: db.admins.map(adminView), me: adminView(me) }); return true; }
   if (route === "POST /api/panel/admins") {
     if (me.role !== "owner") throw httpError(403, "Only the owner can add admins.");

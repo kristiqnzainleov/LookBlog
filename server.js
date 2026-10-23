@@ -101,9 +101,9 @@ async function handleApi(req, res, url) {
   // POST /api/contact { email, name, topic, message }
   if (req.method === "POST" && url.pathname === "/api/contact") {
     const { db } = require("./server/db");
-    const { rateLimit } = require("./server/http");
+    const { sharedRateLimit } = require("./server/http");
     const ip = (process.env.TRUST_PROXY && String(req.headers["x-real-ip"] || "").trim()) || req.socket.remoteAddress;
-    rateLimit("contact:" + ip, 5, 60 * 60 * 1000, "You’ve sent a few messages already. We’ll get back to you soon.");
+    sharedRateLimit("contact:" + ip, 5, 60 * 60 * 1000, "You’ve sent a few messages already. We’ll get back to you soon.");
     const body = await readJSON(req);
     const TOPICS = ["locked-out", "privacy", "copyright", "illegal-content", "authority", "other"];
     const topic = TOPICS.includes(body.topic) ? body.topic : "other";
@@ -194,7 +194,7 @@ async function handleApi(req, res, url) {
       db.support.push(t);
       save("support");
       require("./server/admin").pingAdmins();
-      console.log(`[support] #${t.id} ${topic} from @${me.username}: ${message.slice(0, 120)}`);
+      console.log(`[support] #${t.id} ${topic}`); // (not who, not what they wrote: that stays in the ticket)
       return sendJSON(res, 201, { ticket: { id: t.id, topic, message, status: t.status, createdAt: t.createdAt } });
     }
   }
@@ -339,7 +339,8 @@ async function handle(req, res) {
       res.writeHead(405);
       return res.end();
     }
-    if (p.startsWith("/media/")) return serveMedia(req, res, p.slice("/media/".length));
+    // (the LookBlog team, in the admin panel, sees reported files too)
+    if (p.startsWith("/media/")) return await serveMedia(req, res, p.slice("/media/".length), sessionUser(req), Boolean(panelAdmin(req)));
 
     const loggedIn = Boolean(sessionUser(req));
     if (p === "/" || p === "/index.html") {
