@@ -28,12 +28,13 @@ function showLogin(canRegister) {
     // 2-step verification (required): the app's code, or a recovery code; on the first log in, the QR code to set it up
     const otp = h("input", { class: "text-input totp-code", placeholder: "123456", inputmode: "numeric", autocomplete: "one-time-code", maxlength: 12, hidden: true });
     const setupBox = h("div", { class: "panel-totp", hidden: true });
+    const enroll = h("input", { class: "text-input", placeholder: "One-time setup code", autocomplete: "off", spellcheck: "false", hidden: true });
     const go = h("button", { type: "submit", class: "btn btn-primary btn-full", text: mode === "login" ? "Log in" : "Create admin account" });
     const form = h("form", { class: "create-form" },
       h("div", { class: "panel-logo" }, h("span", { class: "panel-shield", text: "🛡️" }), h("b", {}, "Look", h("em", { text: "Blog" })), h("span", { class: "panel-tag", text: "Admin" })),
       h("h1", { text: mode === "login" ? "Admin log in" : "Register as admin" }),
       h("p", { class: "muted", text: mode === "login" ? "This is the LookBlog team’s panel. It has its own accounts." : "You need the setup code from the site owner. The first admin becomes the owner." }),
-      username, mode === "register" ? name : null, password, mode === "register" ? code : null, setupBox, otp, err, go,
+      username, mode === "register" ? name : null, password, mode === "register" ? code : null, enroll, setupBox, otp, err, go,
       canRegister ? h("button", { type: "button", class: "btn btn-sm btn-outline-light btn-full", text: mode === "login" ? "New admin? Register with the setup code" : "I already have an admin account", onclick: () => { mode = mode === "login" ? "register" : "login"; paint(); } }) : null,
       h("a", { class: "muted panel-back", href: "/", text: "← Back to LookBlog" }));
     form.addEventListener("submit", async (e) => {
@@ -41,12 +42,13 @@ function showLogin(canRegister) {
       err.textContent = "";
       go.disabled = true;
       try {
-        const body = mode === "login" ? { username: username.value, password: password.value, code: otp.hidden ? undefined : otp.value } : { username: username.value, name: name.value, password: password.value, code: code.value };
+        const body = mode === "login" ? { username: username.value, password: password.value, code: otp.hidden ? undefined : otp.value, enroll: enroll.hidden ? undefined : enroll.value } : { username: username.value, name: name.value, password: password.value, code: code.value };
         const r = await api(mode === "login" ? "/api/panel/login" : "/api/panel/register", { method: "POST", body });
         if (r.recoveryCodes) await showPanelRecovery(r.recoveryCodes);
         openPanel(r.admin);
       } catch (ex) {
         err.textContent = ex.error || "Something went wrong."; go.disabled = false;
+        if (ex.needEnroll) { enroll.hidden = false; go.textContent = "Continue"; setTimeout(() => enroll.focus(), 30); }
         if (ex.needCode || ex.needSetup) { otp.hidden = false; otp.value = ""; go.textContent = "Continue"; setTimeout(() => otp.focus(), 30); }
         if (ex.needSetup && ex.setup && setupBox.hidden) {
           setupBox.hidden = false;

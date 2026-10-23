@@ -71,14 +71,6 @@ function redirect(res, to) {
   res.end();
 }
 
-// Files used to be sent on to public storage links, and browsers kept those redirects for a day. The links don't
-// work any more (the storage is private now), so each browser is told once to forget what it cached from us.
-function forgetOldMediaLinks(req, res) {
-  if (/(?:^|;\s*)lb_cache2=1/.test(req.headers.cookie || "")) return;
-  res.setHeader("Clear-Site-Data", '"cache"');
-  res.setHeader("Set-Cookie", "lb_cache2=1; Path=/; Max-Age=31536000; SameSite=Lax" + (process.env.SUPABASE_URL ? "; Secure" : ""));
-}
-
 function servePublic(res, relPath) {
   const file = path.join(PUBLIC_DIR, relPath);
   const type = TYPES[path.extname(file)];
@@ -355,7 +347,6 @@ async function handle(req, res) {
       // Logged-in people go straight to their feed (unless they opened a password reset link), or back to a shared link
       const next = url.searchParams.get("next");
       if (loggedIn && !url.searchParams.has("reset") && !url.searchParams.has("add")) return redirect(res, next && /^\/(post|watch|u|story|highlight)\/[\w@.%-]+$/.test(next) ? next : "/feed");
-      forgetOldMediaLinks(req, res);
       return servePublic(res, "index.html");
     }
     // The admin panel: its own log in, separate from LookBlog accounts
@@ -378,7 +369,6 @@ async function handle(req, res) {
     }
     if (APP_PAGES.some((re) => re.test(p))) {
       if (!loggedIn) return redirect(res, "/");
-      forgetOldMediaLinks(req, res);
       return servePublic(res, "app.html");
     }
     return servePublic(res, decodeURIComponent(p).replace(/^\/+/, ""));

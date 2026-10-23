@@ -572,7 +572,16 @@ async function handlePanel(req, res, url) {
       if (step) a.lastStep = step; else a.recovery.splice(recIdx, 1);
       save("admins");
     } else {
-      // Not set up yet: show the QR code, and finish logging in once the app's first code is right
+      // Not set up yet. First the one-time setup code (ADMIN_ENROLL_CODE, kept by the owner), so a stolen password
+      // alone can't link someone else's phone; then the QR code, and logging in finishes once the app's first code is right.
+      const want = String(process.env.ADMIN_ENROLL_CODE || "");
+      if (want) {
+        const got = Buffer.from(String(body.enroll || "").trim()), exp = Buffer.from(want);
+        if (got.length !== exp.length || !crypto.timingSafeEqual(got, exp)) {
+          if (body.enroll) auth.failedTry(a, "admins");
+          throw httpError(401, "First time with 2-step verification: enter the setup code the site owner keeps.", { needEnroll: true });
+        }
+      }
       const pend = a.totpPending && a.totpPending.expires > Date.now() ? a.totpPending : null;
       const step = pend && code ? totp.check(pend.sealed, code) : 0;
       if (!step) {

@@ -60,7 +60,7 @@ const sbHeaders = () => ({ apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` });
 // The file as the server reads it (with its key: the bucket is private)
 const storedUrl = (name) => `${SB_URL}/storage/v1/object/authenticated/media/${name}`;
 // A short-lived address the browser is sent to, once we've checked it may see the file
-const SIGNED_FOR = 3600; // seconds
+const SIGNED_FOR = 900; // seconds (a link someone copies stops working within 15 minutes)
 const signedCache = new Map(); // name -> { url, until }
 async function signedUrl(name, download) {
   const key = name + (download ? "|dl" : "");
@@ -72,7 +72,7 @@ async function signedUrl(name, download) {
   if (!signedURL) return null;
   const url = `${SB_URL}/storage/v1${signedURL}${download ? "&download=" + encodeURIComponent(name) : ""}`;
   if (signedCache.size > 5000) signedCache.clear();
-  signedCache.set(key, { url, until: Date.now() + (SIGNED_FOR - 600) * 1000 }); // (handed out with at least 10 minutes left)
+  signedCache.set(key, { url, until: Date.now() + (SIGNED_FOR - 360) * 1000 }); // (handed out with at least 6 minutes left)
   return url;
 }
 const sign = (text) => crypto.createHmac("sha256", SB_KEY).update(text).digest("base64url");
@@ -263,7 +263,7 @@ async function serveMedia(req, res, name, viewer = null, team = false) {
     const doc = db.uploads[name].kind === "file" && !/\.pdf$/.test(name);
     const url = await signedUrl(name, doc);
     if (!url) { res.writeHead(503, { "Content-Type": "text/plain", "Retry-After": "5" }); return res.end("Try again"); }
-    res.writeHead(302, { Location: url, "Cache-Control": "private, max-age=1800", Vary: "Cookie" });
+    res.writeHead(302, { Location: url, "Cache-Control": "private, max-age=300", Vary: "Cookie" }); // (lost access counts within 5 minutes)
     return res.end();
   }
   const file = path.join(UPLOAD_DIR, name);

@@ -20,11 +20,18 @@ function chatReadable(chat, viewer) {
   if ((chat.members || []).includes(viewer.id)) return true;
   return chat.kind === "group" && chat.visibility !== "private";
 }
+const blocked = (a, b) => Boolean(a && b && a.id !== b.id && ((a.blocked || []).includes(b.id) || (b.blocked || []).includes(a.id)));
+// A story's files: like the story itself — for 24 hours (or while it's in a highlight), never across a block
 function storyVisible(story, viewer) {
   if (!story) return false;
   const owner = findUser(story.userId);
   if (!owner || owner.banned) return false;
-  if (viewer && (viewer.id === owner.id || (story.tags || []).includes(viewer.id))) return true;
+  if (viewer && viewer.id === owner.id) return true; // (their own archive)
+  const live = Date.now() - new Date(story.createdAt).getTime() < 24 * 60 * 60 * 1000;
+  const inHighlight = (db.highlights || []).some((h) => (h.storyIds || []).includes(story.id));
+  if (!live && !inHighlight) return false;
+  if (blocked(owner, viewer)) return false;
+  if (viewer && (story.tags || []).includes(viewer.id)) return true;
   return profileOpen(owner, viewer);
 }
 
@@ -48,7 +55,8 @@ function mediaAllowed(meta, viewer) {
     case "story-comment": return storyVisible(db.stories.find((s) => s.id === id), viewer);
     case "highlight": {
       const hl = (db.highlights || []).find((h) => h.id === id);
-      return Boolean(hl && profileOpen(findUser(hl.userId), viewer));
+      const owner = hl && findUser(hl.userId);
+      return Boolean(owner && !blocked(owner, viewer) && profileOpen(owner, viewer));
     }
     case "instant": case "note": case "notesong": return Boolean(viewer); // for people on LookBlog
     default: return true; // avatars, banners, covers, stickers, GIFs, sounds, songs, albums, events, badges, lives
