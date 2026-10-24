@@ -1,6 +1,7 @@
 // Posts, shorts, videos, comments, reactions, views, follows, profiles and search.
 
 const crypto = require("crypto");
+const { makeMatcher } = require("./search-text");
 const fs = require("fs");
 const path = require("path");
 const { db, save, findUser, findByUsername, findPost, reservedUsername } = require("./db");
@@ -1657,9 +1658,10 @@ async function handleSocial(req, res, url, me) {
   // People for "@" suggestions: GET /api/users/lookup?q=
   if (m === "GET" && a === "users" && b === "lookup" && parts.length === 2) {
     const q = clean(url.searchParams.get("q")).toLowerCase().replace(/^@/, "");
+    const mt = makeMatcher(q);
     const list = db.users
       .filter((u) => !blockedBetween(u, me))
-      .filter((u) => !q || u.username.toLowerCase().startsWith(q) || u.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)))
+      .filter((u) => !q || mt.starts(u.username) || mt.startsWord(u.name))
       .sort((x, y) => Number(me.following.includes(y.id)) - Number(me.following.includes(x.id)) || x.username.localeCompare(y.username))
       .slice(0, 6)
       .map(authorView);
@@ -1672,11 +1674,12 @@ async function handleSocial(req, res, url, me) {
   if (m === "GET" && a === "users" && b === "suggestions" && parts.length === 2) {
     const limit = Math.min(60, Math.max(1, Number(url.searchParams.get("limit")) || 5));
     const q = String(url.searchParams.get("q") || "").trim().toLowerCase().replace(/^@/, "");
+    const mt = makeMatcher(q);
     const week = Date.now() - 7 * 86400000;
     const list = db.users
       // Searching finds anyone (also people you already follow); suggestions skip the ones you follow
       .filter((u) => u.id !== me.id && (q || !me.following.includes(u.id)) && !blockedBetween(u, me))
-      .filter((u) => !q || u.username.toLowerCase().includes(q) || u.name.toLowerCase().includes(q) || (u.nickname || "").toLowerCase().includes(q))
+      .filter((u) => !q || mt.includes(u.username) || mt.includes(u.name) || mt.includes(u.nickname || ""))
       .map((u) => {
         const mutualIds = me.following.filter((id) => findUser(id)?.following.includes(u.id));
         const followsMe = u.following.includes(me.id);
@@ -2507,9 +2510,10 @@ async function handleSocial(req, res, url, me) {
   if (m === "GET" && a === "search" && b === "suggest" && parts.length === 2) {
     const q = clean(url.searchParams.get("q")).toLowerCase().replace(/^@/, "").slice(0, 60);
     if (!q) { sendJSON(res, 200, { people: [], groups: [], terms: [], events: [] }); return true; }
-    const starts = (t) => t.toLowerCase().split(/[^\p{L}\p{N}_]+/u).some((w) => w.startsWith(q));
+    const mt = makeMatcher(q);
+    const starts = (t) => mt.startsWord(t);
     const people = db.users
-      .filter((u) => !(u.blocked || []).includes(me.id) && (u.username.toLowerCase().startsWith(q) || starts(u.name)))
+      .filter((u) => !(u.blocked || []).includes(me.id) && (mt.starts(u.username) || starts(u.name)))
       .sort((x, y) => Number(me.following.includes(y.id)) - Number(me.following.includes(x.id)) || followerCount(y) - followerCount(x))
       .slice(0, 5).map((u) => ({ ...authorView(u), followers: followerCount(u) }));
     const groups = db.chats.filter((c) => c.kind === "group" && c.visibility === "public" && starts(c.name + " " + (c.description || "")))
@@ -2543,12 +2547,13 @@ async function handleSocial(req, res, url, me) {
   if (m === "GET" && a === "search" && parts.length === 1) {
     const q = clean(url.searchParams.get("q")).toLowerCase().replace(/^@/, "");
     if (!q) { sendJSON(res, 200, { users: [], fromPeople: [], posts: [] }); return true; }
+    // (Cyrillic or Latin, and a query typed with the wrong keyboard layout, all find the same people)
+    const mt = makeMatcher(q);
     const score = (u) => {
-      const un = u.username.toLowerCase(), n = u.name.toLowerCase();
-      if (un === q) return 0;
-      if (un.startsWith(q) || n.startsWith(q)) return 1;
-      if (n.split(/\s+/).some((w) => w.startsWith(q))) return 2;
-      return un.includes(q) || n.includes(q) ? 3 : -1;
+      if (mt.equals(u.username)) return 0;
+      if (mt.starts(u.username) || mt.starts(u.name)) return 1;
+      if (mt.startsWord(u.name)) return 2;
+      return mt.includes(u.username) || mt.includes(u.name) || mt.includes(u.nickname || "") ? 3 : -1;
     };
     const users = db.users
       .map((u) => [score(u), u])
@@ -2570,7 +2575,7 @@ async function handleSocial(req, res, url, me) {
       })
       .filter((x) => x.posts.length);
     const posts = db.posts
-      .filter((p) => !shown.has(p.id) && p.visibility === "public" && canView(p, me) && (p.text + " " + p.title).toLowerCase().includes(q))
+      .filter((p) => !shown.has(p.id) && p.visibility === "public" && canView(p, me) && mt.includes(p.text + " " + (p.title || "")))
       .slice(0, 20)
       .map((p) => postView(p, me));
     sendJSON(res, 200, { users, fromPeople, posts });

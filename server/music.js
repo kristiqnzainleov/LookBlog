@@ -153,7 +153,8 @@ async function handleMusic(req, res, url, me) {
   // Find songs (to send in a chat): GET /api/songs/search?q=
   if (m === "GET" && a === "songs" && b === "search" && parts.length === 2) {
     const q = clean(url.searchParams.get("q")).toLowerCase();
-    const list = db.songs.filter((s) => visible(s, me) && (!q || `${s.title} ${s.album || ""} ${s.feat || ""} ${findUser(s.userId)?.name || ""} ${findUser(s.userId)?.username || ""}`.toLowerCase().includes(q)))
+    const mt = require("./search-text").makeMatcher(q); // (Cyrillic or Latin, and the wrong keyboard layout, all work)
+    const list = db.songs.filter((s) => visible(s, me) && (!q || mt.includes(`${s.title} ${s.album || ""} ${s.feat || ""} ${findUser(s.userId)?.name || ""} ${findUser(s.userId)?.username || ""}`)))
       .sort((x, y) => (y.plays || 0) - (x.plays || 0)).slice(0, 30);
     sendJSON(res, 200, { songs: list.map((s) => songView(s, me)) });
     return true;
