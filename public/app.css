@@ -1798,7 +1798,7 @@ body[data-page="feed"] .column-head .tabs { display: flex; width: fit-content; m
 .lb-zoom { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
 .lb-tool { width: 34px; height: 34px; border: none; border-radius: 50%; background: rgba(255, 255, 255, 0.1); color: #fff; font: 700 1.1rem var(--body); cursor: pointer; }
 .lb-tool:hover { background: var(--pink); color: var(--ink); }
-.media-cell, .reply-media, .msg-media { cursor: zoom-in; }
+.media-cell, .reply-media, .msg-media { cursor: pointer; }
 
 /* =========================================================
    Picture editor and the photo menu
@@ -6450,7 +6450,7 @@ body:has(.view[data-other-profile]) .view { padding-bottom: 60px; }
 }
 /* ---------- A photo, big ---------- */
 .media-cell img { -webkit-touch-callout: none; -webkit-user-drag: none; user-select: none; }
-.media-cell { -webkit-touch-callout: none; cursor: zoom-in; }
+.media-cell { -webkit-touch-callout: none; cursor: pointer; }
 .pv-wrap { position: fixed; inset: 0; z-index: 965; background: rgba(0, 0, 0, 0.94); display: flex; align-items: center; justify-content: center; animation: mmIn 0.18s ease-out; touch-action: pinch-zoom; }
 .pv-wrap.out { animation: mmOut 0.18s ease-in forwards; }
 .pv-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 50px 0; }
@@ -7627,7 +7627,7 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .sv-sheet .share-row .btn { flex: 1; justify-content: center; }
 .sv-sheet .share-sub { margin: 8px 0 0; font-size: 0.95rem; }
 /* Photos in story comments */
-.sc-photo-btn { display: block; margin-top: 6px; padding: 0; border: none; background: none; cursor: zoom-in; }
+.sc-photo-btn { display: block; margin-top: 6px; padding: 0; border: none; background: none; cursor: pointer; }
 .sc-photo-img { display: block; width: auto; height: auto; max-width: min(200px, 100%); max-height: 220px; border-radius: 14px; object-fit: cover; background: rgba(255, 255, 255, 0.06); }
 .sc-photo-pick { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 14px; background: rgba(255, 255, 255, 0.07); font-size: 0.8rem; }
 .sc-photo-pick[hidden] { display: none; }
