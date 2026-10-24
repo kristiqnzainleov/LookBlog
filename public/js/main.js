@@ -247,6 +247,8 @@ document.addEventListener("error", (e) => {
   setupAlertSounds(state.me);
   listenForCalls();
 
+  // Hold a photo to see it big for a moment
+  import("./components/photo-peek.js");
   // Any photo in a post, reply or message opens in the site's own viewer
   document.addEventListener("click", (e) => {
     const a = e.target.closest("a.media-cell, a.reply-media, a.msg-media");
