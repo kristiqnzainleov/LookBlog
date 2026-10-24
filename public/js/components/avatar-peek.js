@@ -1,23 +1,18 @@
-// Hold someone's photo (anywhere on LookBlog) to see it big. Tap anywhere (or press Esc) to close it.
+// Click (or tap) someone's photo anywhere on LookBlog to see it big. Tap anywhere (or press Esc) to close it.
+// (Not where clicking a photo already does something: opening a story, your own menu, editing your own photo.)
 import { h } from "../ui.js";
 import { navigate, profileHref } from "../router.js";
 
-let timer = null, start = null, heldAt = 0;
-const cancel = () => { clearTimeout(timer); timer = null; start = null; };
-
-document.addEventListener("pointerdown", (e) => {
+const SKIP = ".ap-wrap, .edit-avatar, .story-item, .story-ring, .story-viewer, .me-btn, .profile-avatar.has-story, [data-no-peek]";
+document.addEventListener("click", (e) => {
   const av = e.target.closest?.(".avatar[data-u]");
-  if (!av || e.button > 0 || av.closest(".ap-wrap, .edit-avatar")) return;
-  start = { x: e.clientX, y: e.clientY };
-  timer = setTimeout(() => { timer = null; heldAt = Date.now(); navigator.vibrate?.(10); peek(av); }, 420);
+  if (!av || e.button > 0 || e.ctrlKey || e.metaKey || e.shiftKey || av.closest(SKIP)) return;
+  // my own big photo on my own profile has its own menu (add to story, change, adjust…)
+  if (av.closest(".profile-avatar") && !av.closest("[data-other-profile]")) return;
+  e.preventDefault();
+  e.stopPropagation();
+  peek(av);
 }, true);
-document.addEventListener("pointermove", (e) => { if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) cancel(); }, true);
-document.addEventListener("pointerup", cancel, true);
-document.addEventListener("pointercancel", cancel, true);
-addEventListener("scroll", cancel, true);
-// letting go after the hold isn't a tap (no opening the profile underneath)
-document.addEventListener("click", (e) => { if (Date.now() - heldAt < 700 && !e.target.closest(".ap-wrap")) { e.preventDefault(); e.stopPropagation(); } }, true);
-document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(".avatar[data-u]") && Date.now() - heldAt < 1500) e.preventDefault(); }, true);
 
 function peek(av) {
   document.querySelector(".ap-wrap")?.remove();
@@ -32,8 +27,8 @@ function peek(av) {
   const close = () => { wrap.classList.add("out"); setTimeout(() => wrap.remove(), 180); removeEventListener("keydown", esc); };
   const esc = (e) => { if (e.key === "Escape") close(); };
   open.addEventListener("click", (e) => { e.stopPropagation(); close(); navigate(profileHref(username)); });
-  // (the tap that ends the hold doesn't close it; the next one does)
-  setTimeout(() => wrap.addEventListener("click", (e) => { if (e.target !== open) close(); }), 350);
+  // (any tap outside the button closes it)
+  setTimeout(() => wrap.addEventListener("click", (e) => { if (e.target !== open) close(); }), 50);
   addEventListener("keydown", esc);
   document.body.append(wrap);
 }
