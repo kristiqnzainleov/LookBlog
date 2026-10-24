@@ -7761,5 +7761,4 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .team-log-row { display: grid; grid-template-columns: 110px 120px 140px 1fr; gap: 8px; align-items: baseline; font-size: 0.85rem; padding: 6px 0; border-bottom: 1px solid var(--line); }
 @media (max-width: 640px) { .team-log-row { grid-template-columns: 1fr 1fr; } }
 /* Click a photo to see it big */
-.avatar[data-u] { cursor: zoom-in; }
-:is(.story-item, .story-ring, .story-viewer, .me-btn, .profile-avatar.has-story) .avatar[data-u] { cursor: pointer; }
+.avatar[data-u] { cursor: pointer; }
