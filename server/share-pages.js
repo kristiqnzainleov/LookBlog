@@ -122,7 +122,7 @@ h1 { font: 900 1.2rem Unbounded, sans-serif; margin: 0 0 8px; }
   <a class="btn ghost" href="/?join=1&next=${next}">Join LookBlog</a>
   <p class="muted">Follow people, not the algorithm.</p>
 </main></div>
-<script src="/eyes.js" defer></script></body></html>`);
+<script src="/eyes.js" defer></script><script src="/cookie-consent.js" defer></script></body></html>`);
 }
 
 const initials = (u) => esc(String(u?.name || "?").trim().split(/\s+/).map((w) => w[0] || "").join("").slice(0, 2).toUpperCase() || "?");

@@ -1,5 +1,6 @@
 // One conversation: a direct chat or a group. Messages arrive live.
 import { h, icon, avatar, timeEl, empty, spinner, toast, confirmClick, richText, modal, plural, avatarWithPresence, presenceText, tick } from "../ui.js";
+import { outsideImg } from "./consent.js";
 import { openEmojiPicker, insertAtCursor, QUICK, closeEmojiPicker } from "./emoji.js";
 import { api } from "../api.js";
 import { on, emit, state } from "../state.js";
@@ -146,7 +147,7 @@ function sharedComment(c) {
   return h("a", { class: "shared shared-comment", href },
     h("div", { class: "sc-head" }, avatar(c.author, 26), h("b", {}, c.author.name, tick(c.author, 13)), h("span", { class: "muted", text: "replied" })),
     c.text ? h("p", { class: "sc-text", text: c.text }) : null,
-    c.media?.gif ? h("img", { class: "sc-gif", src: c.media.url, alt: "GIF" }) : c.media ? h("p", { class: "muted", text: c.media.kind === "video" ? "🎬 Video reply" : "📷 Photo" }) : null,
+    c.media?.gif ? outsideImg({ class: "sc-gif", src: c.media.url, alt: "GIF" }) : c.media ? h("p", { class: "muted", text: c.media.kind === "video" ? "🎬 Video reply" : "📷 Photo" }) : null,
     h("div", { class: "sc-post" }, p.thumb ? h("img", { src: p.thumb, alt: "" }) : null,
       h("span", { class: "muted", text: `on ${p.author.name}’s ${what}${p.title ? ": " + p.title : p.text ? ": " + p.text : ""}` })));
 }
@@ -904,7 +905,7 @@ function messageEl(msg, chat, onRemoved) {
   const media = msg.game ? gameView(chat.id, msg.id, msg.game)
     : msg.poll ? chatPollEl(msg, chat)
     : msg.groupInvite ? groupInviteCard(msg.groupInvite)
-    : msg.media?.gif ? h("img", { class: "msg-gif", src: msg.media.url, alt: "GIF" })
+    : msg.media?.gif ? outsideImg({ class: "msg-gif", src: msg.media.url, alt: "GIF" })
     : msg.media?.sticker ? h("img", { class: "sticker-img", src: msg.media.url, alt: "Sticker" })
     : msg.media?.kind === "sound" ? soundChip(msg.media)
     : msg.media?.kind === "file" ? fileCard(msg.media)

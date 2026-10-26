@@ -1,5 +1,6 @@
 // Stories: the bar at the top of the feed, posting one, and the full-screen viewer.
 import { h, icon, avatar, timeAgo, toast, modal, tick, swipeToReply } from "../ui.js";
+import { outsideImg, extraOk } from "./consent.js";
 import { api, upload } from "../api.js";
 import { on, state } from "../state.js";
 import { profileHref, navigate } from "../router.js";
@@ -263,6 +264,8 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
     songTag.hidden = false;
     if (s.song.kind === "youtube") {
       songYt = { yt: s.song.yt, key: "story-" + s.id };
+      // YouTube loads by itself only if the cookie window allows content from other sites; otherwise on the first touch
+      if (!extraOk()) { wantSound = true; return; }
       import("./yt-audio.js").then((m) => {
         if (songYt?.key !== "story-" + s.id) return;
         m.ytToggle(s.song.yt, { title: s.song.title, artist: s.song.artist?.name, anchor: frame }, "story-" + s.id);
@@ -529,7 +532,7 @@ export function openStories(groups, startGroup = 0, onClosed, { comments: openCo
           h("div", { class: "sc-bubble" },
             h("div", { class: "sc-head" }, h("b", {}, c.author.name, tick(c.author, 13)), c.byOwner ? h("span", { class: "sc-owner", text: "Author" }) : null),
             c.text ? h("p", { class: "sc-text", text: c.text }) : null,
-            c.gif ? h("img", { class: "sc-gif-img", src: c.gif.url, alt: "GIF", loading: "lazy" }) : null,
+            c.gif ? outsideImg({ class: "sc-gif-img", src: c.gif.url, alt: "GIF", loading: "lazy" }) : null,
             c.sticker ? h("img", { class: "sc-sticker", src: c.sticker, alt: "Sticker", loading: "lazy" }) : null,
           c.sound ? h("div", { class: "sc-sound-msg" }, soundChip(c.sound)) : null,
           c.image ? h("button", { type: "button", class: "sc-photo-btn", "aria-label": "See the photo", onclick: () => seePhoto(c.image.url) }, h("img", { class: "sc-photo-img", src: c.image.url, alt: "Photo", loading: "lazy", width: c.image.width || undefined, height: c.image.height || undefined })) : null),

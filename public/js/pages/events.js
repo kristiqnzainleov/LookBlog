@@ -1,5 +1,6 @@
 // /events — public events anyone can join · /event/:id — one event with its discussion.
 import { h, icon, avatar, tick, empty, spinner, toast, modal, confirmClick, plural, timeEl } from "../ui.js";
+import { extraOk } from "../components/consent.js";
 import { api, upload } from "../api.js";
 import { on, state, emit } from "../state.js";
 import { navigate, profileHref } from "../router.js";
@@ -90,7 +91,7 @@ export function openEventForm(current = null, onSaved) {
   const findBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "🔎 Find on map" });
   const hereBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "📍 Use my location" });
   const paintMap = () => {
-    mapBox.replaceChildren(...(geo ? [mapFrame(geo, 170), h("button", { type: "button", class: "btn btn-xs btn-outline-light pe-unpin", text: "✕ Remove the pin", onclick: () => { geo = null; paintMap(); } })] : []));
+    mapBox.replaceChildren(...(geo ? [mapFrame(geo, 170, true), h("button", { type: "button", class: "btn btn-xs btn-outline-light pe-unpin", text: "✕ Remove the pin", onclick: () => { geo = null; paintMap(); } })] : []));
   };
   findBtn.addEventListener("click", async () => {
     const q = where.value.trim();
@@ -299,7 +300,17 @@ eventPage.navName = () => "events";
 eventPage.layout = "wide";
 
 // A small map with a pin: OpenStreetMap tiles put together (works everywhere, no WebGL needed). Tap it to open it in Maps.
-function mapFrame(geo, height) {
+// Without the cookie window's OK for content from other sites, the map waits for a tap (picking a place is a tap already).
+function mapFrame(geo, height, asked = false) {
+  if (!asked && !extraOk()) {
+    const wait = h("button", { type: "button", class: "pe-map ext-wait", style: `height:${height}px`, title: "Loads from OpenStreetMap, which sees your IP address" },
+      h("span", { class: "ext-wait-name", text: "📍 Map" }), h("span", { class: "ext-wait-tap", text: "Tap to load the map" }));
+    const show = () => { removeEventListener("lb-consent", onConsent); if (wait.parentNode) wait.replaceWith(mapFrame(geo, height, true)); };
+    const onConsent = (e) => { if (e.detail?.extra) show(); };
+    addEventListener("lb-consent", onConsent);
+    wait.addEventListener("click", show);
+    return wait;
+  }
   const z = 16, n = 2 ** z;
   const xt = ((geo.lng + 180) / 360) * n;
   const lat = (geo.lat * Math.PI) / 180;

@@ -1,6 +1,7 @@
 // Replies under a post. People answer publicly with text, a photo or a video,
 // react to replies with emoji, and answer each other in threads (one level deep).
 import { h, icon, avatar, timeEl, toast, confirmClick, plural, richText, tick, linkTimes, fmtTime, likeAnim, sentAnim, swipeToReply } from "../ui.js";
+import { outsideImg } from "./consent.js";
 import { attachMentions } from "./mentions.js";
 import { api } from "../api.js";
 import { state, on, emit } from "../state.js";
@@ -15,7 +16,7 @@ import { openStickers } from "./stickers.js";
 
 function commentMedia(m) {
   if (!m) return null;
-  if (m.kind === "image" && m.gif) return h("img", { class: "reply-gif", src: m.url, alt: "GIF", loading: "lazy" });
+  if (m.kind === "image" && m.gif) return outsideImg({ class: "reply-gif", src: m.url, alt: "GIF", loading: "lazy" });
   if (m.kind === "image" && m.sticker) return h("img", { class: "reply-sticker", src: m.url, alt: "Sticker", loading: "lazy" });
   if (m.kind === "sound") return soundChip(m);
   if (m.kind === "image") {
