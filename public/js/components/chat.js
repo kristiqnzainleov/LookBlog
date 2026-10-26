@@ -729,12 +729,11 @@ function holdForMenu(row, bubble, tools, msg, chat) {
   bubble.addEventListener("pointerup", cancel); bubble.addEventListener("pointercancel", cancel); bubble.addEventListener("pointerleave", cancel);
   bubble.addEventListener("contextmenu", (e) => { if (e.target.closest("a, video, input")) return; e.preventDefault(); cancel(); openMsgMenu(row, bubble, tools, msg, chat); });
 }
-// Which of my messages can be edited: words I wrote (not stickers, sounds, polls, games…), for 48 hours
+// Which of my messages can be edited: words I wrote (not stickers, sounds, polls, games…), any time
 function canEdit(msg) {
   if (!msg.mine || msg.system || msg.poll || msg.game || msg.viewOnce || msg.storyReply?.reaction || msg.scheduled) return false;
   if (msg.media && (msg.media.sticker || msg.media.kind === "sound" || msg.media.kind === "audio")) return false;
-  if (!msg.text && !msg.media && !msg.post && !msg.story && !msg.song && !msg.songYt) return false;
-  return Date.now() - new Date(msg.createdAt).getTime() < 48 * 60 * 60 * 1000;
+  return Boolean(msg.text || msg.media || msg.post || msg.story || msg.song || msg.songYt);
 }
 // Show a message's (new) words in its bubble, and "edited" by the time
 function paintMessageText(bubble, msg) {
@@ -975,7 +974,7 @@ function messageEl(msg, chat, onRemoved) {
     });
     tools.prepend(keep);
   }
-  // Edit my own message (its words), for 48 hours
+  // Edit my own message (its words)
   if (canEdit(msg)) {
     const eb = h("button", { type: "button", class: "tool-icon edit-tool", "aria-label": "Edit", title: "Edit" }, h("span", { text: "✏️" }));
     eb.addEventListener("click", () => editMessage(row, bubble, row._msg || msg, chat));

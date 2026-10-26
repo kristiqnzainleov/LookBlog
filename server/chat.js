@@ -951,7 +951,7 @@ async function handleChat(req, res, url, me) {
       return true;
     }
 
-    // Edit my message: PATCH /api/chats/:id/messages/:messageId { text }  (its words; within 48 hours; it shows "edited")
+    // Edit my message: PATCH /api/chats/:id/messages/:messageId { text }  (its words, any time; it shows "edited")
     if (m === "PATCH" && c === "messages" && d && parts.length === 4) {
       rateLimit("msg-edit:" + me.id, 60, 10 * 60 * 1000, "You’ve edited a lot of messages. Take a short break.");
       const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
@@ -964,7 +964,6 @@ async function handleChat(req, res, url, me) {
         if (!other || !mutual(me, other)) throw httpError(403, "You can message someone only while you follow each other.");
       }
       if (msg.system || msg.scheduled || msg.poll || msg.game || msg.viewOnce || msg.storyReply?.reaction || (msg.media && (msg.media.sticker || msg.media.kind === "sound" || msg.media.kind === "audio"))) throw httpError(400, "This message can’t be edited.");
-      if (Date.now() - new Date(msg.createdAt).getTime() > 48 * 60 * 60 * 1000) throw httpError(400, "Messages can be edited for 48 hours after they’re sent.");
       const body = await readJSON(req);
       const text = clean(body.text);
       if (!text && !msg.media && !msg.postId && !msg.storyId && !msg.songId && !msg.songYt) throw httpError(400, "Write something, or delete the message instead.");
