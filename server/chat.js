@@ -957,7 +957,13 @@ async function handleChat(req, res, url, me) {
       const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
       if (!msg) throw httpError(404, "That message doesn’t exist.");
       if (msg.userId !== me.id) throw httpError(403, "You can only edit your own messages.");
-      if (msg.system || msg.poll || msg.game || msg.viewOnce || msg.storyReply?.reaction || (msg.media && (msg.media.sticker || msg.media.kind === "sound" || msg.media.kind === "audio"))) throw httpError(400, "This message can’t be edited.");
+      // (the same as writing here: still in the chat, and in a direct chat still following each other)
+      if (!isMember(chat, me)) throw httpError(403, chat.kind === "group" ? "Join the group to write here." : "You’re not in this conversation.");
+      if (chat.kind === "dm") {
+        const other = findUser(chat.members.find((id) => id !== me.id));
+        if (!other || !mutual(me, other)) throw httpError(403, "You can message someone only while you follow each other.");
+      }
+      if (msg.system || msg.scheduled || msg.poll || msg.game || msg.viewOnce || msg.storyReply?.reaction || (msg.media && (msg.media.sticker || msg.media.kind === "sound" || msg.media.kind === "audio"))) throw httpError(400, "This message can’t be edited.");
       if (Date.now() - new Date(msg.createdAt).getTime() > 48 * 60 * 60 * 1000) throw httpError(400, "Messages can be edited for 48 hours after they’re sent.");
       const body = await readJSON(req);
       const text = clean(body.text);
