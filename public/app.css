@@ -7771,3 +7771,14 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 @keyframes ppPop { from { transform: scale(0.85); opacity: 0.4; } }
 .media-cell img, .reply-media img, .msg-media img { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 @media (prefers-reduced-motion: reduce) { .pp-wrap, .pp-img { animation: none; } }
+/* Editing a message */
+.msg-edit { display: flex; flex-direction: column; gap: 6px; min-width: min(260px, 70vw); margin: 2px 0 4px; }
+.msg-edit-input { width: 100%; resize: none; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(0, 0, 0, 0.25); color: inherit; font: inherit; line-height: 1.4; outline: none; }
+.msg-edit-input:focus { border-color: var(--pink); }
+.msg-edit-btns { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.msg-edit-btns small { margin-right: auto; font-size: 0.68rem; opacity: 0.8; }
+.edited-mark { font-style: italic; opacity: 0.75; }
+.edited-mark[hidden] { display: none; }
+.msg.editing .msg-tools { display: none; }
+.bubble .msg-edit .btn-primary { background: #121111; color: #fff; border-color: #121111; }
+.bubble .msg-edit .btn-outline-light { border-color: rgba(18, 17, 17, 0.5); color: inherit; }

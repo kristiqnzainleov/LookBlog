@@ -729,6 +729,60 @@ function holdForMenu(row, bubble, tools, msg, chat) {
   bubble.addEventListener("pointerup", cancel); bubble.addEventListener("pointercancel", cancel); bubble.addEventListener("pointerleave", cancel);
   bubble.addEventListener("contextmenu", (e) => { if (e.target.closest("a, video, input")) return; e.preventDefault(); cancel(); openMsgMenu(row, bubble, tools, msg, chat); });
 }
+// Which of my messages can be edited: words I wrote (not stickers, sounds, polls, games…), for 48 hours
+function canEdit(msg) {
+  if (!msg.mine || msg.system || msg.poll || msg.game || msg.viewOnce || msg.storyReply?.reaction || msg.scheduled) return false;
+  if (msg.media && (msg.media.sticker || msg.media.kind === "sound" || msg.media.kind === "audio")) return false;
+  if (!msg.text && !msg.media && !msg.post && !msg.story && !msg.song && !msg.songYt) return false;
+  return Date.now() - new Date(msg.createdAt).getTime() < 48 * 60 * 60 * 1000;
+}
+// Show a message's (new) words in its bubble, and "edited" by the time
+function paintMessageText(bubble, msg) {
+  const old = bubble.querySelector(":scope > .bubble-text");
+  const next = msg.text ? h("p", { class: "bubble-text" }, richText(msg.text, msg.mentions)) : null;
+  if (old && next) old.replaceWith(next);
+  else if (old) old.remove();
+  else if (next) bubble.querySelector(":scope > .bubble-time")?.before(next);
+  const mark = bubble.querySelector(".edited-mark");
+  if (mark && msg.editedAt) { mark.hidden = false; mark.title = "Edited " + new Date(msg.editedAt).toLocaleString(); }
+}
+// Edit right in the bubble: Enter saves (Shift+Enter for a new line), Esc cancels
+function editMessage(row, bubble, msg, chat) {
+  if (bubble.querySelector(".msg-edit")) return;
+  const box = h("textarea", { class: "msg-edit-input", rows: 1, maxlength: 2000 });
+  box.value = msg.text || "";
+  const save = h("button", { type: "button", class: "btn btn-xs btn-primary", text: "Save" });
+  const cancel = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Cancel" });
+  const editor = h("div", { class: "msg-edit" }, box, h("div", { class: "msg-edit-btns" }, h("small", { class: "muted", text: "Enter to save · Esc to cancel" }), cancel, save));
+  const textEl = bubble.querySelector(":scope > .bubble-text");
+  if (textEl) textEl.hidden = true;
+  (textEl || bubble.querySelector(":scope > .bubble-time")).after(editor);
+  if (!textEl) bubble.querySelector(":scope > .bubble-time")?.before(editor);
+  row.classList.add("editing");
+  const grow = () => { box.style.height = "auto"; box.style.height = Math.min(box.scrollHeight, 220) + "px"; };
+  const done = () => { editor.remove(); if (textEl) textEl.hidden = false; row.classList.remove("editing"); };
+  const go = async () => {
+    const text = box.value.trim();
+    if (text === (msg.text || "")) return done();
+    save.disabled = true;
+    try {
+      const { message } = await api(`/api/chats/${chat.id}/messages/${msg.id}`, { method: "PATCH", body: { text } });
+      Object.assign(msg, { text: message.text, mentions: message.mentions, editedAt: message.editedAt });
+      done(); paintMessageText(bubble, msg);
+    } catch (err) { toast(err.error || "Couldn’t save it."); save.disabled = false; }
+  };
+  save.addEventListener("click", (e) => { e.stopPropagation(); go(); });
+  cancel.addEventListener("click", (e) => { e.stopPropagation(); done(); });
+  box.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); }
+    if (e.key === "Escape") { e.preventDefault(); done(); }
+  });
+  box.addEventListener("input", grow);
+  for (const t of ["pointerdown", "click", "contextmenu"]) editor.addEventListener(t, (e) => e.stopPropagation());
+  setTimeout(() => { grow(); box.focus(); box.setSelectionRange(box.value.length, box.value.length); }, 30);
+}
+
 function openMsgMenu(row, bubble, tools, msg, chat) {
   if (document.querySelector(".mm-overlay")) return;
   const from = bubble.getBoundingClientRect();
@@ -897,7 +951,8 @@ function messageEl(msg, chat, onRemoved) {
     msg.songYt ? vinylSlot(msg.songYt, null, msg.id) : null,
     msg.story ? storyChatCard(msg.story, "story") : null,
     msg.highlight ? storyChatCard(msg.highlight, "highlight") : null,
-    h("span", { class: "bubble-time" }, msg.scheduled ? h("span", { class: "sched-mark", title: "Scheduled message", text: "⏰ " }) : null, timeEl(msg.createdAt))
+    h("span", { class: "bubble-time" }, msg.scheduled ? h("span", { class: "sched-mark", title: "Scheduled message", text: "⏰ " }) : null,
+      h("span", { class: "edited-mark", hidden: !msg.editedAt, title: msg.editedAt ? "Edited " + new Date(msg.editedAt).toLocaleString() : "", text: "edited · " }), timeEl(msg.createdAt))
   );
 
   /* Hover menu: quick reactions, more emoji, delete */
@@ -919,6 +974,12 @@ function messageEl(msg, chat, onRemoved) {
       catch (err) { toast(err.error || "Couldn’t save the sticker."); }
     });
     tools.prepend(keep);
+  }
+  // Edit my own message (its words), for 48 hours
+  if (canEdit(msg)) {
+    const eb = h("button", { type: "button", class: "tool-icon edit-tool", "aria-label": "Edit", title: "Edit" }, h("span", { text: "✏️" }));
+    eb.addEventListener("click", () => editMessage(row, bubble, row._msg || msg, chat));
+    tools.prepend(eb);
   }
   // Translate into the site's language
   if (msg.text && !msg.system) {
@@ -1974,6 +2035,14 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     if (chat.kind === "dm" && !ev.message.mine) refresh().catch(() => {});
     markRead();
   });
+  const offEdit = on("message:edited", (ev) => {
+    if (ev.chatId !== chatId) return;
+    const row = list.querySelector(`.msg[data-id="${CSS.escape(ev.messageId)}"]`);
+    if (!row?._msg) return;
+    Object.assign(row._msg, { text: ev.text, mentions: ev.mentions, editedAt: ev.editedAt });
+    const bubble = row.querySelector(".bubble");
+    if (bubble && !bubble.querySelector(".msg-edit")) paintMessageText(bubble, row._msg);
+  });
   const offDel = on("message:deleted", (ev) => {
     if (ev.chatId !== chatId) return;
     list.querySelector(`.msg[data-id="${CSS.escape(ev.messageId)}"]`)?.remove();
@@ -2017,7 +2086,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     list.querySelectorAll(".msg").forEach((row) => { if (row._msg?.expiresAt && row._msg.expiresAt <= now) { ids.delete(row._msg.id); row.remove(); } });
   }, 5000);
 
-  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offMembers(); offReact(); offStuck(); offNotes(); offHype(); offHyped(); offPoll(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
+  return { el, stop: () => { offVo(); offVanish(); clearInterval(vanishTick); offTyping(); offRead(); clearInterval(typingTick); offMsg(); offDel(); offEdit(); offMembers(); offReact(); offStuck(); offNotes(); offHype(); offHyped(); offPoll(); offGone(); offNicks(); offPins(); closeEmojiPicker(); startReply = null; gifReply = null; stopRecording?.(); closeStickers(); closeGifs(); } };
 }
 
 

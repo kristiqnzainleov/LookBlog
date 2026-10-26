@@ -328,6 +328,7 @@ function messageViewFull(msg, me) {
     game: msg.game ? gameView(msg.game, me) : null,
     event: msg.event && chat?.events ? (chat.events.find((e) => e.id === msg.event) ? msg.event : null) : null,
     createdAt: msg.createdAt,
+    editedAt: msg.editedAt || null,
   };
 }
 
@@ -947,6 +948,30 @@ async function handleChat(req, res, url, me) {
       save("messages");
       notifyMembers(chat, { type: "message:deleted", chatId: chat.id, messageId: msg.id });
       sendJSON(res, 200, { ok: true });
+      return true;
+    }
+
+    // Edit my message: PATCH /api/chats/:id/messages/:messageId { text }  (its words; within 48 hours; it shows "edited")
+    if (m === "PATCH" && c === "messages" && d && parts.length === 4) {
+      rateLimit("msg-edit:" + me.id, 60, 10 * 60 * 1000, "You’ve edited a lot of messages. Take a short break.");
+      const msg = db.messages.find((x) => x.id === d && x.chatId === chat.id);
+      if (!msg) throw httpError(404, "That message doesn’t exist.");
+      if (msg.userId !== me.id) throw httpError(403, "You can only edit your own messages.");
+      if (msg.system || msg.poll || msg.game || msg.viewOnce || msg.storyReply?.reaction || (msg.media && (msg.media.sticker || msg.media.kind === "sound" || msg.media.kind === "audio"))) throw httpError(400, "This message can’t be edited.");
+      if (Date.now() - new Date(msg.createdAt).getTime() > 48 * 60 * 60 * 1000) throw httpError(400, "Messages can be edited for 48 hours after they’re sent.");
+      const body = await readJSON(req);
+      const text = clean(body.text);
+      if (!text && !msg.media && !msg.postId && !msg.storyId && !msg.songId && !msg.songYt) throw httpError(400, "Write something, or delete the message instead.");
+      if (chars(text) > 2000) throw httpError(400, "Keep messages under 2000 characters.");
+      if (text === msg.text) { sendJSON(res, 200, { message: messageView(msg, me) }); return true; }
+      require("./sensitive").refuseSensitive([text], []);
+      msg.text = text;
+      msg.mentions = findMentions(text);
+      msg.editedAt = new Date().toISOString();
+      delete msg.translations;
+      save("messages");
+      notifyMembers(chat, { type: "message:edited", chatId: chat.id, messageId: msg.id, text, mentions: usernamesOf(msg.mentions), editedAt: msg.editedAt });
+      sendJSON(res, 200, { message: messageView(msg, me) });
       return true;
     }
 
