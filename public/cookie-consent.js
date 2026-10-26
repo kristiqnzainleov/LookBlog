@@ -1,10 +1,13 @@
 // The cookie window: asks once which cookies and outside content a visitor allows, and remembers it in this browser.
 // Necessary cookies (logging in) are always on. "Content from other sites" covers things that load from other
 // companies without a tap: YouTube songs that start by themselves in stories, GIPHY GIFs and OpenStreetMap maps.
+// The login page asks once; until then only necessary cookies are on.
 // Pages ask window.lbConsent.extra() and listen for the "lb-consent" event when the choice changes.
 (function () {
   "use strict";
   var KEY = "lb_consent", VERSION = 1;
+  // Only the login page asks by itself (its script tag has data-ask); elsewhere the window opens from "Cookie settings"
+  var ASK = Boolean(document.currentScript && document.currentScript.hasAttribute("data-ask"));
 
   function read() {
     try {
@@ -115,5 +118,5 @@
     open(true);
   });
 
-  if (!choice) open(false);
+  if (!choice && ASK) open(false);
 })();
