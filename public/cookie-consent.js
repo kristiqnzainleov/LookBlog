@@ -89,6 +89,7 @@
         ]),
         el("div", { class: "lbc-btns" }, [
           el("button", { type: "button", class: "lbc-link", text: "Back", onclick: function () { open(false); } }),
+          el("button", { type: "button", text: "Reject cookies", title: "Only the cookies needed to log in stay on", onclick: function () { save(false); } }),
           el("button", { type: "button", text: "Save my choice", onclick: function () { save(extraBox.checked); } }),
           el("button", { type: "button", class: "lbc-yes", text: "Accept all", onclick: function () { save(true); } }),
         ])
@@ -96,7 +97,7 @@
     } else {
       kids.push(el("div", { class: "lbc-btns" }, [
         el("button", { type: "button", class: "lbc-link", text: "Settings", onclick: function () { open(true); } }),
-        el("button", { type: "button", text: "Only necessary", onclick: function () { save(false); } }),
+        el("button", { type: "button", text: "Reject cookies", title: "Only the cookies needed to log in stay on", onclick: function () { save(false); } }),
         el("button", { type: "button", class: "lbc-yes", text: "Accept all", onclick: function () { save(true); } }),
       ]));
     }
