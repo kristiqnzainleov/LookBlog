@@ -233,14 +233,14 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
 
   // The reply count on the post pops when you reply
   const bumpCount = () => document.querySelectorAll(`.act-comment[href*="${post.id}"]`).forEach((b) => likeAnim(b, { comment: true }));
-  function add(c, { animate = false, mine = false } = {}) {
-    if (ids.has(c.id)) return;
+  function add(c, { animate = false, mine = false, ghost = null } = {}) {
+    if (ids.has(c.id)) { ghost?.remove(); return; }
     ids.add(c.id);
     const el = commentEl(c, { onReply: (x) => setReplying(x), onGif: (g, x) => sendGif(g, x), onRemoved: remove, post });
-    if (animate) el.classList.add("new");
+    if (animate && !ghost) el.classList.add("new");
     if (mine) { el.classList.add("mine-new"); setTimeout(() => el.classList.remove("mine-new"), 1600); bumpCount(); }
     if (c.parentId && threads.has(c.parentId)) {
-      threads.get(c.parentId).replies.append(el);
+      if (ghost?.parentNode) ghost.replaceWith(el); else threads.get(c.parentId).replies.append(el);
       const top = threads.get(c.parentId).el.querySelector(":scope > .reply")._comment;
       top._answers = (top._answers || 0) + 1;
     } else {
@@ -248,10 +248,36 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
       const replies = h("div", { class: "thread-replies" });
       const thread = h("div", { class: "thread" }, el, replies);
       threads.set(c.id, { el: thread, replies });
-      if (animate && sort === "new") list.prepend(thread); else list.append(thread);
+      // My own new reply goes right under the box, whatever the sort, so I see it
+      if (ghost?.parentNode) ghost.replaceWith(thread);
+      else if (mine || (animate && sort === "new")) list.prepend(thread); else list.append(thread);
     }
+    ghost?.remove();
+    if (mine) showMine(el);
     setHeading();
   }
+  // Bring my new reply into view (only if it isn't already on screen)
+  function showMine(el) {
+    requestAnimationFrame(() => {
+      const r = el.getBoundingClientRect();
+      if (r.top < 70 || r.bottom > innerHeight - 20) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+  // While it's being sent: my reply shows straight away, faded, where it will land
+  function ghostOf(textNow, parentId) {
+    const me = state.me || {};
+    const c = { id: "sending-" + Date.now(), postId: post.id, parentId, text: textNow, media: null, mentions: [], reactions: [], createdAt: new Date().toISOString(),
+      author: { id: me.id, name: me.name || me.username, username: me.username, avatar: me.avatar || null, verified: me.verified, badges: me.badges } };
+    const el = commentEl(c, { onReply: () => {}, onGif: () => {}, onRemoved: () => {}, post });
+    el.classList.add("sending", "new");
+    el.querySelector(".comment-actions")?.replaceChildren(h("span", { class: "sending-note", text: "Sending…" }));
+    const top = parentId ? replyTop(parentId) : null;
+    if (top && threads.has(top)) threads.get(top).replies.append(el);
+    else list.prepend(el);
+    showMine(el);
+    return el;
+  }
+  const replyTop = (id) => { for (const [k, t] of threads) if (k === id || t.replies.querySelector(`.reply[data-id="${CSS.escape(id)}"]`)) return k; return null; };
   // Top-level comments first, so their answers have somewhere to go
   initial.filter((c) => !c.parentId).forEach((c) => add(c));
   initial.filter((c) => c.parentId).forEach((c) => add(c));
@@ -352,17 +378,20 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
     showErr("");
     submit.disabled = true;
     submit.textContent = "Replying…";
+    let ghost = null;
     try {
       const media = picker.media()[0] || null;
       const at = atChip && atOn && !replying ? getTime() : undefined;
+      if (!media && text.value.trim()) ghost = ghostOf(text.value.trim(), replying?.id || null);
       const { comment } = await api(`/api/posts/${post.id}/comments`, { method: "POST", body: { text: text.value, media, parentId: replying?.id || null, at } });
-      add(comment, { animate: true, mine: true });
+      add(comment, { animate: true, mine: true, ghost });
       if (comment.at != null) onTimed?.(comment);
       text.value = "";
       text.style.height = "";
       picker.clear();
       setReplying(null);
     } catch (ex) {
+      ghost?.remove();
       showErr(ex.error || "Couldn’t post your reply.");
       update();
       return;
