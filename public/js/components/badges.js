@@ -94,6 +94,9 @@ export function openBadges(profile, data) {
   const allCats = [...new Set(data.badges.map((b) => b.cat || "Other"))];
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]"); } catch {}
+  // Around Halloween (October to 7 November) its badges come first, unless I've placed them myself
+  const d0 = new Date(), spooky = d0.getMonth() === 9 || (d0.getMonth() === 10 && d0.getDate() <= 7);
+  if (spooky && allCats.includes("🎃 Halloween") && !saved.includes("🎃 Halloween")) allCats.sort((a, b) => (b === "🎃 Halloween") - (a === "🎃 Halloween"));
   let cats = [...saved.filter((c) => allCats.includes(c)), ...allCats.filter((c) => !saved.includes(c))];
   const saveOrder = () => { try { localStorage.setItem(ORDER_KEY, JSON.stringify(cats)); } catch {} };
   const badgeCard = (b) =>

@@ -230,7 +230,21 @@ const BADGES = [
   { id: "games-500", cat: "Games", emoji: "🕹️", name: "No life", how: "Finish 500 games.", test: (s) => s.gamesFinished >= 500, progress: (s) => [s.gamesFinished, 500] },
   { id: "xmas", cat: "Just for fun", emoji: "🎄", name: "Merry LookBlog", how: "Post something on Christmas.", test: (s) => s.xmasPosts >= 1, progress: (s) => [s.xmasPosts, 1] },
   { id: "new-year", cat: "Just for fun", emoji: "🎆", name: "Happy New Year", how: "Post something on New Year’s Day.", test: (s) => s.newYearPosts >= 1, progress: (s) => [s.newYearPosts, 1] },
-  { id: "spooky", cat: "Just for fun", emoji: "🎃", name: "Spooky", how: "Post something on Halloween.", test: (s) => s.halloweenPosts >= 1, progress: (s) => [s.halloweenPosts, 1] },
+  { id: "spooky", cat: "🎃 Halloween", emoji: "🎃", name: "Spooky", how: "Post something on Halloween.", test: (s) => s.halloweenPosts >= 1, progress: (s) => [s.halloweenPosts, 1] },
+  // 🎃 Halloween (in Bulgarian time). The look ones stay once earned, even after the costume comes off.
+  { id: "hw-season", cat: "🎃 Halloween", emoji: "🕯️", name: "Spooky season", how: "Post something in Halloween week (October 25–31).", test: (s) => s.hw.week >= 1, progress: (s) => [s.hw.week, 1] },
+  { id: "hw-witching", cat: "🎃 Halloween", emoji: "🌕", name: "Witching hour", how: "Post on Halloween night, between 10 PM and 3 AM.", test: (s) => s.hw.night >= 1, progress: (s) => [s.hw.night, 1] },
+  { id: "hw-ghost-story", cat: "🎃 Halloween", emoji: "👻", name: "Ghost story", how: "Post a story on Halloween.", test: (s) => s.hw.kept.has("hw-ghost-story") || s.hw.stories >= 1, progress: (s) => [s.hw.kept.has("hw-ghost-story") ? 1 : s.hw.stories, 1] },
+  { id: "hw-reply", cat: "🎃 Halloween", emoji: "🕸️", name: "Trick or reply", how: "Write 3 replies on Halloween.", test: (s) => s.hw.replies >= 3, progress: (s) => [s.hw.replies, 3] },
+  { id: "hw-treat", cat: "🎃 Halloween", emoji: "🍬", name: "Trick or treat", how: "Send 🍬, 🍭 or 🎃 in a message on Halloween.", test: (s) => s.hw.treats >= 1, progress: (s) => [s.hw.treats, 1] },
+  { id: "hw-boo", cat: "🎃 Halloween", emoji: "😱", name: "Boo!", how: "Send 👻 in 5 messages or replies.", test: (s) => s.hw.boos >= 5, progress: (s) => [s.hw.boos, 5] },
+  { id: "hw-creature", cat: "🎃 Halloween", emoji: "🦇", name: "Creature of the night", how: "Use 🎃 👻 🦇 💀 🕷️ 🧛 🧟 or 🧙 in 10 posts.", test: (s) => s.hw.creaturePosts >= 10, progress: (s) => [s.hw.creaturePosts, 10] },
+  { id: "hw-october", cat: "🎃 Halloween", emoji: "🍂", name: "October regular", how: "Post on 10 different days in one October.", test: (s) => s.hw.octoberDays >= 10, progress: (s) => [s.hw.octoberDays, 10] },
+  { id: "hw-veteran", cat: "🎃 Halloween", emoji: "🏚️", name: "Halloween veteran", how: "Post on Halloween in 2 different years.", test: (s) => s.hw.years >= 2, progress: (s) => [s.hw.years, 2] },
+  { id: "hw-party", cat: "🎃 Halloween", emoji: "🎉", name: "Monster party", how: "Host or go to an event on Halloween.", test: (s) => s.hw.events >= 1, progress: (s) => [s.hw.events, 1] },
+  { id: "hw-dressed", cat: "🎃 Halloween", emoji: "🧛", name: "Dressed up", how: "Put something Halloween on your profile (a theme, banner, effect or decoration).", test: (s) => s.hw.kept.has("hw-dressed") || s.hw.lookParts >= 1, progress: (s) => [s.hw.kept.has("hw-dressed") ? 1 : Math.min(s.hw.lookParts, 1), 1] },
+  { id: "hw-costume", cat: "🎃 Halloween", emoji: "🧟", name: "Full costume", how: "Wear a Halloween banner, effect and photo decoration at the same time.", test: (s) => s.hw.kept.has("hw-costume") || s.hw.costume, progress: (s) => [s.hw.kept.has("hw-costume") || s.hw.costume ? 3 : s.hw.costumeParts, 3] },
+  { id: "hw-king", cat: "🎃 Halloween", emoji: "👑", name: "King of Halloween", how: "Earn 10 other Halloween badges.", test: (s) => s.hw.kept.has("hw-king") || s.hw.earnedCount >= 10, progress: (s) => [s.hw.kept.has("hw-king") ? 10 : Math.min(s.hw.earnedCount, 10), 10] },
   { id: "valentine", cat: "Just for fun", emoji: "💘", name: "Valentine", how: "Post something on Valentine’s Day.", test: (s) => s.valentinePosts >= 1, progress: (s) => [s.valentinePosts, 1] },
   // ---- 500 levels: Rookie → GOAT ----
   { id: "lv-posts-2", cat: "Creators", emoji: "📝", name: "Rookie Poster", how: "Share 2 posts.", test: (s) => s.posts >= 2, progress: (s) => [s.posts, 2] },
@@ -5804,6 +5818,46 @@ function statsFor(user) {
   statsCache.set(user.id, { at: Date.now(), stats });
   return stats;
 }
+// Halloween badges: dates and times in Bulgaria (the server runs on UTC)
+const SOFIA = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Sofia", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
+const sofiaOf = (iso) => { const o = {}; for (const x of SOFIA.formatToParts(new Date(iso))) o[x.type] = x.value; return { y: +o.year, m: +o.month, d: +o.day, h: +o.hour }; };
+const isHalloween = (t) => t.m === 10 && t.d === 31;
+const HW_LOOK = { banner: ["halloween", "graveyard", "hauntedhouse", "candycorn", "witchnight", "bloodmoon", "pumpkinpatch"],
+  fx: ["pumpkins", "bats", "ghosts", "skulls", "spiders", "treats", "witches", "zombies", "vampires", "blackcats", "candles"],
+  deco: ["pumpkin", "ghost", "bat", "spider", "skull", "witch", "vampire", "candle", "blackcat", "horns"],
+  ring: ["jackolantern", "haunted", "candycorn", "witchy", "bloodmoon"], bg: ["cobweb", "moon", "fog", "graves", "slimebg"],
+  frame: ["spooky", "cobweb", "slime", "haunted"], trail: ["bats", "pumpkins", "spiders", "treats", "skulls", "ghosts"],
+  color: ["candycorn", "witch", "slime", "vampire", "ghostly", "bloodmoon", "pumpkin"] };
+const CREATURES = /🎃|👻|🦇|💀|🕷|🧛|🧟|🧙/u;
+function halloweenStats(user, mine, sent) {
+  const posts = mine.map((p) => ({ p, t: sofiaOf(p.createdAt) }));
+  const onHw = posts.filter(({ t }) => isHalloween(t));
+  const look = user.look || {};
+  const lookParts = Object.entries(HW_LOOK).filter(([k, list]) => list.includes(look[k])).length;
+  const costumeParts = ["banner", "fx", "deco"].filter((k) => HW_LOOK[k].includes(look[k])).length;
+  const octDays = new Map();
+  for (const { t } of posts) if (t.m === 10) { const k = t.y; if (!octDays.has(k)) octDays.set(k, new Set()); octDays.get(k).add(t.d); }
+  const myComments = db.comments.filter((c) => c.userId === user.id);
+  const kept = new Set(user.earned || []);
+  const stats = {
+    week: posts.filter(({ t }) => t.m === 10 && t.d >= 25).length,
+    night: posts.filter(({ t }) => (isHalloween(t) && t.h >= 22) || (t.m === 11 && t.d === 1 && t.h < 3)).length,
+    stories: db.stories.filter((x) => x.userId === user.id && isHalloween(sofiaOf(x.createdAt))).length,
+    replies: myComments.filter((c) => isHalloween(sofiaOf(c.createdAt))).length,
+    treats: sent.filter((m) => /🍬|🍭|🎃/u.test(m.text || "") && isHalloween(sofiaOf(m.createdAt))).length,
+    boos: sent.filter((m) => (m.text || "").includes("👻")).length + myComments.filter((c) => (c.text || "").includes("👻")).length,
+    creaturePosts: mine.filter((p) => CREATURES.test(`${p.title || ""} ${p.text || ""}`)).length,
+    octoberDays: Math.max(0, ...[...octDays.values()].map((x) => x.size)),
+    years: new Set(onHw.map(({ t }) => t.y)).size,
+    events: (db.events || []).filter((ev) => (ev.hostId === user.id || ev.userId === user.id || (ev.going || []).includes(user.id)) && ev.startsAt && isHalloween(sofiaOf(ev.startsAt))).length,
+    lookParts, costumeParts, costume: costumeParts === 3, kept,
+  };
+  // How many of the other Halloween badges are earned (for "King of Halloween")
+  const others = BADGES.filter((b) => b.cat === "🎃 Halloween" && b.id !== "hw-king");
+  const s = { hw: stats, halloweenPosts: onHw.length };
+  stats.earnedCount = others.filter((b) => kept.has(b.id) || (() => { try { return b.test(s); } catch { return false; } })()).length;
+  return stats;
+}
 function countStats(user) {
   const mine = db.posts.filter((p) => p.userId === user.id);
   const visible = mine.filter((p) => p.visibility !== "private");
@@ -6037,6 +6091,7 @@ function countStats(user) {
         xmasPosts: mine.filter((p) => on(p, 11, 24) || on(p, 11, 25) || on(p, 11, 26)).length,
         newYearPosts: mine.filter((p) => on(p, 0, 1)).length,
         halloweenPosts: mine.filter((p) => on(p, 9, 31)).length,
+        hw: halloweenStats(user, mine, sent),
         valentinePosts: mine.filter((p) => on(p, 1, 14)).length,
         // the newest ones
         ...Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((d) => [`day${d}`, mine.filter((p) => new Date(p.createdAt).getDay() === d).length])),
