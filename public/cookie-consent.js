@@ -9,17 +9,30 @@
   // Only the login page asks by itself (its script tag has data-ask); elsewhere the window opens from "Cookie settings"
   var ASK = Boolean(document.currentScript && document.currentScript.hasAttribute("data-ask"));
 
+  // The choice is a real cookie (lb_consent=1.all or 1.none, for a year), so it also lasts where local storage is
+  // cleared or blocked; local storage keeps the date it was made.
+  function cookieChoice() {
+    var m = document.cookie.match(/(?:^|;\s*)lb_consent=(\d+)\.(all|none)(?:;|$)/);
+    return m && Number(m[1]) === VERSION ? { v: VERSION, extra: m[2] === "all" } : null;
+  }
+  function writeCookie(c) {
+    document.cookie = KEY + "=" + VERSION + "." + (c.extra ? "all" : "none") + "; Max-Age=31536000; Path=/; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : "");
+  }
   function read() {
-    try {
-      var c = JSON.parse(localStorage.getItem(KEY) || "null");
-      return c && c.v === VERSION ? c : null;
-    } catch (e) { return null; }
+    var c = null;
+    try { c = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { c = null; }
+    if (!c || c.v !== VERSION) c = null;
+    var k = cookieChoice();
+    if (k && (!c || c.extra !== k.extra)) c = k; // the cookie wins if they differ
+    if (c && !k) try { writeCookie(c); } catch (e) { /* cookies off */ }
+    return c;
   }
   var choice = read();
 
   function save(extra) {
     choice = { v: VERSION, extra: Boolean(extra), at: new Date().toISOString() };
-    try { localStorage.setItem(KEY, JSON.stringify(choice)); } catch (e) { /* private mode: the choice lasts for this page */ }
+    try { writeCookie(choice); } catch (e) { /* cookies off */ }
+    try { localStorage.setItem(KEY, JSON.stringify(choice)); } catch (e) { /* private mode: the cookie still keeps it */ }
     close();
     try { window.dispatchEvent(new CustomEvent("lb-consent", { detail: { extra: choice.extra } })); } catch (e) { /* old browser */ }
   }

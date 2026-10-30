@@ -4,6 +4,7 @@
 // (online several servers answer requests, and they sleep in between).
 
 const { db, save, findUser, findByUsername } = require("./db");
+const { ytThumb } = require("./links");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { sendTo } = require("./realtime");
 const VOICE_REACTIONS = ["❤️", "😂", "🔥", "👏", "😮", "😢", "💯", "🎉", "👀", "🤯"];
@@ -29,12 +30,12 @@ async function youtubeInfo(url) {
   const m = String(url || "").match(YT_RE);
   if (!m) return null;
   const id = m[1];
-  let title = "YouTube video", thumb = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  let title = "YouTube video", thumb = ytThumb(id);
   try {
     const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 4000);
     const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent("https://www.youtube.com/watch?v=" + id)}`, { signal: ac.signal });
     clearTimeout(t);
-    if (r.ok) { const d = await r.json(); title = String(d.title || title).slice(0, 120); thumb = d.thumbnail_url || thumb; }
+    if (r.ok) { const d = await r.json(); title = String(d.title || title).slice(0, 120); }
   } catch {}
   return { kind: "youtube", ref: id, title, thumb, duration: null };
 }

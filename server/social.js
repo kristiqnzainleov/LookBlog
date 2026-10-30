@@ -2,6 +2,7 @@
 
 const crypto = require("crypto");
 const { makeMatcher } = require("./search-text");
+const { ytThumb } = require("./links");
 const fs = require("fs");
 const path = require("path");
 const { db, save, findUser, findByUsername, findPost, reservedUsername } = require("./db");
@@ -259,7 +260,7 @@ async function songRef(b, me, prevFile) {
 }
 function songRefView(ref, owner, me) {
   if (!ref) return null;
-  if (ref.yt) return { kind: "youtube", id: "yt-" + ref.yt.id, yt: ref.yt.id, title: ref.yt.title, artist: { name: ref.yt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${ref.yt.id}/hqdefault.jpg` };
+  if (ref.yt) return { kind: "youtube", id: "yt-" + ref.yt.id, yt: ref.yt.id, title: ref.yt.title, artist: { name: ref.yt.author || "YouTube" }, cover: ytThumb(ref.yt.id) };
   if (ref.file) return { kind: "file", id: "f-" + ref.file.url.slice(-12), url: ref.file.url, title: ref.file.title, artist: { name: owner.name }, cover: owner.avatar || null, noCount: true };
   const sg = ref.song && db.songs.find((x) => x.id === ref.song && !x.deleted);
   return sg ? require("./music").songView(sg, me || owner) : null;
@@ -500,7 +501,7 @@ function profileView(user, me) {
     look: lookOf(user),
     profileSong: (() => {
       const yt = user.look?.songYt, f = user.look?.songFile;
-      if (yt) return { kind: "youtube", id: "yt-" + yt.id, yt: yt.id, title: yt.title, artist: { name: yt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${yt.id}/hqdefault.jpg` };
+      if (yt) return { kind: "youtube", id: "yt-" + yt.id, yt: yt.id, title: yt.title, artist: { name: yt.author || "YouTube" }, cover: ytThumb(yt.id) };
       if (f) return { kind: "file", id: "pf-" + user.username, url: f.url, title: f.title, artist: { name: user.name }, cover: user.avatar || null, noCount: true };
       const sg = user.look?.song && db.songs.find((x) => x.id === user.look.song && !x.deleted); return sg ? require("./music").songView(sg, me) : null;
     })(),
@@ -2450,7 +2451,7 @@ async function handleSocial(req, res, url, me) {
     const id = (String(url.searchParams.get("url") || "").match(YT_LINK) || [])[1] || (YT_ID.test(url.searchParams.get("url") || "") ? url.searchParams.get("url") : null);
     if (!id) throw httpError(400, "That isn’t a YouTube link.");
     const info = await youtubeTitle(id);
-    sendJSON(res, 200, { id, title: info?.title || "YouTube video", author: info?.author || "", cover: `https://i.ytimg.com/vi/${id}/hqdefault.jpg` });
+    sendJSON(res, 200, { id, title: info?.title || "YouTube video", author: info?.author || "", cover: ytThumb(id) });
     return true;
   }
 

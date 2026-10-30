@@ -137,4 +137,29 @@ async function handleLinks(req, res, url, me) {
   return true;
 }
 
-module.exports = { handleLinks };
+// YouTube covers come through LookBlog too, so Google doesn't see who is looking (Cookie Policy: "Reject cookies").
+// Only i.ytimg.com and a valid video id, so this isn't an open proxy.
+const YT_ID = /^[\w-]{11}$/;
+const ytThumb = (id) => `/yt-thumb/${id}.jpg`;
+const thumbCache = new Map();
+async function serveYtThumb(res, id) {
+  if (!YT_ID.test(id)) { res.writeHead(404); return res.end(); }
+  let hit = thumbCache.get(id);
+  if (!hit || Date.now() - hit.at > 864e5) {
+    try {
+      const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 5000);
+      const r = await fetch(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`, { signal: ac.signal });
+      clearTimeout(t);
+      const type = String(r.headers.get("content-type") || "").split(";")[0];
+      const body = r.ok && /^image\/(jpeg|webp|png)$/.test(type) ? Buffer.from(await r.arrayBuffer()) : null;
+      hit = body && body.length < 1e6 ? { at: Date.now(), type, body } : null;
+    } catch { hit = null; }
+    if (thumbCache.size > 2000) thumbCache.clear();
+    if (hit) thumbCache.set(id, hit);
+  }
+  if (!hit) { res.writeHead(404, { "Cache-Control": "public, max-age=300" }); return res.end(); }
+  res.writeHead(200, { "Content-Type": hit.type, "Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'" });
+  res.end(hit.body);
+}
+
+module.exports = { handleLinks, ytThumb, serveYtThumb };

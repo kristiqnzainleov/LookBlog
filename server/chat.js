@@ -3,6 +3,7 @@
 
 const crypto = require("crypto");
 const { db, save, findUser, findByUsername, findPost, findChat, onLoad, flush } = require("./db");
+const { ytThumb } = require("./links");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { ownedMedia, markUsed, deleteMedia } = require("./media");
 const { sendTo, presence, flushRealtime } = require("./realtime");
@@ -299,7 +300,7 @@ function messageViewFull(msg, me) {
     media: msg.media,
     post,
     comment: msg.commentId ? sharedCommentView(msg.commentId, me) : null,
-    songYt: msg.songYt ? { kind: "youtube", id: "yt-" + msg.songYt.id, yt: msg.songYt.id, title: msg.songYt.title, artist: { name: msg.songYt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${msg.songYt.id}/hqdefault.jpg` } : null,
+    songYt: msg.songYt ? { kind: "youtube", id: "yt-" + msg.songYt.id, yt: msg.songYt.id, title: msg.songYt.title, artist: { name: msg.songYt.author || "YouTube" }, cover: ytThumb(msg.songYt.id) } : null,
     // A story or a highlight someone shared here (shown only to people who may see it)
     story: msg.storyId ? require("./stories").storyCard(msg.storyId, me) : null,
     highlight: msg.highlightId ? require("./stories").highlightCard(msg.highlightId, me) : null,

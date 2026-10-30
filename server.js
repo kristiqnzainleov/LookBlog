@@ -27,7 +27,7 @@ const { handleAnalytics } = require("./server/analytics");
 const { handleEvents: handlePublicEvents } = require("./server/events");
 const { handleMusic } = require("./server/music");
 const { handleAccount } = require("./server/account");
-const { handleLinks } = require("./server/links");
+const { handleLinks, serveYtThumb } = require("./server/links");
 const { handleLeaderboard } = require("./server/leaderboard");
 const { handleStreams } = require("./server/streams");
 const { handleAdmin, handlePanel, panelAdmin } = require("./server/admin");
@@ -340,6 +340,7 @@ async function handle(req, res) {
       return res.end();
     }
     // (the LookBlog team, in the admin panel, sees reported files too)
+    if (p.startsWith("/yt-thumb/")) return await serveYtThumb(res, p.slice("/yt-thumb/".length).replace(/\.jpg$/, ""));
     if (p.startsWith("/media/")) return await serveMedia(req, res, p.slice("/media/".length), sessionUser(req), Boolean(panelAdmin(req)));
 
     const loggedIn = Boolean(sessionUser(req));

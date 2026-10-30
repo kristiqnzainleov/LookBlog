@@ -4,6 +4,7 @@
 // People can react to a story with an emoji and reply to it.
 const crypto = require("crypto");
 const { db, save, findUser } = require("./db");
+const { ytThumb } = require("./links");
 const { sendJSON, httpError, readJSON, rateLimit } = require("./http");
 const { markUsed, deleteMedia, ownedMedia } = require("./media");
 const { sendTo } = require("./realtime");
@@ -25,7 +26,7 @@ function cleanStorySong(b, me) {
 function storySongView(s, me) {
   const x = s.song, owner = findUser(s.userId);
   if (!x) return null;
-  if (x.yt) return { kind: "youtube", id: "yt-" + x.yt.id, yt: x.yt.id, title: x.yt.title, artist: { name: x.yt.author || "YouTube" }, cover: `https://i.ytimg.com/vi/${x.yt.id}/hqdefault.jpg` };
+  if (x.yt) return { kind: "youtube", id: "yt-" + x.yt.id, yt: x.yt.id, title: x.yt.title, artist: { name: x.yt.author || "YouTube" }, cover: ytThumb(x.yt.id) };
   if (x.file) return { kind: "file", id: "sf-" + s.id, url: x.file.url, title: x.file.title, artist: { name: owner?.name || "" }, cover: owner?.avatar || null, noCount: true };
   const sg = db.songs.find((y) => y.id === x.song && !y.deleted);
   return sg ? require("./music").songView(sg, me) : null;
