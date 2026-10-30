@@ -7801,3 +7801,48 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
   .comment-actions .comment-link { padding: 6px 8px; flex: none; }
   .comment-actions .comment-link[title="Send in a chat"] span { display: none; }
 }
+
+/* ───── 🎃 Halloween looks ───── */
+/* Rings around the photo */
+.profile-avatar[data-ring="jackolantern"] { --ring: conic-gradient(#ff8a3d, #1a0b05, #ffb347, #1a0b05, #ff8a3d); }
+.profile-avatar[data-ring="jackolantern"]::after { filter: drop-shadow(0 0 12px #ff8a3d); animation: hwFlicker 2.4s infinite; }
+.profile-avatar[data-ring="haunted"] { --ring: conic-gradient(#ffffff, #8fa8ff, #9b5cff, #c9d6ff, #ffffff); }
+.profile-avatar[data-ring="haunted"]::after { filter: drop-shadow(0 0 14px rgba(201, 214, 255, 0.8)); animation: storySpin 6s linear infinite; }
+.profile-avatar[data-ring="candycorn"] { --ring: conic-gradient(#fff6d6 0 33%, #ffd23f 0 66%, #ff8a3d 0); }
+.profile-avatar[data-ring="witchy"] { --ring: conic-gradient(#9b5cff, #39ff14, #2b1055, #9b5cff); }
+.profile-avatar[data-ring="witchy"]::after { filter: drop-shadow(0 0 12px #39ff14); }
+.profile-avatar[data-ring="bloodmoon"] { --ring: conic-gradient(#c1121f, #3a0a0a, #ff8a3d, #3a0a0a, #c1121f); }
+.profile-avatar[data-ring="bloodmoon"]::after { filter: drop-shadow(0 0 14px #c1121f); }
+@keyframes hwFlicker { 0%, 100% { opacity: 1; } 42% { opacity: 0.85; } 45% { opacity: 0.45; } 48% { opacity: 1; } 70% { opacity: 0.9; } }
+
+/* Profile backgrounds */
+.view[data-pbg="cobweb"]::before, .look-preview[data-pbg="cobweb"]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.13' stroke-width='1'%3E%3Cpath d='M0 0 160 160M0 0 160 60M0 0 60 160M0 0 160 0M0 0 0 160'/%3E%3Cpath d='M30 0Q22 22 0 30M60 0Q45 45 0 60M95 0Q70 70 0 95M135 0Q95 95 0 135'/%3E%3C/g%3E%3C/svg%3E"), radial-gradient(60% 420px at 50% 0, rgba(155, 92, 255, 0.18), transparent); background-repeat: no-repeat, no-repeat; background-size: 360px 360px, auto; background-position: 0 0, 0 0; }
+.view[data-pbg="moon"]::before, .look-preview[data-pbg="moon"]::before { background: radial-gradient(circle at 82% 90px, #fff6d6 0 46px, rgba(255, 246, 214, 0.25) 48px, transparent 120px), radial-gradient(1.5px 1.5px at 40px 60px, #fff, transparent), radial-gradient(1px 1px at 140px 160px, #fff, transparent), radial-gradient(1.5px 1.5px at 260px 40px, #fff, transparent), radial-gradient(1px 1px at 420px 120px, #fff, transparent), linear-gradient(180deg, rgba(26, 11, 46, 0.9), transparent 820px); }
+.view[data-pbg="fog"]::before, .look-preview[data-pbg="fog"]::before { background: radial-gradient(45% 160px at 15% 260px, rgba(201, 214, 255, 0.14), transparent), radial-gradient(50% 180px at 85% 420px, rgba(201, 214, 255, 0.12), transparent), radial-gradient(60% 200px at 50% 620px, rgba(155, 92, 255, 0.12), transparent), linear-gradient(180deg, rgba(43, 16, 85, 0.45), transparent 900px); animation: hwFog 14s ease-in-out infinite alternate; }
+@keyframes hwFog { from { background-position: 0 0; } to { background-position: 60px 0, -60px 0, 30px 0, 0 0; } }
+.view[data-pbg="graves"]::before, .look-preview[data-pbg="graves"]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='90' viewBox='0 0 120 90'%3E%3Cpath d='M20 90V58a14 14 0 0 1 28 0v32zM78 90V66h6v-8h6v8h6v24z' fill='%23ffffff' fill-opacity='.06'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(26, 11, 46, 0.7), transparent 820px); background-size: 120px 90px, auto; }
+.view[data-pbg="slimebg"]::before, .look-preview[data-pbg="slimebg"]::before { background: radial-gradient(14px 26px at 8% 0, #39ff14 98%, transparent), radial-gradient(10px 40px at 22% 0, #39ff14 98%, transparent), radial-gradient(16px 30px at 41% 0, #39ff14 98%, transparent), radial-gradient(9px 48px at 60% 0, #39ff14 98%, transparent), radial-gradient(14px 24px at 78% 0, #39ff14 98%, transparent), radial-gradient(11px 36px at 93% 0, #39ff14 98%, transparent), linear-gradient(180deg, rgba(57, 255, 20, 0.16), transparent 700px); opacity: 0.55; }
+
+/* Banners (when there's no banner picture) */
+.profile-banner.empty[data-bfx="graveyard"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='120' viewBox='0 0 600 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120V96h40V70a18 18 0 0 1 36 0v26h70V82h8V70h8v12h8v14h90V64a22 22 0 0 1 44 0v32h80V76h8V62h8v14h8v20h100V72a16 16 0 0 1 32 0v24h60v24z' fill='%230b0712'/%3E%3C/svg%3E") bottom / 100% 60% no-repeat, radial-gradient(circle at 78% 34%, #fff6d6 0 30px, rgba(255, 246, 214, 0.25) 32px, transparent 70px), linear-gradient(180deg, #120a24, #2b1055 60%, #4a1d6b); }
+.profile-banner.empty[data-bfx="hauntedhouse"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='160' viewBox='0 0 600 160'%3E%3Cpath d='M380 160V80l-14 6 54-56 20 22V36h10v26l40 40-14-6v64zM404 104h14v18h-14zM450 104h14v18h-14z' fill='%230b0712'/%3E%3Cpath d='M404 104h14v18h-14zM450 104h14v18h-14z' fill='%23ffd23f' fill-opacity='.85'/%3E%3C/svg%3E") right 8% bottom / auto 100% no-repeat, radial-gradient(60% 50% at 20% 80%, rgba(201, 214, 255, 0.25), transparent), linear-gradient(180deg, #1b1530, #3d2c66 70%, #6b5aa3); }
+.profile-banner.empty[data-bfx="candycorn"] { background: linear-gradient(180deg, #fff6d6 0 33%, #ffd23f 33% 66%, #ff8a3d 66%); }
+.profile-banner.empty[data-bfx="witchnight"] { background: radial-gradient(circle at 70% 40%, #e9ffd6 0 34px, rgba(185, 255, 140, 0.25) 36px, transparent 80px), radial-gradient(1.5px 1.5px at 10% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 30% 60%, #fff, transparent), radial-gradient(1px 1px at 50% 20%, #fff, transparent), radial-gradient(1.5px 1.5px at 90% 70%, #fff, transparent), linear-gradient(160deg, #1a0b2e, #3b1466 55%, #0f3d1e); }
+.profile-banner.empty[data-bfx="bloodmoon"] { background: radial-gradient(circle at 50% 45%, #ff5a36 0 40px, #c1121f 42px, rgba(193, 18, 31, 0.35) 46px, transparent 110px), linear-gradient(180deg, #120404, #3a0a0a 60%, #120404); }
+.profile-banner.empty[data-bfx="pumpkinpatch"] { background: radial-gradient(28px 22px at 12% 88%, #ff8a3d 96%, transparent), radial-gradient(34px 26px at 34% 92%, #ff7a1a 96%, transparent), radial-gradient(24px 19px at 58% 90%, #ff8a3d 96%, transparent), radial-gradient(36px 28px at 82% 93%, #ff7a1a 96%, transparent), linear-gradient(180deg, #1a0b2e, #4a1d6b 55%, #ff8a3d 92%, #3a1a05 92%); }
+
+/* Frames around the profile */
+[data-frame="spooky"] { box-shadow: 0 0 0 2px #ff8a3d, 0 0 0 5px #1a0b05, 0 0 0 7px #9b5cff, 0 0 36px rgba(255, 138, 61, 0.4); }
+[data-frame="cobweb"] { outline: 2px dashed rgba(255, 255, 255, 0.35); outline-offset: 4px; box-shadow: 0 0 30px rgba(201, 214, 255, 0.18); }
+[data-frame="slime"] { box-shadow: 0 0 0 3px #39ff14, 0 6px 0 3px #2bd10f, 0 0 34px rgba(57, 255, 20, 0.45); }
+[data-frame="haunted"] { box-shadow: 0 0 0 2px rgba(201, 214, 255, 0.85), 0 0 40px rgba(143, 168, 255, 0.45); animation: hwHaunt 4s ease-in-out infinite; }
+@keyframes hwHaunt { 50% { box-shadow: 0 0 0 2px rgba(201, 214, 255, 0.35), 0 0 60px rgba(155, 92, 255, 0.5); } }
+
+/* Decorations on the photo */
+.av-deco[data-deco="ghost"] b, .av-deco[data-deco="bat"] b { right: -10%; top: -8%; font-size: calc(var(--av, 120px) * 0.34); transform: rotate(12deg); animation: hwBob 2.6s ease-in-out infinite; }
+.av-deco[data-deco="spider"] b { right: 14%; top: 62%; font-size: calc(var(--av, 120px) * 0.26); }
+.av-deco[data-deco="spider"] b::before { content: ""; position: absolute; left: 50%; bottom: 80%; width: 1px; height: calc(var(--av, 120px) * 0.7); background: rgba(255, 255, 255, 0.55); }
+.av-deco[data-deco="skull"] b, .av-deco[data-deco="candle"] b, .av-deco[data-deco="blackcat"] b { right: -4%; bottom: -2%; font-size: calc(var(--av, 120px) * 0.3); transform: rotate(8deg); }
+.av-deco[data-deco="witch"] b, .av-deco[data-deco="vampire"] b { left: -8%; bottom: -4%; font-size: calc(var(--av, 120px) * 0.34); transform: rotate(-8deg); }
+@keyframes hwBob { 50% { translate: 0 -6px; } }
+@media (prefers-reduced-motion: reduce) { .av-deco[data-deco="ghost"] b, .av-deco[data-deco="bat"] b, [data-frame="haunted"], .profile-avatar[data-ring="jackolantern"]::after, .profile-avatar[data-ring="haunted"]::after, .view[data-pbg="fog"]::before { animation: none; } }

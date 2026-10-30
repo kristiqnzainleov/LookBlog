@@ -15,6 +15,9 @@ export const NAME_COLORS = [
   ["steel", "linear-gradient(90deg,#e2e8f0,#94a3b8,#cbd5e1)"], ["pumpkin", "linear-gradient(90deg,#ff8a3d,#ffb347,#9b5cff)"], ["love", "linear-gradient(90deg,#ff4f7a,#ffb3c7,#ff4f7a)"],
   ["beach", "linear-gradient(90deg,#ffd23f,#ffb070,#29d3e6)"], ["matrix", "linear-gradient(90deg,#39ff14,#0fbf3a)"], ["coffee", "linear-gradient(90deg,#c69c6d,#f3e1c7)"],
   ["pastel", "linear-gradient(90deg,#ffc8e8,#c9f0ff,#e3d1ff)"], ["blood", "linear-gradient(90deg,#ff2e2e,#8b0000)"],
+  // 🎃 Halloween
+  ["candycorn", "linear-gradient(90deg,#fff6d6,#ffd23f,#ff8a3d)"], ["witch", "linear-gradient(90deg,#9b5cff,#39ff14)"], ["slime", "linear-gradient(90deg,#d4ff3a,#39ff14,#0f9b3a)"],
+  ["vampire", "linear-gradient(90deg,#ff2e4d,#7a0019,#ff2e4d)"], ["ghostly", "linear-gradient(90deg,#ffffff,#c9d6ff,#8fa8ff)"], ["bloodmoon", "linear-gradient(90deg,#ff8a3d,#c1121f,#3a0a0a)"],
 ];
 export const NAME_FONTS = [["", "Default"], ["display", "Bold"], ["serif", "Elegant"], ["mono", "Mono"], ["script", "Script"], ["rounded", "Rounded"], ["wide", "Wide"],
   ["tall", "Tall"], ["retro", "Retro"], ["marker", "Marker"], ["pixel", "Pixel"], ["scifi", "Sci-fi"], ["hand", "Handwritten"], ["groovy", "Groovy"],
@@ -29,7 +32,8 @@ export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], 
   ["fire", "🔥 Fire"], ["ice", "🧊 Ice"], ["galaxy", "🌌 Galaxy"], ["candy", "🍬 Candy"], ["toxic", "☢️ Toxic"], ["pastel", "Pastel"], ["disco", "🪩 Disco"],
   ["lava", "🌋 Lava"], ["chrome", "🪞 Chrome"], ["royal", "👑 Royal"], ["mintice", "🌿 Mint"], ["sunrise", "🌅 Sunrise"], ["rose", "🌹 Rose"],
   ["peach", "🍑 Peach"], ["midnight", "🌃 Midnight"], ["electric", "⚡ Electric"], ["bubblegum", "🍬 Bubblegum"], ["northern", "🌌 Northern lights"], ["emerald", "💚 Emerald"], ["sakura", "🌸 Sakura"], ["bronze", "🥉 Bronze"],
-  ["ruby", "❤️ Ruby"], ["sapphire", "💙 Sapphire"], ["amethyst", "💜 Amethyst"], ["citrus", "🍋 Citrus"], ["cotton", "🍭 Cotton candy"], ["vapor", "🌆 Vaporwave"], ["ember", "🔥 Ember"], ["holo", "🪩 Holo"]];
+  ["ruby", "❤️ Ruby"], ["sapphire", "💙 Sapphire"], ["amethyst", "💜 Amethyst"], ["citrus", "🍋 Citrus"], ["cotton", "🍭 Cotton candy"], ["vapor", "🌆 Vaporwave"], ["ember", "🔥 Ember"], ["holo", "🪩 Holo"],
+  ["jackolantern", "🎃 Jack-o'-lantern"], ["haunted", "👻 Haunted"], ["candycorn", "🍬 Candy corn"], ["witchy", "🧙 Witchy"], ["bloodmoon", "🌑 Blood moon"]];
 // New: the banner moves, a line under the name, how the profile opens, and how the numbers look
 export const BANNER_ANIMS = [["", "Still"], ["kenburns", "🎥 Slow zoom"], ["pan", "↔️ Pan"], ["shimmer", "✨ Shimmer"], ["hue", "🌈 Colour shift"], ["pulse", "💓 Pulse"], ["glitch", "📺 Glitch"]];
 export const NAME_DECOS = [["", "None"], ["underline", "Underline"], ["highlight", "🖍 Marker"], ["wavy", "〰️ Wavy"], ["box", "▢ Box"], ["sparkle", "✨ Sparkles"], ["glowline", "💡 Glow line"]];
@@ -39,12 +43,14 @@ export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradie
   ["snow", "❄️ Snow"], ["candy", "🍬 Candy cane"], ["shell", "🐢 Shell"], ["pinstripe", "💼 Pinstripe"], ["hearts", "💗 Hearts"], ["matrix", "💻 Matrix"], ["sunrays", "☀️ Sun rays"],
   ["hexagons", "⬡ Hexagons"], ["zigzag", "〰️ Zigzag"], ["plaid", "🧣 Plaid"], ["circuit", "🔌 Circuit"], ["bokeh", "✨ Bokeh"], ["confetti", "🎊 Confetti"],
   ["marble", "🪨 Marble"], ["clouds", "☁️ Clouds"], ["checker", "🏁 Checker"], ["triangles", "🔺 Triangles"], ["lavalamp", "🫧 Lava lamp"], ["paper", "📄 Paper"],
-  ["chess", "🏁 Chess"], ["stripes", "📏 Stripes"], ["pyramids", "🔺 Pyramids"], ["ringsbg", "⭕ Rings"], ["crosses", "➕ Crosses"], ["dusk", "🌇 Dusk"], ["mesh", "🫧 Mesh"], ["vapor", "🌆 Vaporwave"]];
+  ["chess", "🏁 Chess"], ["stripes", "📏 Stripes"], ["pyramids", "🔺 Pyramids"], ["ringsbg", "⭕ Rings"], ["crosses", "➕ Crosses"], ["dusk", "🌇 Dusk"], ["mesh", "🫧 Mesh"], ["vapor", "🌆 Vaporwave"],
+  ["cobweb", "🕸️ Cobwebs"], ["moon", "🌕 Full moon"], ["fog", "🌫️ Fog"], ["graves", "🪦 Graveyard"], ["slimebg", "🟢 Slime"]];
 export const BANNERS = [["", "Default"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["aurora", "Aurora"], ["candy", "Candy"], ["fire", "Fire"], ["galaxy", "Galaxy"], ["night", "Night"], ["mint", "Mint"], ["mono", "Mono"],
   ["xmas", "🎄 Christmas"], ["winter", "❄️ Winter"], ["forest", "🌲 Forest"], ["turtle", "🐢 Turtle"], ["business", "💼 Business"], ["halloween", "🎃 Halloween"],
   ["beach", "🏖️ Beach"], ["love", "💘 Love"], ["matrix", "💻 Matrix"], ["coffee", "☕ Coffee"], ["pirate", "🏴‍☠️ Pirate"], ["spring", "🌷 Spring"],
   ["vapor", "🌴 Vaporwave"], ["sunsetcity", "🌆 City sunset"], ["deepsea", "🐋 Deep sea"], ["lemonade", "🍋 Lemonade"], ["berry", "🫐 Berry"], ["cyber", "🤖 Cyber"], ["desert", "🏜️ Desert"], ["cottoncandy", "🍭 Cotton candy"],
-  ["vaporwave", "🌆 Vaporwave"], ["peach", "🍑 Peach"], ["lagoon", "🏝️ Lagoon"], ["blueberry", "🫐 Blueberry"], ["lime", "🍋 Lime"], ["cocoa", "🍫 Cocoa"], ["steelblue", "🛡️ Steel"], ["dusk", "🌇 Dusk"]];
+  ["vaporwave", "🌆 Vaporwave"], ["peach", "🍑 Peach"], ["lagoon", "🏝️ Lagoon"], ["blueberry", "🫐 Blueberry"], ["lime", "🍋 Lime"], ["cocoa", "🍫 Cocoa"], ["steelblue", "🛡️ Steel"], ["dusk", "🌇 Dusk"],
+  ["graveyard", "🪦 Graveyard"], ["hauntedhouse", "🏚️ Haunted house"], ["candycorn", "🍬 Candy corn"], ["witchnight", "🧙 Witch night"], ["bloodmoon", "🌑 Blood moon"], ["pumpkinpatch", "🎃 Pumpkin patch"]];
 // Photo shape, name animation, a frame around the profile, a trail behind the pointer
 export const AVATAR_SHAPES = [["", "Circle"], ["squircle", "Squircle"], ["hex", "Hexagon"], ["heart", "Heart"], ["star", "Star"], ["blob", "Blob"], ["diamond", "Diamond"],
   ["octagon", "Octagon"], ["pentagon", "Pentagon"], ["shield", "Shield"], ["leaf", "Leaf"], ["flower", "Flower"], ["drop", "Drop"],
@@ -55,15 +61,18 @@ export const NAME_ANIMS = [["", "None"], ["wave", "Wave"], ["bounce", "Bounce"],
 export const CARD_FRAMES = [["", "None"], ["neon", "Neon"], ["glass", "Glass"], ["gold", "Gold"], ["pixel", "Pixel"], ["comic", "Comic"], ["holo", "Holo"],
   ["candy", "🍬 Candy cane"], ["ice", "🧊 Ice"], ["wood", "🪵 Wood"], ["business", "💼 Business"], ["shell", "🐢 Shell"],
   ["rainbow", "🌈 Rainbow"], ["fire", "🔥 Fire"], ["dashed", "Dashed"], ["double", "Double"], ["sketch", "✏️ Sketch"], ["aurora", "🌌 Aurora"],
-  ["vapor", "🌴 Vaporwave"], ["chrome", "🪞 Chrome"], ["love", "💗 Love"], ["toxic", "☢️ Toxic"], ["royal", "👑 Royal"], ["polaroid", "📸 Polaroid"]];
+  ["vapor", "🌴 Vaporwave"], ["chrome", "🪞 Chrome"], ["love", "💗 Love"], ["toxic", "☢️ Toxic"], ["royal", "👑 Royal"], ["polaroid", "📸 Polaroid"],
+  ["spooky", "🎃 Spooky"], ["cobweb", "🕸️ Cobweb"], ["slime", "🟢 Slime"], ["haunted", "👻 Haunted"]];
 export const CURSOR_TRAILS = [["", "None"], ["sparkle", "✨ Sparkles"], ["hearts", "💗 Hearts"], ["stars", "⭐ Stars"], ["bubbles", "🫧 Bubbles"], ["fire", "🔥 Fire"], ["rainbow", "🌈 Rainbow"],
   ["snow", "❄️ Snow"], ["money", "💵 Money"], ["leaves", "🍃 Leaves"], ["notes", "🎵 Music"], ["love", "💘 Love"],
   ["flowers", "🌸 Flowers"], ["ghosts", "👻 Ghosts"], ["cats", "🐱 Cats"], ["paws", "🐾 Paws"],
-  ["butterflies", "🦋 Butterflies"], ["fruit", "🍓 Fruit"], ["space", "🚀 Space"], ["gaming", "🎮 Gaming"], ["dino", "🦖 Dino"], ["magic", "🪄 Magic"], ["food", "🍕 Food"], ["ocean", "🐠 Ocean"]];
+  ["butterflies", "🦋 Butterflies"], ["fruit", "🍓 Fruit"], ["space", "🚀 Space"], ["gaming", "🎮 Gaming"], ["dino", "🦖 Dino"], ["magic", "🪄 Magic"], ["food", "🍕 Food"], ["ocean", "🐠 Ocean"],
+  ["bats", "🦇 Bats"], ["pumpkins", "🎃 Pumpkins"], ["spiders", "🕷️ Spiders"], ["treats", "🍬 Treats"], ["skulls", "💀 Skulls"]];
 export const PHOTO_ANIMS = [["", "Still"], ["spin", "🌀 Spin"], ["pulse", "💓 Pulse"], ["float", "🎈 Float"], ["wobble", "🍮 Wobble"], ["glow", "✨ Glow"], ["bounce", "🏀 Bounce"],
   ["swing", "🎐 Swing"], ["heartbeat", "💗 Heartbeat"], ["tilt", "🃏 Tilt"]];
 export const CURSORS = ["", "✨", "💖", "⭐", "🐢", "🔥", "👑", "🎮", "🍕", "🦄", "👻", "🌸", "💎", "🚀", "🐱", "🍓", "⚡", "🎧", "🌙", "🍀",
-  "🦋", "🎀", "🐸", "🍒", "🪐", "🌈", "🦈", "🍩", "💫", "🐶"];
+  "🦋", "🎀", "🐸", "🍒", "🪐", "🌈", "🦈", "🍩", "💫", "🐶",
+  "🎃", "🦇", "🕷️", "💀", "🍬", "🧙", "🧛", "🕯️"];
 export const BIO_STYLES = [["", "Plain"], ["card", "🪪 Card"], ["note", "🗒 Sticky note"], ["terminal", "💻 Terminal"], ["neon", "💡 Neon"], ["quote", "❝ Quote"], ["bubble", "💬 Bubble"],
   ["chalk", "🧑‍🏫 Chalkboard"], ["scroll", "📜 Scroll"], ["receipt", "🧾 Receipt"], ["glass", "🧊 Glass"]];
 export const TAB_STYLES = [["", "Normal"], ["underline", "Underline"], ["neon", "💡 Neon"], ["glass", "🧊 Glass"], ["boxed", "▢ Boxed"], ["retro", "🕹 Retro"], ["gradient", "🎨 Gradient"]];
@@ -91,6 +100,18 @@ export const LOOK_THEME_GROUPS = [
     ["🎃 Halloween", T("pumpkin", "spooky", "glow", "🎃", "#ff8a3d", "sunset", "stars", "halloween", "pumpkins", "pumpkin", "blob", "glitch", "comic", "fire")],
     ["💘 Valentine", T("love", "script", "glow", "💘", "#ff4f7a", "spin", "hearts", "love", "love", "cupid", "heart", "pulse", "glass", "love")],
     ["🐣 Easter", T("pastel", "rounded", "", "🐣", "#ff9ecf", "accent", "dots", "spring", "petals", "flowers", "blob", "bounce", "glass", "hearts")],
+  ]],
+  ["🎃 Halloween", [
+    ["🎃 Pumpkin patch", T("candycorn", "spooky", "glow", "🎃", "#ff8a3d", "jackolantern", "fog", "pumpkinpatch", "pumpkins", "pumpkin", "blob", "flicker", "spooky", "pumpkins")],
+    ["👻 Ghost", T("ghostly", "spooky", "glow", "👻", "#c9d6ff", "haunted", "fog", "hauntedhouse", "ghosts", "ghost", "drop", "float", "haunted", "ghosts")],
+    ["🧙 Witch", T("witch", "fancy", "glow", "🧙‍♀️", "#9b5cff", "witchy", "moon", "witchnight", "witches", "witch", "star", "swing", "spooky", "magic")],
+    ["🧛 Vampire", T("vampire", "burned", "shadow", "🧛", "#ff2e4d", "bloodmoon", "moon", "bloodmoon", "vampires", "vampire", "diamond", "heartbeat", "royal", "bats")],
+    ["🧟 Zombie", T("slime", "dirt", "glow", "🧟", "#39ff14", "toxic", "slimebg", "graveyard", "zombies", "skull", "shield", "shake", "slime", "skulls")],
+    ["🕷️ Spider", T("white", "distressed", "outline", "🕷️", "#c9c9d1", "steel", "cobweb", "graveyard", "spiders", "spider", "hex", "jelly", "cobweb", "spiders")],
+    ["💀 Skeleton", T("white", "beastly", "shadow", "💀", "#f5f0eb", "white", "graves", "graveyard", "skulls", "skull", "squircle", "glitch", "cobweb", "skulls")],
+    ["🍬 Trick or treat", T("candycorn", "rounded", "candy", "🍬", "#ffd23f", "candycorn", "dots", "candycorn", "treats", "candle", "cushion", "bounce", "candy", "treats")],
+    ["🐈‍⬛ Black cat", T("witch", "script", "glow", "🐈‍⬛", "#b6f23a", "witchy", "moon", "witchnight", "blackcats", "blackcat", "heart", "float", "haunted", "paws")],
+    ["🌑 Blood moon", T("bloodmoon", "storm", "fire", "🌑", "#c1121f", "bloodmoon", "moon", "bloodmoon", "bats", "horns", "gem", "pulse", "fire", "bats")],
   ]],
   ["🐢 Animals", [
     ["🐢 Turtle", T("turtle", "rounded", "shadow", "🐢", "#2ea043", "forest", "shell", "turtle", "turtles", "turtle", "hex", "float", "shell", "leaves")],
@@ -136,7 +157,8 @@ export const LOOK_THEME_GROUPS = [
 ];
 export const LOOK_THEMES = LOOK_THEME_GROUPS.flatMap(([, list]) => list);
 const TRAIL_PARTS = { flowers: ["🌸", "🌼", "🌷"], ghosts: ["👻"], cats: ["🐱", "😺"], paws: ["🐾"], snow: ["❄️", "❅"], money: ["💵", "🪙"], leaves: ["🍃", "🍂"], notes: ["🎵", "🎶"], love: ["💘", "💗"], sparkle: ["✨", "✦", "⋆"], hearts: ["💗", "💖", "💕"], stars: ["⭐", "🌟", "✦"], bubbles: ["🫧", "○"], fire: ["🔥", "✨"], rainbow: ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪"],
-  butterflies: ["🦋"], fruit: ["🍓", "🍒", "🍑"], space: ["🚀", "⭐", "🪐"], gaming: ["🎮", "👾", "🕹️"], dino: ["🦖", "🦕"], magic: ["🪄", "✨", "🔮"], food: ["🍕", "🍩", "🍔"], ocean: ["🐠", "🫧", "🐚"] };
+  butterflies: ["🦋"], fruit: ["🍓", "🍒", "🍑"], space: ["🚀", "⭐", "🪐"], gaming: ["🎮", "👾", "🕹️"], dino: ["🦖", "🦕"], magic: ["🪄", "✨", "🔮"], food: ["🍕", "🍩", "🍔"], ocean: ["🐠", "🫧", "🐚"],
+  bats: ["🦇"], pumpkins: ["🎃"], spiders: ["🕷️", "🕸️"], treats: ["🍬", "🍭", "🍫"], skulls: ["💀", "☠️"] };
 
 // Something falling or floating over my profile, and a decoration on my photo
 export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "💗 Hearts"], ["sparkles", "✨ Sparkles"], ["stars", "⭐ Stars"], ["sakura", "🌸 Sakura"],
@@ -145,22 +167,25 @@ export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "�
   ["fish", "🐠 Fish"], ["rain", "💧 Rain"], ["coffee", "☕ Coffee"], ["paws", "🐾 Paws"], ["petals", "🌷 Spring"], ["gems", "💎 Gems"], ["matrix", "💻 Code"],
   ["summer", "🌴 Summer"], ["school", "📚 School"], ["balls", "⚽ Sport"], ["food", "🍕 Food"], ["sharks", "🦈 Sharks"],
   ["galaxy", "🪐 Galaxy"], ["ocean", "🌊 Ocean"], ["sweets", "🍭 Sweets"], ["gaming", "🎮 Gaming"], ["butterflies", "🦋 Butterflies"], ["dino", "🦖 Dinos"], ["space", "🚀 Space"], ["fruit", "🍓 Fruit"], ["magic", "🪄 Magic"], ["lucky", "🍀 Lucky"],
-  ["clouds", "☁️ Clouds"], ["sunflowers", "🌻 Sunflowers"], ["cats", "🐱 Cats"], ["dogs", "🐶 Dogs"], ["aliens", "👽 Aliens"], ["ghosts", "👻 Ghosts"], ["crowns", "👑 Royal"], ["lightning", "⚡ Lightning"], ["birds", "🐦 Birds"], ["bees", "🐝 Bees"], ["unicorns", "🦄 Unicorns"], ["frogs", "🐸 Frogs"], ["skulls", "💀 Spooky"], ["eyes", "👀 Eyes"]];
+  ["clouds", "☁️ Clouds"], ["sunflowers", "🌻 Sunflowers"], ["cats", "🐱 Cats"], ["dogs", "🐶 Dogs"], ["aliens", "👽 Aliens"], ["ghosts", "👻 Ghosts"], ["crowns", "👑 Royal"], ["lightning", "⚡ Lightning"], ["birds", "🐦 Birds"], ["bees", "🐝 Bees"], ["unicorns", "🦄 Unicorns"], ["frogs", "🐸 Frogs"], ["skulls", "💀 Spooky"], ["eyes", "👀 Eyes"],
+  ["spiders", "🕷️ Spiders"], ["treats", "🍬 Trick or treat"], ["witches", "🧙 Witches"], ["zombies", "🧟 Zombies"], ["vampires", "🧛 Vampires"], ["blackcats", "🐈‍⬛ Black cats"], ["candles", "🕯️ Candles"]];
 const FX_PARTS = { clouds: ["☁️", "⛅", "☁️"], sunflowers: ["🌻", "🌼", "🌻"], cats: ["🐱", "🐈", "😺", "🐾"], dogs: ["🐶", "🐕", "🦴", "🐾"], aliens: ["👽", "🛸", "👾"], ghosts: ["👻", "👻", "🕯️"], crowns: ["👑", "💎", "✨"], lightning: ["⚡", "⚡", "🌩️"], birds: ["🐦", "🕊️", "🪶"], bees: ["🐝", "🌼", "🍯"], unicorns: ["🦄", "🌈", "✨"], frogs: ["🐸", "\U0001fab7", "🌿"], skulls: ["💀", "☠️", "🖤"], eyes: ["👀", "👁️", "👀"], snow: ["❄️", "❅", "❆"], hearts: ["💗", "💖", "💕", "❤️"], sparkles: ["✨", "💫", "⭐"], stars: ["⭐", "🌟", "✦"], sakura: ["🌸", "🌺", "💮"],
   confetti: ["🎉", "🎊", "✨", "🟣", "🟡"], bubbles: ["🫧", "○", "◦"], fire: ["🔥", "✨"], leaves: ["🍂", "🍁", "🍃"], money: ["💸", "💵", "🪙"],
   xmas: ["🎄", "🎁", "⭐", "🔔", "❄️", "🍬"], turtles: ["🐢", "🫧", "🐢", "🌿"], pumpkins: ["🎃", "👻", "🦇", "🕸️"], bats: ["🦇", "🦇", "🌙"], love: ["💌", "💘", "💗", "🌹"], notes: ["🎵", "🎶", "🎧", "🎤"],
   charts: ["📈", "💼", "📊", "💹", "💰"], fish: ["🐠", "🐟", "🐡", "🫧"], rain: ["💧", "💧", "☔"], coffee: ["☕", "🥐", "🍩"], paws: ["🐾", "🐾", "🦴"], petals: ["🌷", "🌼", "🌸", "🦋"],
   gems: ["💎", "✨", "💍"], matrix: ["0", "1", "0", "1", "{", "}"], summer: ["☀️", "🌴", "🍉", "🏖️", "🍹"], school: ["📚", "✏️", "📐", "🎓"], balls: ["⚽", "🏀", "🎾", "🏐"], food: ["🍕", "🍔", "🍟", "🍩", "🌮"], sharks: ["🦈"],
   galaxy: ["🪐", "🌌", "⭐", "☄️"], ocean: ["🌊", "🐚", "🐬", "🐳"], sweets: ["🍬", "🍭", "🍫", "🧁"], gaming: ["🎮", "🕹️", "👾", "🏆"], butterflies: ["🦋", "🦋", "🌸"],
-  dino: ["🦖", "🦕", "🌿"], space: ["🚀", "🛸", "🌍", "⭐"], fruit: ["🍓", "🍒", "🍑", "🍉", "🍋"], magic: ["🪄", "✨", "🔮", "⭐"], lucky: ["🍀", "🌈", "🪙", "⭐"] };
-const RISING = new Set(["bubbles", "fire", "turtles", "fish", "charts", "ocean", "space"]);
+  dino: ["🦖", "🦕", "🌿"], space: ["🚀", "🛸", "🌍", "⭐"], fruit: ["🍓", "🍒", "🍑", "🍉", "🍋"], magic: ["🪄", "✨", "🔮", "⭐"], lucky: ["🍀", "🌈", "🪙", "⭐"],
+  spiders: ["🕷️", "🕸️", "🕷️"], treats: ["🍬", "🍭", "🍫", "🎃"], witches: ["🧙‍♀️", "🧹", "🌙", "🔮"], zombies: ["🧟", "🧠", "🪦"], vampires: ["🧛", "🦇", "🩸", "🌙"], blackcats: ["🐈‍⬛", "🌙", "🐾"], candles: ["🕯️", "✨", "🕯️"] };
+const RISING = new Set(["bubbles", "fire", "turtles", "fish", "charts", "ocean", "space", "candles"]);
 export const AVATAR_DECOS = [["", "None", ""], ["crown", "Crown", "👑"], ["halo", "Halo", "😇"], ["horns", "Horns", "😈"], ["cat", "Cat ears", "🐱"], ["headphones", "Headphones", "🎧"],
   ["flowers", "Flowers", "🌸"], ["bow", "Bow", "🎀"], ["flame", "Flame", "🔥"], ["star", "Star", "⭐"], ["cap", "Party hat", "🥳"],
   ["santa", "Santa hat", "🎅"], ["antlers", "Antlers", "🦌"], ["turtle", "Turtle", "🐢"], ["tie", "Tie", "👔"], ["glasses", "Sunglasses", "🕶️"], ["pumpkin", "Pumpkin", "🎃"],
   ["snowflake", "Snowflake", "❄️"], ["cupid", "Cupid", "💘"], ["gradcap", "Grad cap", "🎓"], ["cup", "Coffee", "☕"], ["pirate", "Pirate", "🏴‍☠️"], ["gift", "Gift", "🎁"],
   ["bone", "Bone", "🦴"], ["seashell", "Shell", "🐚"], ["unicorn", "Unicorn", "🦄"], ["alien", "Alien", "👽"],
   ["tophat", "Top hat", "🎩"], ["wand", "Magic wand", "🪄"], ["clover", "Clover", "🍀"], ["rainbow", "Rainbow", "🌈"], ["butterfly", "Butterfly", "🦋"],
-  ["strawberry", "Strawberry", "🍓"], ["controller", "Controller", "🎮"], ["rocket", "Rocket", "🚀"], ["gem", "Gem", "💎"], ["frog", "Frog", "🐸"]];
+  ["strawberry", "Strawberry", "🍓"], ["controller", "Controller", "🎮"], ["rocket", "Rocket", "🚀"], ["gem", "Gem", "💎"], ["frog", "Frog", "🐸"],
+  ["ghost", "Ghost", "👻"], ["bat", "Bat", "🦇"], ["spider", "Spider", "🕷️"], ["skull", "Skull", "💀"], ["witch", "Witch", "🧙‍♀️"], ["vampire", "Vampire", "🧛"], ["candle", "Candle", "🕯️"], ["blackcat", "Black cat", "🐈‍⬛"]];
 const NAME_EMOJIS = ["✨", "💖", "🔥", "👑", "🦋", "🌸", "⭐", "🌙", "💎", "🎀", "🍓", "🐾", "🎧", "⚡", "🌈", "💫"];
 const ACCENTS = ["#ff4fa3", "#ff4757", "#ff8a3d", "#ffd23f", "#2ee6a6", "#19d3c5", "#4cc9ff", "#3d7bff", "#9b5cff", "#d6a4ff"];
 
@@ -490,7 +515,9 @@ export function openLookEditor(onSaved, opts = {}) {
   const bannerEdges = pickRow(BANNER_EDGES, "bannerEdge");
   const cursors = h("div", { class: "look-chips" }, ...CURSORS.map((e) => { const b = h("button", { type: "button", class: "look-emo", dataset: { v: e, cursor: e }, text: e || "🖱" }); b.addEventListener("click", () => { cur.cursor = e; paint(); }); return b; }));
   // One-tap themes
-  let themeGroup = 0;
+  // Around Halloween (October to 7 November) the editor opens on the Halloween themes
+  const nowD = new Date(), spooky = nowD.getMonth() === 9 || (nowD.getMonth() === 10 && nowD.getDate() <= 7);
+  let themeGroup = spooky ? Math.max(0, LOOK_THEME_GROUPS.findIndex(([n]) => n === "🎃 Halloween")) : 0;
   const themeTabs = h("div", { class: "look-theme-tabs" });
   const themeGrid = h("div", { class: "look-themes" });
   const paintThemes = () => {
