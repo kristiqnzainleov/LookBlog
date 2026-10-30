@@ -32,6 +32,8 @@ export async function render() {
   window.scrollTo(0, 0);
 
   if (!match) return navigate("/feed", { replace: true });
+  // Opening a video or shorts: a YouTube song's little window closes (the video is what you came for)
+  if (/^\/(watch\/|shorts|cinema)/.test(path)) import("./components/yt-audio.js").then((m) => { if (m.ytNow()) m.stop(); }).catch(() => {});
 
   // Highlight the right menu item
   const name = match.r.page.navName?.(match.m) ?? "";

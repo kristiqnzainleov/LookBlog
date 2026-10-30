@@ -84,6 +84,17 @@ export function stop() {
   if (now) now.playing = false;
   tell();
 }
+// Opening a video closes the little YouTube window: when a video on LookBlog starts with sound (or gets its
+// sound turned on), the song stops and its window goes away. Not for story videos (a story's song goes with it)
+// or muted previews in the feed.
+function videoWithSound(e) {
+  const v = e.target;
+  if (!(v instanceof HTMLVideoElement) || v.paused || v.muted || v.volume === 0) return;
+  if (!box?.classList.contains("show") || v.closest(".story-viewer, .yt-audio-box")) return;
+  stop();
+}
+document.addEventListener("play", videoWithSound, true);
+document.addEventListener("volumechange", videoWithSound, true);
 export const ytNow = () => now;
 export const ytIsPlaying = (id, key = id) => Boolean(now && now.id === id && now.key === key && now.playing);
 export function ytProgress() {
