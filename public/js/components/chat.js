@@ -1935,7 +1935,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     const go = (x) => { m.close(); jumpTo(x.id, x.channelId); };
     const when = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     async function paint() {
-      tabs.replaceChildren(...[["photos", "🖼️ Photos"], ["videos", "🎬 Videos"], ["links", "🔗 Links"], ["search", "🔎 Search"]].map(([k, l]) => h("button", { class: "tab" + (k === tab ? " active" : ""), text: l, onclick: () => { tab = k; paint(); } })));
+      tabs.replaceChildren(...[["photos", "image", "Photos"], ["videos", "video", "Videos"], ["links", "link", "Links"], ["search", "search", "Search"]].map(([k, ic, l]) => h("button", { class: "tab lib-tab" + (k === tab ? " active" : ""), onclick: () => { tab = k; paint(); } }, icon(ic), h("span", { text: l }))));
       if (tab === "search") return paintSearch();
       body.replaceChildren(spinner());
       let items;
