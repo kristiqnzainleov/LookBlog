@@ -7930,3 +7930,24 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .create-form > .lv-thumb-row + .vis-label { margin-top: 18px; }
 /* New event (and new group): the photo sits on the bottom edge of the cover, as it should */
 .gc-wrap > .gc-icon { position: absolute; }
+
+/* ───── + Create: clean line icons instead of emoji, and windows that grow out of the middle of the screen ───── */
+.create-pop .cp-ic { color: var(--pink); background: rgba(255, 79, 163, 0.1); }
+.cp-ic svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.create-pop .cs-grid button:hover .cp-ic { background: var(--pink); color: var(--ink); }
+.create-pop .cp-ic { transition: background 0.15s, color 0.15s; }
+/* icon + words on buttons and headings */
+.btn-ic { display: inline-flex; align-items: center; gap: 8px; }
+.btn-ic svg, .with-ic svg, .vis-pick button svg, .pe-found-row svg { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.with-ic { display: inline-flex; align-items: center; gap: 6px; vertical-align: -3px; }
+.with-ic svg { color: var(--pink); }
+.check-row .with-ic svg { width: 16px; height: 16px; }
+.vis-pick button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.vis-pick button.active svg { color: currentColor; }
+.pe-found-row svg { color: var(--pink); margin-top: 2px; }
+.tool-btn svg { flex: none; }
+/* The Create menu grows out of the middle of the screen, like the windows it opens */
+.create-sheet { transform-origin: 50% 50%; transform: scale(0.3); opacity: 0; transition: transform 0.42s cubic-bezier(0.22, 1.2, 0.36, 1), opacity 0.2s; }
+.create-pop.show .create-sheet { transform: scale(1); opacity: 1; }
+.app-modal { transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) { .create-sheet { transform: none; transition: opacity 0.2s; } }

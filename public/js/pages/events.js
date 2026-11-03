@@ -88,8 +88,9 @@ export function openEventForm(current = null, onSaved) {
   let geo = current?.geo || null;
   const mapBox = h("div", { class: "pe-map-pick" });
   const found = h("div", { class: "pe-found" });
-  const findBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "🔎 Find on map" });
-  const hereBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "📍 Use my location" });
+  const findBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light btn-ic" }, icon("mapSearch"), h("span", { text: "Find on map" }));
+  const hereBtn = h("button", { type: "button", class: "btn btn-xs btn-outline-light btn-ic" }, icon("pin"), h("span", { text: "Use my location" }));
+  const hereIdle = () => { hereBtn.disabled = false; hereBtn.replaceChildren(icon("pin"), h("span", { text: "Use my location" })); };
   const paintMap = () => {
     mapBox.replaceChildren(...(geo ? [mapFrame(geo, 170, true), h("button", { type: "button", class: "btn btn-xs btn-outline-light pe-unpin", text: "✕ Remove the pin", onclick: () => { geo = null; paintMap(); } })] : []));
   };
@@ -100,7 +101,7 @@ export function openEventForm(current = null, onSaved) {
     try {
       const list = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(q)}`, { headers: { "Accept-Language": navigator.language || "en" } })).json();
       found.replaceChildren(...(list.length ? list.map((r) => {
-        const b = h("button", { type: "button", class: "pe-found-row" }, h("span", { text: "📍" }), h("span", { text: r.display_name }));
+        const b = h("button", { type: "button", class: "pe-found-row" }, icon("pin"), h("span", { text: r.display_name }));
         b.addEventListener("click", () => { geo = { lat: Number(r.lat), lng: Number(r.lon) }; found.replaceChildren(); paintMap(); });
         return b;
       }) : [h("p", { class: "muted", text: "Couldn’t find that place. Try a different name or address." })]));
@@ -108,18 +109,18 @@ export function openEventForm(current = null, onSaved) {
   });
   hereBtn.addEventListener("click", () => {
     if (!navigator.geolocation) return toast("Your browser can’t share your location.");
-    hereBtn.disabled = true; hereBtn.textContent = "📍 Finding you…";
+    hereBtn.disabled = true; hereBtn.replaceChildren(icon("pin"), h("span", { text: "Finding you…" }));
     navigator.geolocation.getCurrentPosition(async (pos) => {
       geo = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       paintMap();
-      hereBtn.disabled = false; hereBtn.textContent = "📍 Use my location";
+      hereIdle();
       if (!where.value.trim()) {
         try {
           const r = await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&lat=${geo.lat}&lon=${geo.lng}`, { headers: { "Accept-Language": navigator.language || "en" } })).json();
           if (r?.display_name) where.value = r.display_name.split(",").slice(0, 3).join(",").trim().slice(0, 120);
         } catch {}
       }
-    }, () => { hereBtn.disabled = false; hereBtn.textContent = "📍 Use my location"; toast("Allow location to use where you are."); }, { enableHighAccuracy: true, timeout: 12000 });
+    }, () => { hereIdle(); toast("Allow location to use where you are."); }, { enableHighAccuracy: true, timeout: 12000 });
   });
   const desc = h("textarea", { class: "text-input", rows: 5, maxlength: 3000, placeholder: "What’s happening? Tell people what to expect." });
   desc.value = current?.description || "";

@@ -418,8 +418,8 @@ export function openGoLive(opts = {}) {
   desc.value = existing?.description || "";
   const src = h("div", { class: "vis-pick" });
   let source = "camera";
-  const paint = () => src.replaceChildren(...[["camera", "📷 Camera"], ["screen", "🖥️ Screen"], ["both", "🖥️+📷 Screen & camera"]].map(([k, l]) => {
-    const b = h("button", { type: "button", class: k === source ? "active" : "", text: l });
+  const paint = () => src.replaceChildren(...[["camera", "Camera", "camera"], ["screen", "Screen", "screen"], ["both", "Screen & camera", "both"]].map(([k, l, ic]) => {
+    const b = h("button", { type: "button", class: k === source ? "active" : "" }, icon(ic), h("span", { text: l }));
     b.addEventListener("click", () => { source = k; paint(); });
     return b;
   }));
@@ -428,8 +428,8 @@ export function openGoLive(opts = {}) {
   let thumb = existing?.thumb || null;
   const thumbPrev = h("div", { class: "lv-thumb-prev" });
   const thumbIn = h("input", { type: "file", accept: "image/*", hidden: true });
-  const thumbBtn = h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "🖼️ Add a thumbnail" });
-  const paintThumb = () => { thumbPrev.style.backgroundImage = thumb ? `url("${thumb}")` : ""; thumbPrev.hidden = !thumb; thumbBtn.textContent = thumb ? "🖼️ Change thumbnail" : "🖼️ Add a thumbnail"; };
+  const thumbBtn = h("button", { type: "button", class: "btn btn-sm btn-outline-light btn-ic" });
+  const paintThumb = () => { thumbPrev.style.backgroundImage = thumb ? `url("${thumb}")` : ""; thumbPrev.hidden = !thumb; thumbBtn.replaceChildren(icon("image"), h("span", { text: thumb ? "Change thumbnail" : "Add a thumbnail" })); };
   paintThumb();
   thumbBtn.addEventListener("click", () => thumbIn.click());
   thumbIn.addEventListener("change", async () => {
@@ -447,14 +447,14 @@ export function openGoLive(opts = {}) {
   const go = h("button", { type: "button", class: "btn btn-primary btn-full" });
   const srcWrap = h("div", {}, h("b", { class: "vis-label", text: "What to show" }), src);
   const paintWhen = () => {
-    whenPick.replaceChildren(...[[false, "Now"], [true, "📅 Schedule"]].map(([k, l]) => {
-      const b = h("button", { type: "button", class: k === later ? "active" : "", text: l });
+    whenPick.replaceChildren(...[[false, "Now", "live"], [true, "Schedule", "calendar"]].map(([k, l, ic]) => {
+      const b = h("button", { type: "button", class: k === later ? "active" : "" }, icon(ic), h("span", { text: l }));
       b.addEventListener("click", () => { later = k; paintWhen(); });
       return b;
     }));
     whenBox.hidden = !later;
     srcWrap.hidden = later;
-    go.textContent = later ? "📅 Schedule live" : "Next: set up your stream →";
+    go.textContent = later ? "Schedule live" : "Next: set up your stream →";
   };
   paintWhen();
   const m = modal({ title: existing ? "Go live now" : "Go live", body: h("div", { class: "create-form" },

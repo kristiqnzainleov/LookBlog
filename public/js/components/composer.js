@@ -124,7 +124,7 @@ function chainBuilder(onChange) {
   paint();
   const remove = h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Not a chain" });
   const el = h("div", { class: "chain-builder", hidden: true },
-    h("b", { class: "vis-label", text: "⛓️ Chain post" }),
+    h("b", { class: "vis-label with-ic" }, icon("link"), "Chain post"),
     h("p", { class: "create-hint", text: "Others carry it on with words or a photo. Each person only sees the part right before theirs — nobody knows the rest until the chain is finished. Then everyone sees how it turned out." }),
     h("div", { class: "poll-tools" }, sizes, h("span", { style: "flex:1" }), remove));
   const api_ = { el, on: () => !el.hidden, open: () => { el.hidden = false; onChange(); }, close: () => { el.hidden = true; onChange(); }, value: () => ({ mode, max }) };
@@ -169,7 +169,7 @@ function postForm() {
   const pollBtn = h("button", { type: "button", class: "tool-btn", title: "Add a poll", "aria-label": "Add a poll" }, icon("poll"));
   pollBtn.addEventListener("click", () => (poll.on() ? poll.close() : poll.open()));
   const chain = chainBuilder(() => update());
-  const chainBtn = h("button", { type: "button", class: "tool-btn", title: "Chain post: others carry it on, blind (like Gartic Phone)", "aria-label": "Chain post" }, h("span", { class: "tool-emoji", text: "⛓️" }));
+  const chainBtn = h("button", { type: "button", class: "tool-btn", title: "Chain post: others carry it on, blind (like Gartic Phone)", "aria-label": "Chain post" }, icon("link"));
   chainBtn.addEventListener("click", () => (chain.on() ? chain.close() : (poll.close(), chain.open(), text.focus())));
 
   function update() {
@@ -195,9 +195,9 @@ function postForm() {
 
   // 💬 on/off: let people reply or not
   let repliesOff = false, madeWithAi = false;
-  const aiBtn = h("button", { type: "button", class: "tool-btn ai-btn", title: "Made with AI? Click to label it" }, h("span", { class: "tool-emoji", text: "🤖" }));
+  const aiBtn = h("button", { type: "button", class: "tool-btn ai-btn", title: "Made with AI? Click to label it" }, icon("ai"));
   aiBtn.addEventListener("click", () => { madeWithAi = !madeWithAi; aiBtn.classList.toggle("on", madeWithAi); aiBtn.title = madeWithAi ? "Labelled “AI-generated” — click to undo" : "Made with AI? Click to label it"; toast(madeWithAi ? "🤖 This post will be labelled AI-generated." : "AI label off."); });
-  const repliesOffBtn = h("button", { type: "button", class: "tool-btn replies-off-btn", title: "Replies on — click to turn them off" }, h("span", { class: "tool-emoji", text: "💬" }));
+  const repliesOffBtn = h("button", { type: "button", class: "tool-btn replies-off-btn", title: "Replies on — click to turn them off" }, icon("repliesOff"));
   repliesOffBtn.addEventListener("click", () => { repliesOff = !repliesOff; repliesOffBtn.classList.toggle("off", repliesOff); repliesOffBtn.title = repliesOff ? "Replies off — click to turn them on" : "Replies on — click to turn them off"; toast(repliesOff ? "Replies will be off for this post." : "Replies are on."); });
   const form = h("form", { class: "composer", novalidate: true },
     avatar(state.me, 42),
@@ -222,7 +222,7 @@ function postForm() {
     submit.textContent = "Posting…";
     try {
       await publish({ type: "post", text: text.value, media: poll.on() ? [] : picker.media(), poll: poll.on() ? poll.value() : null, chain: chain.on() ? chain.value() : null, categoryId: cat.value() || null, repliesOff, ai: madeWithAi });
-      toast(poll.on() ? "Poll posted." : chain.on() ? "⛓️ Chain started! Others can carry it on now." : "Posted.");
+      toast(poll.on() ? "Poll posted." : chain.on() ? "Chain started! Others can carry it on now." : "Posted.");
       text.value = "";
       picker.clear();
       poll.close();
@@ -335,14 +335,14 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
   thumb?.onChange(() => update());
   // Replies on or off (can be changed later from the post)
   const repliesBox = h("input", { type: "checkbox" });
-  const repliesRow = h("label", { class: "check-row replies-row" }, repliesBox, h("span", {}, h("b", { text: "💬 Turn off replies" }), h("small", { class: "muted", text: " — nobody can reply to it" })));
+  const repliesRow = h("label", { class: "check-row replies-row" }, repliesBox, h("span", {}, h("b", { class: "with-ic" }, icon("repliesOff"), "Turn off replies"), h("small", { class: "muted", text: " — nobody can reply to it" })));
   const aiBox = h("input", { type: "checkbox" });
-  const aiRow = h("label", { class: "check-row" }, aiBox, h("span", {}, h("b", { text: "🤖 Made with AI" }), h("small", { class: "muted", text: " — it gets an “AI-generated” label (AI-made files are found and labelled anyway)" })));
+  const aiRow = h("label", { class: "check-row" }, aiBox, h("span", {}, h("b", { class: "with-ic" }, icon("ai"), "Made with AI"), h("small", { class: "muted", text: " — it gets an “AI-generated” label (AI-made files are found and labelled anyway)" })));
   // SoundCloud-style extras (off unless you turn them on)
   const timedBox = h("input", { type: "checkbox" }), momentsBox = h("input", { type: "checkbox" });
   const extrasRow = h("div", { class: "extras-rows" },
-    h("label", { class: "check-row" }, timedBox, h("span", {}, h("b", { text: "🕒 Timed comments" }), h("small", { class: "muted", text: " — replies pop up on the video at the moment people wrote them" }))),
-    h("label", { class: "check-row" }, momentsBox, h("span", {}, h("b", { text: "⚡ Live reactions" }), h("small", { class: "muted", text: " — people react at any second; reactions fly up when others get there" }))));
+    h("label", { class: "check-row" }, timedBox, h("span", {}, h("b", { class: "with-ic" }, icon("clock"), "Timed comments"), h("small", { class: "muted", text: " — replies pop up on the video at the moment people wrote them" }))),
+    h("label", { class: "check-row" }, momentsBox, h("span", {}, h("b", { class: "with-ic" }, icon("bolt"), "Live reactions"), h("small", { class: "muted", text: " — people react at any second; reactions fly up when others get there" }))));
   // Upcoming: release it later (like a YouTube premiere). Followers see a teaser with "Notify me".
   let schedEl = null, schedAt = null;
   if (kind !== "post") {
@@ -350,7 +350,7 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
     const box = h("input", { type: "checkbox" });
     schedAt = h("input", { type: "datetime-local", class: "text-input", hidden: true, min: toLocal(new Date(Date.now() + 2 * 60000)), value: toLocal(new Date(Date.now() + 86400000)) });
     box.addEventListener("change", () => { schedAt.hidden = !box.checked; if (vis) vis.el.hidden = box.checked; schedAt.dataset.on = box.checked ? "1" : ""; });
-    schedEl = h("div", { class: "sched-row" }, h("label", { class: "check-row" }, box, h("span", {}, h("b", { text: "⏳ Schedule as upcoming" }), h("small", { class: "muted", text: " — goes public at this time; followers can tap “Notify me”" }))), schedAt);
+    schedEl = h("div", { class: "sched-row" }, h("label", { class: "check-row" }, box, h("span", {}, h("b", { class: "with-ic" }, icon("hourglass"), "Schedule as upcoming"), h("small", { class: "muted", text: " — goes public at this time; followers can tap “Notify me”" }))), schedAt);
   }
 
   function update() {

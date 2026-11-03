@@ -1,5 +1,5 @@
 // Starts the Look Blog app.
-import { $, h, avatar, fillAvatar, timeAgo, toast, lastSeenText, tick, markLive } from "./ui.js";
+import { $, h, icon, avatar, fillAvatar, timeAgo, toast, lastSeenText, tick, markLive } from "./ui.js";
 import { api } from "./api.js";
 import { state, on } from "./state.js";
 import { connect } from "./realtime.js";
@@ -130,6 +130,9 @@ function setupMenu() {
     };
     paintFilm();
     on("me:updated", paintFilm);
+    // Clean line icons (no emoji) for each option
+    const CREATE_ICONS = { video: "video", short: "shortVid", post: "edit", live: "live", event: "calendar", movie: "film", song: "note", series: "tv" };
+    pop.querySelectorAll("button[data-kind]").forEach((b) => b.querySelector(".cp-ic")?.replaceChildren(icon(CREATE_ICONS[b.dataset.kind] || "plus")));
     // A sheet in the middle of the screen that fades and grows in
     const close = () => {
       if (pop.hidden) return;
