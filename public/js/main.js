@@ -252,6 +252,7 @@ document.addEventListener("error", (e) => {
 
   // Hold a photo to see it big for a moment
   import("./components/photo-peek.js");
+  import("./components/post-peek.js"); // hold a post in the feed to see it big
   // Any photo in a post, reply or message opens in the site's own viewer
   document.addEventListener("click", (e) => {
     const a = e.target.closest("a.media-cell, a.reply-media, a.msg-media");
