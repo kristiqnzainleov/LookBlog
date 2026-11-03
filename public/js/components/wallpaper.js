@@ -2,7 +2,7 @@
 //   Theme — the colour of the bubbles, the same for everyone in the chat (like Messenger)
 //   Wallpaper — your own background for the chat (only you see it)
 //   Group photo — for groups, if you can change the group
-import { h, modal, toast } from "../ui.js";
+import { h, icon, modal, toast } from "../ui.js";
 import { api, upload } from "../api.js";
 import { on } from "../state.js";
 import { openCropper } from "./cropper.js";
@@ -332,13 +332,13 @@ export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto, onVanish 
   const name = chat.kind === "dm" ? chat.other?.name : chat.name;
   const canGroup = chat.kind === "group" && (chat.isOwner || chat.perms?.includes("manage_group"));
   const canTheme = chat.kind === "dm" || canGroup;
-  const item = (emoji, title, sub, fn) => h("button", { type: "button", class: "co-item", onclick: () => { m.close(); fn(); } },
-    h("span", { class: "co-ic", text: emoji }), h("span", { class: "co-text" }, h("b", { text: title }), h("small", { class: "muted", text: sub })));
+  const item = (ic, title, sub, fn) => h("button", { type: "button", class: "co-item", onclick: () => { m.close(); fn(); } },
+    h("span", { class: "co-ic" }, icon(ic)), h("span", { class: "co-text" }, h("b", { text: title }), h("small", { class: "muted", text: sub })));
   const m = modal({ title: name || "Chat", body: h("div", { class: "co-list" },
-    canTheme ? item("🎨", "Theme", "Bubble colours, for everyone in the chat", () => openThemePicker(chat, onTheme)) : null,
-    canTheme ? item("🖼️", "Wallpaper", "The chat’s background, for everyone in it", () => openWallpaperPicker(chat, onWallpaper)) : null,
-    canTheme ? item("⏳", "Disappearing messages", chat.vanish ? `On: ${vanishLabel(chat.vanish)}` : "Off", () => openVanishPicker(chat, onVanish)) : null,
-    canGroup ? item("📷", "Group photo", "Change the group’s picture", () => pickGroupPhoto(chat, onPhoto)) : null,
-    canGroup ? item("🌈", "Group colour", "The group’s accent colour, for everyone", () => openGroupColor(chat)) : null,
+    canTheme ? item("palette", "Theme", "Bubble colours, for everyone in the chat", () => openThemePicker(chat, onTheme)) : null,
+    canTheme ? item("image", "Wallpaper", "The chat’s background, for everyone in it", () => openWallpaperPicker(chat, onWallpaper)) : null,
+    canTheme ? item("hourglass", "Disappearing messages", chat.vanish ? `On: ${vanishLabel(chat.vanish)}` : "Off", () => openVanishPicker(chat, onVanish)) : null,
+    canGroup ? item("camera", "Group photo", "Change the group’s picture", () => pickGroupPhoto(chat, onPhoto)) : null,
+    canGroup ? item("drop", "Group colour", "The group’s accent colour, for everyone", () => openGroupColor(chat)) : null,
     canTheme ? null : h("p", { class: "muted", text: "Only people who can change the group can change its theme, wallpaper and disappearing messages." })) });
 }

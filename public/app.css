@@ -7951,3 +7951,14 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .create-pop.show .create-sheet { transform: scale(1); opacity: 1; }
 .app-modal { transform-origin: 50% 50%; }
 @media (prefers-reduced-motion: reduce) { .create-sheet { transform: none; transition: opacity 0.2s; } }
+
+/* ───── Chat settings: line icons instead of emoji (like + Create) ───── */
+.convo-tools .icon-btn svg, .convo-menu-ic svg, .co-ic svg { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.convo-tools .icon-btn svg { width: 20px; height: 20px; }
+.convo-more svg circle, svg.more circle { fill: currentColor; }
+.convo-menu-ic { color: var(--pink) !important; background: rgba(255, 79, 163, 0.1) !important; transition: background 0.15s, color 0.15s; }
+.convo-menu-row:hover .convo-menu-ic, .convo-menu-row:focus-visible .convo-menu-ic { background: var(--pink) !important; color: var(--ink) !important; }
+.convo-menu-row.on .convo-menu-ic { background: var(--pink) !important; color: var(--ink) !important; }
+.co-ic { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 14px; color: var(--pink); background: rgba(255, 79, 163, 0.1); font-size: 0; }
+.co-ic svg { width: 22px; height: 22px; }
+.co-item:hover .co-ic { background: var(--pink); color: var(--ink); }

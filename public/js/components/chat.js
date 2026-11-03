@@ -458,7 +458,7 @@ function openTrending(chat, channelId, jump) {
     b.addEventListener("click", () => { period = k; tabs.querySelectorAll(".ht-tab").forEach((x) => x.classList.toggle("on", x === b)); load(); });
     return b;
   }));
-  const md = modal({ title: "🔥 Trending here", body: h("div", { class: "ht" }, tabs, list) });
+  const md = modal({ title: "Trending here", body: h("div", { class: "ht" }, tabs, list) });
   async function load() {
     list.replaceChildren(spinner());
     try {
@@ -1444,29 +1444,29 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     applyTheme(el, chat.theme, chat.id);
     title.title = "Hold for theme, wallpaper and photo";
     onHold(title, chatOptions);
-    const styleBtn = h("button", { class: "icon-btn chat-style-btn", title: "Theme, wallpaper and photo", "aria-label": "Theme, wallpaper and photo", text: "🎨" });
+    const styleBtn = h("button", { class: "icon-btn chat-style-btn", title: "Theme, wallpaper and photo", "aria-label": "Theme, wallpaper and photo" }, icon("palette"));
     styleBtn.addEventListener("click", chatOptions);
     const gamesBtn = h("button", { class: "icon-btn", title: "Play a game", "aria-label": "Play a game" }, icon("game"));
     gamesBtn.addEventListener("click", () => openGamePicker(chat, { channelId, onStarted: (m) => { add(m); toBottom(); } }));
     tools.append(styleBtn);
     if (chat.canSend) tools.append(gamesBtn);
-    const hotBtn = h("button", { class: "icon-btn", title: "Trending here: the most hyped messages", "aria-label": "Trending messages" }, h("span", { class: "nick-ic", text: "🔥" }));
+    const hotBtn = h("button", { class: "icon-btn", title: "Trending here: the most hyped messages", "aria-label": "Trending messages" }, icon("fire"));
     hotBtn.addEventListener("click", () => openTrending(chat, channelId, jumpTo));
     tools.append(hotBtn);
     // Photos, videos, links and search
-    const libBtn = h("button", { class: "icon-btn", title: "Photos, videos, links & search", "aria-label": "Photos, videos, links and search" }, h("span", { class: "nick-ic", text: "🗂" }));
+    const libBtn = h("button", { class: "icon-btn", title: "Photos, videos, links & search", "aria-label": "Photos, videos, links and search" }, icon("media"));
     libBtn.addEventListener("click", () => openLibrary());
     // Disappearing messages: shows when it's on; people who can change the chat can tap it
     const canVanish = chat.kind === "dm" ? chat.canSend : chat.isOwner || chat.perms?.includes("manage_group");
     if (chat.vanish || canVanish) {
       const vBtn = h("button", { class: "icon-btn vanish-btn" + (chat.vanish ? " on" : ""), title: chat.vanish ? `Disappearing messages: ${vanishLabel(chat.vanish)}` : "Disappearing messages", "aria-label": "Disappearing messages" },
-        h("span", { class: "nick-ic", text: "⏳" }), chat.vanish ? h("small", { text: vanishLabel(chat.vanish).replace(/ hours?| days?/, (x) => x.trim()[0]) }) : null);
+        icon("hourglass"), chat.vanish ? h("small", { text: vanishLabel(chat.vanish).replace(/ hours?| days?/, (x) => x.trim()[0]) }) : null);
       vBtn.addEventListener("click", () => canVanish ? openVanishPicker(chat, () => paintHead()) : toast(`Messages here disappear after ${vanishLabel(chat.vanish)}.`));
       tools.append(vBtn);
     }
     tools.append(libBtn);
     if (chat.kind === "dm") {
-      const nickBtn = h("button", { class: "icon-btn", title: "Nicknames", "aria-label": "Nicknames" }, h("span", { class: "nick-ic", text: "Aa" }));
+      const nickBtn = h("button", { class: "icon-btn", title: "Nicknames", "aria-label": "Nicknames" }, icon("nickname"));
       nickBtn.addEventListener("click", () => openNicknames(chat, refresh));
       tools.append(nickBtn);
     }
@@ -1496,7 +1496,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       const keep = [...tools.children].filter((b) => b.classList.contains("call-start"));
       const rest = [...tools.children].filter((b) => !keep.includes(b));
       if (rest.length > 1) {
-        const moreBtn = h("button", { class: "icon-btn convo-more always", title: "More", "aria-label": "More options" }, h("span", { class: "nick-ic", text: "⋯" }));
+        const moreBtn = h("button", { class: "icon-btn convo-more always", title: "More", "aria-label": "More options" }, icon("more"));
         const hold = h("div", { hidden: true }, ...rest);
         moreBtn.addEventListener("click", () => {
           const sheet = modal({ title: "Chat", body: h("div", { class: "convo-menu" }, ...rest.map((b) => {

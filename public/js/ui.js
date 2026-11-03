@@ -33,6 +33,11 @@ export function h(tag, props = {}, ...children) {
 // Static icons only (never user text)
 const ICONS = {
   // (line icons for the Create menu and its windows)
+  palette: '<path d="M12 3a9 9 0 0 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10" cy="7" r="1.1"/><circle cx="14.5" cy="7" r="1.1"/><circle cx="17" cy="10.5" r="1.1"/>',
+  media: '<rect x="7" y="7" width="14" height="13" rx="2"/><path d="M17 4H5a2 2 0 0 0-2 2v10"/><circle cx="11.5" cy="11.5" r="1.6"/><path d="m21 17-4-4-7 7"/>',
+  more: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',
+  drop: '<path d="M12 3s6.5 6.6 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 9.6 12 3 12 3z"/><path d="M9 15a3 3 0 0 0 3 3"/>',
+  nickname: '<path d="M3.5 18 8 6l4.5 12M5.2 14h5.6"/><path d="M15 11.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM17.5 10v6.5"/>',
   shortVid: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="m10.5 9.5 4 2.5-4 2.5z"/>',
   live: '<circle cx="12" cy="12" r="2.2"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.3 5.3a9.5 9.5 0 0 0 0 13.4M18.7 5.3a9.5 9.5 0 0 1 0 13.4"/>',
   film: '<rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M7.5 3v18M16.5 3v18M3 8h4.5M3 12h4.5M3 16h4.5M16.5 8H21M16.5 12H21M16.5 16H21"/>',
