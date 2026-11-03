@@ -7846,3 +7846,61 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .av-deco[data-deco="witch"] b, .av-deco[data-deco="vampire"] b { left: -8%; bottom: -4%; font-size: calc(var(--av, 120px) * 0.34); transform: rotate(-8deg); }
 @keyframes hwBob { 50% { translate: 0 -6px; } }
 @media (prefers-reduced-motion: reduce) { .av-deco[data-deco="ghost"] b, .av-deco[data-deco="bat"] b, [data-frame="haunted"], .profile-avatar[data-ring="jackolantern"]::after, .profile-avatar[data-ring="haunted"]::after, .view[data-pbg="fog"]::before { animation: none; } }
+
+/* "New post / New video" sticker on things posted in the last 24 hours: pink, white letters, stuck on the corner */
+.post:has(> .new-sticker) { position: relative; overflow: visible; }
+.new-sticker { position: absolute; top: -11px; right: 18px; z-index: 4; padding: 5px 12px 6px; border-radius: 10px; background: #ff4fa3; color: #fff; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.02em; line-height: 1; white-space: nowrap; pointer-events: none;
+  border: 2px solid #fff; box-shadow: 0 6px 16px rgba(255, 79, 163, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35); transform: rotate(4deg); animation: newStickerIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes newStickerIn { from { opacity: 0; transform: rotate(-12deg) scale(0.4); } to { opacity: 1; transform: rotate(4deg) scale(1); } }
+@media (max-width: 560px) { .new-sticker { right: 12px; font-size: 0.72rem; padding: 4px 10px 5px; } }
+@media (prefers-reduced-motion: reduce) { .new-sticker { animation: none; } }
+
+/* ───── 🎄 Christmas looks ───── */
+/* Rings around the photo */
+.profile-avatar[data-ring="wreath"] { --ring: radial-gradient(circle at 50% 4%, #ff3b4e 0 6%, transparent 7%), radial-gradient(circle at 92% 38%, #ff3b4e 0 5%, transparent 6%), radial-gradient(circle at 8% 62%, #ff3b4e 0 5%, transparent 6%), radial-gradient(circle at 70% 94%, #ffd23f 0 4%, transparent 5%), conic-gradient(#1f7a3a, #2ee66b, #145c2b, #2ee66b, #1f7a3a); }
+.profile-avatar[data-ring="wreath"]::after { filter: drop-shadow(0 0 8px rgba(46, 230, 107, 0.55)); }
+.profile-avatar[data-ring="xlights"] { --ring: conic-gradient(#ff3b4e 0 12.5%, #ffd23f 0 25%, #2ee66b 0 37.5%, #4cc9ff 0 50%, #ff3b4e 0 62.5%, #ffd23f 0 75%, #2ee66b 0 87.5%, #4cc9ff 0); }
+.profile-avatar[data-ring="xlights"]::after { filter: drop-shadow(0 0 10px rgba(255, 210, 63, 0.7)); animation: xLights 1.6s steps(2) infinite; }
+@keyframes xLights { 50% { filter: drop-shadow(0 0 14px rgba(46, 230, 107, 0.8)) hue-rotate(90deg); } }
+.profile-avatar[data-ring="tinsel"] { --ring: conic-gradient(#ffd23f, #fff7d6, #c0c0c0, #ffffff, #ffd23f, #fff7d6, #c0c0c0, #ffd23f); }
+.profile-avatar[data-ring="tinsel"]::after { filter: drop-shadow(0 0 10px #ffd23f); animation: storySpin 5s linear infinite; }
+.profile-avatar[data-ring="frosty"] { --ring: conic-gradient(#ffffff, #9fd8ff, #e0f7ff, #6cc4ff, #ffffff); }
+.profile-avatar[data-ring="frosty"]::after { filter: drop-shadow(0 0 12px rgba(159, 216, 255, 0.85)); }
+.profile-avatar[data-ring="gingerbread"] { --ring: repeating-conic-gradient(#c47a3d 0 10deg, #f6efe6 10deg 14deg); }
+
+/* Profile backgrounds */
+.view[data-pbg="xlightsbg"]::before, .look-preview[data-pbg="xlightsbg"]::before { background-image: radial-gradient(5px 7px at 20px 22px, #ff3b4e 98%, transparent), radial-gradient(5px 7px at 60px 34px, #ffd23f 98%, transparent), radial-gradient(5px 7px at 100px 22px, #2ee66b 98%, transparent), radial-gradient(5px 7px at 140px 34px, #4cc9ff 98%, transparent), linear-gradient(180deg, rgba(255, 210, 63, 0.08), transparent 700px); background-size: 160px 60px, 160px 60px, 160px 60px, 160px 60px, auto; background-repeat: repeat-x, repeat-x, repeat-x, repeat-x, no-repeat; animation: xLights 1.6s steps(2) infinite; }
+.view[data-pbg="snowflakes"]::before, .look-preview[data-pbg="snowflakes"]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg stroke='%23ffffff' stroke-opacity='.16' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M30 14v32M14 30h32M19 19l22 22M41 19 19 41'/%3E%3Cpath d='M70 56v20M60 66h20M63 59l14 14M77 59 63 73'/%3E%3C/g%3E%3C/svg%3E"), linear-gradient(180deg, rgba(76, 201, 255, 0.14), transparent 800px); }
+.view[data-pbg="sweater"]::before, .look-preview[data-pbg="sweater"]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath d='M24 6 32 18H16zM24 14l10 14H14zM22 28h4v6h-4z' fill='%232ee66b' fill-opacity='.16'/%3E%3Cpath d='M0 42h48' stroke='%23ffffff' stroke-opacity='.1' stroke-width='3' stroke-dasharray='4 4'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(198, 40, 52, 0.35), transparent 820px); }
+.view[data-pbg="fireplace"]::before, .look-preview[data-pbg="fireplace"]::before { background: radial-gradient(70% 300px at 50% 100%, rgba(255, 138, 61, 0.32), transparent), radial-gradient(40% 200px at 50% 100%, rgba(255, 210, 63, 0.22), transparent), linear-gradient(180deg, rgba(90, 40, 20, 0.35), transparent 700px); animation: xFire 3s ease-in-out infinite alternate; }
+@keyframes xFire { to { opacity: 0.75; } }
+.view[data-pbg="giftwrap"]::before, .look-preview[data-pbg="giftwrap"]::before { background: linear-gradient(90deg, transparent calc(50% - 14px), rgba(255, 210, 63, 0.22) calc(50% - 14px) calc(50% + 14px), transparent calc(50% + 14px)), repeating-linear-gradient(45deg, rgba(255, 59, 78, 0.14) 0 14px, rgba(255, 255, 255, 0.04) 14px 28px); -webkit-mask: linear-gradient(#000, transparent 900px); mask: linear-gradient(#000, transparent 900px); }
+
+/* Banners (when there's no banner picture) */
+.profile-banner.empty[data-bfx="xmastree"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cpath d='M100 18 140 80h-20l34 50h-24l36 50H34l36-50H46l34-50H60z' fill='%231f7a3a'/%3E%3Crect x='90' y='180' width='20' height='20' fill='%235a3a1a'/%3E%3Ccircle cx='86' cy='92' r='5' fill='%23ff3b4e'/%3E%3Ccircle cx='118' cy='120' r='5' fill='%23ffd23f'/%3E%3Ccircle cx='76' cy='150' r='5' fill='%234cc9ff'/%3E%3Ccircle cx='128' cy='160' r='5' fill='%23ff3b4e'/%3E%3Cpath d='m100 4 4 9 10 1-7 7 2 10-9-5-9 5 2-10-7-7 10-1z' fill='%23ffd23f'/%3E%3C/svg%3E") 82% 100% / auto 92% no-repeat, radial-gradient(1.5px 1.5px at 12% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 60%, #fff, transparent), radial-gradient(1px 1px at 60% 22%, #fff, transparent), linear-gradient(180deg, #0b1a3a, #123a5a 70%, #e8f4ff 70.5%); }
+.profile-banner.empty[data-bfx="snowvillage"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='120' viewBox='0 0 600 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120V86l40-26 40 26v34zM120 120V70l50-34 50 34v50zM260 120V90l34-22 34 22v30zM380 120V64l56-38 56 38v56zM520 120V88l40-26 40 26v32z' fill='%231b2440'/%3E%3Cpath d='M30 96h14v12H30zM160 84h16v14h-16zM286 100h14v10h-14zM424 80h18v16h-18zM552 98h14v12h-14z' fill='%23ffd23f'/%3E%3Cpath d='M0 112q150-14 300 0t300 0v8H0z' fill='%23f2f8ff'/%3E%3C/svg%3E") bottom / 100% 62% no-repeat, linear-gradient(180deg, #0d1b3d, #26407a); }
+.profile-banner.empty[data-bfx="northpole"] { background: radial-gradient(60% 70% at 30% 10%, rgba(46, 230, 166, 0.55), transparent), radial-gradient(50% 60% at 75% 20%, rgba(155, 92, 255, 0.45), transparent), linear-gradient(180deg, #06122b, #0e2a4d 72%, #f2f8ff 72.5%); }
+.profile-banner.empty[data-bfx="silentnight"] { background: radial-gradient(circle at 50% 22%, #fff7d6 0 6px, rgba(255, 210, 63, 0.6) 8px, transparent 46px), radial-gradient(1.5px 1.5px at 15% 35%, #fff, transparent), radial-gradient(1px 1px at 30% 55%, #fff, transparent), radial-gradient(1.5px 1.5px at 70% 40%, #fff, transparent), radial-gradient(1px 1px at 88% 62%, #fff, transparent), linear-gradient(180deg, #050a1e, #14204a 60%, #2b3a78); }
+.profile-banner.empty[data-bfx="candycanebn"] { background: repeating-linear-gradient(115deg, #ff3b4e 0 28px, #ffffff 28px 56px); }
+.profile-banner.empty[data-bfx="gingerhouse"] { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='160' viewBox='0 0 200 160'%3E%3Cpath d='M30 160V80L100 24l70 56v80z' fill='%23c47a3d'/%3E%3Cpath d='M20 86 100 20l80 66' fill='none' stroke='%23ffffff' stroke-width='10' stroke-linecap='round' stroke-dasharray='2 14'/%3E%3Cpath d='M84 160v-40a16 16 0 0 1 32 0v40z' fill='%235a3a1a'/%3E%3Crect x='46' y='96' width='22' height='22' rx='4' fill='%23ffd23f'/%3E%3Crect x='132' y='96' width='22' height='22' rx='4' fill='%23ffd23f'/%3E%3C/svg%3E") 80% 100% / auto 92% no-repeat, linear-gradient(180deg, #3a1d0c, #7a3f1a 70%, #f6efe6 70.5%); }
+
+/* Frames around the profile */
+[data-frame="xlights"] { box-shadow: 0 0 0 3px #1f7a3a, 0 0 18px 2px rgba(255, 59, 78, 0.55), 0 0 30px 6px rgba(255, 210, 63, 0.3); animation: xFrame 1.6s steps(2) infinite; }
+@keyframes xFrame { 50% { box-shadow: 0 0 0 3px #1f7a3a, 0 0 18px 2px rgba(46, 230, 107, 0.55), 0 0 30px 6px rgba(76, 201, 255, 0.35); } }
+[data-frame="wreath"] { box-shadow: 0 0 0 4px #1f7a3a, 0 0 0 7px #2ee66b, 0 0 0 9px #ff3b4e, 0 0 30px rgba(46, 230, 107, 0.35); }
+[data-frame="frosty"] { box-shadow: 0 0 0 2px #ffffff, 0 0 0 6px rgba(159, 216, 255, 0.6), 0 0 40px rgba(159, 216, 255, 0.45); }
+[data-frame="ribbon"] { box-shadow: 0 0 0 3px #ff3b4e, 0 0 0 6px #ffd23f, 0 0 30px rgba(255, 59, 78, 0.4); }
+[data-frame="gingerbread"] { outline: 3px dashed #f6efe6; outline-offset: -8px; box-shadow: 0 0 0 4px #c47a3d, 0 0 26px rgba(196, 122, 61, 0.45); }
+
+/* Decorations on the photo */
+.av-deco[data-deco="elf"] b, .av-deco[data-deco="xstar"] b { left: 50%; top: -22%; transform: translateX(-50%) rotate(-6deg); font-size: calc(var(--av, 120px) * 0.38); }
+.av-deco[data-deco="xstar"] b { animation: hwBob 2.6s ease-in-out infinite; }
+.av-deco[data-deco="snowman"] b, .av-deco[data-deco="xmastree"] b, .av-deco[data-deco="bell"] b, .av-deco[data-deco="cookie"] b, .av-deco[data-deco="mittens"] b { right: -4%; bottom: -2%; font-size: calc(var(--av, 120px) * 0.3); transform: rotate(8deg); }
+.av-deco[data-deco="bell"] b { transform-origin: 50% 0; animation: xBell 1.8s ease-in-out infinite; }
+@keyframes xBell { 0%, 100% { rotate: 0deg; } 25% { rotate: 14deg; } 75% { rotate: -14deg; } }
+.av-deco[data-deco="scarf"] b { left: 50%; bottom: -12%; transform: translateX(-50%); font-size: calc(var(--av, 120px) * 0.36); }
+@media (prefers-reduced-motion: reduce) { .profile-avatar[data-ring="xlights"]::after, .profile-avatar[data-ring="tinsel"]::after, [data-frame="xlights"], .view[data-pbg="xlightsbg"]::before, .view[data-pbg="fireplace"]::before, .av-deco[data-deco="xstar"] b, .av-deco[data-deco="bell"] b { animation: none; } }
+/* …and on video and short tiles, inside the picture (top left, clear of the delete and save buttons) */
+.new-sticker.in-tile { top: 8px; left: 8px; right: auto; font-size: 0.7rem; padding: 4px 9px 5px; transform: rotate(-4deg); animation-name: newStickerTileIn; }
+@keyframes newStickerTileIn { from { opacity: 0; transform: rotate(-16deg) scale(0.4); } to { opacity: 1; transform: rotate(-4deg) scale(1); } }
+.new-sticker.in-tile.under-del { top: 46px; }

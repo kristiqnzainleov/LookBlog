@@ -5,7 +5,7 @@ import { openPrivacy } from "../components/privacy.js";
 import { openReportUser } from "../components/report.js";
 import { api, upload } from "../api.js";
 import { state, on, emit } from "../state.js";
-import { postCard, pagedList, pinButton } from "../components/post.js";
+import { postCard, pagedList, pinButton, newSticker } from "../components/post.js";
 import { openConnections } from "../components/connections.js";
 import { playlistCard, openPlaylistForm, openSaveToPlaylist } from "../components/playlists.js";
 import { createCard } from "../components/composer.js";
@@ -109,6 +109,8 @@ function shortTile(p, { inPlace = false } = {}) {
     h("span", { class: "tile-views" }, icon("eye"), h("span", { dataset: { postId: p.id, stat: "views" }, text: count(p.views) }))
   );
   trackImpression(tile, p.id);
+  // (a "New short" sticker for its first 24 hours, inside the picture)
+  const fresh = newSticker(p); if (fresh) tile.append(Object.assign(fresh, { className: "new-sticker in-tile" + (p.mine ? " under-del" : "") }));
   if (p.mine) tile.append(deleteTileButton(p, tile));
   pinMarks(p, tile);
   const badge = visibilityBadge(p);
@@ -135,6 +137,7 @@ export function videoTile(p, { inPlace = false, pins = false } = {}) {
     )
   );
   trackImpression(tile, p.id);
+  const fresh = newSticker(p); if (fresh) tile.querySelector(".thumb").append(Object.assign(fresh, { className: "new-sticker in-tile" + (p.mine ? " under-del" : "") }));
   if (p.mine) tile.querySelector(".thumb").append(deleteTileButton(p, tile));
   if (pins && !p.film) pinMarks(p, tile.querySelector(".thumb"));
   if (p.stream) tile.querySelector(".thumb").append(h("span", { class: "past-live", text: "🔴 PAST LIVE" }));

@@ -442,6 +442,13 @@ export function aiBadge(p) {
   return h("span", { class: "badge badge-ai", title: p.ai.auto ? `Made with AI${p.ai.tool ? ` (${p.ai.tool})` : ""} — found in the file` : "The author says this was made with AI", text: "🤖 AI-generated" });
 }
 // The AI filter (Settings): a post labelled AI-generated is folded away, with a button to show it
+// A pink sticker on top of something new (for its first 24 hours): "New post", "New video" or "New short"
+const NEW_FOR = 24 * 60 * 60 * 1000;
+export function newSticker(p) {
+  if (p.repostedBy || Date.now() - new Date(p.createdAt).getTime() > NEW_FOR) return null;
+  const what = p.type === "short" ? "short" : p.type === "video" || p.media?.some((m) => m.kind === "video") ? "video" : "post";
+  return h("span", { class: "new-sticker", "aria-label": `New ${what}`, text: `New ${what}` });
+}
 export function postCard(p, opts = {}) {
   if (p.ai && state.me?.hideAi && !p.mine) {
     const box = h("article", { class: "post ai-hidden", dataset: { id: p.id } },
@@ -483,7 +490,7 @@ function realPostCard(p, { onDeleted, onProfile = false } = {}) {
 
   const pinLine = onProfile && p.pinned && !p.repostedBy ? h("div", { class: "repost-line pin-line" }, h("span", { text: "📌" }), "Pinned") : null;
   const card = h("article", { class: "post" + (p.repostedBy ? " is-repost" : "") + (pinLine ? " is-pinned" : ""), dataset: { id: p.id } },
-    repostLine, pinLine,
+    newSticker(p), repostLine, pinLine,
     h("a", { href, class: "post-avatar", tabindex: "-1" }, avatar(p.author, 42)),
     h("div", { class: "post-body" },
       h("div", { class: "post-head" },
