@@ -1,11 +1,12 @@
 // Press and hold a post in the feed: it lifts out of the list, moves to the middle of the screen and zooms in,
-// with everything behind it blurred. Let go and it slides back into its place.
+// with everything behind it blurred. It stays big after you let go: like, reply or share from there.
+// Tap outside it, press ✕ or Esc and it slides back into its place.
 // (Photos, profile pictures, buttons, polls and videos keep their own hold or tap.)
-import { h } from "../ui.js";
+import { h, icon } from "../ui.js";
 
 const POST = ".feed .post";
-const SKIP = "a.media-cell, a.reply-media, .avatar, button, input, textarea, select, label, video, iframe, audio, [contenteditable='true'], .poll, .yt-audio-box, .ai-hidden";
-const HOLD = 420;
+const SKIP = "a.media-cell, a.reply-media, .avatar, button, input, textarea, select, label, video, iframe, audio, [contenteditable='true'], .poll, .yt-audio-box, .ai-hidden, .pk-wrap";
+const HOLD = 420, ZOOM = 1.12;
 let timer = null, start = null, card = null, shown = null, heldAt = 0;
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -16,52 +17,77 @@ function cancel() {
 
 function open() {
   timer = null;
-  if (!card?.isConnected) return cancel();
+  const c = card;
+  if (!c?.isConnected) return cancel();
   heldAt = Date.now();
   navigator.vibrate?.(10);
   getSelection?.()?.removeAllRanges();
-  card.classList.remove("pk-press");
-  const r = card.getBoundingClientRect();
-  const clone = card.cloneNode(true);
-  clone.classList.add("pk-card");
-  clone.removeAttribute("id");
-  clone.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
-  clone.querySelectorAll("video").forEach((v) => { v.muted = true; v.removeAttribute("autoplay"); });
-  const vw = innerWidth, vh = innerHeight, ZOOM = 1.12;
+  c.classList.remove("pk-press");
+  const r = c.getBoundingClientRect();
+  const vw = innerWidth, vh = innerHeight;
+  // The post itself moves into the big view (so its buttons work); an empty spot of the same size keeps its place
+  const spot = h("div", { class: "pk-spot", style: `height:${r.height}px` });
+  c.before(spot);
   // A post that already fills the screen's width (a phone) is laid out a little narrower and then zoomed up to
   // the full width, so it really looks bigger
   const w = Math.min(r.width, Math.round((vw - 16) / ZOOM));
-  Object.assign(clone.style, { left: r.left + (r.width - w) / 2 + "px", top: r.top + "px", width: w + "px" });
+  Object.assign(c.style, { left: r.left + (r.width - w) / 2 + "px", top: r.top + "px", width: w + "px" });
+  c.classList.add("pk-card");
+  const x = h("button", { type: "button", class: "icon-btn pk-close", "aria-label": "Close" }, icon("close"));
+  const bg = h("div", { class: "pk-bg" });
   // (inside a .feed so the feed's own post styles still apply)
-  const wrap = h("div", { class: "pk-wrap", "aria-hidden": "true" }, h("div", { class: "pk-bg" }), h("div", { class: "feed pk-feed" }, clone));
+  const wrap = h("div", { class: "pk-wrap", role: "dialog", "aria-modal": "true", "aria-label": "Post" }, bg, x, h("div", { class: "feed pk-feed" }, c));
   document.body.append(wrap);
   document.documentElement.classList.add("pk-open");
-  const ch = clone.offsetHeight;
+  const ch = c.offsetHeight;
   // it starts exactly as wide as the post in the list…
-  const s0 = r.width / w;
-  clone.style.transition = "none";
-  clone.style.transform = `scale(${s0})`;
-  clone.offsetWidth;
-  clone.style.transition = "";
-  clone.dataset.from = `scale(${s0})`;
+  const from = `scale(${r.width / w})`;
+  c.style.transition = "none";
+  c.style.transform = from;
+  c.offsetWidth;
+  c.style.transition = "";
   // …and zooms to the middle of the screen (smaller if it's taller than the screen)
   const s = Math.max(0.4, Math.min(ZOOM, (vw - 16) / w, (vh - 40) / ch));
   const dx = vw / 2 - (r.left + r.width / 2), dy = vh / 2 - (r.top + ch / 2);
-  card.classList.add("pk-hidden");
-  shown = { wrap, clone, card };
-  const go = () => { wrap.classList.add("on"); clone.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`; };
+  // deleted from the big view: the big view closes
+  const obs = new MutationObserver(() => { if (!wrap.contains(c)) close(true); });
+  obs.observe(wrap.lastChild, { childList: true });
+  shown = { wrap, card: c, spot, from, obs };
+  card = null;
+  bg.addEventListener("click", close);
+  x.addEventListener("click", close);
+  // opening a link from it (a profile, the post, a hashtag) closes the big view first
+  c.addEventListener("click", onLink, true);
+  const go = () => { wrap.classList.add("on"); c.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`; };
   if (calm()) go(); else requestAnimationFrame(() => requestAnimationFrame(go));
 }
 
-function close() {
+function onLink(e) {
+  if (Date.now() - heldAt < 600) return;
+  if (e.target.closest?.("a[href]") && !e.target.closest("a.media-cell, a.reply-media")) close(true);
+}
+
+function close(now = false) {
   cancel();
   if (!shown) return;
-  const { wrap, clone, card: c } = shown;
-  shown = null; card = null;
+  const { wrap, card: c, spot, from, obs } = shown;
+  obs?.disconnect();
+  shown = null;
+  c.removeEventListener("click", onLink, true);
   document.documentElement.classList.remove("pk-open");
+  const back = () => {
+    // (a post deleted from the big view doesn't come back)
+    const kept = wrap.contains(c);
+    wrap.remove();
+    c.classList.remove("pk-card");
+    c.style.left = c.style.top = c.style.width = c.style.transform = c.style.transition = "";
+    if (kept && spot.isConnected) spot.replaceWith(c);
+    else spot.remove();
+  };
+  if (now === true || calm()) return back();
   wrap.classList.remove("on");
-  clone.style.transform = clone.dataset.from || "";
-  setTimeout(() => { wrap.remove(); c.classList.remove("pk-hidden"); }, calm() ? 0 : 240);
+  c.style.transform = from;
+  setTimeout(back, 240);
 }
 
 document.addEventListener("pointerdown", (e) => {
@@ -75,13 +101,15 @@ document.addEventListener("pointerdown", (e) => {
 }, true);
 // moving the finger (scrolling) before it opens: not a hold
 document.addEventListener("pointermove", (e) => { if (timer && start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) cancel(); }, true);
-for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, close, true);
-addEventListener("blur", close);
-addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+// letting go before it opens: nothing happens (after it opens, it stays)
+for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, cancel, true);
+addEventListener("keydown", (e) => { if (e.key === "Escape" && shown && !document.querySelector(".app-overlay, .ap-wrap, .pv-wrap")) close(); });
 addEventListener("scroll", () => { if (timer) cancel(); }, true);
-// while it's open the page doesn't scroll under your finger
-document.addEventListener("touchmove", (e) => { if (shown) e.preventDefault(); }, { passive: false });
+addEventListener("popstate", () => close(true));
+// while it's open the page behind it doesn't scroll
+document.addEventListener("touchmove", (e) => { if (shown && !e.target.closest?.(".app-overlay, .post-actions")) e.preventDefault(); }, { passive: false });
+document.addEventListener("wheel", (e) => { if (shown && !e.target.closest?.(".app-overlay")) e.preventDefault(); }, { passive: false });
 // letting go after a hold isn't a tap (no link or post opens too)
-document.addEventListener("click", (e) => { if (Date.now() - heldAt < 600 && e.target.closest?.(POST)) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+document.addEventListener("click", (e) => { if (Date.now() - heldAt < 600 && e.target.closest?.(POST + ", .pk-wrap")) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
 // no "copy / open link" menu while holding
-document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(POST) && !e.target.closest(SKIP) && (timer || shown || Date.now() - heldAt < 1500)) e.preventDefault(); }, true);
+document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(POST) && !e.target.closest(SKIP) && (timer || Date.now() - heldAt < 1500)) e.preventDefault(); }, true);
