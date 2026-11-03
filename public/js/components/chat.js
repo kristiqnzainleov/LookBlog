@@ -800,11 +800,18 @@ function openMsgMenu(row, bubble, tools, msg, chat) {
     b.addEventListener("click", () => { react(msg, chat, e); close(); });
     return b;
   }), (() => { const m = h("button", { type: "button", class: "mm-react more", "aria-label": "More reactions" }, h("span", { text: "＋" })); m.addEventListener("click", () => { close(); setTimeout(() => openEmojiPicker(bubble, (e) => react(msg, chat, e)), 200); }); return m; })()) : null;
-  // The message itself, bigger
+  // The message itself, bigger: the person's photo and the bubble, the way it looks in the chat
   const copy = bubble.cloneNode(true);
   copy.classList.add("mm-bubble");
   copy.classList.remove("fx-ink");
   copy.style.width = from.width + "px";
+  // (its colours come with it, so a chat theme or a group's colour stays the same)
+  const look = getComputedStyle(bubble);
+  for (const k of ["background", "color", "borderRadius"]) copy.style[k] = look[k];
+  const face = row.querySelector(":scope > .msg-avatar");
+  const faceFrom = face?.getBoundingClientRect();
+  const faceCopy = face ? h("span", { class: "msg-avatar mm-face", "data-no-peek": "" }, ...[...face.childNodes].map((n) => n.cloneNode(true))) : null;
+  const msgCopy = h("div", { class: "msg mm-msg" + (msg.mine ? " mine" : "") }, faceCopy, h("div", { class: "msg-stack" }, copy));
   // Its options (the same as its little menu), plus copy
   const actions = h("div", { class: "mm-actions" });
   const add = (icn, label, fn, danger = false) => {
@@ -821,7 +828,7 @@ function openMsgMenu(row, bubble, tools, msg, chat) {
     add(ic, del ? "Delete" : label, () => { b.click(); if (del) setTimeout(() => b.click(), 30); }, del);
   }
   if (msg.text) add(h("span", { text: "📋" }), "Copy text", () => navigator.clipboard?.writeText(msg.text).then(() => toast("Copied.")).catch(() => {}));
-  const stack = h("div", { class: "mm-stack" + (msg.mine ? " mine" : "") }, reacts, copy, actions);
+  const stack = h("div", { class: "mm-stack" + (msg.mine ? " mine" : "") }, reacts, msgCopy, actions);
   const overlay = h("div", { class: "mm-overlay", role: "dialog", "aria-label": "Message options" }, stack);
   // (letting go of the hold isn't a tap: only a new tap on the blur closes it)
   let fresh = false;
@@ -831,9 +838,17 @@ function openMsgMenu(row, bubble, tools, msg, chat) {
   document.body.append(overlay);
   addEventListener("keydown", onKey);
   row.classList.add("mm-lifted");
-  // It grows out of where the message was
-  const to = copy.getBoundingClientRect();
-  copy.animate([{ transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width})` }, { transform: "none" }], { duration: 260, easing: "cubic-bezier(.2, 1.1, .3, 1)" });
+  // It grows out of where the message was, and zooms in a little (as big as fits the screen)
+  const box0 = msgCopy.getBoundingClientRect();
+  const zoom = Math.max(1, Math.min(1.12, (innerWidth - 32) / box0.width, (innerHeight * 0.5) / box0.height));
+  const grow = (zoom - 1) * box0.height / 2;
+  msgCopy.style.margin = `${grow}px 0`;
+  const to = msgCopy.getBoundingClientRect();
+  const end = `translate(${msg.mine ? to.width * (1 - zoom) : 0}px, ${-grow}px) scale(${zoom})`;
+  const was = { left: Math.min(from.left, faceFrom?.left ?? from.left), top: Math.min(from.top, faceFrom?.top ?? from.top), right: Math.max(from.right, faceFrom?.right ?? from.right) };
+  msgCopy.style.transformOrigin = "0 0";
+  msgCopy.style.transform = end;
+  msgCopy.animate([{ transform: `translate(${was.left - to.left}px, ${was.top - to.top}px) scale(${(was.right - was.left) / to.width})` }, { transform: end }], { duration: 280, easing: "cubic-bezier(.2, 1.1, .3, 1)" });
 }
 
 // Swipe to reply: someone else's message to the right, my own (on the right side) to the left

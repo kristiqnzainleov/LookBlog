@@ -8078,3 +8078,8 @@ html.pk-open, html.pk-open body { overscroll-behavior: none; }
 /* The preview stays at the top of the editor while you pick */
 .note-editor .note-preview, .note-editor .note-preview:has(.note-bubble.has-media) { position: sticky; top: -22px; z-index: 3; background: var(--card); margin: 0 -4px; padding-top: 14px; }
 @media (max-width: 760px) { .note-editor .note-preview { top: -18px; } }
+/* Holding a message: the person's photo comes with it, the whole message zooms in */
+.mm-msg { max-width: 100%; width: auto; touch-action: auto; }
+.mm-msg .msg-stack { min-width: 0; }
+.mm-face { flex: none; }
+.msg.mm-lifted > .msg-avatar { visibility: hidden; }
