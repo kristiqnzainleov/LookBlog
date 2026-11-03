@@ -7904,3 +7904,29 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .new-sticker.in-tile { top: 8px; left: 8px; right: auto; font-size: 0.7rem; padding: 4px 9px 5px; transform: rotate(-4deg); animation-name: newStickerTileIn; }
 @keyframes newStickerTileIn { from { opacity: 0; transform: rotate(-16deg) scale(0.4); } to { opacity: 1; transform: rotate(-4deg) scale(1); } }
 .new-sticker.in-tile.under-del { top: 46px; }
+
+/* ───── The windows from "+ Create" (post, video, short, live, event) ───── */
+/* You already picked what to make in the Create menu, so no second Post / Short / Video switch (and the title stays right) */
+.create-card.in-modal .create-kinds { display: none; }
+.create-card.in-modal .create-body { border-top: none; }
+/* Write a post: the round tool buttons never get squashed; category and Post go on their own line when there's no room */
+.composer-bar { flex-wrap: wrap; row-gap: 10px; }
+.composer-bar .tool-btn { flex: none; }
+.composer-bar > button[type="submit"], .composer-bar > .btn-primary { margin-left: auto; }
+.in-modal .composer-bar { gap: 8px; }
+@media (max-width: 480px) { .in-modal .composer-bar .tool-btn { width: 38px; height: 38px; } .in-modal .composer-bar { gap: 6px; } }
+/* Who can watch: Public / Unlisted / Private always fit */
+.vis-pick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.vis-pick button { min-width: 0; }
+.vis-field .vis-pick button { white-space: nowrap; }
+@media (max-width: 480px) { .vis-field .vis-pick button { font-size: 0.82rem; gap: 4px; padding: 10px 2px; } .vis-field .vis-pick svg { width: 15px; height: 15px; flex: none; } }
+/* The tick boxes: the text gets the whole width, and the box sits by its first line */
+.create-form .sched-row { display: flex; flex-direction: column; gap: 8px; margin: 4px 0; }
+.create-form .check-row { align-items: flex-start; gap: 10px; margin: 4px 0; line-height: 1.45; }
+.create-form .check-row input { flex: none; margin: 2px 0 0; }
+.create-form .check-row > span { flex: 1; min-width: 0; }
+/* Go live: room around the "When" and "What to show" headings */
+.create-form > .vis-label { margin: 16px 0 8px; }
+.create-form > .lv-thumb-row + .vis-label { margin-top: 18px; }
+/* New event (and new group): the photo sits on the bottom edge of the cover, as it should */
+.gc-wrap > .gc-icon { position: absolute; }
