@@ -5,6 +5,7 @@ import { api } from "../api.js";
 import { on } from "../state.js";
 import { GAMES, chessMoves, inCheck, reversiMoves, checkersMoves } from "../games/rules.js";
 import { cardGameView, CARD_LIST, PARTY_LIST } from "./cardgames.js";
+import { gameIcon } from "./game-icons.js";
 
 const boards = new Map(); // messageId -> Set of repaint functions
 on("game:update", (ev) => {
@@ -273,7 +274,7 @@ export function openGame(chatId, messageId, game) {
 export function openGamePicker(chat, { channelId = null, onStarted } = {}) {
   const list = h("div", { class: "game-pick" }, ...Object.entries(GAMES).map(([type, def]) => {
     const b = h("button", { type: "button", class: "game-option" },
-      h("span", { class: "go-emoji", text: def.emoji }), h("b", { text: def.name }),
+      h("span", { class: "go-ic" }, gameIcon(type)), h("b", { text: def.name }),
       h("span", { class: "muted", text: def.desc || (type === "chess" ? "The classic. Checkmate wins." : type === "ttt" ? "Three in a row. Quick!" : "Drop discs, get four in a line.") }));
     b.addEventListener("click", async () => {
       b.disabled = true;
@@ -294,16 +295,16 @@ export function openGamePicker(chat, { channelId = null, onStarted } = {}) {
     } catch (err) { toast(err.error || "Couldn’t start the game."); b.disabled = false; }
   };
   const cards = h("div", { class: "game-pick" }, ...CARD_LIST.map(([type, emoji, name, desc]) => {
-    const b = h("button", { type: "button", class: "game-option" }, h("span", { class: "go-emoji", text: emoji }), h("b", { text: name }), h("span", { class: "muted", text: desc }));
+    const b = h("button", { type: "button", class: "game-option" }, h("span", { class: "go-ic" }, gameIcon(type)), h("b", { text: name }), h("span", { class: "muted", text: desc }));
     b.addEventListener("click", () => start(type, b));
     return b;
   }));
   const party = h("div", { class: "game-pick" }, ...PARTY_LIST.map(([type, emoji, name, desc]) => {
-    const b = h("button", { type: "button", class: "game-option" }, h("span", { class: "go-emoji", text: emoji }), h("b", { text: name }), h("span", { class: "muted", text: desc }));
+    const b = h("button", { type: "button", class: "game-option" }, h("span", { class: "go-ic" }, gameIcon(type)), h("b", { text: name }), h("span", { class: "muted", text: desc }));
     b.addEventListener("click", () => start(type, b));
     return b;
   }));
-  const m = modal({ title: "Play a game", wide: true, body: h("div", {}, h("p", { class: "create-hint", text: chat.kind === "dm" ? "You play against each other right here in the chat." : "Anyone in the channel can take the second seat." }), list,
-    h("h3", { class: "side-title", text: "🎨 Party games" }), h("p", { class: "create-hint", text: "Draw and write together — and watch the replay at the end." }), party,
-    h("h3", { class: "side-title", text: "🃏 Card games" }), h("p", { class: "create-hint", text: "Open a table — people join, then you press Start." }), cards) });
+  const m = modal({ title: "Play a game", wide: true, body: h("div", { class: "game-picker" }, h("p", { class: "create-hint", text: chat.kind === "dm" ? "You play against each other right here in the chat." : "Anyone in the channel can take the second seat." }), list,
+    h("h3", { class: "side-title", text: "Party games" }), h("p", { class: "create-hint", text: "Draw and write together — and watch the replay at the end." }), party,
+    h("h3", { class: "side-title", text: "Card games" }), h("p", { class: "create-hint", text: "Open a table — people join, then you press Start." }), cards) });
 }

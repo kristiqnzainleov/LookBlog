@@ -7962,3 +7962,9 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .co-ic { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 14px; color: var(--pink); background: rgba(255, 79, 163, 0.1); font-size: 0; }
 .co-ic svg { width: 22px; height: 22px; }
 .co-item:hover .co-ic { background: var(--pink); color: var(--ink); }
+
+/* Game picker: a line icon per game (no emoji), like + Create */
+.go-ic { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; color: var(--pink); background: rgba(255, 79, 163, 0.1); transition: background 0.15s, color 0.15s; }
+.go-ic svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.game-option:hover .go-ic, .game-option:focus-visible .go-ic { background: var(--pink); color: var(--ink); }
+.game-picker .side-title { margin: 28px 0 4px; }
