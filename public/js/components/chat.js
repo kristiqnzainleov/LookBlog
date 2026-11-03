@@ -1,5 +1,5 @@
 // One conversation: a direct chat or a group. Messages arrive live.
-import { h, icon, avatar, timeEl, empty, spinner, toast, confirmClick, richText, modal, plural, avatarWithPresence, presenceText, tick } from "../ui.js";
+import { h, icon, avatar, timeEl, empty, spinner, toast, confirmClick, richText, modal, modalBackTo, takeModalBack, plural, avatarWithPresence, presenceText, tick } from "../ui.js";
 import { outsideImg } from "./consent.js";
 import { openEmojiPicker, insertAtCursor, QUICK, closeEmojiPicker } from "./emoji.js";
 import { api } from "../api.js";
@@ -1109,6 +1109,7 @@ function openNicknames(chat, refresh) {
 // The people in a group, in a panel from the right (like Discord): online first, then idle, then offline.
 // On a phone, pull the chat to the left to open it.
 function membersDrawer(chat, manage) {
+  const back = takeModalBack(); // opened from Chat Settings: a back arrow instead of ✕
   document.querySelector(".md-wrap")?.remove();
   const people = (chat.members || []).filter((u) => u.username);
   const state3 = (u) => (u.online ? (u.idle ? 1 : 0) : 2);
@@ -1123,7 +1124,8 @@ function membersDrawer(chat, manage) {
   const panel = h("aside", { class: "md-panel", role: "dialog", "aria-label": "People in this group" },
     h("div", { class: "md-head" }, h("b", { text: `People · ${people.length}` }),
       manage ? h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Manage", onclick: () => { close(); manage(); } }) : null,
-      h("button", { type: "button", class: "icon-btn", "aria-label": "Close", onclick: () => close() }, icon("close"))),
+      back ? h("button", { type: "button", class: "icon-btn modal-back", "aria-label": "Back", title: "Back", onclick: () => { close(); setTimeout(back, 120); } }, icon("back"))
+        : h("button", { type: "button", class: "icon-btn", "aria-label": "Close", onclick: () => close() }, icon("close"))),
     h("div", { class: "md-list" }, ...groups.filter(([, l]) => l.length).flatMap(([t, l]) => [h("p", { class: "md-sec", text: `${t} — ${l.length}` }), ...l.map(row)])));
   const wrap = h("div", { class: "md-wrap" }, h("div", { class: "md-shade" }), panel);
   const close = () => { wrap.classList.add("out"); setTimeout(() => wrap.remove(), 220); removeEventListener("keydown", esc); };
@@ -1498,15 +1500,18 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       if (rest.length > 1) {
         const moreBtn = h("button", { class: "icon-btn convo-more always", title: "More", "aria-label": "More options" }, icon("more"));
         const hold = h("div", { hidden: true }, ...rest);
-        moreBtn.addEventListener("click", () => {
-          const sheet = modal({ title: "Chat", body: h("div", { class: "convo-menu" }, ...rest.map((b) => {
+        // Chat Settings: what it opens gets a back arrow to come back here
+        const openMenu = () => {
+          if (!moreBtn.isConnected) return;
+          const sheet = modal({ title: "Chat Settings", body: h("div", { class: "convo-menu" }, ...rest.map((b) => {
             const label = b.getAttribute("title") || b.getAttribute("aria-label") || "";
             const ic = b.cloneNode(true); ic.removeAttribute("title"); ic.className = "convo-menu-ic";
             const row = h("button", { type: "button", class: "convo-menu-row" + (b.classList.contains("on") ? " on" : "") }, ic, h("span", { text: label.replace(/ — .*$/, "").replace(/:.*$/, "").replace(/, links & search$/, "") }));
-            row.addEventListener("click", () => { sheet.close(); setTimeout(() => b.click(), 60); });
+            row.addEventListener("click", () => { sheet.close(); setTimeout(() => { modalBackTo(openMenu); b.click(); }, 60); });
             return row;
           })) });
-        });
+        };
+        moreBtn.addEventListener("click", openMenu);
         tools.replaceChildren(...keep, moreBtn, hold);
       }
     }

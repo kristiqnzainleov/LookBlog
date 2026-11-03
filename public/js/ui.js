@@ -341,8 +341,17 @@ export function empty(title, text, action) {
 }
 
 /* ---------- Modals (grow out of the center, like the log in pop-up) ---------- */
+// A window opened from a menu can show a back arrow (instead of ✕) that returns to that menu:
+// call modalBackTo(reopenMenu) right before opening it; only the next window (opened within about a second) gets it
+let pendingBack = null;
+export function modalBackTo(fn) { pendingBack = { fn, at: Date.now() }; }
+// (for panels that aren't windows, like the members drawer: take the back arrow if there is one)
+export function takeModalBack() { const b = pendingBack && Date.now() - pendingBack.at < 1200 ? pendingBack.fn : null; pendingBack = null; return b; }
 export function modal({ title, body, wide = false, onClose }) {
-  const closeBtn = h("button", { class: "icon-btn", "aria-label": "Close" }, icon("close"));
+  const back = takeModalBack();
+  const closeBtn = back
+    ? h("button", { class: "icon-btn modal-back", "aria-label": "Back", title: "Back" }, icon("back"))
+    : h("button", { class: "icon-btn", "aria-label": "Close" }, icon("close"));
   const card = h("div", { class: "app-modal" + (wide ? " wide" : ""), role: "dialog", "aria-modal": "true", "aria-label": title },
     h("header", { class: "app-modal-head" }, closeBtn, h("h2", { text: title })),
     h("div", { class: "app-modal-body" }, body)
@@ -362,7 +371,7 @@ export function modal({ title, body, wide = false, onClose }) {
     onClose?.();
   }
   const onKey = (e) => e.key === "Escape" && close();
-  closeBtn.addEventListener("click", close);
+  closeBtn.addEventListener("click", () => { close(); if (back) setTimeout(back, 120); });
   overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
   document.addEventListener("keydown", onKey);
   document.body.append(overlay);
