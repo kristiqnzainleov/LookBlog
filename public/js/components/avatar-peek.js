@@ -3,7 +3,8 @@
 import { h } from "../ui.js";
 import { navigate, profileHref } from "../router.js";
 
-const SKIP = ".ap-wrap, .edit-avatar, .story-item, .story-ring, .story-viewer, .me-btn, .profile-avatar.has-story, [data-no-peek]";
+// (In the feed a person's photo on a post is a link to their profile: it goes there.)
+const SKIP = ".feed .post a[href], .ap-wrap, .edit-avatar, .story-item, .story-ring, .story-viewer, .me-btn, .profile-avatar.has-story, [data-no-peek]";
 document.addEventListener("click", (e) => {
   const av = e.target.closest?.(".avatar[data-u]");
   if (!av || e.button > 0 || e.ctrlKey || e.metaKey || e.shiftKey || av.closest(SKIP)) return;
