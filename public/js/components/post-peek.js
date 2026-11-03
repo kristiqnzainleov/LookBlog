@@ -1,8 +1,8 @@
 // Press and hold a post in the feed: it lifts out of the list, moves to the middle of the screen and zooms in,
 // with everything behind it blurred. It stays big after you let go: like, reply or share from there.
-// Tap outside it, press ✕ or Esc and it slides back into its place.
+// Tap outside it (or press Esc) and it slides back into its place.
 // (Photos, profile pictures, buttons, polls and videos keep their own hold or tap.)
-import { h, icon } from "../ui.js";
+import { h } from "../ui.js";
 
 const POST = ".feed .post";
 const SKIP = "a.media-cell, a.reply-media, .avatar, button, input, textarea, select, label, video, iframe, audio, [contenteditable='true'], .poll, .yt-audio-box, .ai-hidden, .pk-wrap";
@@ -33,10 +33,9 @@ function open() {
   const w = Math.min(r.width, Math.round((vw - 16) / ZOOM));
   Object.assign(c.style, { left: r.left + (r.width - w) / 2 + "px", top: r.top + "px", width: w + "px" });
   c.classList.add("pk-card");
-  const x = h("button", { type: "button", class: "icon-btn pk-close", "aria-label": "Close" }, icon("close"));
   const bg = h("div", { class: "pk-bg" });
   // (inside a .feed so the feed's own post styles still apply)
-  const wrap = h("div", { class: "pk-wrap", role: "dialog", "aria-modal": "true", "aria-label": "Post" }, bg, x, h("div", { class: "feed pk-feed" }, c));
+  const wrap = h("div", { class: "pk-wrap", role: "dialog", "aria-modal": "true", "aria-label": "Post" }, bg, h("div", { class: "feed pk-feed" }, c));
   document.body.append(wrap);
   document.documentElement.classList.add("pk-open");
   const ch = c.offsetHeight;
@@ -55,7 +54,6 @@ function open() {
   shown = { wrap, card: c, spot, from, obs };
   card = null;
   bg.addEventListener("click", close);
-  x.addEventListener("click", close);
   // opening a link from it (a profile, the post, a hashtag) closes the big view first
   c.addEventListener("click", onLink, true);
   const go = () => { wrap.classList.add("on"); c.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`; };
