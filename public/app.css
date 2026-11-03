@@ -7968,3 +7968,10 @@ img.lv-sound-emoji { width: 30px; height: 30px; }
 .go-ic svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .game-option:hover .go-ic, .game-option:focus-visible .go-ic { background: var(--pink); color: var(--ink); }
 .game-picker .side-title { margin: 28px 0 4px; }
+
+/* A chat that isn't there any more */
+.chat-gone { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 60vh; padding: 32px 24px; text-align: center; }
+.chat-gone h3 { margin: 6px 0 0; font-size: 1.15rem; }
+.chat-gone p { max-width: 340px; margin: 0 0 8px; font-size: 0.9rem; line-height: 1.5; }
+.chat-gone-ic { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; color: var(--pink); background: rgba(255, 79, 163, 0.1); }
+.chat-gone-ic svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }

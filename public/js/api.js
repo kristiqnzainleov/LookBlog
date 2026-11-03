@@ -17,7 +17,11 @@ export async function api(path, { method = "GET", body } = {}) {
     location.assign("/"); // the session ended: back to the log in page
     throw data;
   }
-  if (!res.ok) throw data;
+  if (!res.ok) {
+    // (the HTTP status too, without changing what callers see in the object)
+    if (data && typeof data === "object") Object.defineProperty(data, "status", { value: res.status, enumerable: false });
+    throw data;
+  }
   return data;
 }
 

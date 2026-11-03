@@ -3,7 +3,7 @@ import { h, icon, timeAgo, empty, spinner, modal, toast, avatarWithPresence, pre
 import { api } from "../api.js";
 import { on } from "../state.js";
 import { navigate } from "../router.js";
-import { conversation, chatPic, chatTitle, callNoteText } from "../components/chat.js";
+import { conversation, chatPic, chatTitle, callNoteText, chatGone } from "../components/chat.js";
 import { notesRow } from "../components/notes.js";
 import { instantsPile } from "../components/instants.js";
 import { groupView } from "../components/group.js";
@@ -183,7 +183,7 @@ export function messagesPage(view, m) {
         convo = groupView(openId, { onBack: () => navigate("/messages") });
       } else convo = conversation(openId, { onBack: () => navigate("/messages") });
       pane.replaceChildren(convo.el);
-    }).catch((err) => pane.replaceChildren(empty("Couldn’t open this conversation.", err.error || "")));
+    }).catch((err) => pane.replaceChildren(err?.status === 404 ? chatGone(() => navigate("/messages")) : empty("Couldn’t open this conversation.", err.error || "Try again in a moment.")));
   } else {
     pane.append(h("div", { class: "convo-empty" },
       icon("chat"),

@@ -1276,6 +1276,16 @@ function streakBadge(chat) {
 }
 
 /* ---------- The conversation ---------- */
+// A chat that isn't there any more (deleted, or the other person deleted their account): say so, with a way back
+export function chatGone(onBack) {
+  const back = h("button", { type: "button", class: "btn btn-primary btn-sm", text: "Back to Messages" });
+  back.addEventListener("click", () => (onBack ? onBack() : navigate("/messages")));
+  return h("div", { class: "chat-gone" },
+    h("span", { class: "chat-gone-ic" }, icon("chat")),
+    h("h3", { text: "This chat isn’t available any more" }),
+    h("p", { class: "muted", text: "It was deleted, or the other person deleted their account. Old links and notifications can still point to it." }),
+    back);
+}
 export function conversation(chatId, { onBack, channelId = null, embedded = false, onChat } = {}) {
   const chQuery = channelId ? `channel=${encodeURIComponent(channelId)}` : "";
   let stopRecording = null;
@@ -2013,7 +2023,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
       markRead();
     } catch (err) {
       if (!err?.error) console.error(err);
-      list.replaceChildren(empty("Couldn’t open this conversation.", err.error || ""));
+      list.replaceChildren(err?.status === 404 ? chatGone(onBack) : empty("Couldn’t open this conversation.", err.error || "Try again in a moment."));
     }
   })();
 
