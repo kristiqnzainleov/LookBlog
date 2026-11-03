@@ -11,11 +11,33 @@ const QUICK = ["☕", "🎧", "📸", "🔥", "😴", "🎉", "💭", "🌙", "�
 // The bubble's look: a colour, and an emoji sitting on its corner
 export const NOTE_COLORS = [["", "Classic"], ["pink", "Pink"], ["berry", "Berry"], ["purple", "Purple"], ["ocean", "Ocean"], ["mint", "Mint"], ["sunset", "Sunset"], ["gold", "Gold"], ["night", "Night"], ["galaxy", "Galaxy"]];
 const DECOS = ["✨", "💖", "🔥", "⭐", "🌸", "🦋", "👑", "🎀", "🍀", "🌈", "💫", "🎶"];
+// An effect on the bubble itself: it moves, glows, or has little things around it (everyone sees it)
+export const NOTE_FX = [["", "None"], ["float", "Float"], ["pulse", "Pulse"], ["heartbeat", "Heartbeat"], ["wiggle", "Wiggle"], ["jelly", "Jelly"], ["bounce", "Bounce"],
+  ["glow", "Glow"], ["neon", "Neon"], ["rainbow", "Rainbow"], ["shimmer", "Shimmer"], ["aurora", "Aurora"], ["fire", "Fire"], ["ice", "Ice"], ["ghost", "Ghost"], ["glitch", "Glitch"],
+  ["sparkle", "Sparkles"], ["hearts", "Hearts"], ["snow", "Snow"], ["bubbles", "Bubbles"], ["stars", "Stars"], ["music", "Music notes"], ["orbit", "Orbit"]];
+const PARTS = { sparkle: ["✦", "✧", "✦", "✧", "✦", "✧"], hearts: ["♥", "♥", "♥", "♥", "♥"], snow: ["❄", "❅", "❆", "❄", "❅", "❆"], bubbles: ["", "", "", "", ""], stars: ["★", "☆", "★", "☆", "★"], music: ["♪", "♫", "♪", "♫", "♪"], orbit: ["✦", "✦"] };
+// What plays when someone opens it: the same effects messages can be sent with
+const OPEN_SKIP = new Set(["typewriter"]);
 export function styleNote(bubble, note) {
   if (note?.color) bubble.dataset.color = note.color; else delete bubble.dataset.color;
-  bubble.querySelector(".nb-deco")?.remove();
+  if (note?.fx) bubble.dataset.fx = note.fx; else delete bubble.dataset.fx;
+  bubble.querySelectorAll(".nb-deco, .nb-fx").forEach((x) => x.remove());
   if (note?.deco) bubble.append(h("span", { class: "nb-deco", "aria-hidden": "true", text: note.deco }));
+  const parts = PARTS[note?.fx];
+  if (parts) bubble.append(h("span", { class: "nb-fx", "aria-hidden": "true" }, ...parts.map((t, i) => h("i", { text: t, style: `--i:${i};--x:${Math.round(((i + 0.5) / parts.length) * 100)}%;--d:${(i * 0.37).toFixed(2)}s` }))));
+  if (note?.fx === "shimmer") bubble.append(h("span", { class: "nb-fx nb-shine", "aria-hidden": "true" }));
   return bubble;
+}
+// Play a note's opening effect around its bubble (when someone opens it, or as a preview)
+export function playNoteOpen(open, bubble) {
+  if (!open || !bubble?.isConnected) return;
+  import("./msg-style.js").then(({ playEffect }) => {
+    const stage = h("div", { class: "note-fx-stage", "aria-hidden": "true" });
+    document.body.append(stage);
+    bubble.dataset.id = "note-open-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+    playEffect(open, bubble, stage);
+    setTimeout(() => stage.remove(), 6000);
+  }).catch(() => {});
 }
 
 function hoursLeft(iso) {
@@ -77,7 +99,7 @@ export function openNoteEditor(current, onSaved) {
     return b;
   }));
   // Customize the bubble
-  let color = current?.color || "", deco = current?.deco || "";
+  let color = current?.color || "", deco = current?.deco || "", fx = current?.fx || "", openFx = current?.open || "";
   const colors = h("div", { class: "note-colors", role: "radiogroup", "aria-label": "Bubble colour" }, ...NOTE_COLORS.map(([id, label]) => {
     const b = h("button", { type: "button", class: "note-color" + (id === color ? " on" : ""), title: label, "aria-label": label, dataset: { color: id } });
     b.addEventListener("click", () => { color = id; colors.querySelectorAll(".note-color").forEach((x) => x.classList.toggle("on", x === b)); live(); });
@@ -93,10 +115,34 @@ export function openNoteEditor(current, onSaved) {
     live();
   }
   decoMore.addEventListener("click", () => openEmojiPicker(decoMore, (e) => setDeco(e)));
-  const style = h("details", { class: "note-style", open: Boolean(current?.color || current?.deco) },
-    h("summary", { text: "🎨 Bubble style" }),
+  // An effect on the bubble
+  const fxs = h("div", { class: "note-fxs", role: "radiogroup", "aria-label": "Bubble effect" }, ...NOTE_FX.map(([id, label]) => {
+    const b = h("button", { type: "button", class: "note-fx-chip" + (id === fx ? " on" : ""), role: "radio", "aria-checked": String(id === fx), dataset: { fx: id } }, h("span", { class: "nfc-dot", "aria-hidden": "true" }), h("span", { text: label }));
+    b.addEventListener("click", () => { fx = id; fxs.querySelectorAll(".note-fx-chip").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", String(x === b)); }); live(); });
+    return b;
+  }));
+  // What plays when someone opens the note
+  const opens = h("div", { class: "note-opens", role: "radiogroup", "aria-label": "Effect when someone opens it" });
+  import("./msg-style.js").then(({ EFFECTS }) => {
+    opens.replaceChildren(...[["", "", "None"], ...EFFECTS.filter(([k]) => !OPEN_SKIP.has(k))].map(([id, emo, label]) => {
+      const b = h("button", { type: "button", class: "note-open-chip" + (id === openFx ? " on" : ""), role: "radio", "aria-checked": String(id === openFx), title: id ? `Plays when someone opens your note` : "" },
+        emo ? h("span", { class: "noc-emo", "aria-hidden": "true", text: emo }) : null, h("span", { text: label }));
+      b.addEventListener("click", () => {
+        openFx = id;
+        opens.querySelectorAll(".note-open-chip").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", String(x === b)); });
+        tryOpen.disabled = !openFx;
+        playNoteOpen(openFx, previewBubble);
+      });
+      return b;
+    }));
+  });
+  const tryOpen = h("button", { type: "button", class: "btn btn-xs btn-outline-light note-try", text: "Replay", disabled: !openFx, onclick: () => playNoteOpen(openFx, previewBubble) });
+  const style = h("details", { class: "note-style", open: Boolean(current?.color || current?.deco || current?.fx || current?.open) },
+    h("summary", { text: "🎨 Bubble style & effects" }),
     h("small", { class: "muted", text: "Colour" }), colors,
-    h("small", { class: "muted", text: "Emoji on the bubble" }), decos);
+    h("small", { class: "muted", text: "Emoji on the bubble" }), decos,
+    h("small", { class: "muted", text: "Effect on the bubble" }), fxs,
+    h("div", { class: "note-open-head" }, h("small", { class: "muted", text: "When someone opens your note" }), tryOpen), opens);
   const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: current ? "Update note" : "Share note" });
   const del = current ? h("button", { type: "button", class: "btn btn-outline-light btn-full", text: "Delete note" }) : null;
   input.addEventListener("input", paint);
@@ -114,7 +160,7 @@ export function openNoteEditor(current, onSaved) {
     previewBubble.querySelector(".nb-music")?.remove();
     if (media) previewBubble.prepend(h("img", { class: "nb-media", src: media.url, alt: "" }));
     if (music) previewBubble.append(noteMusicLine(music.view));
-    styleNote(previewBubble, { color, deco });
+    styleNote(previewBubble, { color, deco, fx });
   }
   input.addEventListener("input", live);
   quick.addEventListener("click", live);
@@ -123,7 +169,7 @@ export function openNoteEditor(current, onSaved) {
     try {
       const extra = !media ? {} : media.keep ? { keepMedia: true } : media.image ? { image: media.image } : media.send;
       const tune = !music ? {} : music.keep ? { keepMusic: true } : { music: music.ref };
-      const { note } = await api("/api/me/note", { method: "POST", body: { text: input.value, color, deco, ...extra, ...tune } });
+      const { note } = await api("/api/me/note", { method: "POST", body: { text: input.value, color, deco, fx, open: openFx, ...extra, ...tune } });
       m.close();
       toast("Note shared for 24 hours.");
       onSaved?.(note);
@@ -154,6 +200,8 @@ export function openNoteReply(user, note) {
         avatar(user, 72), h("b", {}, user.name, tick(user, 15)), h("small", { class: "muted", text: note.expiresAt ? hoursLeft(note.expiresAt) : "" }))),
     note.music ? h("div", { class: "note-reply-song" }) : null,
     quick, h("div", { class: "note-reply-row" }, input, send)) });
+  // Their opening effect plays (once the window has grown in)
+  if (note.open) setTimeout(() => playNoteOpen(note.open, m.card.querySelector(".note-preview .note-bubble")), 320);
   // Their song: tap to listen
   if (note.music) import("./song-picker.js").then(({ songPill }) => m.card.querySelector(".note-reply-song")?.append(songPill(note.music, { key: "note:" + user.username + ":" + (note.createdAt || "") })));
   input.addEventListener("input", () => { send.disabled = !input.value.trim(); });

@@ -325,7 +325,7 @@ const NOTE_MS = 24 * 60 * 60 * 1000;
 function activeNote(u) {
   if (!u.note) return null;
   if (Date.now() - new Date(u.note.createdAt).getTime() > NOTE_MS) return null;
-  return { text: u.note.text || "", media: u.note.media || null, music: u.note.music ? songRefView(u.note.music, u) : null, color: u.note.color || null, deco: u.note.deco || null, createdAt: u.note.createdAt, expiresAt: new Date(new Date(u.note.createdAt).getTime() + NOTE_MS).toISOString() };
+  return { text: u.note.text || "", media: u.note.media || null, music: u.note.music ? songRefView(u.note.music, u) : null, color: u.note.color || null, deco: u.note.deco || null, fx: u.note.fx || null, open: u.note.open || null, createdAt: u.note.createdAt, expiresAt: new Date(new Date(u.note.createdAt).getTime() + NOTE_MS).toISOString() };
 }
 
 /* ---------- Polls ---------- */
@@ -2009,7 +2009,14 @@ async function handleSocial(req, res, url, me) {
       const NOTE_COLORS = ["pink", "berry", "purple", "ocean", "mint", "sunset", "gold", "night", "galaxy"];
       const color = NOTE_COLORS.includes(body.color) ? body.color : null;
       const deco = typeof body.deco === "string" && body.deco.length <= 16 && /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2})(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Component}))*\uFE0F?$/u.test(body.deco) ? body.deco : null;
-      me.note = { text, media, ...(music ? { music } : {}), ...(color ? { color } : {}), ...(deco ? { deco } : {}), createdAt: new Date().toISOString() };
+      // An effect on the bubble (it moves / glows / has sparkles) and one that plays when someone opens the note
+      const NOTE_FX = ["float", "pulse", "heartbeat", "wiggle", "jelly", "bounce", "glow", "neon", "rainbow", "shimmer", "aurora", "fire", "ice", "ghost", "glitch", "sparkle", "hearts", "snow", "bubbles", "stars", "music", "orbit"];
+      const NOTE_OPEN = ["shark", "slam", "loud", "gentle", "confetti", "hearts", "fireworks", "balloons", "spotlight", "lasers", "shake", "rainbow", "party", "snow", "stars", "money", "fire", "bubbles", "kisses",
+        "butterflies", "petals", "rockets", "thunder", "disco", "zoom", "glitch", "bounce", "spin", "ghost", "cash", "pizza", "cats", "dogs", "skulls", "clowns", "eyes", "hundred", "goats", "aliens", "crowns",
+        "diamonds", "rain", "matrix", "magic", "heartbeat", "flip", "drop", "tornado", "jelly", "explode"];
+      const fx = NOTE_FX.includes(body.fx) ? body.fx : null;
+      const open = NOTE_OPEN.includes(body.open) ? body.open : null;
+      me.note = { text, media, ...(music ? { music } : {}), ...(color ? { color } : {}), ...(deco ? { deco } : {}), ...(fx ? { fx } : {}), ...(open ? { open } : {}), createdAt: new Date().toISOString() };
       me.noteCount = (me.noteCount || 0) + 1;
     } else if (m === "DELETE") {
       if (me.note?.media && !me.note.media.gif) deleteMedia(me.note.media.url);

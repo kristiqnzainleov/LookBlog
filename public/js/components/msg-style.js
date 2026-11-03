@@ -194,7 +194,8 @@ const played = new Set();
 export function playEffect(effect, row, stage) {
   if (!effect || !row || played.has(row.dataset.id) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   played.add(row.dataset.id);
-  const bubble = row.querySelector(".bubble");
+  // (a message row, or anything else that plays an effect on itself, like a note's bubble)
+  const bubble = row.querySelector(".bubble") || row;
   const anim = (el, cls, ms) => { el.classList.add(cls); setTimeout(() => el.classList.remove(cls), ms); };
   const layer = (cls) => { const l = h("div", { class: "fx-layer " + cls, "aria-hidden": "true" }); (stage || document.body).append(l); return l; };
   const r = bubble.getBoundingClientRect(), st = (stage || document.body).getBoundingClientRect();
