@@ -491,7 +491,11 @@ export function cardGameView(chatId, messageId, game, { big = false, onOpenBig }
     const v = g.view;
     let status = "", body = [];
     if (g.phase === "lobby") { status = "Waiting for players"; body = [lobby()]; }
-    else {
+    // The table was closed before the game started: there are no cards to show
+    else if (!v) {
+      status = g.over?.ended ? `⏹ Table closed by ${g.over.by}` : "Game over";
+      body = [h("p", { class: "muted cg-closed", text: "This table was closed before the game started." })];
+    } else {
       body = TABLE[g.type](v);
       if (g.over) {
         const w = g.over.ended ? null : g.over.team ? `Team ${g.over.winner + 1}` : name(g.over.winner);
@@ -505,7 +509,7 @@ export function cardGameView(chatId, messageId, game, { big = false, onOpenBig }
       g.phase !== "over" && (g.isHost || g.myIndex !== -1) ? h("div", { class: "game-actions cg-exit" },
         g.isHost ? sure(g.phase === "lobby" ? "Close the table" : "⏹ End game", () => send("end"), "btn-danger") : null,
         !g.isHost && g.myIndex !== -1 && g.phase === "play" ? sure("🚪 Leave (a bot takes your seat)", () => send("leave")) : null) : null,
-      !big && onOpenBig ? h("div", { class: "game-actions" }, btn("⤢ Bigger", () => onOpenBig(g))) : null);
+      !big && onOpenBig && v ? h("div", { class: "game-actions" }, btn("⤢ Bigger", () => onOpenBig(g))) : null);
   }
   // Keep typing in a meme caption when the table repaints
   const paint0 = paint;

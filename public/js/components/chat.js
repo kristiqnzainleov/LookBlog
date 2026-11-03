@@ -892,6 +892,12 @@ function swipeToReply(row, msg) {
 // A sensitive (18+) photo or video in a message is blurred for the others until they tap "View"
 const sensitive = (msg, el) => (msg.mine ? el : msg.media?.nsfw ? nsfwWrap(el, "photo", "nsfw") : msg.media?.sensitive ? nsfwWrap(el, "photo", "sensitive") : el);
 
+// A game that can't be drawn (an old or unusual state) shows a small note instead of breaking the whole chat
+function safeGame(chatId, msgId, game) {
+  try { return gameView(chatId, msgId, game); }
+  catch (err) { console.error(err); return h("div", { class: "game game-broken" }, h("b", { text: game?.name || "Game" }), h("p", { class: "muted", text: "This game can’t be shown right now." })); }
+}
+
 function messageEl(msg, chat, onRemoved) {
   // Small notes in the middle ("📅 New event", nickname changes)
   if (msg.system) {
@@ -902,7 +908,7 @@ function messageEl(msg, chat, onRemoved) {
     row._msg = msg;
     return row;
   }
-  const media = msg.game ? gameView(chat.id, msg.id, msg.game)
+  const media = msg.game ? safeGame(chat.id, msg.id, msg.game)
     : msg.poll ? chatPollEl(msg, chat)
     : msg.groupInvite ? groupInviteCard(msg.groupInvite)
     : msg.media?.gif ? outsideImg({ class: "msg-gif", src: msg.media.url, alt: "GIF" })
@@ -1433,7 +1439,10 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     if (ids.has(msg.id)) return;
     ids.add(msg.id);
     list.querySelector(".empty")?.remove();
-    const row = messageEl(msg, chat, () => ids.delete(msg.id));
+    let row;
+    // One message that can't be drawn never stops the rest of the chat from opening
+    try { row = messageEl(msg, chat, () => ids.delete(msg.id)); }
+    catch (err) { console.error(err); row = h("div", { class: "msg system", dataset: { id: msg.id } }, h("p", { class: "sys-note muted", text: "This message can’t be shown." })); row._msg = msg; }
     if (prepend) list.prepend(row); else { list.append(row); if (!msg.system) { lastMsg = msg; paintSeen(); } }
     // Sent with an effect just now: play it (once)
     if (!prepend && msg.effect && !PERSISTENT.has(msg.effect) && Date.now() - new Date(msg.createdAt).getTime() < 30000) requestAnimationFrame(() => requestAnimationFrame(() => playEffect(msg.effect, row, el)));
