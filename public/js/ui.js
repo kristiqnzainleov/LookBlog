@@ -620,7 +620,7 @@ export function swipeToReply(el, onReply) {
 
 /* ---------- A small menu right where you clicked (right-click, or hold on a phone) ---------- */
 // at: { x, y } (the click) or an element (it opens next to it)
-// items: { icon, label, sub, onClick, danger, confirm, on, disabled } · "sep" for a line · { note } for a small text · null is skipped
+// items: { icon, label, sub, onClick, danger, confirm, on, disabled, color (a dot instead of an icon), check (a tick when it's on) } · "sep" for a line · { note } for a small text · null is skipped
 let ctxOpen = null;
 export function closeContextMenu() { ctxOpen?.(); }
 export function contextMenu(at, items, { title = "" } = {}) {
@@ -633,7 +633,9 @@ export function contextMenu(at, items, { title = "" } = {}) {
       if (it.note) return h("p", { class: "ctx-note", text: it.note });
       const label = h("span", { class: "ctx-label", text: it.label });
       const b = h("button", { type: "button", role: "menuitem", class: "ctx-item" + (it.danger ? " danger" : "") + (it.on ? " on" : ""), disabled: Boolean(it.disabled) },
-        h("span", { class: "ctx-ic" }, it.icon ? icon(it.icon) : null), h("span", { class: "ctx-text" }, label, it.sub ? h("small", { text: it.sub }) : null));
+        h("span", { class: "ctx-ic" }, it.color ? h("i", { class: "ctx-dot" + (it.on ? " on" : ""), style: `--c:${it.color}` }) : it.icon ? icon(it.icon) : null),
+        h("span", { class: "ctx-text" }, label, it.sub ? h("small", { text: it.sub }) : null),
+        it.check ? h("span", { class: "ctx-check" + (it.on ? " on" : "") }, it.on ? icon("done") : null) : null);
       let armed = false;
       b.addEventListener("click", (e) => {
         e.stopPropagation();

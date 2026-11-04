@@ -601,20 +601,26 @@ export function groupView(chatId, { onBack } = {}) {
     function members() {
       const newRole = has(chat, "manage_roles") ? h("button", { type: "button", class: "btn btn-sm btn-outline-light", text: "+ Create a role" }) : null;
       newRole?.addEventListener("click", () => show("roles"));
-      return h("div", { class: "gs-list" }, newRole ? h("div", { class: "gs-actions top" }, h("span", { class: "muted", text: "Tap a role under someone’s name to give it or take it away." }), newRole) : null, ...chat.members.map((u) => {
+      return h("div", { class: "gs-list" }, newRole ? h("div", { class: "gs-actions top" }, h("span", { class: "muted", text: "Use Add role next to someone to give them a role or take it away." }), newRole) : null, ...chat.members.map((u) => {
         const below = (u.rank ?? 0) < (chat.myRank ?? 0) && !u.isOwner;
-        const chips = h("div", { class: "role-chips" }, ...chat.roles.map((r) => {
-          const onIt = (u.roles || []).includes(r.id);
-          const canToggle = has(chat, "manage_roles") && below && (r.id !== "coowner" || chat.isOwner);
-          const chip = h("button", { type: "button", class: "grole" + (onIt ? " on" : ""), style: `--rc:${r.color}`, text: r.name, disabled: !canToggle });
-          if (!canToggle && !onIt) chip.hidden = true;
-          chip.addEventListener("click", async () => {
-            const next = onIt ? u.roles.filter((x) => x !== r.id) : [...(u.roles || []), r.id];
-            try { await api(`/api/groups/${chat.id}/members/${encodeURIComponent(u.username)}/roles`, { method: "POST", body: { roles: next } }); refresh(); }
-            catch (err) { toast(err.error || "Couldn’t change roles."); }
-          });
-          return chip;
-        }));
+        // Their roles (just shown); "Add role" gives or takes them away
+        const theirs = chat.roles.filter((r) => (u.roles || []).includes(r.id));
+        const chips = theirs.length ? h("div", { class: "role-chips" }, ...theirs.map((r) => h("span", { class: "grole on", style: `--rc:${r.color}`, text: r.name }))) : null;
+        const canRoles = has(chat, "manage_roles") && below;
+        const addRole = canRoles ? h("button", { type: "button", class: "btn btn-xs btn-outline-light gs-addrole" }, icon("plus"), h("span", { text: "Add role" })) : null;
+        addRole?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          contextMenu(addRole, chat.roles.map((r) => {
+            const onIt = (u.roles || []).includes(r.id);
+            const locked = r.id === "coowner" && !chat.isOwner;
+            return { color: r.color, check: true, on: onIt, label: r.name, disabled: locked, sub: locked ? "Only the owner can give this" : "",
+              onClick: async () => {
+                const next = onIt ? u.roles.filter((x) => x !== r.id) : [...(u.roles || []), r.id];
+                try { await api(`/api/groups/${chat.id}/members/${encodeURIComponent(u.username)}/roles`, { method: "POST", body: { roles: next } }); toast(onIt ? `${r.name} taken away from ${u.name}.` : `${u.name} is now ${r.name}.`); refresh(); }
+                catch (err) { toast(err.error || "Couldn’t change roles."); }
+              } };
+          }), { title: `Roles for ${u.nickname || u.name}` });
+        });
         const nick = (u.isMe || (has(chat, "manage_nicknames") && below)) ? h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Nickname" }) : null;
         nick?.addEventListener("click", () => editNickname(u));
         const kick = has(chat, "kick") && below && !u.isMe ? h("button", { type: "button", class: "btn btn-xs btn-outline-light", text: "Remove" }) : null;
@@ -630,7 +636,7 @@ export function groupView(chatId, { onBack } = {}) {
           h("a", { href: profileHref(u.username), class: "gs-pic", "data-no-peek": "", title: `${u.name}’s profile`, onclick: toProfile }, avatar(u, 40)),
           h("div", { class: "gs-who" }, h("a", { href: profileHref(u.username), class: "gs-name", title: `${u.name}’s profile`, onclick: toProfile }, u.nickname || u.name, tick(u, 14), u.isOwner ? h("span", { class: "owner-crown", title: "Owner" }, icon("crown")) : null),
             h("span", { class: "muted", text: (u.nickname ? u.name + " · " : "") + "@" + u.username }), chips),
-          h("div", { class: "gs-acts" }, nick, kick, report));
+          h("div", { class: "gs-acts" }, addRole, nick, kick, report));
       }));
     }
     show(tab);
