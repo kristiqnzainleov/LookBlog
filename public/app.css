@@ -8083,3 +8083,7 @@ html.pk-open, html.pk-open body { overscroll-behavior: none; }
 .mm-msg .msg-stack { min-width: 0; }
 .mm-face { flex: none; }
 .msg.mm-lifted > .msg-avatar { visibility: hidden; }
+/* Group settings: the gear turns when you point at it */
+.gv-head > svg { transition: transform 0.7s cubic-bezier(.3, 1.4, .5, 1), stroke 0.2s; }
+.gv-head:hover > svg, .gv-head:focus-visible > svg { transform: rotate(180deg); stroke: var(--pink); }
+@media (prefers-reduced-motion: reduce) { .gv-head > svg { transition: stroke 0.2s; } .gv-head:hover > svg { transform: none; } }
