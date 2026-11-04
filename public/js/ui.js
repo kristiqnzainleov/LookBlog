@@ -109,6 +109,7 @@ const ICONS = {
   leave: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   crown: '<path d="m3 8 4 4 5-7 5 7 4-4-2 11H5z"/>',
   speaker: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
+  done: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
 };
 export function icon(name, cls = "") {
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -615,4 +616,77 @@ export function swipeToReply(el, onReply) {
   };
   el.addEventListener("pointerup", end);
   el.addEventListener("pointercancel", end);
+}
+
+/* ---------- A small menu right where you clicked (right-click, or hold on a phone) ---------- */
+// at: { x, y } (the click) or an element (it opens next to it)
+// items: { icon, label, sub, onClick, danger, confirm, on, disabled } · "sep" for a line · { note } for a small text · null is skipped
+let ctxOpen = null;
+export function closeContextMenu() { ctxOpen?.(); }
+export function contextMenu(at, items, { title = "" } = {}) {
+  closeContextMenu();
+  const list = items.filter(Boolean);
+  const menu = h("div", { class: "ctx-menu", role: "menu", "aria-label": title || "Options" },
+    title ? h("div", { class: "ctx-title", text: title }) : null,
+    ...list.map((it) => {
+      if (it === "sep") return h("div", { class: "ctx-sep", role: "separator" });
+      if (it.note) return h("p", { class: "ctx-note", text: it.note });
+      const label = h("span", { class: "ctx-label", text: it.label });
+      const b = h("button", { type: "button", role: "menuitem", class: "ctx-item" + (it.danger ? " danger" : "") + (it.on ? " on" : ""), disabled: Boolean(it.disabled) },
+        h("span", { class: "ctx-ic" }, it.icon ? icon(it.icon) : null), h("span", { class: "ctx-text" }, label, it.sub ? h("small", { text: it.sub }) : null));
+      let armed = false;
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // a dangerous one asks once more, right there
+        if (it.confirm && !armed) { armed = true; b.classList.add("armed"); label.textContent = it.confirm; return; }
+        close();
+        setTimeout(() => it.onClick?.(), 60);
+      });
+      return b;
+    }));
+  document.body.append(menu);
+  // Where it goes: at the click, kept on the screen
+  const r0 = at instanceof Element ? at.getBoundingClientRect() : null;
+  let x = r0 ? r0.left : at.x, y = r0 ? r0.bottom + 6 : at.y;
+  const w = menu.offsetWidth, ht = menu.offsetHeight, pad = 8;
+  let ox = "left", oy = "top";
+  if (x + w > innerWidth - pad) { x = Math.max(pad, (r0 ? r0.right : x) - w); ox = "right"; }
+  if (y + ht > innerHeight - pad) { y = Math.max(pad, (r0 ? r0.top - 6 : y) - ht); oy = "bottom"; }
+  Object.assign(menu.style, { left: x + "px", top: y + "px", transformOrigin: `${oy} ${ox}` });
+  requestAnimationFrame(() => menu.classList.add("open"));
+  menu.querySelector(".ctx-item:not([disabled])")?.focus({ preventScroll: true });
+  const onDown = (e) => { if (!menu.contains(e.target)) close(); };
+  const onKey = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); close(); return; }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const all = [...menu.querySelectorAll(".ctx-item:not([disabled])")];
+    const i = all.indexOf(document.activeElement);
+    all[(i + (e.key === "ArrowDown" ? 1 : -1) + all.length) % all.length]?.focus();
+  };
+  const onAway = () => close();
+  const onScroll = (e) => { if (!menu.contains(e.target)) close(); };
+  function close() {
+    if (ctxOpen !== close) return;
+    ctxOpen = null;
+    removeEventListener("pointerdown", onDown, true);
+    removeEventListener("keydown", onKey, true);
+    removeEventListener("resize", onAway);
+    removeEventListener("blur", onAway);
+    removeEventListener("scroll", onScroll, true);
+    menu.classList.remove("open");
+    menu.classList.add("out");
+    setTimeout(() => menu.remove(), 160);
+  }
+  ctxOpen = close;
+  // (wait a moment so the click / hold that opened it doesn't close it again)
+  setTimeout(() => {
+    if (ctxOpen !== close) return;
+    addEventListener("pointerdown", onDown, true);
+    addEventListener("resize", onAway);
+    addEventListener("blur", onAway);
+    addEventListener("scroll", onScroll, true);
+  }, 0);
+  addEventListener("keydown", onKey, true);
+  return { close, el: menu };
 }

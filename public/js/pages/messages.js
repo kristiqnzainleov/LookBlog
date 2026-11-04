@@ -1,5 +1,6 @@
 // /messages and /messages/:chatId — your conversations on the left, the open one on the right.
 import { h, icon, timeAgo, empty, spinner, modal, toast, avatarWithPresence, presenceText, tick } from "../ui.js";
+import { emit } from "../state.js";
 import { api } from "../api.js";
 import { on } from "../state.js";
 import { navigate } from "../router.js";
@@ -139,7 +140,16 @@ export function messagesPage(view, m) {
   // Hold a chat (or right-click it) for its theme, wallpaper and photo
   function holdForWallpaper(c, item) {
     const open = (fn) => (v) => document.querySelectorAll(`.convo[data-wall-chat="${CSS.escape(c.id)}"]`).forEach((el) => fn(el, v));
-    onHold(item, () => openChatOptions(c, { onTheme: open(applyTheme), onWallpaper: open(applyWallpaper), onPhoto: () => loadList() }));
+    // Right-click (or hold): a small menu right there, with the chat's options
+    onHold(item, (at) => openChatOptions(c, { at, onTheme: open(applyTheme), onWallpaper: open(applyWallpaper), onPhoto: () => loadList(),
+      before: [
+        { icon: c.kind === "dm" ? "chat" : "group", label: "Open", onClick: () => navigate(`/messages/${c.id}`) },
+        c.unread ? { icon: "done", label: "Mark as read", onClick: () => api(`/api/chats/${c.id}/read`, { method: "POST" }).then((r) => { emit("chats:changed", { readChat: c.id, unread: r.unread, at: r.at }); loadList(); }).catch(() => {}) } : null,
+      ].filter(Boolean),
+      after: c.kind === "group" && c.member !== false ? [{ icon: "leave", label: "Leave group", danger: true, confirm: "Click again to leave", onClick: async () => {
+        try { await api(`/api/groups/${c.id}/leave`, { method: "POST" }); toast(`You left ${c.name}.`); emit("chats:changed"); if (location.pathname.includes(c.id)) navigate("/messages"); loadList(); }
+        catch (err) { toast(err.error || "Couldn’t leave the group."); }
+      } }] : [] }));
     return item;
   }
 

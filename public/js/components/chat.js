@@ -1367,7 +1367,7 @@ export function conversation(chatId, { onBack, channelId = null, embedded = fals
     el.addEventListener("touchend", () => { if (st?.go && st.dx < -70) membersDrawer(chat, () => openMembers(chat, refresh)); st = null; });
   }
   // Hold (or right-click) anywhere on the chat's background: theme, wallpaper and photo
-  const chatOptions = () => chat && openChatOptions(chat, { onTheme: (t) => applyTheme(el, t), onWallpaper: (wp) => applyWallpaper(el, wp), onPhoto: () => refresh(), onVanish: () => paintHead() });
+  const chatOptions = (at) => chat && openChatOptions(chat, { at, onTheme: (t) => applyTheme(el, t), onWallpaper: (wp) => applyWallpaper(el, wp), onPhoto: () => refresh(), onVanish: () => paintHead() });
   onHold(list, chatOptions, { ignore: ".bubble, a, button, input, textarea, video, audio, img, .game" });
   // "Seen" (DM) / "Seen by …" (group) under the newest message
   let lastMsg = null;

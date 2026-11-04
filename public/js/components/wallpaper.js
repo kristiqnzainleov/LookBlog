@@ -2,7 +2,7 @@
 //   Theme — the colour of the bubbles, the same for everyone in the chat (like Messenger)
 //   Wallpaper — your own background for the chat (only you see it)
 //   Group photo — for groups, if you can change the group
-import { h, icon, modal, toast } from "../ui.js";
+import { h, icon, modal, toast, contextMenu } from "../ui.js";
 import { api, upload } from "../api.js";
 import { on } from "../state.js";
 import { openCropper } from "./cropper.js";
@@ -150,7 +150,8 @@ export function onHold(el, fn, { ignore = null } = {}) {
   el.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || skip(e)) return;
     held = false; start = [e.clientX, e.clientY];
-    timer = setTimeout(() => { held = true; navigator.vibrate?.(15); fn(); }, 550);
+    const at = { x: e.clientX, y: e.clientY };
+    timer = setTimeout(() => { held = true; navigator.vibrate?.(15); fn(at); }, 550);
   });
   const cancel = () => clearTimeout(timer);
   el.addEventListener("pointerup", cancel);
@@ -158,7 +159,7 @@ export function onHold(el, fn, { ignore = null } = {}) {
   el.addEventListener("pointermove", (e) => { if (start && Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 10) cancel(); });
   // A hold shouldn't also open the chat
   el.addEventListener("click", (e) => { if (held) { e.preventDefault(); e.stopPropagation(); held = false; } }, true);
-  el.addEventListener("contextmenu", (e) => { if (skip(e)) return; e.preventDefault(); cancel(); fn(); });
+  el.addEventListener("contextmenu", (e) => { if (skip(e)) return; e.preventDefault(); cancel(); fn({ x: e.clientX, y: e.clientY }); });
 }
 
 export function openWallpaperPicker(chat, onDone) {
@@ -328,10 +329,22 @@ function pickGroupPhoto(chat, onDone) {
 }
 
 // What holding a chat opens
-export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto, onVanish } = {}) {
+// at: where it was clicked — then it's a small menu right there (before / after: more items for that menu)
+export function openChatOptions(chat, { onTheme, onWallpaper, onPhoto, onVanish, at = null, before = [], after = [] } = {}) {
   const name = chat.kind === "dm" ? chat.other?.name : chat.name;
   const canGroup = chat.kind === "group" && (chat.isOwner || chat.perms?.includes("manage_group"));
   const canTheme = chat.kind === "dm" || canGroup;
+  if (at) {
+    const mine = [
+      canTheme ? { icon: "palette", label: "Theme", onClick: () => openThemePicker(chat, onTheme) } : null,
+      canTheme ? { icon: "image", label: "Wallpaper", onClick: () => openWallpaperPicker(chat, onWallpaper) } : null,
+      canTheme ? { icon: "hourglass", label: "Disappearing messages", sub: chat.vanish ? `On: ${vanishLabel(chat.vanish)}` : "Off", onClick: () => openVanishPicker(chat, onVanish) } : null,
+      canGroup ? { icon: "camera", label: "Group photo", onClick: () => pickGroupPhoto(chat, onPhoto) } : null,
+      canGroup ? { icon: "drop", label: "Group colour", onClick: () => openGroupColor(chat) } : null,
+    ].filter(Boolean);
+    const items = [...before, before.length && mine.length ? "sep" : null, ...mine, ...(after.length ? ["sep", ...after] : [])];
+    return contextMenu(at, items, { title: name || "Chat" });
+  }
   const item = (ic, title, sub, fn) => h("button", { type: "button", class: "co-item", onclick: () => { m.close(); fn(); } },
     h("span", { class: "co-ic" }, icon(ic)), h("span", { class: "co-text" }, h("b", { text: title }), h("small", { class: "muted", text: sub })));
   const m = modal({ title: name || "Chat", body: h("div", { class: "co-list" },

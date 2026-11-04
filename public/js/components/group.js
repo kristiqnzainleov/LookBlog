@@ -1,6 +1,7 @@
 // A group, Discord style: channels on the left (text and voice), the open channel on the right.
 // Admins manage channels, roles, the colour and events; anyone sets their own nickname.
-import { h, icon, avatar, toast, modal, confirmClick, plural, tick, spinner, empty, soundPic, pickPicture } from "../ui.js";
+import { h, icon, avatar, toast, modal, confirmClick, plural, tick, spinner, empty, soundPic, pickPicture, contextMenu } from "../ui.js";
+import { onHold } from "./wallpaper.js";
 import { api, upload } from "../api.js";
 import { on, emit, state } from "../state.js";
 import { navigate, profileHref } from "../router.js";
@@ -147,6 +148,7 @@ export function groupView(chatId, { onBack } = {}) {
       const b = h("div", { class: "gv-ch" + (c.id === active ? " on" : "") + (unread.has(c.id) ? " unread" : ""), role: "button", tabindex: 0 }, icon("hash"), h("span", { text: c.name }), pinBtn(c));
       b.addEventListener("click", () => open(c.id));
       b.addEventListener("keydown", (e) => { if (e.key === "Enter") open(c.id); });
+      onHold(b, (at) => channelMenu(c, at), { ignore: ".gv-pin" });
       return b;
     };
     const texts = chat.channels.filter((c) => c.kind === "text" && !pinned.includes(c.id)).map(textRow);
@@ -161,6 +163,7 @@ export function groupView(chatId, { onBack } = {}) {
       };
       b.addEventListener("click", go);
       b.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+      onHold(b, (at) => channelMenu(c, at), { ignore: ".gv-pin" });
       // The channel's status (like Discord): anyone in it can set it
       const status = c.voiceStatus?.text || here ? h("button", { type: "button", class: "gv-vstatus" + (c.voiceStatus?.text ? "" : " empty"), disabled: !here, title: here ? "Set the channel status" : c.voiceStatus?.by ? `Set by @${c.voiceStatus.by}` : "",
         text: c.voiceStatus?.text || "✏️ Set a channel status…" }) : null;
@@ -209,6 +212,43 @@ export function groupView(chatId, { onBack } = {}) {
         section("Text channels", "text"), ...texts, section("Voice channels", "voice"), ...voices), h("div", { class: "gv-dock-slot" }), meRow);
     placeDock();
     side.querySelectorAll("[data-voice-user]").forEach((x) => x.classList.toggle("speaking", speakingNow.has(x.dataset.voiceUser)));
+  }
+
+  // Right-click a channel (or hold it on a phone): a small menu right there with its options
+  function channelMenu(c, at) {
+    const isPinned = (chat.pinnedChannels || []).includes(c.id);
+    const canManage = has(chat, "manage_channels");
+    const here = currentVoice()?.chatId === chat.id && currentVoice()?.channelId === c.id;
+    const items = c.kind === "voice" ? [
+      here ? { icon: "leave", label: "Leave voice", onClick: () => leaveVoice() }
+        : { icon: "headphones", label: "Join voice", disabled: !chat.member, onClick: () => joinVoice(chat, c) },
+      here ? { icon: "edit", label: "Set a channel status", sub: c.voiceStatus?.text || "", onClick: () => editVoiceStatus(c) } : null,
+      chat.member ? { icon: "pin", label: isPinned ? "Unpin" : "Pin to the top", onClick: () => togglePin(c) } : null,
+    ] : [
+      c.id !== active ? { icon: "chat", label: "Open", onClick: () => open(c.id) } : null,
+      unread.has(c.id) ? { icon: "done", label: "Mark as read", onClick: () => { unread.delete(c.id); paintSide(); } } : null,
+      chat.member ? { icon: "pin", label: isPinned ? "Unpin" : "Pin to the top", onClick: () => togglePin(c) } : null,
+      { icon: "link", label: "Copy link", onClick: () => navigator.clipboard?.writeText(`${location.origin}/messages/${chat.id}?c=${encodeURIComponent(c.id)}`).then(() => toast("Link copied.")).catch(() => toast("Couldn’t copy it.")) },
+    ];
+    if (canManage) items.push("sep",
+      { icon: "edit", label: "Rename channel", onClick: () => renameChannel(c) },
+      { icon: "trash", label: "Delete channel", danger: true, confirm: c.kind === "text" ? "Delete with all its messages?" : "Click again to delete", onClick: async () => {
+        try { await api(`/api/groups/${chat.id}/channels/${c.id}`, { method: "DELETE" }); toast("Channel deleted."); load(); }
+        catch (err) { toast(err.error || "Couldn’t delete it."); }
+      } });
+    contextMenu(at, items, { title: (c.kind === "voice" ? "" : "#") + c.name });
+  }
+  function renameChannel(c) {
+    const input = h("input", { type: "text", class: "text-input", maxlength: 30, value: c.name });
+    const save = h("button", { type: "button", class: "btn btn-primary btn-full", text: "Rename" });
+    const m = modal({ title: "Rename channel", body: h("div", { class: "create-form" }, input, save) });
+    const go = async () => {
+      try { await api(`/api/groups/${chat.id}/channels/${c.id}`, { method: "POST", body: { name: input.value } }); m.close(); toast("Renamed."); load(); }
+      catch (err) { toast(err.error || "Couldn’t rename it."); }
+    };
+    save.addEventListener("click", go);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    setTimeout(() => { input.focus(); input.select(); }, 60);
   }
 
   async function togglePin(c) {
