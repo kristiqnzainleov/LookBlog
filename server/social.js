@@ -2424,10 +2424,19 @@ async function handleSocial(req, res, url, me) {
     if (m === "POST") {
       rateLimit("search-save:" + me.id, 120, 10 * 60 * 1000, "Slow down a little.");
       const q = clean(String((await readJSON(req)).q || "")).replace(/\s+/g, " ").slice(0, 100);
-      if (q) { me.searches = [q, ...me.searches.filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 20); save("users"); }
+      if (q) {
+        me.searches = [q, ...me.searches.filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 20);
+        // when each one was searched (for Trending: only how many people searched something lately, never who)
+        const at = { ...(me.searchedAt || {}) }; at[q.toLowerCase()] = new Date().toISOString();
+        me.searchedAt = Object.fromEntries(Object.entries(at).filter(([k]) => me.searches.some((x) => x.toLowerCase() === k)));
+        trendCache = null;
+        save("users");
+      }
     } else if (m === "DELETE") {
       const q = url.searchParams.get("q");
       me.searches = q == null ? [] : me.searches.filter((x) => x !== q);
+      me.searchedAt = Object.fromEntries(Object.entries(me.searchedAt || {}).filter(([k]) => me.searches.some((x) => x.toLowerCase() === k)));
+      trendCache = null;
       save("users");
     } else if (m !== "GET") return false;
     sendJSON(res, 200, { searches: me.searches });
@@ -2516,6 +2525,38 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
 
+  // Trending: what people search the most lately, GET /api/search/trending
+  // Only things searched by at least 2 different people in the last 7 days (no one's own searches show up alone),
+  // newer searches count more. Topped up with the most used hashtags in public posts this week.
+  if (m === "GET" && a === "search" && b === "trending" && parts.length === 2) {
+    if (!trendCache || Date.now() - trendCache.at > 60 * 1000) {
+      const now = Date.now(), WEEK = 7 * 24 * 3600 * 1000;
+      const terms = new Map();
+      for (const u of db.users) {
+        for (const q of Array.isArray(u.searches) ? u.searches : []) {
+          const k = q.toLowerCase(), when = Date.parse(u.searchedAt?.[k] || "");
+          if (!when || now - when > WEEK) continue;
+          const t = terms.get(k) || { text: q, people: 0, score: 0 };
+          t.people += 1; t.score += 1 + Math.max(0, 1 - (now - when) / WEEK);
+          terms.set(k, t);
+        }
+      }
+      const searched = [...terms.values()].filter((t) => t.people >= 2).sort((x, y) => y.score - x.score).slice(0, 8)
+        .map((t) => ({ q: t.text, people: t.people, kind: "search" }));
+      const tags = new Map();
+      for (const p of db.posts) {
+        if (p.visibility !== "public" || now - Date.parse(p.createdAt) > WEEK) continue;
+        for (const tag of new Set(((p.text || "") + " " + (p.title || "")).toLowerCase().match(/#[\p{L}\p{N}_]{2,40}/gu) || [])) tags.set(tag, (tags.get(tag) || 0) + 1);
+      }
+      const have = new Set(searched.map((t) => t.q.toLowerCase()));
+      const hashtags = [...tags].filter(([t]) => !have.has(t)).sort((x, y) => y[1] - x[1]).slice(0, Math.max(0, 8 - searched.length))
+        .map(([t, n]) => ({ q: t, posts: n, kind: "tag" }));
+      trendCache = { at: Date.now(), list: [...searched, ...hashtags] };
+    }
+    sendJSON(res, 200, { trending: trendCache.list });
+    return true;
+  }
+
   // Suggestions while typing: GET /api/search/suggest?q=
   if (m === "GET" && a === "search" && b === "suggest" && parts.length === 2) {
     const q = clean(url.searchParams.get("q")).toLowerCase().replace(/^@/, "").slice(0, 60);
@@ -2594,6 +2635,8 @@ async function handleSocial(req, res, url, me) {
 
   return false;
 }
+
+let trendCache = null; // Trending searches, worked out at most once a minute
 
 // Deletes a post with its files and replies (used by its author and by the LookBlog team)
 function removePost(post) {

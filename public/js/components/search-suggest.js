@@ -1,5 +1,5 @@
 // Suggestions under the top search box: people, groups, events and popular phrases as you type.
-// With an empty box it shows your recent searches.
+// With an empty box it shows your recent searches, and what's trending (what many people search lately).
 import { h, avatar, tick, icon } from "../ui.js";
 import { api } from "../api.js";
 import { navigate, profileHref } from "../router.js";
@@ -22,6 +22,14 @@ function loadSearches() {
   }).catch(() => { loading = null; });
   return loading;
 }
+// Trending (the same for everyone; asked again at most once a minute)
+let trend = null, trendAt = 0;
+export async function loadTrending() {
+  if (trend && Date.now() - trendAt < 60000) return trend;
+  try { trend = (await api("/api/search/trending")).trending; trendAt = Date.now(); } catch { trend = trend || []; }
+  return trend;
+}
+export const trendLine = (t) => t.kind === "tag" ? `${t.posts} post${t.posts === 1 ? "" : "s"} this week` : `Searched by ${t.people} people`;
 export function rememberSearch(q) {
   q = String(q || "").trim().replace(/\s+/g, " ");
   if (!q) return;
@@ -69,11 +77,16 @@ export function attachSuggestions(form, input) {
     const q = input.value.trim();
     const n = ++seq;
     if (!q) {
-      if (!saved) { await loadSearches(); if (n !== seq || input.value.trim() || document.activeElement !== input) return; }
-      const r = recent().slice(0, 10);
+      await Promise.all([saved ? null : loadSearches(), loadTrending()]);
+      if (n !== seq || input.value.trim() || document.activeElement !== input) return;
+      const r = recent().slice(0, 8);
       const x = (t) => h("button", { type: "button", class: "sg-x", "aria-label": `Remove “${t}”`, title: "Remove", text: "×",
         onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); forgetSearch(t); update(); } });
-      paint([["Recent searches", r.map((t) => ({ q: t, href: `/search?q=${encodeURIComponent(t)}`, render: () => [h("span", { class: "sg-ic" }, icon("replay")), h("span", { class: "sg-text", text: t }), x(t)] }))]], q);
+      const hot = (trend || []).slice(0, 8);
+      paint([["Recent searches", r.map((t) => ({ q: t, href: `/search?q=${encodeURIComponent(t)}`, render: () => [h("span", { class: "sg-ic" }, icon("replay")), h("span", { class: "sg-text", text: t }), x(t)] }))],
+        ["Trending", hot.map((t, i) => ({ q: t.q, href: `/search?q=${encodeURIComponent(t.q)}`, render: () => [h("span", { class: "sg-ic sg-hot" }, icon("fire")),
+          h("span", { class: "sg-text" }, h("span", { class: "sg-name", text: t.q }), h("small", { class: "muted", text: trendLine(t) })), h("span", { class: "sg-rank", text: String(i + 1) })] }))]], q);
+      box.querySelectorAll(".sg-title").forEach((x) => { if (x.textContent === "Trending") x.classList.add("sg-trend-title"); });
       if (r.length) box.querySelector(".sg-title").append(h("button", { type: "button", class: "sg-clear-btn", text: "Clear all", onmousedown: (e) => { e.preventDefault(); forgetSearch(null); close(); } }));
       return;
     }

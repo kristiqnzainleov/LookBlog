@@ -39,6 +39,14 @@ export function searchPage(view, _m, params) {
     const mine = ++seq;
     if (!q.trim()) {
       results.replaceChildren(empty("Find people on Look Blog", "Search by name or @username. You can also search the text of posts."));
+      // What's trending: tap one to search it
+      import("../components/search-suggest.js").then(async (m) => {
+        const hot = await m.loadTrending();
+        if (mine !== seq || !hot.length) return;
+        results.append(h("section", { class: "srch-trend-box" }, h("h3", { class: "srch-trend-head" }, icon("fire"), h("span", { text: "Trending" })),
+          h("ol", { class: "srch-trend-list" }, ...hot.map((t, i) => h("li", {}, h("a", { href: `/search?q=${encodeURIComponent(t.q)}`, class: "srch-trend-item" },
+            h("span", { class: "srch-trend-rank", text: String(i + 1) }), h("span", { class: "srch-trend-text" }, h("b", { text: t.q }), h("small", { class: "muted", text: m.trendLine(t) }))))))));
+      });
       return;
     }
     results.replaceChildren(spinner());
