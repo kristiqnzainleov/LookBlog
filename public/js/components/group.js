@@ -626,9 +626,11 @@ export function groupView(chatId, { onBack } = {}) {
         });
         const report = !u.isMe ? h("button", { type: "button", class: "icon-btn", title: `Report ${u.name}`, "aria-label": `Report ${u.name}` }, icon("flag")) : null;
         report?.addEventListener("click", () => openReportUser(u));
+        // Their photo and name go to their profile
+        const toProfile = (e) => { e.preventDefault(); m.close(); navigate(profileHref(u.username)); };
         return h("div", { class: "gs-member" },
-          h("a", { href: profileHref(u.username), onclick: m.close }, avatar(u, 40)),
-          h("div", { class: "gs-who" }, h("b", {}, u.nickname || u.name, tick(u, 14), u.isOwner ? h("span", { class: "owner-crown", title: "Owner" }, icon("crown")) : null),
+          h("a", { href: profileHref(u.username), class: "gs-pic", "data-no-peek": "", title: `${u.name}’s profile`, onclick: toProfile }, avatar(u, 40)),
+          h("div", { class: "gs-who" }, h("a", { href: profileHref(u.username), class: "gs-name", title: `${u.name}’s profile`, onclick: toProfile }, u.nickname || u.name, tick(u, 14), u.isOwner ? h("span", { class: "owner-crown", title: "Owner" }, icon("crown")) : null),
             h("span", { class: "muted", text: (u.nickname ? u.name + " · " : "") + "@" + u.username }), chips),
           h("div", { class: "gs-acts" }, nick, kick, report));
       }));

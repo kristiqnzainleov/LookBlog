@@ -8121,3 +8121,7 @@ html.pk-open, html.pk-open body { overscroll-behavior: none; }
 .ctx-sep { height: 1px; margin: 5px 6px; background: rgba(255, 255, 255, 0.08); }
 .ctx-note { margin: 4px 10px 6px; font-size: 0.78rem; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .ctx-menu, .ctx-menu.out { transition: opacity 0.12s; transform: none; } }
+/* Group settings → Members: the name is a link to the profile */
+.gs-who .gs-name { display: inline-flex; align-items: center; gap: 4px; width: fit-content; font-weight: 700; color: var(--paper); text-decoration: none; }
+.gs-who .gs-name:hover { color: var(--pink); text-decoration: underline; text-underline-offset: 3px; }
+.gs-pic { flex: none; border-radius: 50%; }
