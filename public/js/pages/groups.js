@@ -106,7 +106,7 @@ export function groupsPage(view) {
         grid.append(h("a", { class: "group-card", href: `/messages/${g.id}`, style: `--group:${g.color || "#ff4fa3"}` },
           h("div", { class: "group-banner" + (thumb ? "" : " empty"), style: thumb ? `background-image:url("${thumb}")` : "" }),
           h("div", { class: "group-body" },
-            chatPic(g, 56),
+            chatPic(g, 80),
             h("h3", { text: g.name }),
             g.description ? h("p", { class: "group-desc", text: g.description }) : null,
             h("div", { class: "group-foot" }, h("span", { class: "muted", text: plural(g.memberCount, "member", "members") }), action)

@@ -8087,3 +8087,17 @@ html.pk-open, html.pk-open body { overscroll-behavior: none; }
 .gv-head > svg { transition: transform 0.7s cubic-bezier(.3, 1.4, .5, 1), stroke 0.2s; }
 .gv-head:hover > svg, .gv-head:focus-visible > svg { transform: rotate(180deg); stroke: var(--pink); }
 @media (prefers-reduced-motion: reduce) { .gv-head > svg { transition: stroke 0.2s; } .gv-head:hover > svg { transform: none; } }
+
+/* ---------- Closing a window: it shrinks back into the middle and disappears ---------- */
+/* (opening keeps its springy grow; closing is quick and eases in) */
+.app-overlay:not(.open) .app-modal { transition: transform 0.24s cubic-bezier(0.55, 0, 0.8, 0.3), opacity 0.2s ease-in 0.04s; }
+.create-pop:not(.show) .create-sheet { transition: transform 0.22s cubic-bezier(0.55, 0, 0.8, 0.3), opacity 0.18s ease-in 0.04s; }
+@keyframes winShrink { to { transform: scale(0.45); opacity: 0; } }
+.mm-overlay.out .mm-stack, .ap-wrap.out .ap-card, .pv-wrap.out .pv-stage { animation: winShrink 0.18s cubic-bezier(0.55, 0, 0.8, 0.3) forwards; }
+@media (prefers-reduced-motion: reduce) { .mm-overlay.out .mm-stack, .ap-wrap.out .ap-card, .pv-wrap.out .pv-stage { animation: none; } }
+/* Bigger group pictures and banners */
+.group-banner { height: 150px; }
+.group-body .group-pic { margin-top: -40px; }
+.gv-top.has-banner { padding-top: 96px; }
+.gv-head .group-pic, .gv-head > .avatar { flex: none; }
+@media (max-width: 640px) { .group-banner { height: 130px; } .gv-top.has-banner { padding-top: 84px; } }

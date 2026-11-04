@@ -116,7 +116,7 @@ export function groupView(chatId, { onBack } = {}) {
   function paintSide() {
     if (!chat) return;
     const head = h("button", { type: "button", class: "gv-head", title: anyAdmin(chat) ? "Group settings" : chat.name },
-      chatPic(chat, 40), h("div", { class: "gv-title" }, h("b", { text: chat.name }), h("span", { class: "muted", text: `${plural(chat.memberCount, "member", "members")}${chat.onlineCount ? ` · ${chat.onlineCount} online` : ""}` })),
+      chatPic(chat, 56), h("div", { class: "gv-title" }, h("b", { text: chat.name }), h("span", { class: "muted", text: `${plural(chat.memberCount, "member", "members")}${chat.onlineCount ? ` · ${chat.onlineCount} online` : ""}` })),
       anyAdmin(chat) ? icon("gear") : null);
     head.addEventListener("click", () => anyAdmin(chat) ? openSettings() : openAbout());
     const back = h("button", { class: "icon-btn gv-back", "aria-label": "Back" }, icon("back"));
