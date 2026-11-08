@@ -8247,3 +8247,16 @@ html.pk-open, html.pk-open body { overscroll-behavior: none; }
 @keyframes replyEdited { 0% { background: rgba(255, 79, 163, 0.28); } 100% { background: transparent; } }
 @media (hover: hover) { .reply-content[title] .post-text { cursor: text; } }
 @media (max-width: 600px) { .reply-edit-bar small { display: none; } }
+
+/* Going back: the screen slides (the old one out to the right, the previous one in from the left) */
+html.vt-page .topbar { view-transition-name: lb-top; }
+html.vt-page .dock { view-transition-name: lb-dock; }
+html.vt-back::view-transition-old(root) { animation: vtBackOut 0.34s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
+html.vt-back::view-transition-new(root) { animation: vtBackIn 0.34s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
+html.vt-back::view-transition-group(lb-top), html.vt-back::view-transition-group(lb-dock) { animation: none; }
+html.vt-back::view-transition-old(lb-top), html.vt-back::view-transition-old(lb-dock) { display: none; }
+html.vt-back::view-transition-new(lb-top), html.vt-back::view-transition-new(lb-dock) { animation: none; }
+@keyframes vtBackOut { to { transform: translateX(35%); opacity: 0; } }
+@keyframes vtBackIn { from { transform: translateX(-35%); opacity: 0; } }
+.view.back-in { animation: vtBackIn 0.32s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .view.back-in { animation: none; } }

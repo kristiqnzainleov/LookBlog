@@ -1,6 +1,7 @@
 // Client-side pages with real URLs (/feed, /shorts, /videos, /search, /post/:id, /u/:username).
 import { $ } from "./ui.js";
 import { state } from "./state.js";
+import { slideBack } from "./components/back-slide.js";
 
 const routes = [];
 let cleanup = null;
@@ -55,7 +56,8 @@ export function startRouter() {
     e.preventDefault();
     navigate(url.pathname + url.search);
   });
-  window.addEventListener("popstate", render);
+  // Back (or forward) in the browser: the screen slides back, unless the phone already animates its swipe
+  window.addEventListener("popstate", (e) => (e.hasUAVisualTransition ? render() : slideBack(render, { page: true })));
   render();
 }
 
