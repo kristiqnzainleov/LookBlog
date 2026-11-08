@@ -14,8 +14,11 @@ const DECOS = ["✨", "💖", "🔥", "⭐", "🌸", "🦋", "👑", "🎀", "�
 // An effect on the bubble itself: it moves, glows, or has little things around it (everyone sees it)
 export const NOTE_FX = [["", "None"], ["float", "Float"], ["pulse", "Pulse"], ["heartbeat", "Heartbeat"], ["wiggle", "Wiggle"], ["jelly", "Jelly"], ["bounce", "Bounce"],
   ["glow", "Glow"], ["neon", "Neon"], ["rainbow", "Rainbow"], ["shimmer", "Shimmer"], ["aurora", "Aurora"], ["fire", "Fire"], ["ice", "Ice"], ["ghost", "Ghost"], ["glitch", "Glitch"],
-  ["sparkle", "Sparkles"], ["hearts", "Hearts"], ["snow", "Snow"], ["bubbles", "Bubbles"], ["stars", "Stars"], ["music", "Music notes"], ["orbit", "Orbit"]];
-const PARTS = { sparkle: ["✦", "✧", "✦", "✧", "✦", "✧"], hearts: ["♥", "♥", "♥", "♥", "♥"], snow: ["❄", "❅", "❆", "❄", "❅", "❆"], bubbles: ["", "", "", "", ""], stars: ["★", "☆", "★", "☆", "★"], music: ["♪", "♫", "♪", "♫", "♪"], orbit: ["✦", "✦"] };
+  ["sparkle", "Sparkles"], ["hearts", "Hearts"], ["snow", "Snow"], ["bubbles", "Bubbles"], ["stars", "Stars"], ["music", "Music notes"], ["orbit", "Orbit"],
+  ["swing", "Swing"], ["shake", "Shake"], ["flip", "Flip"], ["breathe", "Breathe"], ["holo", "Holo"], ["electric", "Electric"], ["stripes", "Candy stripes"], ["spinborder", "Spinning border"],
+  ["confetti", "Confetti"], ["petals", "Petals"], ["fireflies", "Fireflies"], ["sleepy", "Sleepy Zzz"], ["lightning", "Lightning"]];
+const PARTS = { sparkle: ["✦", "✧", "✦", "✧", "✦", "✧"], hearts: ["♥", "♥", "♥", "♥", "♥"], snow: ["❄", "❅", "❆", "❄", "❅", "❆"], bubbles: ["", "", "", "", ""], stars: ["★", "☆", "★", "☆", "★"], music: ["♪", "♫", "♪", "♫", "♪"], orbit: ["✦", "✦"],
+  confetti: ["", "", "", "", "", ""], petals: ["❀", "✿", "❀", "✿", "❀"], fireflies: ["", "", "", "", "", ""], sleepy: ["z", "Z", "z"], lightning: ["ϟ", "ϟ", "ϟ"] };
 // What plays when someone opens it: the same effects messages can be sent with
 const OPEN_SKIP = new Set(["typewriter"]);
 export function styleNote(bubble, note) {
@@ -25,7 +28,9 @@ export function styleNote(bubble, note) {
   if (note?.deco) bubble.append(h("span", { class: "nb-deco", "aria-hidden": "true", text: note.deco }));
   const parts = PARTS[note?.fx];
   if (parts) bubble.append(h("span", { class: "nb-fx", "aria-hidden": "true" }, ...parts.map((t, i) => h("i", { text: t, style: `--i:${i};--x:${Math.round(((i + 0.5) / parts.length) * 100)}%;--d:${(i * 0.37).toFixed(2)}s` }))));
-  if (note?.fx === "shimmer") bubble.append(h("span", { class: "nb-fx nb-shine", "aria-hidden": "true" }));
+  if (note?.fx === "shimmer" || note?.fx === "holo") bubble.append(h("span", { class: "nb-fx nb-shine", "aria-hidden": "true" }));
+  if (note?.fx === "spinborder") bubble.append(h("span", { class: "nb-fx nb-ring", "aria-hidden": "true" }));
+  if (note?.fx === "stripes") bubble.append(h("span", { class: "nb-fx nb-stripes", "aria-hidden": "true" }));
   return bubble;
 }
 // Play a note's opening effect around its bubble (when someone opens it, or as a preview)

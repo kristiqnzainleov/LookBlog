@@ -8195,3 +8195,40 @@ html.pk-open, html.pk-open body { overscroll-behavior: none; }
   :is(.view, .look-preview)[data-phov] .profile-avatar .avatar { transition: none; animation: none !important; }
   :is(.view, .look-preview)[data-bov] .profile-banner::after { animation: none !important; }
 }
+
+/* ---------- More note effects ---------- */
+.note-bubble[data-fx="swing"] { transform-origin: 50% 0; animation: nbSwing 2.2s ease-in-out infinite; }
+@keyframes nbSwing { 0%, 100% { rotate: -5deg; } 50% { rotate: 5deg; } }
+.note-bubble[data-fx="shake"] { animation: nbShake 2.8s ease-in-out infinite; }
+@keyframes nbShake { 0%, 70%, 100% { translate: 0 0; } 74%, 82%, 90% { translate: -3px 0; } 78%, 86%, 94% { translate: 3px 0; } }
+.note-bubble[data-fx="flip"] { animation: nbFlip 4s ease-in-out infinite; }
+@keyframes nbFlip { 0%, 70%, 100% { rotate: y 0deg; } 85% { rotate: y 180deg; } 99.9% { rotate: y 360deg; } }
+.note-bubble[data-fx="breathe"] { animation: nbBreathe 3.6s ease-in-out infinite; }
+@keyframes nbBreathe { 0%, 100% { scale: 1; filter: brightness(1); } 50% { scale: 1.05; filter: brightness(1.15); } }
+.note-bubble[data-fx="holo"] .nb-shine::before { width: 100%; left: 0; background: linear-gradient(115deg, rgba(255, 79, 163, 0.45), rgba(255, 210, 63, 0.4), rgba(46, 230, 166, 0.4), rgba(76, 201, 255, 0.45), rgba(155, 92, 255, 0.45)); background-size: 300% 100%; mix-blend-mode: overlay; animation: nbHolo 3s linear infinite; }
+@keyframes nbHolo { from { background-position: 0% 0; } to { background-position: 300% 0; } }
+.note-bubble[data-fx="electric"] { animation: nbElectric 1.6s steps(1) infinite; }
+@keyframes nbElectric { 0%, 100% { box-shadow: 0 0 0 1.5px #4cc9ff, 0 0 14px 2px rgba(76, 201, 255, 0.8), 0 6px 18px rgba(0, 0, 0, 0.45); } 12%, 48% { box-shadow: 0 0 0 1.5px #b8ecff, 0 0 22px 5px rgba(140, 220, 255, 0.95), 0 6px 18px rgba(0, 0, 0, 0.45); } 14%, 50% { box-shadow: 0 0 0 1px rgba(76, 201, 255, 0.4), 0 0 4px rgba(76, 201, 255, 0.3), 0 6px 18px rgba(0, 0, 0, 0.45); } }
+.nb-fx.nb-stripes { inset: 0; border-radius: inherit; pointer-events: none; background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.24) 0 7px, transparent 7px 14px); background-size: 40px 40px; animation: nbStripes 1.4s linear infinite; }
+.note-bubble[data-fx="stripes"]:not([data-color]) { background: #ff4fa3; color: #fff; }
+.note-bubble[data-fx="stripes"] > :not(.nb-fx) { position: relative; }
+@keyframes nbStripes { to { background-position: 40px 0; } }
+/* Spinning border: a colour ring turns around the bubble */
+@property --nb-a { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.nb-ring { position: absolute; inset: -3px; border-radius: inherit; padding: 2.5px; pointer-events: none; background: conic-gradient(from var(--nb-a), #ff4fa3, #ffd23f, #2ee6a6, #4cc9ff, #9b5cff, #ff4fa3);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); animation: nbRing 2.4s linear infinite; }
+@keyframes nbRing { to { --nb-a: 360deg; } }
+/* Particles */
+.note-bubble[data-fx="confetti"] .nb-fx i { width: 5px; height: 7px; border-radius: 1px; background: hsl(calc(var(--i) * 60deg + 330deg) 95% 62%); text-shadow: none; animation-name: nbConfetti; animation-duration: 2.2s; }
+@keyframes nbConfetti { 0% { opacity: 0; translate: 0 4px; rotate: 0deg; } 20% { opacity: 1; } 100% { opacity: 0; translate: calc((var(--i) - 2.5) * 6px) -26px; rotate: 300deg; } }
+.note-bubble[data-fx="petals"] .nb-fx i { top: -6px; bottom: auto; color: #ffb3d1; text-shadow: 0 0 5px rgba(255, 150, 200, 0.8); animation: nbSnow 3.4s ease-in var(--d) infinite; }
+.note-bubble[data-fx="fireflies"] .nb-fx i { width: 4px; height: 4px; border-radius: 50%; background: #fff7a8; box-shadow: 0 0 6px 2px rgba(255, 236, 110, 0.85); top: calc(15% + var(--i) * 13%); bottom: auto; animation: nbFirefly 3s ease-in-out var(--d) infinite; }
+@keyframes nbFirefly { 0%, 100% { opacity: 0; translate: 0 0; } 30% { opacity: 1; translate: calc((var(--i) - 2.5) * 4px) -6px; } 60% { opacity: 0.6; translate: calc((2.5 - var(--i)) * 3px) -12px; } }
+.note-bubble[data-fx="sleepy"] .nb-fx i { left: calc(78% + var(--i) * 6%); color: #c9d6ff; font-weight: 800; font-family: var(--display); text-shadow: 0 0 5px rgba(160, 180, 255, 0.8); animation-duration: 2.8s; }
+.note-bubble[data-fx="lightning"] .nb-fx i { color: #ffe066; font-size: 0.85rem; text-shadow: 0 0 8px rgba(255, 220, 80, 1); animation: nbZap 2.2s steps(1) var(--d) infinite; top: calc(var(--i) * 30%); bottom: auto; }
+.note-bubble[data-fx="lightning"] .nb-fx i:nth-child(odd) { left: -6px; } .note-bubble[data-fx="lightning"] .nb-fx i:nth-child(even) { left: calc(100% + 2px); }
+@keyframes nbZap { 0%, 100% { opacity: 0; } 10%, 16% { opacity: 1; } 13% { opacity: 0.2; } }
+.note-bubble[data-fx="lightning"] { animation: nbFlash 2.2s steps(1) infinite; }
+@keyframes nbFlash { 0%, 100% { filter: none; } 10%, 16% { filter: brightness(1.35); } }
+@media (prefers-reduced-motion: reduce) { .nb-ring { animation: none; } }
+.nb-fx.nb-ring { inset: -3px; }
