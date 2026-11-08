@@ -489,6 +489,8 @@ function commentView(c, me, post) {
     text: c.text,
     media: c.media,
     createdAt: c.createdAt,
+    editedAt: c.editedAt || null,
+    canEdit: c.userId === me.id && !c.videoReply,
     author: authorView(findUser(c.userId)),
     mentions: usernamesOf(c.mentions),
     parentId: c.parentId || null,
@@ -1628,6 +1630,31 @@ async function handleSocial(req, res, url, me) {
       notify(comment.userId, "reaction", me, { postId: post.id, emoji, text: comment.text });
     }
     sendJSON(res, 200, { reactions: commentReactions(comment, me) });
+    return true;
+  }
+
+  // Edit your own comment: PATCH /api/comments/:id { text }
+  if (m === "PATCH" && a === "comments" && parts.length === 2) {
+    rateLimit("comment-edit:" + me.id, 60, 10 * 60 * 1000, "You’re editing a lot. Take a short break.");
+    const comment = db.comments.find((x) => x.id === b);
+    const post = comment && viewablePost(comment.postId, me);
+    if (!comment || !post) throw httpError(404, "This reply doesn’t exist anymore.");
+    if (comment.userId !== me.id) throw httpError(403, "You can only edit your own replies.");
+    if (comment.videoReply) throw httpError(400, "A video reply can’t be edited.");
+    const text = clean((await readJSON(req)).text);
+    if (!text && !comment.media) throw httpError(400, "A reply can’t be empty. Delete it instead.");
+    if (chars(text) > LIMITS.comment) throw httpError(400, `Keep replies under ${LIMITS.comment} characters.`);
+    if (text !== comment.text) {
+      require("./sensitive").refuseSensitive([text]);
+      const before = new Set(comment.mentions || []);
+      comment.text = text;
+      comment.mentions = findMentions(text);
+      comment.editedAt = new Date().toISOString();
+      save("comments");
+      notifyMentions(comment.mentions.filter((id) => !before.has(id)), me, { postId: post.id, text });
+      broadcast({ type: "comment:edited", postId: post.id, commentId: comment.id });
+    }
+    sendJSON(res, 200, { comment: commentView(comment, me, post) });
     return true;
   }
 

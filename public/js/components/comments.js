@@ -154,11 +154,12 @@ function commentEl(c, { onReply, onGif, onRemoved, post }) {
         h("span", { class: "muted handle", text: "@" + c.author.username }),
         h("span", { class: "muted", text: "·" }),
         h("span", { class: "muted" }, timeEl(c.createdAt)),
+        h("span", { class: "muted reply-edited", hidden: !c.editedAt, title: c.editedAt ? "Edited " + new Date(c.editedAt).toLocaleString() : "", text: "· edited" }),
         c.at != null ? h("button", { type: "button", class: "at-badge", title: "Jump to this moment", text: "📍 " + fmtTime(c.at), onclick: () => { const v = document.querySelector(".watch-main video, .lb-player video"); if (v) { v.currentTime = c.at; v.play().catch(() => {}); v.scrollIntoView({ behavior: "smooth", block: "center" }); } } }) : null
       ),
       h("div", { class: "reply-content" + (c.stuck?.length ? " has-stuck" : "") },
-        c.text ? (() => {
-          const t = h("p", { class: "post-text" }, richText(c.text, c.mentions));
+        c.text || c.canEdit ? (() => {
+          const t = h("p", { class: "post-text", hidden: !c.text }, richText(c.text || "", c.mentions));
           // On videos and shorts, "1:23" jumps the player to that moment
           const dur = post?.media?.[0]?.duration;
           if (post && post.type !== "post" && dur) linkTimes(t, (sec) => emit("player:seek", { postId: post.id, seconds: sec }), dur);
@@ -173,6 +174,18 @@ function commentEl(c, { onReply, onGif, onRemoved, post }) {
   // Swipe right on it to answer (like in chats)
   if (!post?.noReplies) swipeToReply(el, () => onReply(c));
   paintHeart(el, c);
+  // Click (or tap) your own reply 3 times: edit it right there
+  if (c.canEdit) {
+    let taps = 0, last = 0;
+    el.querySelector(".reply-content").addEventListener("click", (e) => {
+      if (e.target.closest("a, button, video, .reply-stuck, .reply-edit")) return;
+      const now = Date.now();
+      taps = now - last < 450 ? taps + 1 : 1;
+      last = now;
+      if (taps >= 3) { taps = 0; getSelection?.()?.removeAllRanges(); editComment(el, post); }
+    });
+    el.querySelector(".reply-content").title = "Click 3 times to edit";
+  }
   if (c.canDelete) {
     const del = h("button", { class: "act act-delete reply-delete", "aria-label": "Delete reply" }, icon("trash"));
     confirmClick(del, "Delete?", async () => {
@@ -187,6 +200,57 @@ function commentEl(c, { onReply, onGif, onRemoved, post }) {
   }
   paintReactions(el, c);
   return el;
+}
+
+// Show a reply's new text (after you edit it, or live when someone else does)
+function paintText(el, c, post) {
+  const t = el.querySelector(".reply-content .post-text");
+  if (t) {
+    t.replaceChildren(richText(c.text || "", c.mentions));
+    t.hidden = !c.text;
+    const dur = post?.media?.[0]?.duration;
+    if (post && post.type !== "post" && dur) linkTimes(t, (sec) => emit("player:seek", { postId: post.id, seconds: sec }), dur);
+  }
+  const mark = el.querySelector(".reply-edited");
+  if (mark) { mark.hidden = !c.editedAt; mark.title = c.editedAt ? "Edited " + new Date(c.editedAt).toLocaleString() : ""; }
+}
+
+function editComment(el, post) {
+  const c = el._comment;
+  const box = el.querySelector(".reply-content");
+  const t = box?.querySelector(".post-text");
+  if (!t || box.querySelector(".reply-edit")) return;
+  const area = h("textarea", { class: "reply-edit-text", rows: 1, maxlength: 2000, "aria-label": "Edit your reply" });
+  area.value = c.text || "";
+  const save = h("button", { type: "button", class: "btn btn-primary btn-xs", text: "Save" });
+  const cancel = h("button", { type: "button", class: "btn btn-xs reply-edit-cancel", text: "Cancel" });
+  const form = h("div", { class: "reply-edit" }, area, h("div", { class: "reply-edit-bar" }, h("small", { class: "muted", text: "Enter to save · Esc to cancel" }), cancel, save));
+  t.hidden = true;
+  t.after(form);
+  attachMentions?.(area);
+  const fit = () => { area.style.height = "auto"; area.style.height = area.scrollHeight + "px"; };
+  area.addEventListener("input", fit);
+  requestAnimationFrame(() => { fit(); area.focus(); area.setSelectionRange(area.value.length, area.value.length); });
+  const done = () => { form.remove(); t.hidden = !c.text; };
+  cancel.addEventListener("click", done);
+  const submit = async () => {
+    const text = area.value.trim();
+    if (text === (c.text || "")) return done();
+    if (!text && !c.media) return toast("A reply can’t be empty. Delete it instead.");
+    save.disabled = true;
+    try {
+      const { comment } = await api(`/api/comments/${c.id}`, { method: "PATCH", body: { text } });
+      Object.assign(c, { text: comment.text, mentions: comment.mentions, editedAt: comment.editedAt });
+      done();
+      paintText(el, c, post);
+      el.classList.remove("just-edited"); el.offsetWidth; el.classList.add("just-edited");
+    } catch (err) { save.disabled = false; toast(err.error || "Couldn’t save that."); }
+  };
+  save.addEventListener("click", submit);
+  area.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(); }
+    else if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !e.defaultPrevented && !document.querySelector(".mention-box:not([hidden])")) { e.preventDefault(); submit(); }
+  });
 }
 
 /* ---------- The whole section ---------- */
@@ -413,6 +477,16 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
     if (ev.postId !== post.id) return;
     paintStuck(list.querySelector(`.reply[data-id="${CSS.escape(ev.commentId)}"]`), ev.stuck);
   });
+  const offEdit = on("comment:edited", async (ev) => {
+    if (ev.postId !== post.id) return;
+    const el = list.querySelector(`.reply[data-id="${CSS.escape(ev.commentId)}"]`);
+    if (!el || el.querySelector(".reply-edit")) return;
+    try {
+      const { comment } = await api(`/api/comments/${ev.commentId}`);
+      Object.assign(el._comment, { text: comment.text, mentions: comment.mentions, editedAt: comment.editedAt });
+      paintText(el, el._comment, post);
+    } catch {}
+  });
   const offReact = on("comment:reactions", async (ev) => {
     if (ev.postId !== post.id) return;
     const el = list.querySelector(`.reply[data-id="${CSS.escape(ev.commentId)}"]`);
@@ -439,5 +513,5 @@ export function commentsSection(post, initial, { getTime, onTimed } = {}) {
   const el = h("section", { class: "replies" }, h("div", { class: "replies-head" }, heading, sortBar), closedNote, home, list);
   // "Reply with a video": jump to the box and open the file picker
   const replyWithVideo = () => { home.append(form); el.scrollIntoView({ behavior: "smooth", block: "start" }); text.focus(); picker.open(); };
-  return { el, replyWithVideo, stop: () => { offNew(); offDel(); offReact(); offStuck(); closeEmojiPicker(); closeGifs(); } };
+  return { el, replyWithVideo, stop: () => { offNew(); offDel(); offReact(); offStuck(); offEdit(); closeEmojiPicker(); closeGifs(); } };
 }

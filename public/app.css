@@ -8232,3 +8232,18 @@ html.pk-open, html.pk-open body { overscroll-behavior: none; }
 @keyframes nbFlash { 0%, 100% { filter: none; } 10%, 16% { filter: brightness(1.35); } }
 @media (prefers-reduced-motion: reduce) { .nb-ring { animation: none; } }
 .nb-fx.nb-ring { inset: -3px; }
+
+/* Editing your own reply (click it 3 times) */
+.reply-edited { font-size: 0.85em; font-style: italic; }
+.reply-edited[hidden] { display: none; }
+.reply-content:has(.reply-edit) { display: block; }
+.reply-edit { margin: 4px 0 6px; animation: replyEditIn .18s ease-out; }
+.reply-edit-text { width: 100%; min-height: 40px; resize: none; overflow: hidden; box-sizing: border-box; padding: 9px 12px; border-radius: 14px; border: 1.5px solid #ff4fa3; background: rgba(255, 79, 163, 0.07); color: inherit; font: inherit; line-height: 1.4; outline: none; box-shadow: 0 0 0 3px rgba(255, 79, 163, 0.15); }
+.reply-edit-bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.reply-edit-bar small { margin-right: auto; font-size: 0.78em; }
+.reply-edit-cancel { background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: inherit; }
+.reply.just-edited .reply-content .post-text { animation: replyEdited .9s ease-out; }
+@keyframes replyEditIn { from { opacity: 0; transform: translateY(-3px); } }
+@keyframes replyEdited { 0% { background: rgba(255, 79, 163, 0.28); } 100% { background: transparent; } }
+@media (hover: hover) { .reply-content[title] .post-text { cursor: text; } }
+@media (max-width: 600px) { .reply-edit-bar small { display: none; } }
