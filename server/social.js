@@ -296,6 +296,9 @@ function cleanLook(b, me) {
   if (["underline", "neon", "glass", "boxed", "retro", "gradient"].includes(b.tabStyle)) out.tabStyle = b.tabStyle; // how the tabs on my profile look
   if (["square", "outline", "neon", "gradient", "glass", "pop"].includes(b.btnStyle)) out.btnStyle = b.btnStyle; // how the buttons on my profile look
   if (["curve", "wave", "zigzag", "slant", "fade", "rounded"].includes(b.bannerEdge)) out.bannerEdge = b.bannerEdge; // the shape of my banner's bottom edge
+  if (["tilt", "zoom", "spin", "glow", "wiggle", "bounce"].includes(b.photoHover)) out.photoHover = b.photoHover; // what my photo does when you point at it
+  if (["grain", "scanlines", "vignette", "sparkle", "rain", "dreamy", "sunset"].includes(b.bannerOverlay)) out.bannerOverlay = b.bannerOverlay; // a layer over my banner
+  if (["pink", "white", "gold", "rainbow"].includes(b.spotlight)) out.spotlight = b.spotlight; // a light that follows the pointer on my profile
   // Up to 3 badges shown next to my name
   if (Array.isArray(b.featured)) { const f = [...new Set(b.featured.map(String).filter((x) => /^[\w:-]{1,40}$/.test(x)))].slice(0, 3); if (f.length) out.featured = f; }
   // A status under my name: an emoji and a few words

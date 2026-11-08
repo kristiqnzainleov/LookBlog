@@ -8151,3 +8151,47 @@ html.pk-open, html.pk-open body { overscroll-behavior: none; }
 .srch-trend-text { display: flex; flex-direction: column; min-width: 0; }
 .srch-trend-text b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .srch-trend-text small { font-size: 0.78rem; }
+
+/* ---------- 🆕 Photo on hover ---------- */
+:is(.view, .look-preview)[data-phov] .profile-avatar .avatar { transition: rotate 0.6s cubic-bezier(.2, 1.3, .4, 1), scale 0.35s cubic-bezier(.2, 1.3, .4, 1), box-shadow 0.3s, filter 0.3s; }
+:is(.view, .look-preview)[data-phov="tilt"] .profile-avatar { perspective: 500px; }
+:is(.view, .look-preview)[data-phov="tilt"] .profile-avatar:hover .avatar { rotate: 1 -1 0 22deg; scale: 1.05; }
+:is(.view, .look-preview)[data-phov="zoom"] .profile-avatar:hover .avatar { scale: 1.14; }
+:is(.view, .look-preview)[data-phov="spin"] .profile-avatar:hover .avatar { rotate: 360deg; transition-duration: 0.9s; }
+:is(.view, .look-preview)[data-phov="glow"] .profile-avatar:hover .avatar { box-shadow: 0 0 0 4px var(--accent, var(--pink)), 0 0 34px 6px var(--accent, var(--pink)); filter: brightness(1.08) saturate(1.15); }
+:is(.view, .look-preview)[data-phov="wiggle"] .profile-avatar:hover .avatar { animation: phovWiggle 0.6s ease-in-out; }
+@keyframes phovWiggle { 0%, 100% { rotate: 0deg; } 20% { rotate: -9deg; } 40% { rotate: 8deg; } 60% { rotate: -5deg; } 80% { rotate: 3deg; } }
+:is(.view, .look-preview)[data-phov="bounce"] .profile-avatar:hover .avatar { animation: phovBounce 0.7s cubic-bezier(.3, 0, .5, 1); }
+@keyframes phovBounce { 0%, 100% { translate: 0 0; } 30% { translate: 0 -16px; } 55% { translate: 0 0; } 72% { translate: 0 -6px; } }
+
+/* ---------- 🆕 Banner overlay ---------- */
+.view[data-bov] .profile-banner:not(.look-mini-banner) { position: relative; }
+:is(.view, .look-preview)[data-bov] .profile-banner::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+:is(.view, .look-preview)[data-bov="grain"] .profile-banner::after { opacity: 0.32; mix-blend-mode: overlay; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>"); animation: bovGrain 0.9s steps(4) infinite; }
+@keyframes bovGrain { 0% { background-position: 0 0; } 25% { background-position: -40px 20px; } 50% { background-position: 30px -30px; } 75% { background-position: -20px -10px; } }
+:is(.view, .look-preview)[data-bov="scanlines"] .profile-banner::after { background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 2px, transparent 2px 4px), linear-gradient(90deg, rgba(255, 0, 80, 0.08), rgba(0, 200, 255, 0.08)); animation: bovScan 6s linear infinite; }
+@keyframes bovScan { to { background-position: 0 120px, 0 0; } }
+:is(.view, .look-preview)[data-bov="vignette"] .profile-banner::after { background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.7) 100%); }
+:is(.view, .look-preview)[data-bov="sparkle"] .profile-banner::after { background-image: radial-gradient(circle, #fff 0 1.2px, transparent 2px), radial-gradient(circle, rgba(255, 210, 63, 0.95) 0 1px, transparent 1.8px), radial-gradient(circle, rgba(255, 79, 163, 0.9) 0 1px, transparent 1.8px); background-size: 70px 60px, 110px 90px, 90px 130px; background-position: 0 0, 30px 20px, 50px 40px; animation: bovTwinkle 2.4s ease-in-out infinite alternate; }
+@keyframes bovTwinkle { from { opacity: 0.35; } to { opacity: 1; } }
+:is(.view, .look-preview)[data-bov="rain"] .profile-banner::after { background: repeating-linear-gradient(105deg, transparent 0 14px, rgba(200, 225, 255, 0.28) 14px 15px, transparent 15px 34px), linear-gradient(rgba(10, 20, 40, 0.25), rgba(10, 20, 40, 0.25)); background-size: 120px 120px, auto; animation: bovRain 0.7s linear infinite; }
+@keyframes bovRain { to { background-position: -32px 120px, 0 0; } }
+:is(.view, .look-preview)[data-bov="dreamy"] .profile-banner::after { background: linear-gradient(120deg, rgba(255, 158, 207, 0.45), rgba(195, 166, 255, 0.4), rgba(143, 211, 255, 0.45)); background-size: 200% 200%; mix-blend-mode: screen; animation: bovDream 8s ease-in-out infinite alternate; }
+@keyframes bovDream { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+:is(.view, .look-preview)[data-bov="sunset"] .profile-banner::after { background: linear-gradient(180deg, rgba(255, 196, 61, 0.35), rgba(255, 79, 139, 0.35) 70%, rgba(80, 20, 60, 0.45)); mix-blend-mode: soft-light; }
+
+/* ---------- 🆕 Spotlight that follows the pointer ---------- */
+.page-profile .profile, .look-preview { position: relative; }
+.pf-spot { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.35s; mix-blend-mode: screen;
+  background: radial-gradient(circle 240px at var(--mx, 50%) var(--my, 30%), var(--sc, rgba(255, 79, 163, 0.32)), transparent 70%); }
+.look-preview .pf-spot { background: radial-gradient(circle 120px at var(--mx, 50%) var(--my, 30%), var(--sc, rgba(255, 79, 163, 0.32)), transparent 70%); }
+.pf-spot.on { opacity: 1; }
+.pf-spot[data-c="white"] { --sc: rgba(255, 255, 255, 0.22); }
+.pf-spot[data-c="gold"] { --sc: rgba(255, 200, 70, 0.3); }
+.pf-spot[data-c="rainbow"] { --sc: rgba(255, 79, 163, 0.34); animation: spotHue 4s linear infinite; }
+@keyframes spotHue { to { filter: hue-rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.view, .look-preview)[data-phov] .profile-avatar .avatar { transition: none; animation: none !important; }
+  :is(.view, .look-preview)[data-bov] .profile-banner::after { animation: none !important; }
+}

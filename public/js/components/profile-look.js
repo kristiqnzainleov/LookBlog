@@ -88,6 +88,12 @@ export const TAB_STYLES = [["", "Normal"], ["underline", "Underline"], ["neon", 
 export const BTN_STYLES = [["", "Normal"], ["square", "◼ Square"], ["outline", "Outline"], ["neon", "💡 Neon"], ["gradient", "🎨 Gradient"], ["glass", "🧊 Glass"], ["pop", "💥 3D pop"]];
 export const BANNER_EDGES = [["", "Straight"], ["curve", "◡ Curve"], ["wave", "〰️ Wave"], ["zigzag", "⚡ Zigzag"], ["slant", "◢ Slant"], ["fade", "🌫 Fade"], ["rounded", "▢ Rounded"]];
 export const NAME_SIZES = [["", "Normal"], ["big", "Big"], ["huge", "Huge"]];
+// What the photo does when you point at it, a layer over the banner, and a soft light that follows the pointer
+export const PHOTO_HOVERS = [["", "Nothing"], ["tilt", "3D tilt"], ["zoom", "Zoom in"], ["spin", "Spin"], ["glow", "Glow"], ["wiggle", "Wiggle"], ["bounce", "Bounce"]];
+export const BANNER_OVERLAYS = [["", "None"], ["grain", "Film grain"], ["scanlines", "VHS lines"], ["vignette", "Dark corners"], ["sparkle", "Glitter"], ["rain", "Rain"], ["dreamy", "Dreamy"], ["sunset", "Golden hour"]];
+export const SPOTLIGHTS = [["", "Off"], ["pink", "Pink"], ["white", "White"], ["gold", "Gold"], ["rainbow", "Rainbow"]];
+// Looks that also set these (a theme without them turns them off)
+const EXTRA_KEYS = ["photoHover", "bannerOverlay", "spotlight", "bannerAnim", "intro", "bioStyle"];
 // One tap: a whole look at once (in groups)
 const T = (color, font, effect, emoji, accent, ring, bg, banner, fx, deco, shape, anim, frame, trail) => ({ color, font, effect, emoji, accent, ring, bg, banner, fx, deco, shape, anim, frame, trail });
 export const LOOK_THEME_GROUPS = [
@@ -174,6 +180,16 @@ export const LOOK_THEME_GROUPS = [
     ["🦋 Dreamy", T("pastel", "script", "holo", "🦋", "#c3a6ff", "northern", "lavalamp", "cottoncandy", "butterflies", "butterfly", "egg", "float", "glass", "butterflies")],
     ["🌊 Deep sea", T("ocean", "wide", "glow", "🐋", "#4cc9ff", "ocean", "waves", "deepsea", "ocean", "seashell", "drop", "float", "ice", "ocean")],
     ["🌸 Sakura", T("pink", "script", "glow", "🌸", "#ffc0d9", "sakura", "paper", "cottoncandy", "sakura", "flowers", "flower", "swing", "love", "flowers")],
+  ]],
+  ["💫 Aesthetic", [
+    ["📼 Retro VHS", { ...T("candy", "retro", "pop", "📼", "#ff4fa3", "vapor", "vapor", "vaporwave", "", "glasses", "squircle", "glitch", "vapor", ""), bannerOverlay: "scanlines", photoHover: "wiggle", spotlight: "pink", bannerAnim: "glitch" }],
+    ["🎞️ Film noir", { ...T("white", "serif", "shadow", "🎞️", "#f5f0eb", "steel", "paper", "mono", "rain", "glasses", "squircle", "", "polaroid", ""), bannerOverlay: "grain", photoHover: "zoom", spotlight: "white", intro: "fade" }],
+    ["🌅 Golden hour", { ...T("sunset", "script", "glow", "🌅", "#ff8a3d", "sunrise", "sunrays", "sunsetcity", "summer", "glasses", "blob", "float", "glass", "sparkle"), bannerOverlay: "sunset", photoHover: "glow", spotlight: "gold" }],
+    ["☁️ Dreamcore", { ...T("pastel", "rounded", "holo", "☁️", "#c3a6ff", "cotton", "clouds", "cottoncandy", "clouds", "butterfly", "cushion", "float", "glass", "butterflies"), bannerOverlay: "dreamy", photoHover: "bounce", spotlight: "rainbow", bannerAnim: "hue" }],
+    ["🌧️ Rainy city", { ...T("ocean", "wide", "glow", "🌧️", "#4cc9ff", "midnight", "dusk", "sunsetcity", "rain", "headphones", "squircle", "float", "glass", "bubbles"), bannerOverlay: "rain", photoHover: "tilt", spotlight: "white" }],
+    ["✨ Starlight", { ...T("galaxy", "fancy", "shine", "✨", "#d6a4ff", "northern", "stars", "galaxy", "stars", "star", "star", "pulse", "holo", "stars"), bannerOverlay: "sparkle", photoHover: "spin", spotlight: "rainbow", intro: "zoom" }],
+    ["📚 Dark academia", { ...T("coffee", "serif", "shadow", "📚", "#c69c6d", "bronze", "paper", "cocoa", "coffee", "glasses", "arch", "", "wood", ""), bannerOverlay: "vignette", photoHover: "tilt", spotlight: "gold", bioStyle: "scroll" }],
+    ["💿 Cyber pop", { ...T("neon", "techno", "neonsign", "💿", "#00f0ff", "electric", "circuit", "cyber", "matrix", "controller", "hex", "glitch", "neon", "gaming"), bannerOverlay: "scanlines", photoHover: "glow", spotlight: "pink" }],
   ]],
 ];
 export const LOOK_THEMES = LOOK_THEME_GROUPS.flatMap(([, list]) => list);
@@ -263,9 +279,29 @@ export function applyProfileLook({ view, avatarWrap, banner, bio, statusSlot, so
   if (bio) { if (look?.bioStyle) bio.dataset.bs = look.bioStyle; else delete bio.dataset.bs; }
   if (view) {
     if (look?.nameSize) view.dataset.nsz = look.nameSize; else delete view.dataset.nsz;
-    for (const [k, attr] of [["bannerAnim", "ban"], ["nameDeco", "ndeco"], ["intro", "intro"], ["statStyle", "stst"], ["tabStyle", "tabs"], ["btnStyle", "btns"], ["bannerEdge", "bedge"]]) { if (look?.[k]) view.dataset[attr] = look[k]; else delete view.dataset[attr]; }
+    for (const [k, attr] of [["bannerAnim", "ban"], ["nameDeco", "ndeco"], ["intro", "intro"], ["statStyle", "stst"], ["tabStyle", "tabs"], ["btnStyle", "btns"], ["bannerEdge", "bedge"], ["photoHover", "phov"], ["bannerOverlay", "bov"], ["spotlight", "spot"]]) { if (look?.[k]) view.dataset[attr] = look[k]; else delete view.dataset[attr]; }
     // An emoji instead of the mouse pointer on my profile
     view.style.cursor = look?.cursor ? `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><text x='2' y='26' font-size='24'>${look.cursor}</text></svg>`)}") 6 6, auto` : "";
+  }
+  // A soft light that follows the pointer over the profile
+  const spotHost = card || view;
+  if (spotHost) {
+    spotHost._spotOff?.(); spotHost._spotOff = null;
+    spotHost.querySelector(":scope > .pf-spot")?.remove();
+    if (look?.spotlight && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const light = h("div", { class: "pf-spot", dataset: { c: look.spotlight }, "aria-hidden": "true" });
+      spotHost.append(light);
+      let raf = 0, x = 0, y = 0;
+      const move = (e) => {
+        const r = spotHost.getBoundingClientRect();
+        x = e.clientX - r.left; y = e.clientY - r.top;
+        if (!raf) raf = requestAnimationFrame(() => { raf = 0; light.style.setProperty("--mx", x + "px"); light.style.setProperty("--my", y + "px"); light.classList.add("on"); });
+      };
+      const leave = () => light.classList.remove("on");
+      spotHost.addEventListener("pointermove", move);
+      spotHost.addEventListener("pointerleave", leave);
+      spotHost._spotOff = () => { spotHost.removeEventListener("pointermove", move); spotHost.removeEventListener("pointerleave", leave); };
+    }
   }
   // A trail behind the pointer while you look at the profile
   const trailHost = fxBox || view;
@@ -375,7 +411,7 @@ export function openLookEditor(onSaved, opts = {}) {
   const paint = () => {
     applyLook(previewWrap.querySelector(".look-preview-b"), cur);
     applyProfileLook({ view: previewWrap, avatarWrap: miniAvatar, banner: state.me.banner ? null : miniBanner, fxBox: previewWrap, statusSlot: previewStatus, card: previewWrap }, cur);
-    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"], [photoAnims, "photoAnim"], [bioStyles, "bioStyle"], [nameSizes, "nameSize"], [cursors, "cursor"], [bannerAnims, "bannerAnim"], [nameDecos, "nameDeco"], [intros, "intro"], [statStyles, "statStyle"], [tabStyles, "tabStyle"], [btnStyles, "btnStyle"], [bannerEdges, "bannerEdge"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
+    for (const [box, key] of [[fxs, "fx"], [decos, "deco"], [bioFonts, "bioFont"], [shapes, "shape"], [anims, "anim"], [frames, "frame"], [trails, "trail"], [photoAnims, "photoAnim"], [bioStyles, "bioStyle"], [nameSizes, "nameSize"], [cursors, "cursor"], [bannerAnims, "bannerAnim"], [nameDecos, "nameDeco"], [intros, "intro"], [statStyles, "statStyle"], [tabStyles, "tabStyle"], [btnStyles, "btnStyle"], [bannerEdges, "bannerEdge"], [photoHovers, "photoHover"], [bannerOverlays, "bannerOverlay"], [spotlights, "spotlight"]]) for (const b of box.children) b.classList.toggle("on", (b.dataset.v || "") === (cur[key] || ""));
     songLabel.textContent = songObj ? `${songObj.kind === "youtube" ? "▶️" : songObj.kind === "file" ? "💾" : "🎵"} ${songObj.title} · ${songObj.artist?.name || ""}` : "No song";
     songClear.hidden = !songObj;
     previewWrap.style.setProperty("--accent", cur.accent || "#ff4fa3");
@@ -539,6 +575,9 @@ export function openLookEditor(onSaved, opts = {}) {
   const tabStyles = pickRow(TAB_STYLES, "tabStyle");
   const btnStyles = pickRow(BTN_STYLES, "btnStyle");
   const bannerEdges = pickRow(BANNER_EDGES, "bannerEdge");
+  const photoHovers = pickRow(PHOTO_HOVERS, "photoHover");
+  const bannerOverlays = pickRow(BANNER_OVERLAYS, "bannerOverlay");
+  const spotlights = pickRow(SPOTLIGHTS, "spotlight");
   const cursors = h("div", { class: "look-chips" }, ...CURSORS.map((e) => { const b = h("button", { type: "button", class: "look-emo", dataset: { v: e, cursor: e }, text: e || "🖱" }); b.addEventListener("click", () => { cur.cursor = e; paint(); }); return b; }));
   // One-tap themes
   // Around Halloween (October to 7 November) the editor opens on the Halloween themes, around Christmas (15 November to 6 January) on the Christmas ones
@@ -552,7 +591,7 @@ export function openLookEditor(onSaved, opts = {}) {
     themeTabs.replaceChildren(...LOOK_THEME_GROUPS.map(([name], gi) => { const b = h("button", { type: "button", class: "look-theme-tab" + (gi === themeGroup ? " on" : ""), text: name }); b.addEventListener("click", () => { themeGroup = gi; paintThemes(); }); return b; }));
     themeGrid.replaceChildren(...LOOK_THEME_GROUPS[themeGroup][1].map(([label, t]) => {
       const b = h("button", { type: "button", class: "look-theme", text: label });
-      b.addEventListener("click", () => { Object.assign(cur, { ...t, status: cur.status, song: cur.song, featured: cur.featured }); paint(); paintGradAfterTheme(); toast(`${label} look — tap Save to keep it.`); });
+      b.addEventListener("click", () => { Object.assign(cur, { ...Object.fromEntries(EXTRA_KEYS.map((k) => [k, ""])), ...t, status: cur.status, song: cur.song, featured: cur.featured }); paint(); paintGradAfterTheme(); toast(`${label} look — tap Save to keep it.`); });
       return b;
     }));
   };
@@ -593,10 +632,12 @@ export function openLookEditor(onSaved, opts = {}) {
     h("p", { class: "look-label", text: "Ring around your photo" }), rings,
     h("p", { class: "look-label", text: "Photo shape" }), shapes,
     h("p", { class: "look-label", text: "Photo movement" }), photoAnims,
+    h("p", { class: "look-label", text: "🆕 Photo on hover" }), h("p", { class: "create-hint", text: "What your photo does when someone points at it (or taps it on a phone)." }), photoHovers,
     h("p", { class: "look-label", text: "Name size" }), nameSizes,
     h("p", { class: "look-label", text: "Pointer" }), h("p", { class: "create-hint", text: "An emoji instead of the mouse pointer when people are on your profile." }), cursors,
     h("p", { class: "look-label", text: "Profile frame" }), frames,
     h("p", { class: "look-label", text: "Pointer trail" }), h("p", { class: "create-hint", text: "Little things that follow the mouse (or finger) on your profile." }), trails,
+    h("p", { class: "look-label", text: "🆕 Spotlight" }), h("p", { class: "create-hint", text: "A soft light that follows the mouse (or finger) over your profile." }), spotlights,
     h("p", { class: "look-label", text: "Profile background" }), bgs,
     h("p", { class: "look-label", text: "Status" }), h("p", { class: "create-hint", text: "A few words under your name, with an emoji." }), statusRow,
     h("p", { class: "look-label", text: "Profile effect" }), h("p", { class: "create-hint", text: "Things that fall or float over your profile." }), fxs,
@@ -611,6 +652,7 @@ export function openLookEditor(onSaved, opts = {}) {
     h("p", { class: "look-label", text: "🗂 Tabs style" }), h("p", { class: "create-hint", text: "The Posts, Shorts, Videos… tabs on your profile." }), tabStyles,
     h("p", { class: "look-label", text: "🔘 Buttons style" }), h("p", { class: "create-hint", text: "Follow, Message and the other buttons on your profile." }), btnStyles,
     h("p", { class: "look-label", text: "〰️ Banner edge" }), h("p", { class: "create-hint", text: "The shape of the bottom of your banner." }), bannerEdges,
+    h("p", { class: "look-label", text: "🆕 Banner overlay" }), h("p", { class: "create-hint", text: "A layer over your banner: film grain, VHS lines, glitter, rain…" }), bannerOverlays,
     h("p", { class: "look-label", text: "Banner colours" }), h("p", { class: "create-hint", text: state.me.banner ? "Shown when you remove your banner picture." : "For your banner (you don’t have a banner picture)." }), banners,
     save, reset) });
   const store = async (look) => {
@@ -625,7 +667,7 @@ export function openLookEditor(onSaved, opts = {}) {
     } catch (err) { toast(err.error || "Couldn’t save it."); save.disabled = reset.disabled = false; }
   };
   const KEYS = ["color", "font", "effect", "accent", "ring", "bg", "banner", "emoji", "fx", "deco", "bioFont", "status", "shape", "anim", "frame", "trail",
-    "photoAnim", "bioStyle", "nameSize", "cursor", "bannerAnim", "nameDeco", "intro", "statStyle", "tabStyle", "btnStyle", "bannerEdge"];
+    "photoAnim", "bioStyle", "nameSize", "cursor", "bannerAnim", "nameDeco", "intro", "statStyle", "tabStyle", "btnStyle", "bannerEdge", "photoHover", "bannerOverlay", "spotlight"];
   save.addEventListener("click", () => store({ ...Object.fromEntries(KEYS.map((k) => [k, cur[k] || null])), song: songObj && !songObj.kind ? songObj.id : null,
     songYt: songObj?.kind === "youtube" ? { id: songObj.yt, title: songObj.title, author: songObj.artist?.name === "YouTube" ? "" : songObj.artist?.name || "" } : null,
     songFile: songObj?.kind === "file" ? { url: songObj.url, title: songObj.title } : null, featured: cur.featured?.length ? cur.featured : null }));
