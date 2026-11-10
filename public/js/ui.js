@@ -344,7 +344,7 @@ export function empty(title, text, action) {
 /* ---------- Modals (grow out of the center, like the log in pop-up) ---------- */
 // A window opened from a menu can show a back arrow (instead of ✕) that returns to that menu:
 // call modalBackTo(reopenMenu) right before opening it; only the next window (opened within about a second) gets it
-let pendingBack = null;
+let pendingBack = null, winBackTimer = null;
 export function modalBackTo(fn) { pendingBack = { fn, at: Date.now() }; }
 // (for panels that aren't windows, like the members drawer: take the back arrow if there is one)
 export function takeModalBack() { const b = pendingBack && Date.now() - pendingBack.at < 1200 ? pendingBack.fn : null; pendingBack = null; return b; }
@@ -373,11 +373,16 @@ export function modal({ title, body, wide = false, onClose }) {
   }
   const onKey = (e) => e.key === "Escape" && close();
   closeBtn.addEventListener("click", () => {
+    if (!back) return close();
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { close(); return setTimeout(back, 120); }
+    // Back to the previous window: only the windows move. The dimmed page behind them stays exactly as it is
+    const root = document.documentElement;
+    overlay.classList.add("win-out");
+    root.classList.add("win-back");
     close();
-    if (!back) return;
-    // During the back slide the slide is the animation: the window goes at once, so it doesn't also shrink on top of it
-    if (document.documentElement.classList.contains("vt-back")) { overlay.remove(); back(); }
-    else setTimeout(back, 120);
+    back();
+    clearTimeout(winBackTimer);
+    winBackTimer = setTimeout(() => root.classList.remove("win-back"), 300);
   });
   overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
   document.addEventListener("keydown", onKey);

@@ -43,7 +43,8 @@ export function slideBack(fn, { page = false } = {}) {
 document.addEventListener("click", (e) => {
   if (passing || busy || calm() || !document.startViewTransition || e.button > 0) return;
   const b = e.target.closest?.(BACK);
-  if (!b || b.disabled || b.closest(".lb-nav")) return;
+  // (a window's own arrow only moves the window: see modal() in ui.js)
+  if (!b || b.disabled || b.closest(".lb-nav, .app-overlay, .md-wrap, .create-pop")) return;
   e.preventDefault();
   e.stopImmediatePropagation();
   slideBack(() => { passing = true; try { b.click(); } finally { passing = false; } });
