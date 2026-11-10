@@ -1,5 +1,5 @@
 // Starts the Look Blog app.
-import { $, h, icon, avatar, fillAvatar, timeAgo, toast, lastSeenText, tick, markLive } from "./ui.js";
+import { $, h, icon, avatar, fillAvatar, timeAgo, toast, lastSeenText, tick, markLive, modalBackTo } from "./ui.js";
 import { api } from "./api.js";
 import { state, on } from "./state.js";
 import { connect } from "./realtime.js";
@@ -155,13 +155,16 @@ function setupMenu() {
       const kind = e.target.closest("button[data-kind]")?.dataset.kind;
       if (!kind) return;
       close();
-      if (kind === "event") return (await import("./pages/events.js")).openEventForm();
-      if (kind === "series") return (await import("./components/cinema.js")).openSeriesForm();
-      if (kind === "movie") return (await import("./components/cinema.js")).openMovieUpload();
-      if (kind === "song") return (await import("./components/music.js")).openUploadSong();
-      if (kind === "live") return (await import("./pages/live.js")).openGoLive();
+      // The window that opens has a back arrow (not an X) that returns to this menu
+      const withBack = (fn) => { modalBackTo(open); return fn(); };
+      if (kind === "event") { const m = await import("./pages/events.js"); return withBack(() => m.openEventForm()); }
+      if (kind === "series") { const m = await import("./components/cinema.js"); return withBack(() => m.openSeriesForm()); }
+      if (kind === "movie") { const m = await import("./components/cinema.js"); return withBack(() => m.openMovieUpload()); }
+      if (kind === "song") { const m = await import("./components/music.js"); return withBack(() => m.openUploadSong()); }
+      if (kind === "live") { const m = await import("./pages/live.js"); return withBack(() => m.openGoLive()); }
       const { createCard } = await import("./components/composer.js");
       const { modal } = await import("./ui.js");
+      modalBackTo(open);
       const card = createCard(kind);
       const m = modal({ title: kind === "video" ? "Upload a video" : kind === "short" ? "Upload a short" : "Write a post", body: card.el, wide: true });
       card.el.classList.add("in-modal");

@@ -372,7 +372,13 @@ export function modal({ title, body, wide = false, onClose }) {
     onClose?.();
   }
   const onKey = (e) => e.key === "Escape" && close();
-  closeBtn.addEventListener("click", () => { close(); if (back) setTimeout(back, 120); });
+  closeBtn.addEventListener("click", () => {
+    close();
+    if (!back) return;
+    // During the back slide the slide is the animation: the window goes at once, so it doesn't also shrink on top of it
+    if (document.documentElement.classList.contains("vt-back")) { overlay.remove(); back(); }
+    else setTimeout(back, 120);
+  });
   overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
   document.addEventListener("keydown", onKey);
   document.body.append(overlay);
