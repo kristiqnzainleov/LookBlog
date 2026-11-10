@@ -8269,3 +8269,6 @@ html.win-back .app-overlay:not(.win-out) .app-modal, html.win-back .create-pop:n
 .app-overlay.win-out .app-modal { animation: winBackOut 0.24s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
 @keyframes winBackOut { from { transform: none; opacity: 1; } to { transform: translateX(45%); opacity: 0; } }
 @keyframes winBackIn { from { transform: translateX(-45%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* A photo or video being sent shows in its real colours (only the little "Sending…" tag says it's on its way) */
+.msg.pending:has(.pending-img) { opacity: 1; }

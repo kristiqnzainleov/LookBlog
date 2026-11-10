@@ -58,18 +58,22 @@ export function inspectVideo(file) {
   });
 }
 
-// Big photos (straight from a phone camera) are made smaller before they go up: much faster to send
+// Photos go up as they are: full quality, the phone's own colours and HDR brightness (re-saving a photo flattens
+// them, so it looks faded). Only a really huge photo is made smaller, at high quality and in the phone's wide colours.
 async function shrinkPhoto(file) {
-  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 900 * 1024) return file;
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size <= 8 * 1024 * 1024) return file;
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const MAX = 2048, k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+    const MAX = 3072, k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
     const c = document.createElement("canvas");
     c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
-    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const wide = matchMedia("(color-gamut: p3)").matches;
+    const ctx = (wide && c.getContext("2d", { colorSpace: "display-p3" })) || c.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bmp, 0, 0, c.width, c.height);
     bmp.close?.();
     const type = "image/jpeg";
-    const blob = await new Promise((ok) => c.toBlob(ok, type, 0.86));
+    const blob = await new Promise((ok) => c.toBlob(ok, type, 0.92));
     if (!blob || blob.size >= file.size) return file;
     return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type });
   } catch { return file; }
