@@ -21,6 +21,10 @@ export const NAME_COLORS = [
   // 🎄 Christmas
   ["candycane", "repeating-linear-gradient(115deg,#ff3b4e 0 10px,#ffffff 10px 20px)"], ["evergreen", "linear-gradient(90deg,#1f7a3a,#2ee66b,#1f7a3a)"], ["gingerbread", "linear-gradient(90deg,#c47a3d,#f3c08a,#c47a3d)"],
   ["frost", "linear-gradient(90deg,#e0f7ff,#ffffff,#9fd8ff)"], ["tinsel", "linear-gradient(90deg,#ffd23f,#fff7d6,#c0c0c0,#ffd23f)"], ["mistletoe", "linear-gradient(90deg,#2ea043,#ff4757,#2ea043)"],
+  // 🎄 More Christmas
+  ["hotcocoa", "linear-gradient(90deg,#8a4b26,#c47a3d,#f3e1c7)"], ["pine", "linear-gradient(90deg,#1f7a3a,#2ee66b,#b7f5c8)"], ["silverbells", "linear-gradient(90deg,#ffffff,#b8c2cc,#f5f7fa,#9aa5b1)"],
+  ["hollyberry", "linear-gradient(90deg,#ff3b4e,#ff8a9a,#2ee66b)"], ["polarlights", "linear-gradient(90deg,#2ee6a6,#4cc9ff,#ff7eb3)"],
+  ["mango", "linear-gradient(90deg,#ffd23f,#ff9f43,#ff6b6b)"], ["lavender", "linear-gradient(90deg,#e3d1ff,#c3a6ff,#9b7bff)"], ["cherry", "linear-gradient(90deg,#ff2e4d,#ff7a8a,#ff2e4d)"],
 ];
 export const NAME_FONTS = [["", "Default"], ["display", "Bold"], ["serif", "Elegant"], ["mono", "Mono"], ["script", "Script"], ["rounded", "Rounded"], ["wide", "Wide"],
   ["tall", "Tall"], ["retro", "Retro"], ["marker", "Marker"], ["pixel", "Pixel"], ["scifi", "Sci-fi"], ["hand", "Handwritten"], ["groovy", "Groovy"],
@@ -37,7 +41,8 @@ export const RINGS = [["", "None"], ["accent", "Accent"], ["sunset", "Sunset"], 
   ["peach", "🍑 Peach"], ["midnight", "🌃 Midnight"], ["electric", "⚡ Electric"], ["bubblegum", "🍬 Bubblegum"], ["northern", "🌌 Northern lights"], ["emerald", "💚 Emerald"], ["sakura", "🌸 Sakura"], ["bronze", "🥉 Bronze"],
   ["ruby", "❤️ Ruby"], ["sapphire", "💙 Sapphire"], ["amethyst", "💜 Amethyst"], ["citrus", "🍋 Citrus"], ["cotton", "🍭 Cotton candy"], ["vapor", "🌆 Vaporwave"], ["ember", "🔥 Ember"], ["holo", "🪩 Holo"],
   ["jackolantern", "🎃 Jack-o'-lantern"], ["haunted", "👻 Haunted"], ["candycorn", "🍬 Candy corn"], ["witchy", "🧙 Witchy"], ["bloodmoon", "🌑 Blood moon"],
-  ["wreath", "🌿 Wreath"], ["xlights", "💡 Christmas lights"], ["tinsel", "✨ Tinsel"], ["frosty", "❄️ Frosty"], ["gingerbread", "🍪 Gingerbread"]];
+  ["wreath", "🌿 Wreath"], ["xlights", "💡 Christmas lights"], ["tinsel", "✨ Tinsel"], ["frosty", "❄️ Frosty"], ["gingerbread", "🍪 Gingerbread"],
+  ["peppermint", "🍬 Peppermint"], ["snowglobe", "🔮 Snow globe"], ["holly", "🌿 Holly"]];
 // New: the banner moves, a line under the name, how the profile opens, and how the numbers look
 export const BANNER_ANIMS = [["", "Still"], ["kenburns", "🎥 Slow zoom"], ["pan", "↔️ Pan"], ["shimmer", "✨ Shimmer"], ["hue", "🌈 Colour shift"], ["pulse", "💓 Pulse"], ["glitch", "📺 Glitch"]];
 export const NAME_DECOS = [["", "None"], ["underline", "Underline"], ["highlight", "🖍 Marker"], ["wavy", "〰️ Wavy"], ["box", "▢ Box"], ["sparkle", "✨ Sparkles"], ["glowline", "💡 Glow line"]];
@@ -49,14 +54,16 @@ export const PROFILE_BGS = [["", "None"], ["glow", "Glow"], ["gradient", "Gradie
   ["marble", "🪨 Marble"], ["clouds", "☁️ Clouds"], ["checker", "🏁 Checker"], ["triangles", "🔺 Triangles"], ["lavalamp", "🫧 Lava lamp"], ["paper", "📄 Paper"],
   ["chess", "🏁 Chess"], ["stripes", "📏 Stripes"], ["pyramids", "🔺 Pyramids"], ["ringsbg", "⭕ Rings"], ["crosses", "➕ Crosses"], ["dusk", "🌇 Dusk"], ["mesh", "🫧 Mesh"], ["vapor", "🌆 Vaporwave"],
   ["cobweb", "🕸️ Cobwebs"], ["moon", "🌕 Full moon"], ["fog", "🌫️ Fog"], ["graves", "🪦 Graveyard"], ["slimebg", "🟢 Slime"],
-  ["xlightsbg", "💡 Fairy lights"], ["snowflakes", "❄️ Snowflakes"], ["sweater", "🧶 Christmas sweater"], ["fireplace", "🔥 Fireplace glow"], ["giftwrap", "🎁 Gift wrap"]];
+  ["xlightsbg", "💡 Fairy lights"], ["snowflakes", "❄️ Snowflakes"], ["sweater", "🧶 Christmas sweater"], ["fireplace", "🔥 Fireplace glow"], ["giftwrap", "🎁 Gift wrap"],
+  ["peppermintbg", "🍬 Peppermint"], ["xmasaurora", "🌌 Christmas aurora"], ["cabin", "🪵 Log cabin"]];
 export const BANNERS = [["", "Default"], ["sunset", "Sunset"], ["ocean", "Ocean"], ["aurora", "Aurora"], ["candy", "Candy"], ["fire", "Fire"], ["galaxy", "Galaxy"], ["night", "Night"], ["mint", "Mint"], ["mono", "Mono"],
   ["xmas", "🎄 Christmas"], ["winter", "❄️ Winter"], ["forest", "🌲 Forest"], ["turtle", "🐢 Turtle"], ["business", "💼 Business"], ["halloween", "🎃 Halloween"],
   ["beach", "🏖️ Beach"], ["love", "💘 Love"], ["matrix", "💻 Matrix"], ["coffee", "☕ Coffee"], ["pirate", "🏴‍☠️ Pirate"], ["spring", "🌷 Spring"],
   ["vapor", "🌴 Vaporwave"], ["sunsetcity", "🌆 City sunset"], ["deepsea", "🐋 Deep sea"], ["lemonade", "🍋 Lemonade"], ["berry", "🫐 Berry"], ["cyber", "🤖 Cyber"], ["desert", "🏜️ Desert"], ["cottoncandy", "🍭 Cotton candy"],
   ["vaporwave", "🌆 Vaporwave"], ["peach", "🍑 Peach"], ["lagoon", "🏝️ Lagoon"], ["blueberry", "🫐 Blueberry"], ["lime", "🍋 Lime"], ["cocoa", "🍫 Cocoa"], ["steelblue", "🛡️ Steel"], ["dusk", "🌇 Dusk"],
   ["graveyard", "🪦 Graveyard"], ["hauntedhouse", "🏚️ Haunted house"], ["candycorn", "🍬 Candy corn"], ["witchnight", "🧙 Witch night"], ["bloodmoon", "🌑 Blood moon"], ["pumpkinpatch", "🎃 Pumpkin patch"],
-  ["xmastree", "🎄 Christmas tree"], ["snowvillage", "🏘️ Snowy village"], ["northpole", "🧭 North Pole"], ["silentnight", "🌟 Silent night"], ["candycanebn", "🍭 Candy cane"], ["gingerhouse", "🍪 Gingerbread house"]];
+  ["xmastree", "🎄 Christmas tree"], ["snowvillage", "🏘️ Snowy village"], ["northpole", "🧭 North Pole"], ["silentnight", "🌟 Silent night"], ["candycanebn", "🍭 Candy cane"], ["gingerhouse", "🍪 Gingerbread house"],
+  ["xmasmarket", "🎪 Christmas market"], ["winterforest", "🌲 Winter forest"], ["auroranight", "🌌 Aurora night"], ["cozycabin", "🏡 Cozy cabin"]];
 // Photo shape, name animation, a frame around the profile, a trail behind the pointer
 export const AVATAR_SHAPES = [["", "Circle"], ["squircle", "Squircle"], ["hex", "Hexagon"], ["heart", "Heart"], ["star", "Star"], ["blob", "Blob"], ["diamond", "Diamond"],
   ["octagon", "Octagon"], ["pentagon", "Pentagon"], ["shield", "Shield"], ["leaf", "Leaf"], ["flower", "Flower"], ["drop", "Drop"],
@@ -69,13 +76,15 @@ export const CARD_FRAMES = [["", "None"], ["neon", "Neon"], ["glass", "Glass"], 
   ["rainbow", "🌈 Rainbow"], ["fire", "🔥 Fire"], ["dashed", "Dashed"], ["double", "Double"], ["sketch", "✏️ Sketch"], ["aurora", "🌌 Aurora"],
   ["vapor", "🌴 Vaporwave"], ["chrome", "🪞 Chrome"], ["love", "💗 Love"], ["toxic", "☢️ Toxic"], ["royal", "👑 Royal"], ["polaroid", "📸 Polaroid"],
   ["spooky", "🎃 Spooky"], ["cobweb", "🕸️ Cobweb"], ["slime", "🟢 Slime"], ["haunted", "👻 Haunted"],
-  ["xlights", "💡 Christmas lights"], ["wreath", "🌿 Wreath"], ["frosty", "❄️ Frosty"], ["ribbon", "🎀 Gift ribbon"], ["gingerbread", "🍪 Gingerbread"]];
+  ["xlights", "💡 Christmas lights"], ["wreath", "🌿 Wreath"], ["frosty", "❄️ Frosty"], ["ribbon", "🎀 Gift ribbon"], ["gingerbread", "🍪 Gingerbread"],
+  ["snowcap", "🏔️ Snow cap"], ["peppermint", "🍬 Peppermint"]];
 export const CURSOR_TRAILS = [["", "None"], ["sparkle", "✨ Sparkles"], ["hearts", "💗 Hearts"], ["stars", "⭐ Stars"], ["bubbles", "🫧 Bubbles"], ["fire", "🔥 Fire"], ["rainbow", "🌈 Rainbow"],
   ["snow", "❄️ Snow"], ["money", "💵 Money"], ["leaves", "🍃 Leaves"], ["notes", "🎵 Music"], ["love", "💘 Love"],
   ["flowers", "🌸 Flowers"], ["ghosts", "👻 Ghosts"], ["cats", "🐱 Cats"], ["paws", "🐾 Paws"],
   ["butterflies", "🦋 Butterflies"], ["fruit", "🍓 Fruit"], ["space", "🚀 Space"], ["gaming", "🎮 Gaming"], ["dino", "🦖 Dino"], ["magic", "🪄 Magic"], ["food", "🍕 Food"], ["ocean", "🐠 Ocean"],
   ["bats", "🦇 Bats"], ["pumpkins", "🎃 Pumpkins"], ["spiders", "🕷️ Spiders"], ["treats", "🍬 Treats"], ["skulls", "💀 Skulls"],
-  ["presents", "🎁 Presents"], ["ornaments", "🎄 Ornaments"], ["cookies", "🍪 Cookies"], ["bells", "🔔 Bells"], ["snowmen", "⛄ Snowmen"]];
+  ["presents", "🎁 Presents"], ["ornaments", "🎄 Ornaments"], ["cookies", "🍪 Cookies"], ["bells", "🔔 Bells"], ["snowmen", "⛄ Snowmen"],
+  ["stockings", "🧦 Stockings"], ["trees", "🎄 Trees"], ["reindeer", "🦌 Reindeer"], ["cocoa", "☕ Hot cocoa"]];
 export const PHOTO_ANIMS = [["", "Still"], ["spin", "🌀 Spin"], ["pulse", "💓 Pulse"], ["float", "🎈 Float"], ["wobble", "🍮 Wobble"], ["glow", "✨ Glow"], ["bounce", "🏀 Bounce"],
   ["swing", "🎐 Swing"], ["heartbeat", "💗 Heartbeat"], ["tilt", "🃏 Tilt"]];
 export const CURSORS = ["", "✨", "💖", "⭐", "🐢", "🔥", "👑", "🎮", "🍕", "🦄", "👻", "🌸", "💎", "🚀", "🐱", "🍓", "⚡", "🎧", "🌙", "🍀",
@@ -90,8 +99,8 @@ export const BANNER_EDGES = [["", "Straight"], ["curve", "◡ Curve"], ["wave", 
 export const NAME_SIZES = [["", "Normal"], ["big", "Big"], ["huge", "Huge"]];
 // What the photo does when you point at it, a layer over the banner, and a soft light that follows the pointer
 export const PHOTO_HOVERS = [["", "Nothing"], ["tilt", "3D tilt"], ["zoom", "Zoom in"], ["spin", "Spin"], ["glow", "Glow"], ["wiggle", "Wiggle"], ["bounce", "Bounce"]];
-export const BANNER_OVERLAYS = [["", "None"], ["grain", "Film grain"], ["scanlines", "VHS lines"], ["vignette", "Dark corners"], ["sparkle", "Glitter"], ["rain", "Rain"], ["dreamy", "Dreamy"], ["sunset", "Golden hour"]];
-export const SPOTLIGHTS = [["", "Off"], ["pink", "Pink"], ["white", "White"], ["gold", "Gold"], ["rainbow", "Rainbow"]];
+export const BANNER_OVERLAYS = [["", "None"], ["grain", "Film grain"], ["scanlines", "VHS lines"], ["vignette", "Dark corners"], ["sparkle", "Glitter"], ["rain", "Rain"], ["dreamy", "Dreamy"], ["sunset", "Golden hour"], ["snowfall", "Falling snow"], ["fairylights", "Fairy lights"]];
+export const SPOTLIGHTS = [["", "Off"], ["pink", "Pink"], ["white", "White"], ["gold", "Gold"], ["rainbow", "Rainbow"], ["candle", "Candlelight"], ["frost", "Frost"]];
 // Looks that also set these (a theme without them turns them off)
 const EXTRA_KEYS = ["photoHover", "bannerOverlay", "spotlight", "bannerAnim", "intro", "bioStyle"];
 // One tap: a whole look at once (in groups)
@@ -127,6 +136,20 @@ export const LOOK_THEME_GROUPS = [
     ["🌟 Silent night", T("tinsel", "script", "shine", "🌟", "#ffd23f", "tinsel", "stars", "silentnight", "northstar", "xstar", "star", "pulse", "gold", "sparkle")],
     ["🎅 Sleigh ride", T("xmas", "fancy", "shadow", "🛷", "#ff4757", "xlights", "snow", "northpole", "santas", "santa", "", "bounce", "xlights", "bells")],
     ["🔔 Jingle bells", T("tinsel", "groovy", "gold", "🔔", "#ffd23f", "tinsel", "giftwrap", "xmas", "bells", "bell", "gem", "tada", "ribbon", "bells")],
+  ]],
+  ["❄️ Winter wonderland", [
+    ["🎪 Christmas market", { ...T("hollyberry", "fancy", "glow", "🎄", "#ff4757", "holly", "cabin", "xmasmarket", "ornaments", "xstar", "", "float", "xlights", "trees"), bannerOverlay: "fairylights", spotlight: "candle" }],
+    ["🦌 Rudolph", { ...T("hollyberry", "rounded", "shadow", "🦌", "#c1121f", "peppermint", "snowflakes", "winterforest", "reindeer", "antlers", "cushion", "bounce", "snowcap", "reindeer"), bannerOverlay: "snowfall" }],
+    ["☕ Hot cocoa", { ...T("hotcocoa", "serif", "glow", "☕", "#c47a3d", "gingerbread", "cabin", "cozycabin", "cocoa", "cup", "blob", "float", "wood", "cocoa"), bannerOverlay: "vignette", spotlight: "candle" }],
+    ["🌌 Polar night", { ...T("polarlights", "scifi", "holo", "🌌", "#2ee6a6", "northern", "xmasaurora", "auroranight", "stars", "snowflake", "hex", "pulse", "aurora", "stars"), bannerOverlay: "sparkle", spotlight: "frost", bannerAnim: "hue" }],
+    ["🧦 Stockings", T("hollyberry", "comic", "pop", "🧦", "#ff3b4e", "peppermint", "peppermintbg", "xmas", "stockings", "stocking", "squircle", "swing", "peppermint", "stockings")],
+    ["🛷 Sledding", { ...T("frost", "display", "ice", "🛷", "#9fd8ff", "snowglobe", "snowflakes", "winterforest", "snow", "sled", "egg", "slide", "snowcap", "snow"), bannerOverlay: "snowfall", spotlight: "frost" }],
+    ["🔮 Snow globe", { ...T("silverbells", "fancy", "shine", "🔮", "#e0f7ff", "snowglobe", "snow", "snowvillage", "snow", "snowflake", "", "float", "glass", "snow"), bannerOverlay: "snowfall", photoHover: "tilt", spotlight: "white" }],
+    ["🌲 Pine forest", { ...T("pine", "hand", "", "🌲", "#2ea043", "holly", "snowflakes", "winterforest", "trees", "scarf", "leaf", "swing", "wood", "trees"), bannerOverlay: "snowfall" }],
+    ["🍬 Peppermint", T("candycane", "rounded", "candy", "🍬", "#ff3b4e", "peppermint", "peppermintbg", "candycanebn", "sweets", "bow", "heart", "jelly", "peppermint", "treats")],
+    ["🧣 Cozy knit", { ...T("hollyberry", "rounded", "", "🧣", "#c1121f", "wreath", "sweater", "cozycabin", "mittens", "mittens", "cushion", "float", "ribbon", "snow"), spotlight: "candle" }],
+    ["💡 Fairy lights", { ...T("tinsel", "script", "glow", "✨", "#ffd23f", "xlights", "xlightsbg", "silentnight", "northstar", "xstar", "star", "glow", "xlights", "sparkle"), bannerOverlay: "fairylights", spotlight: "gold" }],
+    ["🥂 New Year's Eve", { ...T("silverbells", "fancy", "chrome", "🥂", "#e2e8f0", "chrome", "bokeh", "silentnight", "confetti", "cap", "star", "tada", "chrome", "sparkle"), bannerOverlay: "sparkle", spotlight: "gold", intro: "zoom" }],
   ]],
   ["🎃 Halloween", [
     ["🎃 Pumpkin patch", T("candycorn", "spooky", "glow", "🎃", "#ff8a3d", "jackolantern", "fog", "pumpkinpatch", "pumpkins", "pumpkin", "blob", "flicker", "spooky", "pumpkins")],
@@ -191,12 +214,23 @@ export const LOOK_THEME_GROUPS = [
     ["📚 Dark academia", { ...T("coffee", "serif", "shadow", "📚", "#c69c6d", "bronze", "paper", "cocoa", "coffee", "glasses", "arch", "", "wood", ""), bannerOverlay: "vignette", photoHover: "tilt", spotlight: "gold", bioStyle: "scroll" }],
     ["💿 Cyber pop", { ...T("neon", "techno", "neonsign", "💿", "#00f0ff", "electric", "circuit", "cyber", "matrix", "controller", "hex", "glitch", "neon", "gaming"), bannerOverlay: "scanlines", photoHover: "glow", spotlight: "pink" }],
   ]],
+  ["🌟 More themes", [
+    ["🥭 Tropical", { ...T("mango", "groovy", "glow", "🥭", "#ffb347", "sunrise", "sunrays", "beach", "fruit", "glasses", "blob", "wave", "glass", "fruit"), bannerOverlay: "sunset", photoHover: "bounce" }],
+    ["💜 Lavender", { ...T("lavender", "script", "glow", "💜", "#c3a6ff", "amethyst", "clouds", "cottoncandy", "butterflies", "butterfly", "flower", "float", "glass", "butterflies"), bannerOverlay: "dreamy", spotlight: "white" }],
+    ["🍒 Cherry", T("cherry", "rounded", "pop", "🍒", "#ff2e4d", "ruby", "hearts", "berry", "fruit", "strawberry", "heart", "heartbeat", "love", "fruit")],
+    ["🌃 Midnight drive", { ...T("ocean", "techno", "neonsign", "🌃", "#4cc9ff", "midnight", "dusk", "sunsetcity", "rain", "headphones", "squircle", "slide", "neon", ""), bannerOverlay: "scanlines", spotlight: "pink", bannerAnim: "pan" }],
+    ["🏔️ Mountains", { ...T("steel", "wide", "shadow", "🏔️", "#94a3b8", "steel", "fog", "steelblue", "clouds", "cap", "shield", "", "wood", "leaves"), bannerOverlay: "vignette", photoHover: "zoom" }],
+    ["🎨 Artist", { ...T("rainbow", "hand", "", "🎨", "#ff4fa3", "rainbow", "paper", "candy", "confetti", "", "blob", "wave", "sketch", "rainbow"), bioStyle: "note" }],
+    ["🧊 Ice queen", { ...T("ice", "fancy", "ice", "🧊", "#8fd3ff", "frosty", "snowflakes", "winter", "snow", "crown", "diamond", "", "ice", "snow"), bannerOverlay: "sparkle", spotlight: "frost" }],
+    ["🔥 Phoenix", { ...T("fire", "display", "fire", "🔥", "#ff8a3d", "ember", "sunrays", "fire", "fire", "flame", "diamond", "flicker", "fire", "fire"), spotlight: "gold", bannerAnim: "pulse" }],
+  ]],
 ];
 export const LOOK_THEMES = LOOK_THEME_GROUPS.flatMap(([, list]) => list);
 const TRAIL_PARTS = { flowers: ["🌸", "🌼", "🌷"], ghosts: ["👻"], cats: ["🐱", "😺"], paws: ["🐾"], snow: ["❄️", "❅"], money: ["💵", "🪙"], leaves: ["🍃", "🍂"], notes: ["🎵", "🎶"], love: ["💘", "💗"], sparkle: ["✨", "✦", "⋆"], hearts: ["💗", "💖", "💕"], stars: ["⭐", "🌟", "✦"], bubbles: ["🫧", "○"], fire: ["🔥", "✨"], rainbow: ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪"],
   butterflies: ["🦋"], fruit: ["🍓", "🍒", "🍑"], space: ["🚀", "⭐", "🪐"], gaming: ["🎮", "👾", "🕹️"], dino: ["🦖", "🦕"], magic: ["🪄", "✨", "🔮"], food: ["🍕", "🍩", "🍔"], ocean: ["🐠", "🫧", "🐚"],
   bats: ["🦇"], pumpkins: ["🎃"], spiders: ["🕷️", "🕸️"], treats: ["🍬", "🍭", "🍫"], skulls: ["💀", "☠️"],
-  presents: ["🎁"], ornaments: ["🎄", "⭐", "🔴"], cookies: ["🍪", "🥛"], bells: ["🔔", "🎶"], snowmen: ["⛄", "❄️"] };
+  presents: ["🎁"], ornaments: ["🎄", "⭐", "🔴"], cookies: ["🍪", "🥛"], bells: ["🔔", "🎶"], snowmen: ["⛄", "❄️"],
+  stockings: ["🧦", "🎁"], trees: ["🎄", "🌲"], reindeer: ["🦌", "✨"], cocoa: ["☕", "🍪"] };
 
 // Something falling or floating over my profile, and a decoration on my photo
 export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "💗 Hearts"], ["sparkles", "✨ Sparkles"], ["stars", "⭐ Stars"], ["sakura", "🌸 Sakura"],
@@ -207,7 +241,8 @@ export const PROFILE_FX = [["", "None"], ["snow", "❄️ Snow"], ["hearts", "�
   ["galaxy", "🪐 Galaxy"], ["ocean", "🌊 Ocean"], ["sweets", "🍭 Sweets"], ["gaming", "🎮 Gaming"], ["butterflies", "🦋 Butterflies"], ["dino", "🦖 Dinos"], ["space", "🚀 Space"], ["fruit", "🍓 Fruit"], ["magic", "🪄 Magic"], ["lucky", "🍀 Lucky"],
   ["clouds", "☁️ Clouds"], ["sunflowers", "🌻 Sunflowers"], ["cats", "🐱 Cats"], ["dogs", "🐶 Dogs"], ["aliens", "👽 Aliens"], ["ghosts", "👻 Ghosts"], ["crowns", "👑 Royal"], ["lightning", "⚡ Lightning"], ["birds", "🐦 Birds"], ["bees", "🐝 Bees"], ["unicorns", "🦄 Unicorns"], ["frogs", "🐸 Frogs"], ["skulls", "💀 Spooky"], ["eyes", "👀 Eyes"],
   ["spiders", "🕷️ Spiders"], ["treats", "🍬 Trick or treat"], ["witches", "🧙 Witches"], ["zombies", "🧟 Zombies"], ["vampires", "🧛 Vampires"], ["blackcats", "🐈‍⬛ Black cats"], ["candles", "🕯️ Candles"],
-  ["presents", "🎁 Presents"], ["ornaments", "🔴 Ornaments"], ["gingerbreads", "🍪 Gingerbread"], ["santas", "🎅 Santa & reindeer"], ["snowmen", "⛄ Snowmen"], ["bells", "🔔 Jingle bells"], ["northstar", "🌟 Christmas stars"]];
+  ["presents", "🎁 Presents"], ["ornaments", "🔴 Ornaments"], ["gingerbreads", "🍪 Gingerbread"], ["santas", "🎅 Santa & reindeer"], ["snowmen", "⛄ Snowmen"], ["bells", "🔔 Jingle bells"], ["northstar", "🌟 Christmas stars"],
+  ["stockings", "🧦 Stockings"], ["cocoa", "☕ Hot cocoa"], ["trees", "🌲 Pine trees"], ["reindeer", "🦌 Reindeer"], ["mittens", "🧤 Mittens & scarves"]];
 const FX_PARTS = { clouds: ["☁️", "⛅", "☁️"], sunflowers: ["🌻", "🌼", "🌻"], cats: ["🐱", "🐈", "😺", "🐾"], dogs: ["🐶", "🐕", "🦴", "🐾"], aliens: ["👽", "🛸", "👾"], ghosts: ["👻", "👻", "🕯️"], crowns: ["👑", "💎", "✨"], lightning: ["⚡", "⚡", "🌩️"], birds: ["🐦", "🕊️", "🪶"], bees: ["🐝", "🌼", "🍯"], unicorns: ["🦄", "🌈", "✨"], frogs: ["🐸", "\U0001fab7", "🌿"], skulls: ["💀", "☠️", "🖤"], eyes: ["👀", "👁️", "👀"], snow: ["❄️", "❅", "❆"], hearts: ["💗", "💖", "💕", "❤️"], sparkles: ["✨", "💫", "⭐"], stars: ["⭐", "🌟", "✦"], sakura: ["🌸", "🌺", "💮"],
   confetti: ["🎉", "🎊", "✨", "🟣", "🟡"], bubbles: ["🫧", "○", "◦"], fire: ["🔥", "✨"], leaves: ["🍂", "🍁", "🍃"], money: ["💸", "💵", "🪙"],
   xmas: ["🎄", "🎁", "⭐", "🔔", "❄️", "🍬"], turtles: ["🐢", "🫧", "🐢", "🌿"], pumpkins: ["🎃", "👻", "🦇", "🕸️"], bats: ["🦇", "🦇", "🌙"], love: ["💌", "💘", "💗", "🌹"], notes: ["🎵", "🎶", "🎧", "🎤"],
@@ -216,7 +251,8 @@ const FX_PARTS = { clouds: ["☁️", "⛅", "☁️"], sunflowers: ["🌻", "�
   galaxy: ["🪐", "🌌", "⭐", "☄️"], ocean: ["🌊", "🐚", "🐬", "🐳"], sweets: ["🍬", "🍭", "🍫", "🧁"], gaming: ["🎮", "🕹️", "👾", "🏆"], butterflies: ["🦋", "🦋", "🌸"],
   dino: ["🦖", "🦕", "🌿"], space: ["🚀", "🛸", "🌍", "⭐"], fruit: ["🍓", "🍒", "🍑", "🍉", "🍋"], magic: ["🪄", "✨", "🔮", "⭐"], lucky: ["🍀", "🌈", "🪙", "⭐"],
   spiders: ["🕷️", "🕸️", "🕷️"], treats: ["🍬", "🍭", "🍫", "🎃"], witches: ["🧙‍♀️", "🧹", "🌙", "🔮"], zombies: ["🧟", "🧠", "🪦"], vampires: ["🧛", "🦇", "🩸", "🌙"], blackcats: ["🐈‍⬛", "🌙", "🐾"], candles: ["🕯️", "✨", "🕯️"],
-  presents: ["🎁", "🎁", "🎀"], ornaments: ["🔴", "🟢", "🟡", "⭐", "🎄"], gingerbreads: ["🍪", "🥛", "🍪"], santas: ["🎅", "🦌", "🛷", "🎁"], snowmen: ["⛄", "☃️", "❄️"], bells: ["🔔", "🎶", "🔔"], northstar: ["🌟", "✨", "⭐"] };
+  presents: ["🎁", "🎁", "🎀"], ornaments: ["🔴", "🟢", "🟡", "⭐", "🎄"], gingerbreads: ["🍪", "🥛", "🍪"], santas: ["🎅", "🦌", "🛷", "🎁"], snowmen: ["⛄", "☃️", "❄️"], bells: ["🔔", "🎶", "🔔"], northstar: ["🌟", "✨", "⭐"],
+  stockings: ["🧦", "🎁", "🧦"], cocoa: ["☕", "🍫", "🍪"], trees: ["🌲", "🎄", "❄️"], reindeer: ["🦌", "🛷", "✨"], mittens: ["🧤", "🧣", "❄️"] };
 const RISING = new Set(["bubbles", "fire", "turtles", "fish", "charts", "ocean", "space", "candles"]);
 export const AVATAR_DECOS = [["", "None", ""], ["crown", "Crown", "👑"], ["halo", "Halo", "😇"], ["horns", "Horns", "😈"], ["cat", "Cat ears", "🐱"], ["headphones", "Headphones", "🎧"],
   ["flowers", "Flowers", "🌸"], ["bow", "Bow", "🎀"], ["flame", "Flame", "🔥"], ["star", "Star", "⭐"], ["cap", "Party hat", "🥳"],
@@ -226,7 +262,8 @@ export const AVATAR_DECOS = [["", "None", ""], ["crown", "Crown", "👑"], ["hal
   ["tophat", "Top hat", "🎩"], ["wand", "Magic wand", "🪄"], ["clover", "Clover", "🍀"], ["rainbow", "Rainbow", "🌈"], ["butterfly", "Butterfly", "🦋"],
   ["strawberry", "Strawberry", "🍓"], ["controller", "Controller", "🎮"], ["rocket", "Rocket", "🚀"], ["gem", "Gem", "💎"], ["frog", "Frog", "🐸"],
   ["ghost", "Ghost", "👻"], ["bat", "Bat", "🦇"], ["spider", "Spider", "🕷️"], ["skull", "Skull", "💀"], ["witch", "Witch", "🧙‍♀️"], ["vampire", "Vampire", "🧛"], ["candle", "Candle", "🕯️"], ["blackcat", "Black cat", "🐈‍⬛"],
-  ["elf", "Elf", "🧝"], ["snowman", "Snowman", "⛄"], ["xmastree", "Tree", "🎄"], ["bell", "Bell", "🔔"], ["cookie", "Cookie", "🍪"], ["mittens", "Mittens", "🧤"], ["scarf", "Scarf", "🧣"], ["xstar", "Star on top", "🌟"]];
+  ["elf", "Elf", "🧝"], ["snowman", "Snowman", "⛄"], ["xmastree", "Tree", "🎄"], ["bell", "Bell", "🔔"], ["cookie", "Cookie", "🍪"], ["mittens", "Mittens", "🧤"], ["scarf", "Scarf", "🧣"], ["xstar", "Star on top", "🌟"],
+  ["stocking", "Stocking", "🧦"], ["sled", "Sled", "🛷"]];
 const NAME_EMOJIS = ["✨", "💖", "🔥", "👑", "🦋", "🌸", "⭐", "🌙", "💎", "🎀", "🍓", "🐾", "🎧", "⚡", "🌈", "💫"];
 const ACCENTS = ["#ff4fa3", "#ff4757", "#ff8a3d", "#ffd23f", "#2ee6a6", "#19d3c5", "#4cc9ff", "#3d7bff", "#9b5cff", "#d6a4ff"];
 
