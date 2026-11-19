@@ -270,6 +270,8 @@ async function handleAuth(req, res, url, { port }) {
     const { errors, clean } = validateSignup(regBody);
     // Old enough (14 — the age for agreeing on your own in Bulgaria and many EU countries) and agreeing to the terms
     if (regBody.ageOk !== true || regBody.terms !== true) errors.terms = "Please agree to the Terms of Service and the Privacy Policy.";
+    // No temporary / disposable email addresses (bots use them by the dozen)
+    if (!errors.email) { const bad = await require("./disposable").checkEmail(clean.email); if (bad) errors.email = require("./disposable").MESSAGES[bad]; }
     if (Object.keys(errors).length) {
       sendJSON(res, 400, { errors });
       return true;
@@ -376,6 +378,7 @@ async function handleAuth(req, res, url, { port }) {
     const email = String(body.email || "").trim().toLowerCase();
     if (!EMAIL_RE.test(email) || email.length > 254) throw httpError(400, "That email address doesn’t look right.");
     if (email === String(me.email || "").toLowerCase()) throw httpError(400, "That’s already your email.");
+    { const bad = await require("./disposable").checkEmail(email); if (bad) throw httpError(400, require("./disposable").MESSAGES[bad]); }
     if (db.users.some((u) => u.id !== me.id && String(u.email || "").toLowerCase() === email)) throw httpError(400, "There’s already an account with this email.");
     // Accounts made with Google may not have a password; everyone else confirms with theirs
     if (me.passwordHash && !verifyPassword(String(body.password || ""), me.passwordHash)) throw httpError(401, "Your password isn’t right.");
