@@ -2625,6 +2625,30 @@ async function handleSocial(req, res, url, me) {
     return true;
   }
 
+  // A hashtag's page: GET /api/tags/:tag?type=all|video|short|post&sort=top|new&offset=
+  // Every public post, video and short with that #hashtag in its text or title
+  if (m === "GET" && a === "tags" && b && parts.length === 2) {
+    let tag = "";
+    try { tag = decodeURIComponent(b); } catch {}
+    tag = tag.replace(/^#/, "").toLowerCase();
+    if (!/^[\p{L}\p{N}_]{1,50}$/u.test(tag)) throw httpError(400, "That isn’t a hashtag.");
+    const re = new RegExp(`(^|[^\\p{L}\\p{N}_&])#${tag}(?![\\p{L}\\p{N}_])`, "iu");
+    const kindOf = (p) => (p.type === "short" ? "short" : p.type === "video" ? "video" : "post");
+    const all = db.posts.filter((p) => p.visibility === "public" && canView(p, me) && !blockedBetween(findUser(p.userId), me) && re.test(`${p.text || ""} ${p.title || ""}`));
+    const counts = { all: all.length, video: 0, short: 0, post: 0 };
+    for (const p of all) counts[kindOf(p)]++;
+    const type = ["video", "short", "post"].includes(url.searchParams.get("type")) ? url.searchParams.get("type") : "all";
+    const sort = url.searchParams.get("sort") === "new" ? "new" : "top";
+    const now = Date.now();
+    const score = (p) => ((p.likes?.length || 0) * 3 + (p.commentCount || 0) * 4 + (p.reposts?.length || 0) * 5 + (p.views || 0) * 0.5 + 1) / (1 + (now - Date.parse(p.createdAt)) / (7 * 864e5));
+    const list = all.filter((p) => type === "all" || kindOf(p) === type)
+      .sort(sort === "new" ? (x, y) => y.createdAt.localeCompare(x.createdAt) : (x, y) => score(y) - score(x));
+    const offset = Math.max(0, Math.min(10000, Number(url.searchParams.get("offset")) || 0));
+    const page = list.slice(offset, offset + 30);
+    sendJSON(res, 200, { tag, counts, type, sort, posts: page.map((p) => postView(p, me)), more: offset + page.length < list.length });
+    return true;
+  }
+
   // Search: GET /api/search?q=
   if (m === "GET" && a === "search" && parts.length === 1) {
     const q = clean(url.searchParams.get("q")).toLowerCase().replace(/^@/, "");

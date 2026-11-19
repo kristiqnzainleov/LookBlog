@@ -1,4 +1,5 @@
 // Writing posts from the top of the feed: a quick post, a short, or a video.
+import { highlightTags } from "./hashtag-input.js";
 import { h, icon, avatar, toast, modal } from "../ui.js";
 import { api } from "../api.js";
 import { state, emit } from "../state.js";
@@ -163,6 +164,7 @@ function postForm() {
   const picker = createPicker({ accept: "both", max: 4, onChange: update, onError: showErr });
   const cnt = counter(text, LIMIT.post);
   const fit = autoGrow(text);
+  highlightTags(text);
   attachMentions(text);
   const cat = categoryPicker();
   const poll = pollBuilder(() => update());
@@ -314,6 +316,7 @@ function createForm(kind, close, { replyTo = null, series = null, season: startS
   const cnt = counter(text, LIMIT[kind]);
   autoGrow(text);
   attachMentions(text);
+  highlightTags(text);
 
   const hint = {
     post: "Write something and add up to 4 photos or one video.",

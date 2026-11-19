@@ -33,6 +33,7 @@ import { peoplePage } from "./pages/people.js";
 import { editorPage } from "./pages/editor.js";
 import { livePage } from "./pages/live.js";
 import { analyticsPage } from "./pages/analytics.js";
+import { tagPage } from "./pages/tag.js";
 import { followButton } from "./pages/profile.js";
 
 route(/^\/feed$/, feedPage);
@@ -74,6 +75,7 @@ route(/^\/live\/([\w-]+)$/, livePage);
 route(/^\/event\/([\w-]+)$/, eventPage);
 route(/^\/analytics$/, analyticsPage);
 route(/^\/people$/, peoplePage);
+route(/^\/tag\/([^/]+)$/, tagPage);
 
 /* ---------- Unread messages badge ---------- */
 // Chats I just read here: online, the next answer can come from a server that hasn't heard about the read yet,

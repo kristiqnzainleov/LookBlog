@@ -102,7 +102,7 @@ function pinMarks(p, tile) {
   tile.append(mark);
   if (p.mine) tile.append(pinButton(p, { cls: "tile-pin-btn", onChange: (on) => { mark.hidden = !on; } }));
 }
-function shortTile(p, { inPlace = false } = {}) {
+export function shortTile(p, { inPlace = false } = {}) {
   const m = p.media[0];
   const tile = h("a", { class: "short-tile", href: `/shorts?id=${encodeURIComponent(p.id)}` },
     m.poster ? h("img", { src: m.poster, alt: "", loading: "lazy", "data-thumb-for": p.id }) : h("video", { src: m.url, muted: true, preload: "metadata" }),

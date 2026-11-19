@@ -63,7 +63,7 @@ const TYPES = {
 // Pages of the app (all served by app.html, which shows the right one)
 const APP_PAGES = [
   /^\/feed$/, /^\/shorts$/, /^\/videos$/, /^\/search$/, /^\/post\/[\w-]+$/, /^\/watch\/[\w-]+$/, /^\/u\/[^/]+$/,
-  /^\/playlist\/[\w-]+$/, /^\/messages(\/[\w-]+)?$/, /^\/groups$/, /^\/invite\/[\w-]+$/, /^\/events$/, /^\/cinema$/, /^\/music$/, /^\/history$/, /^\/settings$/, /^\/leaderboard$/, /^\/editor$/, /^\/live\/[\w-]+$/, /^\/album\/[\w-]+$/, /^\/event\/[\w-]+$/, /^\/verified$/, /^\/analytics$/, /^\/people$/, /^\/admin$/, /^\/story\/[\w-]+$/, /^\/highlight\/[\w-]+$/,
+  /^\/playlist\/[\w-]+$/, /^\/messages(\/[\w-]+)?$/, /^\/groups$/, /^\/invite\/[\w-]+$/, /^\/events$/, /^\/cinema$/, /^\/music$/, /^\/history$/, /^\/settings$/, /^\/leaderboard$/, /^\/tag\/[^/]+$/, /^\/editor$/, /^\/live\/[\w-]+$/, /^\/album\/[\w-]+$/, /^\/event\/[\w-]+$/, /^\/verified$/, /^\/analytics$/, /^\/people$/, /^\/admin$/, /^\/story\/[\w-]+$/, /^\/highlight\/[\w-]+$/,
 ];
 
 function redirect(res, to) {

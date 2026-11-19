@@ -8304,3 +8304,37 @@ html.win-back .app-overlay:not(.win-out) .app-modal, html.win-back .create-pop:n
 .pf-spot[data-c="candle"] { --sc: rgba(255, 160, 60, 0.32); }
 .pf-spot[data-c="frost"] { --sc: rgba(160, 220, 255, 0.3); }
 @media (prefers-reduced-motion: reduce) { .profile-avatar[data-ring="peppermint"]::after, .view[data-pbg="xmasaurora"]::before, .profile-banner.empty[data-bfx="auroranight"], .av-deco[data-deco="sled"] b { animation: none; } }
+
+/* #hashtags: pink and glowing, they open the hashtag's page */
+a.hashtag { color: var(--pink); font-weight: 600; text-decoration: none; text-shadow: 0 0 10px rgba(255, 79, 163, 0.45); transition: text-shadow 0.15s, color 0.15s; }
+a.hashtag:hover, a.hashtag:focus-visible { color: #ff7ab9; text-shadow: 0 0 14px rgba(255, 79, 163, 0.8); text-decoration: underline; text-underline-offset: 3px; }
+.msg.mine .bubble a.hashtag { color: var(--ink); font-weight: 800; text-shadow: none; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+.reel-caption a.hashtag { text-shadow: 0 0 10px rgba(255, 79, 163, 0.7), 0 1px 3px rgba(0, 0, 0, 0.7); }
+
+/* The hashtag page */
+.ht-head { padding: 8px 0 14px; }
+.ht-title { font-family: var(--display); font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.05; word-break: break-word; margin: 0; }
+.ht-hash { color: var(--pink); text-shadow: 0 0 22px rgba(255, 79, 163, 0.6); margin-right: 2px; }
+.ht-sub { margin: 6px 0 14px; }
+.ht-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.ht-tabs .tab { display: inline-flex; align-items: center; gap: 6px; }
+.ht-tabs .tab:disabled { opacity: 0.4; cursor: default; }
+.ht-count { font-size: 0.75em; padding: 1px 7px; border-radius: 999px; background: rgba(255, 79, 163, 0.16); color: var(--pink); }
+.ht-sorts { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; background: var(--card-2); }
+.ht-sort { border: none; background: none; color: var(--muted); font: inherit; font-weight: 700; font-size: 0.86rem; padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.ht-sort.on { background: var(--pink); color: var(--ink); }
+.ht-section { margin: 10px 0 26px; }
+.ht-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.ht-section-head h2 { font-family: var(--display); font-size: 1.3rem; margin: 0; }
+.ht-results .feed { max-width: 640px; }
+.ht-more { display: block; margin: 18px auto; }
+
+/* Writing: #hashtags glow pink in the box as you type */
+.tag-hl { position: relative; width: 100%; min-width: 0; flex: 1 1 auto; }
+.tag-hl > .tag-hl-input { position: relative; z-index: 1; display: block; color: transparent !important; -webkit-text-fill-color: transparent; caret-color: var(--tag-ink); background: transparent !important; }
+.tag-hl > .tag-hl-input::placeholder { -webkit-text-fill-color: #6f6a65; }
+.tag-hl > .tag-hl-input::selection { background: rgba(255, 79, 163, 0.3); }
+.tag-hl-back { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; color: var(--tag-ink); }
+.tag-hl-back mark { background: none; color: var(--pink); text-shadow: 0 0 10px rgba(255, 79, 163, 0.55); }
+.ht-bar .tabs { margin-top: 0; max-width: 100%; overflow-x: auto; }
+@media (max-width: 600px) { .ht-tabs .tab { padding: 8px 11px; font-size: 0.9rem; } .ht-tabs { gap: 2px; } .ht-count { padding: 1px 5px; } }

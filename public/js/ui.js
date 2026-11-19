@@ -146,7 +146,38 @@ export function richText(text, mentions = []) {
   }
   frag.append(text.slice(last));
   linkify(frag);
+  tagify(frag);
   return frag;
+}
+
+// #hashtags light up pink and open the hashtag's page (everything posted with it)
+export const TAG_RE = /(^|[^\p{L}\p{N}_&/#])#([\p{L}\p{N}_]*\p{L}[\p{L}\p{N}_]*)/gu;
+function tagify(root) {
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walk.nextNode()) if (!walk.currentNode.parentNode?.closest?.("a")) nodes.push(walk.currentNode);
+  for (const n of nodes) {
+    const text = n.nodeValue;
+    if (!text.includes("#")) continue;
+    TAG_RE.lastIndex = 0;
+    const f = document.createDocumentFragment();
+    let last = 0, m, hit = false;
+    while ((m = TAG_RE.exec(text))) {
+      const tag = m[2].slice(0, 50);
+      const start = m.index + m[1].length;
+      f.append(text.slice(last, start));
+      const a = document.createElement("a");
+      a.className = "hashtag";
+      a.href = `/tag/${encodeURIComponent(tag.toLowerCase())}`;
+      a.textContent = "#" + tag;
+      f.append(a);
+      last = start + 1 + tag.length;
+      hit = true;
+    }
+    if (!hit) continue;
+    f.append(text.slice(last));
+    n.replaceWith(f);
+  }
 }
 
 // Web addresses in text become links (they open in a new tab)
