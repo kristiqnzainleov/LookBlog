@@ -8338,3 +8338,11 @@ a.hashtag:hover, a.hashtag:focus-visible { color: #ff7ab9; text-shadow: 0 0 14px
 .tag-hl-back mark { background: none; color: var(--pink); text-shadow: 0 0 10px rgba(255, 79, 163, 0.55); }
 .ht-bar .tabs { margin-top: 0; max-width: 100%; overflow-x: auto; }
 @media (max-width: 600px) { .ht-tabs .tab { padding: 8px 11px; font-size: 0.9rem; } .ht-tabs { gap: 2px; } .ht-count { padding: 1px 5px; } }
+
+/* Pointing at a name or photo: the small profile card */
+.mini-profile.mp-hover { width: min(340px, calc(100vw - 16px)) !important; }
+.mini-profile.mp-hover .mp-btns { flex-wrap: wrap; }
+.mini-profile.mp-hover .mp-banner { height: 64px; }
+.mini-profile.mp-hover .mp-av .avatar { width: 64px !important; height: 64px !important; font-size: 1.6rem; }
+.mini-profile.mp-hover .mp-bio { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mini-profile.mp-hover .mp-av { margin-top: -34px; border-width: 4px; }

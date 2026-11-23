@@ -4,6 +4,7 @@ import { api } from "./api.js";
 import { state, on } from "./state.js";
 import { connect } from "./realtime.js";
 import "./components/avatar-peek.js"; // hold a photo to see it big
+import "./components/hover-card.js"; // point at a name or photo: their profile as a small card
 import { route, startRouter, navigate, profileHref, postHref } from "./router.js";
 import { feedPage } from "./pages/feed.js";
 import { shortsPage } from "./pages/shorts.js";
